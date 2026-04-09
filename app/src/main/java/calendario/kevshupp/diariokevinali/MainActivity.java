@@ -20,6 +20,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.database.Cursor;
 import android.text.Html;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -123,6 +124,10 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
     private final List<String> currentAlbumImages = new ArrayList<>();
     private RecyclerView rvAlbumPreview;
     private int currentCropType = -1;
+    private static final int REQUEST_INSTALL_PACKAGES = 200;
+    private long latestDownloadId = -1;
+    private DownloadManager downloadManager;
+    private BroadcastReceiver downloadReceiver;
 
     private FirebaseFirestore db;
     private ListenerRegistration firestoreListener, calendarListener;
@@ -142,6 +147,8 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
 
         setContentView(R.layout.activity_main);
         db = FirebaseFirestore.getInstance();
+        downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+        initUpdateReceiver();
 
         initViews();
         setupRecyclerView();
@@ -161,6 +168,29 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
         checkAndRequestPermissions();
         setupFirebaseMessaging();
         handleWidgetIntent(getIntent());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                downloadReceiver,
+                new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                Context.RECEIVER_NOT_EXPORTED
+            );
+        } else {
+            registerReceiver(
+                downloadReceiver,
+                new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+            );
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(downloadReceiver);
     }
 
     @Override
@@ -193,6 +223,38 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
                     Log.d("FCM", "Suscrito al tema de la pareja");
                 }
             });
+    }
+
+    private void initUpdateReceiver() {
+        downloadReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                if (id != latestDownloadId) return;
+                DownloadManager.Query query = new DownloadManager.Query();
+                query.setFilterById(id);
+                try (Cursor cursor = downloadManager.query(query)) {
+                    if (cursor != null && cursor.moveToFirst()) {
+                        int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
+                        if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                            Uri uri = downloadManager.getUriForDownloadedFile(id);
+                            if (uri != null) {
+                                installDownloadedApk(uri);
+                            }
+                        } else {
+                            Toast.makeText(MainActivity.this, "Error descargando actualización", Toast.LENGTH_LONG).show();
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    private void installDownloadedApk(Uri apkUri) {
+        Intent installIntent = new Intent(Intent.ACTION_VIEW);
+        installIntent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+        installIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(installIntent);
     }
 
     private void checkAndRequestPermissions() {
@@ -1253,9 +1315,28 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
     private void showUpdateDialog(String url) {
         new AlertDialog.Builder(this)
                 .setTitle("Actualización disponible")
-                .setMessage("Una nueva versión está disponible en GitHub.")
-                .setPositiveButton("Descargar", (d, w) -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))))
+                .setMessage("Una nueva versión está disponible en GitHub. ¿Deseas descargarla?")
+                .setPositiveButton("Descargar", (d, w) -> downloadGitHubRelease(url))
                 .setNegativeButton("Cancelar", null)
                 .show();
+    }
+
+    private void downloadGitHubRelease(String url) {
+        if (downloadManager == null) {
+            Toast.makeText(this, "Error al iniciar descarga", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+        request.setTitle("Descargando actualización");
+        request.setDescription("Descargando APK desde GitHub Releases");
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        request.setAllowedOverMetered(true);
+        request.setAllowedOverRoaming(true);
+        request.setMimeType("application/vnd.android.package-archive");
+        request.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, "DiarioKevinali_update.apk");
+
+        latestDownloadId = downloadManager.enqueue(request);
+        Toast.makeText(this, "Descarga iniciada. Cuando termine, se abrirá el instalador.", Toast.LENGTH_LONG).show();
     }
 }
