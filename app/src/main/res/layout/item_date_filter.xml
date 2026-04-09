@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="4dp"
+    app:cardCornerRadius="4dp"
+    app:cardElevation="2dp"
+    app:cardBackgroundColor="#F3E5AB"
+    app:strokeColor="#4A2511"
+    app:strokeWidth="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tvFilterDateText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/vt323"
+            android:textColor="#4A2511"
+            android:textSize="20sp"
+            tools:text="Martes, 31 de marzo" />
+
+        <TextView
+            android:id="@+id/tvFilterYearText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/vt323"
+            android:textColor="#8B4513"
+            android:textSize="18sp"
+            tools:text="2026" />
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

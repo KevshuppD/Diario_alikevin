@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="PixelText">
+        <item name="android:fontFamily">@font/vt323</item>
+    </style>
+
+    <style name="Theme.AppCompat.Light.Dialog.Alert.Pixel" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:background">@android:color/transparent</item>
+    </style>
+</resources>

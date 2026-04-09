@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp"
+    android:background="@drawable/bg_parchment_pixel">
+
+    <TextView
+        android:id="@+id/tvFilterTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/vt323"
+        android:text="Viajar en el tiempo"
+        android:textColor="#4A2511"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tvFilterSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/vt323"
+        android:text="Días con cartas escritas:"
+        android:textColor="#8B4513"
+        android:textSize="18sp"
+        android:layout_marginTop="4dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvFilterTitle" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvAvailableDates"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:layout_marginTop="12dp"
+        app:layout_constraintTop_toBottomOf="@id/tvFilterSubtitle"
+        tools:listitem="@android:layout/simple_list_item_1" />
+
+    <Button
+        android:id="@+id/btnClearFilter"
+        style="@style/Widget.Material3.Button.TonalButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:fontFamily="@font/vt323"
+        android:text="Ver Todo"
+        android:textSize="18sp"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#8B4513"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/btnCancelFilter"
+        app:layout_constraintTop_toBottomOf="@id/rvAvailableDates" />
+
+    <Button
+        android:id="@+id/btnCancelFilter"
+        style="@style/Widget.Material3.Button.TonalButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="12dp"
+        android:fontFamily="@font/vt323"
+        android:text="Cerrar"
+        android:textSize="18sp"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#5D2E7A"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/rvAvailableDates" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
