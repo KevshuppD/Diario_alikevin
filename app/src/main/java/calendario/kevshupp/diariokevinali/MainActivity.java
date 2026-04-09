@@ -38,7 +38,12 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.PopupMenu;
+import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -126,8 +131,13 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
     private int currentCropType = -1;
     private static final int REQUEST_INSTALL_PACKAGES = 200;
     private long latestDownloadId = -1;
+    private boolean hasShownDownloadCompleteDialog = false;
     private DownloadManager downloadManager;
     private BroadcastReceiver downloadReceiver;
+    private LinearLayout downloadProgressContainer;
+    private ProgressBar downloadProgressBar;
+    private final Handler updateHandler = new Handler(Looper.getMainLooper());
+    private Runnable updateProgressRunnable;
 
     private FirebaseFirestore db;
     private ListenerRegistration firestoreListener, calendarListener;
@@ -151,13 +161,15 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
         initUpdateReceiver();
 
         initViews();
+        downloadProgressContainer = findViewById(R.id.downloadProgressContainer);
+        downloadProgressBar = findViewById(R.id.downloadProgressBar);
         setupRecyclerView();
         listenMessagesFromFirestore();
         listenUserInfo();
 
         btnSend.setOnClickListener(v -> sendMessage());
         btnExpand.setOnClickListener(v -> showEditDialog(null));
-        btnSettings.setOnClickListener(this::showThemeMenu);
+        btnSettings.setOnClickListener(v -> showSettingsDialog());
         btnProfile.setOnClickListener(v -> showProfileDialog());
         btnFilterDate.setOnClickListener(v -> showDatePicker());
         btnCalendar.setOnClickListener(v -> showCalendarDialog());
@@ -185,6 +197,7 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
                 new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
             );
         }
+        checkDownloadedUpdateStatus();
     }
 
     @Override
@@ -239,15 +252,25 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
                         if (status == DownloadManager.STATUS_SUCCESSFUL) {
                             Uri uri = downloadManager.getUriForDownloadedFile(id);
                             if (uri != null) {
-                                installDownloadedApk(uri);
+                                runOnUiThread(() -> showInstallNotification(uri));
                             }
                         } else {
-                            Toast.makeText(MainActivity.this, "Error descargando actualización", Toast.LENGTH_LONG).show();
+                            runOnUiThread(() -> Toast.makeText(MainActivity.this, "Error descargando actualización", Toast.LENGTH_LONG).show());
                         }
                     }
                 }
             }
         };
+    }
+
+    private void showInstallNotification(Uri apkUri) {
+        new AlertDialog.Builder(this)
+                .setTitle("Descarga completada")
+                .setMessage("La actualización se descargó correctamente. ¿Deseas instalarla ahora?")
+                .setPositiveButton("Instalar", (dialog, which) -> installDownloadedApk(apkUri))
+                .setNegativeButton("Más tarde", (dialog, which) -> Toast.makeText(this, "Puedes instalar la actualización desde el archivo descargado más tarde.", Toast.LENGTH_SHORT).show())
+                .setCancelable(true)
+                .show();
     }
 
     private void installDownloadedApk(Uri apkUri) {
@@ -645,6 +668,86 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
     }
 
     private void deleteMessage(Message msg) { db.collection("messages").document(msg.getMessageId()).delete(); }
+
+    private void showSettingsDialog() {
+        AlertDialog.Builder b = new AlertDialog.Builder(this);
+        View v = LayoutInflater.from(this).inflate(R.layout.dialog_settings, null);
+        b.setView(v);
+
+        final AlertDialog dialog = b.create();
+
+        TextView tvVersion = v.findViewById(R.id.tvAppVersion);
+        tvVersion.setText("Versión actual: " + BuildConfig.VERSION_NAME);
+
+        RadioGroup rgThemes = v.findViewById(R.id.rgThemes);
+        String currentTheme = getSharedPreferences("DiarioPrefs", MODE_PRIVATE).getString("theme", "Pixel Claro");
+        if ("Pixel Claro".equals(currentTheme)) {
+            rgThemes.check(R.id.rbPixelClaro);
+        } else {
+            rgThemes.check(R.id.rbPixelOscuro);
+        }
+
+        rgThemes.setOnCheckedChangeListener((group, checkedId) -> {
+            if (checkedId == R.id.rbPixelClaro) {
+                applyTheme("Pixel Claro");
+            } else if (checkedId == R.id.rbPixelOscuro) {
+                applyTheme("Pixel Oscuro");
+            }
+        });
+
+        v.findViewById(R.id.btnCheckUpdates).setOnClickListener(v1 -> {
+            Toast.makeText(this, "Comprobando actualizaciones...", Toast.LENGTH_SHORT).show();
+            checkUpdatesFromGitHubManual();
+        });
+        
+        v.findViewById(R.id.btnLogout).setOnClickListener(v1 -> {
+            dialog.dismiss();
+            logout();
+        });
+
+        v.findViewById(R.id.btnDismissSettings).setOnClickListener(v1 -> dialog.dismiss());
+
+        dialog.show();
+    }
+
+    private void checkUpdatesFromGitHubManual() {
+        String repoUrl = "https://api.github.com/repos/KevshuppD/Diario_alikevin/releases/latest";
+        new OkHttpClient().newCall(new Request.Builder().url(repoUrl).build()).enqueue(new Callback() {
+            @Override public void onResponse(@NonNull Call c, @NonNull Response r) throws IOException {
+                if (r.isSuccessful() && r.body() != null) {
+                    try {
+                        String body = r.body().string();
+                        JSONObject j = new JSONObject(body);
+                        String latestTag = j.getString("tag_name");
+                        String currentVersion = BuildConfig.VERSION_NAME;
+
+                        if (isNewerVersion(currentVersion, latestTag.replace("v", ""))) {
+                            String url = null;
+                            org.json.JSONArray assets = j.getJSONArray("assets");
+                            for (int i = 0; i < assets.length(); i++) {
+                                JSONObject asset = assets.getJSONObject(i);
+                                if (asset.getString("name").endsWith(".apk")) {
+                                    url = asset.getString("browser_download_url");
+                                    break;
+                                }
+                            }
+                            if (url != null) {
+                                String finalUrl = url;
+                                runOnUiThread(() -> showUpdateDialog(finalUrl));
+                            }
+                        } else {
+                            runOnUiThread(() -> Toast.makeText(MainActivity.this, "La aplicación está actualizada", Toast.LENGTH_SHORT).show());
+                        }
+                    } catch (Exception e) {
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "Error al comprobar actualizaciones", Toast.LENGTH_SHORT).show());
+                    }
+                }
+            }
+            @Override public void onFailure(@NonNull Call c, @NonNull IOException e) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Fallo en la conexión", Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
 
     private void showThemeMenu(View view) {
         PopupMenu p = new PopupMenu(this, view);
@@ -1279,46 +1382,88 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
     }
 
     private void checkUpdatesFromGitHub() {
-        new OkHttpClient().newCall(new Request.Builder().url("https://api.github.com/repos/KevShupp/Diario-KevinAli/releases/latest").build()).enqueue(new Callback() {
+        String repoUrl = "https://api.github.com/repos/KevshuppD/Diario_alikevin/releases/latest";
+        Log.d("GITHUB_UPDATE", "Checking for updates at: " + repoUrl);
+        new OkHttpClient().newCall(new Request.Builder().url(repoUrl).build()).enqueue(new Callback() {
             @Override public void onResponse(@NonNull Call c, @NonNull Response r) throws IOException {
                 if (r.isSuccessful() && r.body() != null) {
                     try {
-                        JSONObject j = new JSONObject(r.body().string());
-                        if (isNewerVersion(calendario.kevshupp.diariokevinali.BuildConfig.VERSION_NAME, j.getString("tag_name").replace("v", ""))) {
-                            String url = j.getJSONArray("assets").getJSONObject(0).getString("browser_download_url");
-                            runOnUiThread(() -> showUpdateDialog(url));
+                        String body = r.body().string();
+                        Log.d("GITHUB_UPDATE", "Response success: " + body);
+                        JSONObject j = new JSONObject(body);
+                        String latestTag = j.getString("tag_name");
+                        String currentVersion = BuildConfig.VERSION_NAME;
+
+                        Log.d("GITHUB_UPDATE", "Comparing: Current[" + currentVersion + "] with Latest[" + latestTag + "]");
+
+                        if (isNewerVersion(currentVersion, latestTag.replace("v", ""))) {
+                            String url = null;
+                            org.json.JSONArray assets = j.getJSONArray("assets");
+                            for (int i = 0; i < assets.length(); i++) {
+                                JSONObject asset = assets.getJSONObject(i);
+                                if (asset.getString("name").endsWith(".apk")) {
+                                    url = asset.getString("browser_download_url");
+                                    break;
+                                }
+                            }
+
+                            if (url != null) {
+                                String finalUrl = url;
+                                runOnUiThread(() -> {
+                                    Log.d("GITHUB_UPDATE", "Showing update dialog for: " + finalUrl);
+                                    showUpdateDialog(finalUrl);
+                                });
+                            }
+                        } else {
+                            Log.d("GITHUB_UPDATE", "App is up to date");
                         }
-                    } catch (Exception e) {}
+                    } catch (Exception e) {
+                        Log.e("GITHUB_UPDATE", "Error parsing response", e);
+                    }
+                } else {
+                    Log.e("GITHUB_UPDATE", "Response not successful: " + r.code() + " " + r.message());
                 }
             }
-            @Override public void onFailure(@NonNull Call c, @NonNull IOException e) {}
+            @Override public void onFailure(@NonNull Call c, @NonNull IOException e) {
+                Log.e("GITHUB_UPDATE", "Request failed", e);
+            }
         });
     }
 
     private boolean isNewerVersion(String current, String latest) {
         try {
+            // Eliminar cualquier prefijo 'v' si llegó a pasar por error
+            current = current.replace("v", "");
+            latest = latest.replace("v", "");
+            
             String[] currParts = current.split("\\.");
             String[] lateParts = latest.split("\\.");
             int length = Math.max(currParts.length, lateParts.length);
             for (int i = 0; i < length; i++) {
-                int curr = i < currParts.length ? Integer.parseInt(currParts[i]) : 0;
-                int late = i < lateParts.length ? Integer.parseInt(lateParts[i]) : 0;
+                int curr = i < currParts.length ? Integer.parseInt(currParts[i].replaceAll("[^0-9]", "")) : 0;
+                int late = i < lateParts.length ? Integer.parseInt(lateParts[i].replaceAll("[^0-9]", "")) : 0;
                 if (late > curr) return true;
                 if (curr > late) return false;
             }
         } catch (Exception e) {
+            Log.e("GITHUB_UPDATE", "Error comparing versions", e);
             return !current.equals(latest);
         }
         return false;
     }
 
     private void showUpdateDialog(String url) {
-        new AlertDialog.Builder(this)
-                .setTitle("Actualización disponible")
-                .setMessage("Una nueva versión está disponible en GitHub. ¿Deseas descargarla?")
-                .setPositiveButton("Descargar", (d, w) -> downloadGitHubRelease(url))
-                .setNegativeButton("Cancelar", null)
-                .show();
+        runOnUiThread(() -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("Actualización disponible")
+                    .setMessage("Una nueva versión está disponible en GitHub. ¿Deseas descargarla?")
+                    .setPositiveButton("Descargar", (d, w) -> {
+                        downloadProgressContainer.setVisibility(View.VISIBLE);
+                        downloadGitHubRelease(url);
+                    })
+                    .setNegativeButton("Cancelar", null)
+                    .show();
+        });
     }
 
     private void downloadGitHubRelease(String url) {
@@ -1337,6 +1482,67 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
         request.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, "DiarioKevinali_update.apk");
 
         latestDownloadId = downloadManager.enqueue(request);
-        Toast.makeText(this, "Descarga iniciada. Cuando termine, se abrirá el instalador.", Toast.LENGTH_LONG).show();
+        hasShownDownloadCompleteDialog = false;
+        downloadProgressBar.setProgress(0);
+
+        if (updateProgressRunnable != null) {
+            updateHandler.removeCallbacks(updateProgressRunnable);
+        }
+
+        updateProgressRunnable = new Runnable() {
+            @Override
+            public void run() {
+                DownloadManager.Query q = new DownloadManager.Query();
+                q.setFilterById(latestDownloadId);
+                try (Cursor cursor = downloadManager.query(q)) {
+                    if (cursor != null && cursor.moveToFirst()) {
+                        int bytesDownloaded = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
+                        int bytesTotal = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
+                        
+                        if (bytesTotal > 0) {
+                            int progress = (int) ((bytesDownloaded * 100L) / bytesTotal);
+                            downloadProgressBar.setProgress(progress);
+                        }
+
+                        int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
+                        if (status == DownloadManager.STATUS_SUCCESSFUL || status == DownloadManager.STATUS_FAILED) {
+                            downloadProgressContainer.setVisibility(View.GONE);
+                            updateProgressRunnable = null;
+                            
+                            if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                                checkDownloadedUpdateStatus();
+                            } else {
+                                Toast.makeText(MainActivity.this, "La descarga falló", Toast.LENGTH_SHORT).show();
+                            }
+                            return; // Detener actualizaciones
+                        }
+                    }
+                }
+                updateHandler.postDelayed(this, 500);
+            }
+        };
+        updateHandler.post(updateProgressRunnable);
+    }
+
+    private void checkDownloadedUpdateStatus() {
+        if (latestDownloadId == -1 || hasShownDownloadCompleteDialog || downloadManager == null) return;
+
+        DownloadManager.Query query = new DownloadManager.Query();
+        query.setFilterById(latestDownloadId);
+        try (Cursor cursor = downloadManager.query(query)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
+                if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                    Uri uri = downloadManager.getUriForDownloadedFile(latestDownloadId);
+                    if (uri != null) {
+                        showInstallNotification(uri);
+                        hasShownDownloadCompleteDialog = true;
+                    }
+                } else if (status == DownloadManager.STATUS_FAILED) {
+                    Toast.makeText(this, "Error descargando actualización", Toast.LENGTH_LONG).show();
+                    hasShownDownloadCompleteDialog = true;
+                }
+            }
+        }
     }
 }
