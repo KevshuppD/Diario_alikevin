@@ -56,10 +56,12 @@ public class MessageEditor {
         b.setView(v);
         
         EditText et = v.findViewById(R.id.etDialogMessage);
+        EditText etTitle = v.findViewById(R.id.etDialogTitle);
         ImageView ivSelectedImage = v.findViewById(R.id.ivSelectedImage);
-        LinearLayout imageContainer = v.findViewById(R.id.imageContainer);
+        View imageContainer = v.findViewById(R.id.imageContainer);
 
         if (edit != null) {
+            if (edit.getTitle() != null) etTitle.setText(edit.getTitle());
             et.setText(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N ? 
                 Html.fromHtml(edit.getContent(), Html.FROM_HTML_MODE_COMPACT) : 
                 Html.fromHtml(edit.getContent()));
@@ -87,11 +89,15 @@ public class MessageEditor {
         AlertDialog dialog = b.create();
         v.findViewById(R.id.btnCancel).setOnClickListener(v1 -> dialog.dismiss());
         v.findViewById(R.id.btnSave).setOnClickListener(v1 -> {
-            String html = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N ? 
-                Html.toHtml(et.getText(), Html.TO_HTML_PARAGRAPH_LINES_CONSECUTIVE) : 
-                Html.toHtml(et.getText());
+            String html = "";
+            if (et.getText() != null) {
+                html = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N ? 
+                    Html.toHtml(et.getText(), Html.TO_HTML_PARAGRAPH_LINES_CONSECUTIVE) : 
+                    Html.toHtml(et.getText());
+            }
             
             Message m = edit != null ? edit : new Message(UUID.randomUUID().toString(), coupleId, userId, userName, userImageUri, html, new ArrayList<>(), System.currentTimeMillis(), false);
+            if (etTitle.getText() != null) m.setTitle(etTitle.getText().toString());
             if (edit != null) m.setContent(html);
             m.setImageUrl(currentSelectedImageUrl);
             callback.onSave(m);
@@ -104,6 +110,13 @@ public class MessageEditor {
         AlertDialog.Builder b = new AlertDialog.Builder(context);
         View v = LayoutInflater.from(context).inflate(R.layout.dialog_message_detail, null);
         b.setView(v);
+        
+        TextView tvTitle = v.findViewById(R.id.tvMessageDetailTitle);
+        String title = msg.getTitle();
+        if (title == null || title.trim().isEmpty()) {
+            title = "Título de la Carta";
+        }
+        tvTitle.setText(title);
         
         TextView tv = v.findViewById(R.id.tvMessageDetailContent);
         tv.setText(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N ? 

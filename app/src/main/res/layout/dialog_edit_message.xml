@@ -16,8 +16,25 @@
         android:textColor="#4A2511"
         android:textSize="28sp"
         android:textStyle="bold"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <EditText
+        android:id="@+id/etDialogTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        android:fontFamily="@font/vt323"
+        android:hint="Título de la carta..."
+        android:gravity="center"
+        android:textColor="#4A2511"
+        android:textColorHint="#8B4513"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:inputType="textCapSentences"
+        android:layout_marginTop="4dp"
         app:layout_constraintTop_toTopOf="parent" />
 
     <LinearLayout
@@ -27,7 +44,7 @@
         android:orientation="horizontal"
         android:gravity="center"
         android:layout_marginTop="12dp"
-        app:layout_constraintTop_toBottomOf="@id/tvDialogTitle">
+        app:layout_constraintTop_toBottomOf="@id/etDialogTitle">
 
         <Button
             android:id="@+id/btnBold"

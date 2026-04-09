@@ -326,11 +326,23 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
         });
         rv.setLayoutManager(new LinearLayoutManager(this)); rv.setAdapter(adp);
         final long[] sTs = {normalizeDate(System.currentTimeMillis())};
+        TextView tvDays = view.findViewById(R.id.tvDaysWithEvents);
         if (calendarListener != null) calendarListener.remove();
         calendarListener = db.collection("calendar").whereEqualTo("partnerId", currentCoupleId).addSnapshotListener((snaps, e) -> {
             if (snaps != null) { 
                 all.clear(); 
-                for (QueryDocumentSnapshot d : snaps) all.add(d.toObject(CalendarEvent.class));
+                Set<String> uniqueDays = new HashSet<>();
+                for (QueryDocumentSnapshot d : snaps) {
+                    CalendarEvent ev = d.toObject(CalendarEvent.class);
+                    all.add(ev);
+                    Calendar c = Calendar.getInstance();
+                    c.setTimeInMillis(ev.getDate());
+                    uniqueDays.add(c.get(Calendar.DAY_OF_MONTH) + "/" + (c.get(Calendar.MONTH) + 1));
+                }
+                if (tvDays != null) {
+                    if (all.isEmpty()) tvDays.setText("No hay planes agendados");
+                    else tvDays.setText("Planes en: " + String.join(", ", uniqueDays));
+                }
                 updateDayList(all, day, sTs[0], adp);
                 updateWidget();
             }

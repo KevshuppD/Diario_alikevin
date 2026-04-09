@@ -94,18 +94,36 @@ public class AlbumManager {
         b.setView(v);
         RecyclerView rv = v.findViewById(R.id.rvAlbumPhotos);
         List<Message> moments = new ArrayList<>();
-        MessageAdapter adp = new MessageAdapter(moments, userId, null);
+        MessageAdapter adp = new MessageAdapter(moments, userId, new MessageAdapter.OnMessageClickListener() {
+            @Override public void onMessageClick(View v, Message msg) { showAlbumDetail(msg); }
+            @Override public void onMessageLongClick(View v, Message msg) {
+                if (msg.getAuthorId().equals(userId)) {
+                    android.widget.PopupMenu p = new android.widget.PopupMenu(context, v);
+                    p.getMenu().add("Eliminar");
+                    p.setOnMenuItemClickListener(item -> {
+                        db.collection("messages").document(msg.getMessageId()).delete();
+                        return true;
+                    });
+                    p.show();
+                }
+            }
+            @Override public void onDeleteClick(Message m) { db.collection("messages").document(m.getMessageId()).delete(); }
+        });
         rv.setLayoutManager(new LinearLayoutManager(context));
         rv.setAdapter(adp);
 
-        db.collection("messages").whereEqualTo("partnerId", coupleId).orderBy("timestamp", Query.Direction.DESCENDING).get().addOnSuccessListener(shots -> {
-            moments.clear();
-            for (QueryDocumentSnapshot doc : shots) {
-                Message m = doc.toObject(Message.class);
-                if (m.getContent() != null && m.getContent().startsWith("[ALBUM]")) moments.add(m);
-            }
-            adp.notifyDataSetChanged();
-        });
+        db.collection("messages").whereEqualTo("partnerId", coupleId)
+            .addSnapshotListener((shots, error) -> {
+                if (shots != null) {
+                    moments.clear();
+                    for (QueryDocumentSnapshot doc : shots) {
+                        Message m = doc.toObject(Message.class);
+                        if (m.getContent() != null && m.getContent().startsWith("[ALBUM]")) moments.add(m);
+                    }
+                    moments.sort((m1, m2) -> Long.compare(m2.getTimestamp(), m1.getTimestamp()));
+                    adp.notifyDataSetChanged();
+                }
+            });
 
         final AlertDialog d = b.create();
         v.findViewById(R.id.btnCloseAlbum).setOnClickListener(v1 -> d.dismiss());

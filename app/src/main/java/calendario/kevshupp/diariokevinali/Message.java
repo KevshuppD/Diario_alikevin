@@ -13,6 +13,7 @@ public class Message {
     private String authorName;
     private String authorImageUrl;
     private String content;
+    private String title;
     private List<String> imageUrls;
     private long timestamp;
     private boolean liked;
@@ -35,6 +36,9 @@ public class Message {
         this.liked = liked;
         this.type = (imageUrls != null && imageUrls.size() > 1) ? TYPE_ALBUM : TYPE_MESSAGE;
     }
+
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
 
     public String getMessageId() { return messageId; }
     public void setMessageId(String messageId) { this.messageId = messageId; }
