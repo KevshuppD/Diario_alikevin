@@ -3,6 +3,7 @@
 **/build
 /local.properties
 **/local.properties
+app/src/main/assets/service-account.json
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
