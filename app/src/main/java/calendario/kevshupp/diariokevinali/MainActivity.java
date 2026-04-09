@@ -1,19 +1,24 @@
 package calendario.kevshupp.diariokevinali;
 
+import android.Manifest;
 import android.app.DownloadManager;
 import android.app.TimePickerDialog;
+import android.appwidget.AppWidgetManager;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Parcel;
 import android.provider.MediaStore;
 import android.text.Html;
 import android.text.Spannable;
@@ -24,13 +29,16 @@ import android.text.style.StyleSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.ArrayAdapter;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.CalendarView;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.PopupMenu;
+import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -40,7 +48,10 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -49,44 +60,47 @@ import com.cloudinary.android.MediaManager;
 import com.cloudinary.android.callback.ErrorInfo;
 import com.cloudinary.android.callback.UploadCallback;
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.datepicker.CalendarConstraints;
-import com.google.android.material.datepicker.MaterialDatePicker;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-import com.google.firebase.firestore.SetOptions;
+import com.google.firebase.messaging.FirebaseMessaging;
+
+import androidx.core.content.res.ResourcesCompat;
 import com.yalantis.ucrop.UCrop;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity implements MessageAdapter.OnMessageClickListener {
 
     private static final int PICK_IMAGE_PROFILE = 1;
     private static final int PICK_IMAGE_CARTA = 3;
+    private static final int PICK_IMAGE_ALBUM = 4;
+    private static final int PERMISSION_REQUEST_CODE = 100;
 
     private ConstraintLayout mainLayout;
     private MaterialToolbar toolbar;
@@ -96,39 +110,37 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
     private MessageAdapter adapter;
     private List<Message> messages;
     private EditText etMessage;
-    private ImageButton btnSend, btnExpand;
-    private ImageButton btnProfile;
-    private ImageButton btnSettings;
-    private ImageButton btnFilterDate;
-    private ImageButton btnCalendar;
+    private ImageButton btnSend, btnExpand, btnProfile, btnSettings, btnFilterDate, btnCalendar, btnAlbum;
     private View inputContainer;
 
     private String currentUserImageUri = null;
     private final String currentCoupleId = "vínculo_único_123";
-    private String currentUserId;
-    private String currentUserName;
+    private String currentUserId, currentUserName;
 
-    private ImageView ivDialogProfile;
-    private ImageView ivSelectedCartaImage;
+    private ImageView ivDialogProfile, ivSelectedCartaImage;
     private View imageCartaContainer;
     private String currentSelectedCartaImageUrl = null;
+    private final List<String> currentAlbumImages = new ArrayList<>();
+    private RecyclerView rvAlbumPreview;
+    private int currentCropType = -1;
 
     private FirebaseFirestore db;
-    private ListenerRegistration firestoreListener;
-    private ListenerRegistration calendarListener;
+    private ListenerRegistration firestoreListener, calendarListener;
     private Calendar selectedFilterDate = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
         SharedPreferences prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE);
         currentUserId = prefs.getString("userId", "user_kevin_01");
         currentUserName = prefs.getString("userName", "Kevin");
         currentUserImageUri = prefs.getString("userImage", null);
 
-        setContentView(R.layout.activity_main);
+        if (!prefs.contains("coupleId")) {
+            prefs.edit().putString("coupleId", currentCoupleId).apply();
+        }
 
+        setContentView(R.layout.activity_main);
         db = FirebaseFirestore.getInstance();
 
         initViews();
@@ -141,130 +153,79 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
         btnSettings.setOnClickListener(this::showThemeMenu);
         btnProfile.setOnClickListener(v -> showProfileDialog());
         btnFilterDate.setOnClickListener(v -> showDatePicker());
-        btnFilterDate.setOnLongClickListener(v -> {
-            selectedFilterDate = null;
-            listenMessagesFromFirestore();
-            Toast.makeText(this, "Mostrando todas las cartas", Toast.LENGTH_SHORT).show();
-            return true;
-        });
         btnCalendar.setOnClickListener(v -> showCalendarDialog());
+        btnAlbum.setOnClickListener(v -> showAlbumOptionsDialog());
         
         applyTheme("Pixel Claro");
         checkUpdatesFromGitHub();
+        checkAndRequestPermissions();
+        setupFirebaseMessaging();
+        handleWidgetIntent(getIntent());
     }
 
-    private void checkUpdatesFromGitHub() {
-        // Replace with your actual GitHub username and repository name
-        String url = "https://api.github.com/repos/KevShupp/Diario-KevinAli/releases/latest";
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleWidgetIntent(intent);
+    }
 
-        OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder().url(url).build();
-
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                if (response.isSuccessful() && response.body() != null) {
-                    try {
-                        String body = response.body().string();
-                        JSONObject json = new JSONObject(body);
-                        String latestVersion = json.getString("tag_name").replace("v", "");
-                        
-                        JSONArray assets = json.getJSONArray("assets");
-                        if (assets.length() > 0) {
-                            String downloadUrl = assets.getJSONObject(0).getString("browser_download_url");
-
-                            String currentVersion = BuildConfig.VERSION_NAME;
-                            if (isNewerVersion(currentVersion, latestVersion)) {
-                                runOnUiThread(() -> showUpdateDialog(downloadUrl));
-                            }
-                        }
-                    } catch (Exception e) {
-                        Log.e("UPDATE", "Error parsing GitHub JSON", e);
-                    }
-                }
-            }
-
-            @Override
-            public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                Log.e("UPDATE", "GitHub API call failed");
+    private void handleWidgetIntent(Intent intent) {
+        if (intent == null) return;
+        String messageId = intent.getStringExtra("openMessageId");
+        if (messageId == null || messageId.isEmpty()) return;
+        db.collection("messages").document(messageId).get().addOnSuccessListener(doc -> {
+            if (!doc.exists()) return;
+            Message m = doc.toObject(Message.class);
+            if (m == null) return;
+            if (m.getContent() != null && m.getContent().startsWith("[ALBUM]")) {
+                showAlbumDetail(m);
+            } else {
+                showMessageDetail(m);
             }
         });
     }
 
-    private boolean isNewerVersion(String current, String latest) {
-        try {
-            String[] curParts = current.split("\\.");
-            String[] latParts = latest.split("\\.");
-            int length = Math.max(curParts.length, latParts.length);
-            for (int i = 0; i < length; i++) {
-                int cur = i < curParts.length ? Integer.parseInt(curParts[i]) : 0;
-                int lat = i < latParts.length ? Integer.parseInt(latParts[i]) : 0;
-                if (lat > cur) return true;
-                if (cur > lat) return false;
-            }
-            return false;
-        } catch (Exception e) {
-            return !current.equals(latest);
-        }
-    }
-
-    private void showUpdateDialog(String downloadUrl) {
-        new AlertDialog.Builder(this)
-                .setTitle("¡Nueva versión disponible!")
-                .setMessage("He subido mejoras al diario. ¿Quieres actualizar?")
-                .setPositiveButton("Actualizar", (d, w) -> startDownload(downloadUrl))
-                .setNegativeButton("Luego", null)
-                .show();
-    }
-
-    private void startDownload(String url) {
-        Toast.makeText(this, "Descargando actualización...", Toast.LENGTH_LONG).show();
-        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-        request.setTitle("Actualizando Diario");
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "diario_update.apk");
-
-        DownloadManager manager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
-        if (manager != null) {
-            manager.enqueue(request);
-            registerReceiver(new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context context, Intent intent) {
-                    installApk();
-                    unregisterReceiver(this);
+    private void setupFirebaseMessaging() {
+        FirebaseMessaging.getInstance().subscribeToTopic("diario_" + currentCoupleId)
+            .addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    Log.d("FCM", "Suscrito al tema de la pareja");
                 }
-            }, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_NOT_EXPORTED);
+            });
+    }
+
+    private void checkAndRequestPermissions() {
+        List<String> permissions = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_MEDIA_IMAGES);
+            }
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+            }
+        }
+
+        if (!permissions.isEmpty()) {
+            ActivityCompat.requestPermissions(this, permissions.toArray(new String[0]), PERMISSION_REQUEST_CODE);
         }
     }
 
-    private void installApk() {
-        File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "diario_update.apk");
-        if (file.exists()) {
-            Uri contentUri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setDataAndType(contentUri, "application/vnd.android.package-archive");
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "Algunos permisos son necesarios para el funcionamiento del Diario", Toast.LENGTH_LONG).show();
+                    break;
+                }
+            }
         }
-    }
-
-    private void listenUserInfo() {
-        db.collection("users").document(currentUserId)
-                .addSnapshotListener((value, error) -> {
-                    if (value != null && value.exists()) {
-                        currentUserImageUri = value.getString("profileImageUrl");
-                        SharedPreferences.Editor editor = getSharedPreferences("DiarioPrefs", MODE_PRIVATE).edit();
-                        editor.putString("userImage", currentUserImageUri);
-                        editor.apply();
-                        
-                        if (ivDialogProfile != null) {
-                            Glide.with(MainActivity.this)
-                                    .load(currentUserImageUri)
-                                    .placeholder(R.drawable.ic_profile_pixel)
-                                    .into(ivDialogProfile);
-                        }
-                    }
-                });
     }
 
     private void initViews() {
@@ -280,6 +241,7 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
         btnSettings = findViewById(R.id.btnSettings);
         btnFilterDate = findViewById(R.id.btnFilterDate);
         btnCalendar = findViewById(R.id.btnCalendar);
+        btnAlbum = findViewById(R.id.btnAlbum);
         inputContainer = findViewById(R.id.inputContainer);
     }
 
@@ -292,43 +254,44 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
 
     private void listenMessagesFromFirestore() {
         if (firestoreListener != null) firestoreListener.remove();
-
-        Query query = db.collection("messages")
-                .whereEqualTo("partnerId", currentCoupleId)
-                .orderBy("timestamp", Query.Direction.DESCENDING);
-
+        Query query = db.collection("messages").whereEqualTo("partnerId", currentCoupleId).orderBy("timestamp", Query.Direction.DESCENDING);
         if (selectedFilterDate != null) {
-            Calendar startOfDay = (Calendar) selectedFilterDate.clone();
-            startOfDay.set(Calendar.HOUR_OF_DAY, 0);
-            startOfDay.set(Calendar.MINUTE, 0);
-            startOfDay.set(Calendar.SECOND, 0);
-            startOfDay.set(Calendar.MILLISECOND, 0);
-
-            Calendar endOfDay = (Calendar) selectedFilterDate.clone();
-            endOfDay.set(Calendar.HOUR_OF_DAY, 23);
-            endOfDay.set(Calendar.MINUTE, 59);
-            endOfDay.set(Calendar.SECOND, 59);
-            endOfDay.set(Calendar.MILLISECOND, 999);
-
-            query = query.whereGreaterThanOrEqualTo("timestamp", startOfDay.getTimeInMillis())
-                         .whereLessThanOrEqualTo("timestamp", endOfDay.getTimeInMillis());
+            Calendar s = (Calendar) selectedFilterDate.clone();
+            s.set(Calendar.HOUR_OF_DAY, 0); s.set(Calendar.MINUTE, 0); s.set(Calendar.SECOND, 0);
+            Calendar e = (Calendar) selectedFilterDate.clone();
+            e.set(Calendar.HOUR_OF_DAY, 23); e.set(Calendar.MINUTE, 59); e.set(Calendar.SECOND, 59);
+            query = query.whereGreaterThanOrEqualTo("timestamp", s.getTimeInMillis()).whereLessThanOrEqualTo("timestamp", e.getTimeInMillis());
         }
-
         firestoreListener = query.addSnapshotListener((value, error) -> {
-            if (error != null) {
-                Log.e("FIRESTORE_ERROR", "Error al cargar: " + error.getMessage());
-                return;
-            }
             if (value != null) {
-                List<Message> loadedMessages = new ArrayList<>();
-                for (QueryDocumentSnapshot doc : value) {
-                    Message msg = doc.toObject(Message.class);
-                    loadedMessages.add(msg);
-                }
                 messages.clear();
-                messages.addAll(loadedMessages);
+                for (QueryDocumentSnapshot doc : value) {
+                    Message m = doc.toObject(Message.class);
+                    // FILTRO: Solo agregar al feed principal si NO es un momento del álbum
+                    if (m.getContent() == null || !m.getContent().startsWith("[ALBUM]")) {
+                        messages.add(m);
+                    }
+                }
                 adapter.notifyDataSetChanged();
-                if (!messages.isEmpty()) rvMessages.scrollToPosition(0);
+
+                // Actualizar widget cuando hay nuevos mensajes
+                Intent wIntent = new Intent(this, LastMessageWidget.class);
+                wIntent.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
+                int[] wIds = AppWidgetManager.getInstance(getApplication()).getAppWidgetIds(new ComponentName(getApplication(), LastMessageWidget.class));
+                wIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, wIds);
+                sendBroadcast(wIntent);
+            }
+        });
+    }
+
+    private void listenUserInfo() {
+        db.collection("users").document(currentUserId).addSnapshotListener((snapshot, e) -> {
+            if (snapshot != null && snapshot.exists()) {
+                String url = snapshot.getString("profileImageUrl");
+                if (url != null && !url.equals(currentUserImageUri)) {
+                    currentUserImageUri = url;
+                    getSharedPreferences("DiarioPrefs", MODE_PRIVATE).edit().putString("userImage", url).apply();
+                }
             }
         });
     }
@@ -337,51 +300,24 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_date_filter, null);
         builder.setView(view);
-
-        RecyclerView rvAvailableDates = view.findViewById(R.id.rvAvailableDates);
-        Button btnClear = view.findViewById(R.id.btnClearFilter);
-        Button btnClose = view.findViewById(R.id.btnCancelFilter);
-
-        List<Long> availableTimestamps = new ArrayList<>();
-        DateFilterAdapter filterAdapter = new DateFilterAdapter(availableTimestamps, timestamp -> {
-            selectedFilterDate = Calendar.getInstance();
-            selectedFilterDate.setTimeInMillis(timestamp);
+        RecyclerView rv = view.findViewById(R.id.rvAvailableDates);
+        List<Long> tsList = new ArrayList<>();
+        DateFilterAdapter adp = new DateFilterAdapter(tsList, ts -> {
+            selectedFilterDate = Calendar.getInstance(); selectedFilterDate.setTimeInMillis(ts);
             listenMessagesFromFirestore();
-            Toast.makeText(this, "Filtrando por fecha", Toast.LENGTH_SHORT).show();
         });
-
-        rvAvailableDates.setLayoutManager(new LinearLayoutManager(this));
-        rvAvailableDates.setAdapter(filterAdapter);
-
+        rv.setLayoutManager(new LinearLayoutManager(this)); rv.setAdapter(adp);
+        db.collection("messages").whereEqualTo("partnerId", currentCoupleId).get().addOnSuccessListener(shots -> {
+            Set<Long> seen = new HashSet<>(); tsList.clear();
+            for (QueryDocumentSnapshot d : shots) {
+                Long ts = d.getLong("timestamp");
+                if (ts != null) { long n = normalizeDate(ts); if (seen.add(n)) tsList.add(n); }
+            }
+            tsList.sort((t1, t2) -> t2.compareTo(t1)); adp.notifyDataSetChanged();
+        });
         AlertDialog dialog = builder.create();
-
-        db.collection("messages")
-                .whereEqualTo("partnerId", currentCoupleId)
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    Set<Long> seen = new HashSet<>();
-                    availableTimestamps.clear();
-                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                        Long ts = doc.getLong("timestamp");
-                        if (ts != null) {
-                            long normalized = normalizeDate(ts);
-                            if (!seen.contains(normalized)) {
-                                availableTimestamps.add(normalized);
-                                seen.add(normalized);
-                            }
-                        }
-                    }
-                    availableTimestamps.sort((a, b) -> b.compareTo(a));
-                    filterAdapter.notifyDataSetChanged();
-                });
-
-        btnClear.setOnClickListener(v -> {
-            selectedFilterDate = null;
-            listenMessagesFromFirestore();
-            dialog.dismiss();
-        });
-
-        btnClose.setOnClickListener(v -> dialog.dismiss());
+        view.findViewById(R.id.btnClearFilter).setOnClickListener(v -> { selectedFilterDate = null; listenMessagesFromFirestore(); dialog.dismiss(); });
+        view.findViewById(R.id.btnCancelFilter).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
     }
 
@@ -389,645 +325,937 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_calendar, null);
         builder.setView(view);
-
-        CalendarView calendarView = view.findViewById(R.id.calendarView);
-        RecyclerView rvEvents = view.findViewById(R.id.rvEvents);
-        TextView tvSelectedDate = view.findViewById(R.id.tvSelectedDate);
-        TextView tvDaysWithEvents = view.findViewById(R.id.tvDaysWithEvents);
-        Button btnAddEvent = view.findViewById(R.id.btnAddEvent);
-        Button btnClose = view.findViewById(R.id.btnCalendarClose);
-
-        List<CalendarEvent> allEvents = new ArrayList<>();
-        List<CalendarEvent> dayEvents = new ArrayList<>();
-        CalendarAdapter calendarAdapter = new CalendarAdapter(dayEvents, currentUserId, new CalendarAdapter.OnEventActionListener() {
-            @Override
-            public void onDeleteEvent(CalendarEvent event) {
-                db.collection("calendar").document(event.getEventId()).delete()
-                        .addOnSuccessListener(aVoid -> Toast.makeText(MainActivity.this, "Cita eliminada", Toast.LENGTH_SHORT).show());
-            }
-
-            @Override
-            public void onEditEvent(CalendarEvent event) {
-                showAddEventDialog(normalizeDate(event.getDate()), event);
-            }
+        CalendarView cv = view.findViewById(R.id.calendarView);
+        RecyclerView rv = view.findViewById(R.id.rvEvents);
+        List<CalendarEvent> all = new ArrayList<>(), day = new ArrayList<>();
+        CalendarAdapter adp = new CalendarAdapter(day, currentUserId, new CalendarAdapter.OnEventActionListener() {
+            @Override public void onDeleteEvent(CalendarEvent e) { db.collection("calendar").document(e.getEventId()).delete(); }
+            @Override public void onEditEvent(CalendarEvent e) { showAddEventDialog(normalizeDate(e.getDate()), e); }
         });
-        rvEvents.setLayoutManager(new LinearLayoutManager(this));
-        rvEvents.setAdapter(calendarAdapter);
-
-        final long[] currentSelectedTimestamp = {normalizeDate(System.currentTimeMillis())};
-
+        rv.setLayoutManager(new LinearLayoutManager(this)); rv.setAdapter(adp);
+        final long[] sTs = {normalizeDate(System.currentTimeMillis())};
         if (calendarListener != null) calendarListener.remove();
-        calendarListener = db.collection("calendar")
-                .whereEqualTo("partnerId", currentCoupleId)
-                .addSnapshotListener((snapshots, e) -> {
-                    if (e != null) return;
-                    allEvents.clear();
-                    Set<String> datesWithEvents = new HashSet<>();
-                    SimpleDateFormat sdf = new SimpleDateFormat("dd/MM", Locale.getDefault());
-                    
-                    if (snapshots != null) {
-                        for (QueryDocumentSnapshot doc : snapshots) {
-                            CalendarEvent event = doc.toObject(CalendarEvent.class);
-                            allEvents.add(event);
-                            datesWithEvents.add(sdf.format(new Date(event.getDate())));
-                        }
-                    }
-                    
-                    if (datesWithEvents.isEmpty()) {
-                        tvDaysWithEvents.setText("No hay planes agendados");
-                    } else {
-                        tvDaysWithEvents.setText("Planes en: " + TextUtils.join(", ", datesWithEvents));
-                    }
+        TextView tvDaysWithEvents = view.findViewById(R.id.tvDaysWithEvents);
+        calendarListener = db.collection("calendar").whereEqualTo("partnerId", currentCoupleId).addSnapshotListener((snaps, e) -> {
+            if (snaps != null) { 
+                all.clear(); 
+                int totalEvents = snaps.size();
+                if (totalEvents == 0) {
+                    tvDaysWithEvents.setText("No hay planes agendados aún.");
+                } else {
+                    tvDaysWithEvents.setText("Tienes " + totalEvents + " plan(es) en total.");
+                }
+                
+                for (QueryDocumentSnapshot d : snaps) {
+                    CalendarEvent ev = d.toObject(CalendarEvent.class);
+                    all.add(ev);
+                }
+                updateDayList(all, day, sTs[0], adp);
 
-                    updateDayList(allEvents, dayEvents, currentSelectedTimestamp[0], calendarAdapter);
-                });
-
-        calendarView.setOnDateChangeListener((view1, year, month, dayOfMonth) -> {
-            Calendar cal = Calendar.getInstance();
-            cal.set(year, month, dayOfMonth);
-            currentSelectedTimestamp[0] = normalizeDate(cal.getTimeInMillis());
-            
-            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
-            tvSelectedDate.setText("Eventos para " + sdf.format(new Date(currentSelectedTimestamp[0])) + ":");
-            updateDayList(allEvents, dayEvents, currentSelectedTimestamp[0], calendarAdapter);
+                Intent wIntent = new Intent(this, LastMessageWidget.class);
+                wIntent.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
+                int[] wIds = AppWidgetManager.getInstance(getApplication())
+                    .getAppWidgetIds(new ComponentName(getApplication(), LastMessageWidget.class));
+                wIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, wIds);
+                sendBroadcast(wIntent);
+            } else if (e != null) {
+                Log.e("Firestore", "Error escuchando calendario", e);
+                tvDaysWithEvents.setText("Error al cargar planes.");
+            }
         });
-
-        btnAddEvent.setOnClickListener(v -> {
-            showAddEventDialog(currentSelectedTimestamp[0], null);
+        cv.setOnDateChangeListener((v, y, m, d) -> {
+            Calendar cal = Calendar.getInstance(); cal.set(y, m, d); sTs[0] = normalizeDate(cal.getTimeInMillis());
+            updateDayList(all, day, sTs[0], adp);
         });
-
-        AlertDialog dialog = builder.create();
-        btnClose.setOnClickListener(v -> dialog.dismiss());
-        dialog.setOnDismissListener(d -> {
-            if (calendarListener != null) calendarListener.remove();
-        });
+        final AlertDialog dialog = builder.create();
+        view.findViewById(R.id.btnAddEvent).setOnClickListener(v -> showAddEventDialog(sTs[0], null));
+        view.findViewById(R.id.btnCalendarClose).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
     }
 
-    private void updateDayList(List<CalendarEvent> source, List<CalendarEvent> target, long selectedDate, CalendarAdapter adapter) {
-        target.clear();
-        Calendar selCal = Calendar.getInstance();
-        selCal.setTimeInMillis(selectedDate);
+    private void updateDayList(List<CalendarEvent> all, List<CalendarEvent> day, long ts, CalendarAdapter adp) {
+        day.clear(); 
+        Calendar targetCal = Calendar.getInstance();
+        targetCal.setTimeInMillis(ts);
         
-        for (CalendarEvent e : source) {
-            Calendar eventCal = Calendar.getInstance();
-            eventCal.setTimeInMillis(e.getDate());
-            long eventDateNormalized = normalizeDate(e.getDate());
+        for (CalendarEvent e : all) {
+            long eventTs = e.getDate();
+            String recurrence = e.getRecurrence() != null ? e.getRecurrence() : "NONE";
             
-            boolean isSameDay = eventDateNormalized == selectedDate;
-            boolean isWeekly = "WEEKLY".equals(e.getRecurrence()) && 
-                               eventCal.get(Calendar.DAY_OF_WEEK) == selCal.get(Calendar.DAY_OF_WEEK) &&
-                               eventDateNormalized <= selectedDate;
-            boolean isYearly = "YEARLY".equals(e.getRecurrence()) && 
-                               eventCal.get(Calendar.DAY_OF_MONTH) == selCal.get(Calendar.DAY_OF_MONTH) && 
-                               eventCal.get(Calendar.MONTH) == selCal.get(Calendar.MONTH) &&
-                               eventDateNormalized <= selectedDate;
-
-            if (isSameDay || isWeekly || isYearly) {
-                target.add(e);
+            if (isSameDay(eventTs, ts)) {
+                day.add(e);
+            } else if (recurrence.equals("DAILY")) {
+                if (eventTs <= ts) day.add(e);
+            } else if (recurrence.equals("WEEKLY")) {
+                if (eventTs <= ts && isSameDayOfWeek(eventTs, ts)) day.add(e);
+            } else if (recurrence.equals("MONTHLY")) {
+                if (eventTs <= ts && isSameDayOfMonth(eventTs, ts)) day.add(e);
+            } else if (recurrence.equals("YEARLY")) {
+                if (eventTs <= ts && isSameDayAndMonth(eventTs, ts)) day.add(e);
             }
         }
-        target.sort((e1, e2) -> {
-            Calendar c1 = Calendar.getInstance(); c1.setTimeInMillis(e1.getDate());
-            Calendar c2 = Calendar.getInstance(); c2.setTimeInMillis(e2.getDate());
-            int time1 = c1.get(Calendar.HOUR_OF_DAY) * 60 + c1.get(Calendar.MINUTE);
-            int time2 = c2.get(Calendar.HOUR_OF_DAY) * 60 + c2.get(Calendar.MINUTE);
-            return Integer.compare(time1, time2);
-        });
-        adapter.notifyDataSetChanged();
+        day.sort((e1, e2) -> Long.compare(e1.getDate(), e2.getDate())); 
+        adp.notifyDataSetChanged();
     }
 
-    private long normalizeDate(long timestamp) {
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(timestamp);
-        cal.set(Calendar.HOUR_OF_DAY, 0);
-        cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-        return cal.getTimeInMillis();
+    private boolean isSameDay(long ts1, long ts2) {
+        return normalizeDate(ts1) == normalizeDate(ts2);
     }
 
-    private void showAddEventDialog(long normalizedDayTimestamp, @Nullable CalendarEvent existingEvent) {
+    private boolean isSameDayOfWeek(long ts1, long ts2) {
+        Calendar c1 = Calendar.getInstance(); c1.setTimeInMillis(ts1);
+        Calendar c2 = Calendar.getInstance(); c2.setTimeInMillis(ts2);
+        return c1.get(Calendar.DAY_OF_WEEK) == c2.get(Calendar.DAY_OF_WEEK);
+    }
+
+    private boolean isSameDayOfMonth(long ts1, long ts2) {
+        Calendar c1 = Calendar.getInstance(); c1.setTimeInMillis(ts1);
+        Calendar c2 = Calendar.getInstance(); c2.setTimeInMillis(ts2);
+        return c1.get(Calendar.DAY_OF_MONTH) == c2.get(Calendar.DAY_OF_MONTH);
+    }
+
+    private boolean isSameDayAndMonth(long ts1, long ts2) {
+        Calendar c1 = Calendar.getInstance(); c1.setTimeInMillis(ts1);
+        Calendar c2 = Calendar.getInstance(); c2.setTimeInMillis(ts2);
+        return c1.get(Calendar.DAY_OF_MONTH) == c2.get(Calendar.DAY_OF_MONTH) &&
+               c1.get(Calendar.MONTH) == c2.get(Calendar.MONTH);
+    }
+
+    private long normalizeDate(long ts) {
+        Calendar c = Calendar.getInstance(); c.setTimeInMillis(ts);
+        c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
+    }
+
+    private void showAddEventDialog(long ts, @Nullable CalendarEvent edit) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_add_calendar_event, null);
-        builder.setView(view);
-        
-        EditText etTitle = view.findViewById(R.id.etEventTitle);
-        EditText etDesc = view.findViewById(R.id.etEventDescription);
-        Button btnPickTime = view.findViewById(R.id.btnPickTime);
-        Spinner spinner = view.findViewById(R.id.spinnerRecurrence);
+        View v = LayoutInflater.from(this).inflate(R.layout.dialog_add_calendar_event, null);
+        builder.setView(v);
+        EditText et = v.findViewById(R.id.etEventTitle);
+        EditText etDesc = v.findViewById(R.id.etEventDescription);
+        Button btn = v.findViewById(R.id.btnPickTime);
+        Spinner spinner = v.findViewById(R.id.spinnerRecurrence);
 
-        String[] options = {"Sin repetir", "Semanal", "Anual"};
-        ArrayAdapter<String> recurAdapter = new ArrayAdapter<>(this, R.layout.spinner_item_pixel, options);
-        recurAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(recurAdapter);
+        String[] options = {"No repetir", "Diario", "Semanal", "Mensual", "Anual"};
+        String[] values = {"NONE", "DAILY", "WEEKLY", "MONTHLY", "YEARLY"};
 
-        final Calendar timeCal = Calendar.getInstance();
-        if (existingEvent != null) {
-            etTitle.setText(existingEvent.getTitle());
-            etDesc.setText(existingEvent.getDescription());
-            timeCal.setTimeInMillis(existingEvent.getDate());
-            btnPickTime.setText(String.format(Locale.getDefault(), "%02d:%02d", timeCal.get(Calendar.HOUR_OF_DAY), timeCal.get(Calendar.MINUTE)));
-            if ("WEEKLY".equals(existingEvent.getRecurrence())) spinner.setSelection(1);
-            else if ("YEARLY".equals(existingEvent.getRecurrence())) spinner.setSelection(2);
-        } else {
-            timeCal.setTimeInMillis(normalizedDayTimestamp);
-            timeCal.set(Calendar.HOUR_OF_DAY, 12);
-            timeCal.set(Calendar.MINUTE, 0);
+        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, options) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                if (view instanceof TextView) {
+                    ((TextView) view).setTextColor(Color.parseColor("#4A2511"));
+                    ((TextView) view).setTypeface(ResourcesCompat.getFont(MainActivity.this, R.font.vt323));
+                }
+                return view;
+            }
+
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                View view = super.getDropDownView(position, convertView, parent);
+                if (view instanceof TextView) {
+                    ((TextView) view).setTextColor(Color.parseColor("#4A2511"));
+                    ((TextView) view).setTypeface(ResourcesCompat.getFont(MainActivity.this, R.font.vt323));
+                }
+                return view;
+            }
+        };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+
+        final Calendar time = Calendar.getInstance();
+        if (edit != null) { 
+            et.setText(edit.getTitle());
+            if (etDesc != null) etDesc.setText(edit.getDescription());
+            time.setTimeInMillis(edit.getDate()); 
+            btn.setText(String.format(Locale.getDefault(), "%02d:%02d", time.get(Calendar.HOUR_OF_DAY), time.get(Calendar.MINUTE)));
+            
+            for (int i = 0; i < values.length; i++) {
+                if (values[i].equals(edit.getRecurrence())) {
+                    spinner.setSelection(i);
+                    break;
+                }
+            }
+        }
+        else { 
+            time.setTimeInMillis(ts); 
+            time.set(Calendar.HOUR_OF_DAY, 12); 
+            time.set(Calendar.MINUTE, 0); 
+            btn.setText("Seleccionar hora (12:00)");
         }
 
-        btnPickTime.setOnClickListener(v -> {
-            new TimePickerDialog(this, (view1, hourOfDay, minute) -> {
-                timeCal.set(Calendar.HOUR_OF_DAY, hourOfDay);
-                timeCal.set(Calendar.MINUTE, minute);
-                btnPickTime.setText(String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute));
-            }, timeCal.get(Calendar.HOUR_OF_DAY), timeCal.get(Calendar.MINUTE), true).show();
-        });
+        btn.setOnClickListener(v1 -> new TimePickerDialog(this, (v2, h, m) -> {
+            time.set(Calendar.HOUR_OF_DAY, h); time.set(Calendar.MINUTE, m);
+            btn.setText(String.format(Locale.getDefault(), "%02d:%02d", h, m));
+        }, time.get(Calendar.HOUR_OF_DAY), time.get(Calendar.MINUTE), true).show());
 
-        builder.setPositiveButton(existingEvent == null ? "Agendar" : "Guardar", (d, which) -> {
-            String title = etTitle.getText().toString().trim();
-            if (TextUtils.isEmpty(title)) return;
+        // Se crea el diálogo antes de asignar listeners a los botones internos
+        final AlertDialog dialog = builder.create();
 
-            CalendarEvent event = existingEvent != null ? existingEvent : new CalendarEvent();
-            if (existingEvent == null) event.setEventId(UUID.randomUUID().toString());
-            event.setTitle(title);
-            event.setDescription(etDesc.getText().toString().trim());
-            event.setDate(timeCal.getTimeInMillis());
-            event.setAuthorId(currentUserId);
-            event.setAuthorName(currentUserName);
-            event.setPartnerId(currentCoupleId);
+        v.findViewById(R.id.btnCancelEvent).setOnClickListener(v1 -> dialog.dismiss());
+        v.findViewById(R.id.btnSaveEvent).setOnClickListener(v1 -> {
+            String title = et.getText().toString().trim(); if (title.isEmpty()) return;
+            String desc = etDesc != null ? etDesc.getText().toString().trim() : "";
+            String id = edit != null ? edit.getEventId() : UUID.randomUUID().toString();
+            String recurrence = values[spinner.getSelectedItemPosition()];
             
-            String recur = "NONE";
-            if (spinner.getSelectedItemPosition() == 1) recur = "WEEKLY";
-            else if (spinner.getSelectedItemPosition() == 2) recur = "YEARLY";
-            event.setRecurrence(recur);
-
-            db.collection("calendar").document(event.getEventId()).set(event)
-                    .addOnSuccessListener(aVoid -> Toast.makeText(this, existingEvent == null ? "Cita agendada!" : "Cita actualizada!", Toast.LENGTH_SHORT).show());
+            CalendarEvent ev = new CalendarEvent(id, title, desc, time.getTimeInMillis(), currentUserId, currentCoupleId);
+            ev.setRecurrence(recurrence);
+            
+            db.collection("calendar").document(id).set(ev);
+            Toast.makeText(this, "Evento guardado", Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
         });
-        builder.setNegativeButton("Cancelar", null);
-        builder.show();
+        
+        dialog.show();
     }
 
     private void sendMessage() {
-        String text = etMessage.getText().toString().trim();
-        if (TextUtils.isEmpty(text)) return;
-
-        Message newMessage = new Message();
-        newMessage.setMessageId(UUID.randomUUID().toString());
-        newMessage.setPartnerId(currentCoupleId);
-        newMessage.setAuthorId(currentUserId);
-        newMessage.setAuthorName(currentUserName);
-        newMessage.setAuthorImageUrl(currentUserImageUri);
-        newMessage.setContent(text);
-        newMessage.setTimestamp(System.currentTimeMillis());
-        
-        saveMessageToFirestore(newMessage);
+        String txt = etMessage.getText().toString().trim(); if (txt.isEmpty()) return;
+        Message msg = new Message(UUID.randomUUID().toString(), currentCoupleId, currentUserId, currentUserName, currentUserImageUri, txt, new ArrayList<>(), System.currentTimeMillis(), false);
+        db.collection("messages").document(msg.getMessageId()).set(msg)
+            .addOnSuccessListener(aVoid -> {
+                sendNotificationV1(txt);
+            });
         etMessage.setText("");
     }
 
-    private void saveMessageToFirestore(Message msg) {
-        db.collection("messages").document(msg.getMessageId()).set(msg)
-                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Carta enviada", Toast.LENGTH_SHORT).show())
-                .addOnFailureListener(e -> Toast.makeText(this, "Error al enviar", Toast.LENGTH_SHORT).show());
-    }
-
-    private void deleteMessage(Message msg) {
-        if (msg.getImageUrl() != null) {
-            deleteImageFromCloudinary(msg.getImageUrl());
-        }
-        db.collection("messages").document(msg.getMessageId()).delete()
-                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Carta eliminada", Toast.LENGTH_SHORT).show());
-    }
-
-    private void updateMessageInFirestore(Message msg) {
-        db.collection("messages").document(msg.getMessageId()).set(msg);
-    }
-
-    private void showThemeMenu(View view) {
-        PopupMenu popup = new PopupMenu(this, view);
-        popup.getMenu().add("Pixel Claro");
-        popup.getMenu().add("Pixel Oscuro");
-        popup.getMenu().add("Pixel Monocromático");
-        popup.getMenu().add("Cerrar Sesión");
-
-        popup.setOnMenuItemClickListener(item -> {
-            if (item.getTitle() != null && item.getTitle().equals("Cerrar Sesión")) {
-                logout();
-            } else if (item.getTitle() != null) {
-                applyTheme(item.getTitle().toString());
-            }
-            return true;
-        });
-        popup.show();
-    }
-
-    private void logout() {
-        SharedPreferences.Editor editor = getSharedPreferences("DiarioPrefs", MODE_PRIVATE).edit();
-        editor.clear();
-        editor.apply();
-        startActivity(new Intent(this, LoginActivity.class));
-        finish();
-    }
-
-    private void applyTheme(String themeName) {
-        adapter.setTheme(themeName);
-        switch (themeName) {
-            case "Pixel Oscuro":
-                mainLayout.setBackgroundColor(Color.BLACK);
-                setupToolbar("#1F1F1F", "#00FF41", Color.WHITE);
-                setupInput("#333333", "#00FF41", "#1A1A1A", Color.WHITE);
-                break;
-            case "Pixel Monocromático":
-                // Black and White
-                mainLayout.setBackgroundColor(Color.WHITE);
-                setupToolbar("#000000", "#333333", Color.WHITE);
-                setupInput("#FFFFFF", "#000000", "#FFFFFF", Color.BLACK);
-                break;
-            case "Pixel Claro":
-            default:
-                mainLayout.setBackgroundColor(Color.parseColor("#F5F5F5"));
-                setupToolbar("#5D2E7A", "#2D1444", Color.WHITE);
-                setupInput("#91465F", "#4D1A30", "#F3E5AB", Color.parseColor("#4A2511"));
-                break;
-        }
-    }
-
-    private void setupToolbar(String bgColor, String borderColor, int textColor) {
-        GradientDrawable gd = new GradientDrawable();
-        gd.setColor(Color.parseColor(bgColor));
-        gd.setStroke(6, Color.parseColor(borderColor));
-        toolbar.setBackground(gd);
-        if (tvToolbarTitle != null) tvToolbarTitle.setTextColor(textColor);
-        if (ivToolbarHeart != null) ivToolbarHeart.setColorFilter(textColor);
-        btnSettings.setColorFilter(textColor);
-        btnProfile.setColorFilter(textColor);
-        btnCalendar.setColorFilter(textColor);
-        btnFilterDate.setColorFilter(textColor);
-    }
-
-    private void setupInput(String containerColor, String borderColor, String editBgColor, int editTextColor) {
-        GradientDrawable containerGd = new GradientDrawable();
-        containerGd.setColor(Color.parseColor(containerColor));
-        containerGd.setStroke(6, Color.parseColor(borderColor));
-        inputContainer.setBackground(containerGd);
-
-        GradientDrawable editGd = new GradientDrawable();
-        editGd.setColor(Color.parseColor(editBgColor));
-        editGd.setStroke(4, Color.parseColor(borderColor));
-        etMessage.setBackground(editGd);
-        etMessage.setTextColor(editTextColor);
-        etMessage.setHintTextColor(editTextColor);
-
-        btnSend.setColorFilter(editTextColor);
-        btnExpand.setColorFilter(editTextColor);
-    }
-
-    private void showProfileDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_profile, null);
-        builder.setView(view);
-
-        ivDialogProfile = view.findViewById(R.id.ivProfileImage);
-        TextView tvName = view.findViewById(R.id.tvCurrentUserName);
-        TextView tvTogether = view.findViewById(R.id.tvTogetherTime);
-        Button btnSave = view.findViewById(R.id.btnSaveProfile);
-        Button btnLogout = view.findViewById(R.id.btnLogoutProfile);
-
-        String nameText = "Usuario: " + currentUserName;
-        tvName.setText(nameText);
-
-        // Counter: 19 de enero del 2022
-        Calendar start = Calendar.getInstance();
-        start.set(2022, Calendar.JANUARY, 19, 0, 0, 0);
-        Calendar now = Calendar.getInstance();
-        
-        long diff = now.getTimeInMillis() - start.getTimeInMillis();
-        long totalDays = TimeUnit.MILLISECONDS.toDays(diff);
-        
-        long years = totalDays / 365;
-        long remainingAfterYears = totalDays % 365;
-        long months = remainingAfterYears / 30;
-        long finalDays = remainingAfterYears % 30;
-
-        String togetherText = "Juntos por: " + years + " años, " + months + " meses y " + finalDays + " días";
-        tvTogether.setText(togetherText);
-
-        if (currentUserImageUri != null) {
-            Glide.with(this).load(currentUserImageUri).into(ivDialogProfile);
-        }
-
-        ivDialogProfile.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-            startActivityForResult(intent, PICK_IMAGE_PROFILE);
-        });
-
-        AlertDialog dialog = builder.create();
-        btnSave.setOnClickListener(v -> dialog.dismiss());
-        btnLogout.setOnClickListener(v -> {
-            dialog.dismiss();
-            logout();
-        });
-
-        dialog.show();
-    }
-
-    private void startCrop(Uri sourceUri) {
-        String destinationFileName = "cropped_image_" + System.currentTimeMillis() + ".jpg";
-        UCrop.Options options = new UCrop.Options();
-        options.setCompressionQuality(80);
-        
-        int purple = Color.parseColor("#5D2E7A");
-        int darkPurple = Color.parseColor("#2D1444");
-        
-        options.setToolbarColor(purple);
-        options.setStatusBarColor(darkPurple);
-        options.setActiveControlsWidgetColor(purple);
-        options.setToolbarWidgetColor(Color.WHITE);
-        options.setToolbarTitle("Recortar Foto");
-        
-        options.setHideBottomControls(true);
-        options.setFreeStyleCropEnabled(false);
-        options.setShowCropGrid(true);
-        options.setCircleDimmedLayer(true);
-        
-        UCrop.of(sourceUri, Uri.fromFile(new File(getCacheDir(), destinationFileName)))
-                .withAspectRatio(1, 1)
-                .withMaxResultSize(1000, 1000)
-                .withOptions(options)
-                .start(this);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK && data != null) {
-            if (requestCode == PICK_IMAGE_PROFILE) {
-                Uri imageUri = data.getData();
-                if (imageUri != null) startCrop(imageUri);
-            } else if (requestCode == UCrop.REQUEST_CROP) {
-                final Uri resultUri = UCrop.getOutput(data);
-                if (resultUri != null) {
-                    Log.d("UCROP", "Recorte exitoso: " + resultUri.toString());
-                    uploadToCloudinary(resultUri, true);
-                }
-            } else if (requestCode == PICK_IMAGE_CARTA) {
-                Uri imageUri = data.getData();
-                if (imageUri != null) uploadToCloudinary(imageUri, false);
-            }
-        } else if (resultCode == UCrop.RESULT_ERROR) {
-            final Throwable cropError = UCrop.getError(data);
-            if (cropError != null) {
-                Log.e("UCROP_ERROR", "Error en recorte: " + cropError.getMessage());
-                Toast.makeText(this, "Error al recortar imagen", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void uploadToCloudinary(Uri fileUri, boolean isProfile) {
-        MediaManager.get().upload(fileUri).callback(new UploadCallback() {
-            @Override
-            public void onStart(String requestId) {}
-            @Override
-            public void onProgress(String requestId, long bytes, long totalBytes) {}
-            @Override
-            public void onSuccess(String requestId, Map resultData) {
-                String imageUrl = (String) resultData.get("secure_url");
-                if (isProfile) {
-                    updateProfileImage(imageUrl);
-                } else {
-                    currentSelectedCartaImageUrl = imageUrl;
-                    if (ivSelectedCartaImage != null) {
-                        imageCartaContainer.setVisibility(View.VISIBLE);
-                        Glide.with(MainActivity.this).load(imageUrl).into(ivSelectedCartaImage);
-                    }
-                }
-            }
-            @Override
-            public void onError(String requestId, ErrorInfo error) {
-                Toast.makeText(MainActivity.this, "Error al subir imagen", Toast.LENGTH_SHORT).show();
-            }
-            @Override
-            public void onReschedule(String requestId, ErrorInfo error) {}
-        }).dispatch();
-    }
-
-    private void updateProfileImage(String imageUrl) {
-        if (currentUserImageUri != null && !currentUserImageUri.equals(imageUrl)) {
-            deleteImageFromCloudinary(currentUserImageUri);
-        }
-
-        currentUserImageUri = imageUrl;
-        Map<String, Object> data = new HashMap<>();
-        data.put("profileImageUrl", imageUrl);
-        
-        db.collection("users").document(currentUserId)
-                .set(data, SetOptions.merge())
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "Foto de perfil guardada!", Toast.LENGTH_SHORT).show();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("FIRESTORE", "Error al guardar foto: " + e.getMessage());
-                    Toast.makeText(this, "Error al guardar en base de datos", Toast.LENGTH_SHORT).show();
-                });
-    }
-
-    private String getPublicIdFromUrl(String url) {
-        if (url == null || !url.contains("/") || !url.contains("cloudinary")) return null;
+    private String getAccessToken() {
         try {
-            String[] parts = url.split("/");
-            String lastPart = parts[parts.length - 1];
-            int dotIndex = lastPart.lastIndexOf('.');
-            if (dotIndex > 0) {
-                return lastPart.substring(0, dotIndex);
-            }
-            return lastPart;
+            InputStream is = getAssets().open("service-account.json");
+            GoogleCredentials credentials = GoogleCredentials.fromStream(is)
+                    .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"));
+            credentials.refreshIfExpired();
+            return credentials.getAccessToken().getTokenValue();
         } catch (Exception e) {
+            Log.e("FCM_V1", "Error obteniendo token: " + e.getMessage());
             return null;
         }
     }
 
-    private void deleteImageFromCloudinary(String url) {
-        final String publicId = getPublicIdFromUrl(url);
-        if (publicId == null) return;
-
+    private void sendNotificationV1(String messageText) {
         new Thread(() -> {
+            String token = getAccessToken();
+            if (token == null) return;
+
             try {
-                Map<String, String> config = new HashMap<>();
-                config.put("cloud_name", "dhaqjw7se");
-                config.put("api_key", "199351452699291");
-                config.put("api_secret", "mU2Dk2JSYPVpjkuYJebvOaiGLyc");
-                com.cloudinary.Cloudinary cloudinary = new com.cloudinary.Cloudinary(config);
-                cloudinary.uploader().destroy(publicId, new HashMap());
-                Log.d("CLOUDINARY", "Imagen eliminada: " + publicId);
+                String projectId = "diario-pareja-a2d35"; 
+                String url = "https://fcm.googleapis.com/v1/projects/" + projectId + "/messages:send";
+
+                OkHttpClient client = new OkHttpClient();
+
+                JSONObject jsonBody = new JSONObject();
+                JSONObject message = new JSONObject();
+                JSONObject notification = new JSONObject();
+                JSONObject data = new JSONObject();
+
+                notification.put("title", "Nuevo mensaje de " + currentUserName);
+                notification.put("body", messageText);
+
+                data.put("authorId", currentUserId);
+                data.put("title", "Nuevo mensaje de " + currentUserName);
+                data.put("body", messageText);
+
+                message.put("topic", "diario_" + currentCoupleId);
+                message.put("notification", notification);
+                message.put("data", data);
+
+                jsonBody.put("message", message);
+
+                RequestBody body = RequestBody.create(
+                        jsonBody.toString(),
+                        MediaType.parse("application/json; charset=utf-8")
+                );
+
+                Request request = new Request.Builder()
+                        .url(url)
+                        .post(body)
+                        .addHeader("Authorization", "Bearer " + token)
+                        .build();
+
+                client.newCall(request).execute();
+                Log.d("FCM_V1", "Notificación v1 enviada!");
+
             } catch (Exception e) {
-                Log.e("CLOUDINARY", "Error eliminando de Cloudinary: " + e.getMessage());
+                Log.e("FCM_V1", "Error en envío: " + e.getMessage());
             }
         }).start();
     }
 
-    private void showViewMessageDialog(Message message) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_view_message, null);
-        builder.setView(view);
+    private void deleteMessage(Message msg) { db.collection("messages").document(msg.getMessageId()).delete(); }
 
-        TextView tvAuthor = view.findViewById(R.id.tvViewAuthor);
-        TextView tvTimestamp = view.findViewById(R.id.tvViewTimestamp);
-        TextView tvContent = view.findViewById(R.id.tvViewContent);
-        ImageView ivImage = view.findViewById(R.id.ivViewImage);
-        Button btnClose = view.findViewById(R.id.btnClose);
+    private void showThemeMenu(View view) {
+        PopupMenu p = new PopupMenu(this, view);
+        p.getMenu().add("Pixel Claro"); p.getMenu().add("Pixel Oscuro"); p.getMenu().add("Cerrar Sesión");
+        p.setOnMenuItemClickListener(item -> {
+            if (item.getTitle().equals("Cerrar Sesión")) logout();
+            else applyTheme(item.getTitle().toString());
+            return true;
+        });
+        p.show();
+    }
 
-        if (tvAuthor != null) tvAuthor.setText("De: " + message.getAuthorName());
-        
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
-        if (tvTimestamp != null) tvTimestamp.setText(sdf.format(new Date(message.getTimestamp())));
-        
-        if (tvContent != null) {
-            if (message.getContent() != null) {
-                tvContent.setText(Html.fromHtml(message.getContent(), Html.FROM_HTML_MODE_COMPACT));
+    private void applyTheme(String theme) {
+        adapter.setTheme(theme);
+
+        int bg = theme.equals("Pixel Oscuro") ? Color.BLACK : Color.parseColor("#F5F5F5");
+        int tb = theme.equals("Pixel Oscuro") ? Color.parseColor("#1F1F1F") : Color.parseColor("#5D2E7A");
+        int inputBg = theme.equals("Pixel Oscuro") ? Color.parseColor("#2A1E2E") : Color.parseColor("#91465F");
+        int inputFieldBg = theme.equals("Pixel Oscuro") ? Color.parseColor("#3A2E4A") : Color.parseColor("#F3E5AB");
+        int inputTextColor = theme.equals("Pixel Oscuro") ? Color.WHITE : Color.parseColor("#4A2511");
+
+        mainLayout.setBackgroundColor(bg);
+        toolbar.setBackgroundColor(tb);
+        inputContainer.setBackgroundColor(inputBg);
+
+        // Ajuste barra de estado y navegación según el tema (morado oscuro a la app)
+        Window window = getWindow();
+        window.setStatusBarColor(tb);
+        int navColor = theme.equals("Pixel Oscuro") ? Color.parseColor("#3A1F40") : Color.parseColor("#5D2E7A");
+        window.setNavigationBarColor(navColor);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            int flags = window.getDecorView().getSystemUiVisibility();
+            if (theme.equals("Pixel Oscuro")) {
+                // barras oscuras -> iconos blancos (modo oscuro)
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
             } else {
-                tvContent.setText("");
+                // barras moradas claras -> iconos claros para mejor contraste
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
             }
+            window.getDecorView().setSystemUiVisibility(flags);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            int flags = window.getDecorView().getSystemUiVisibility();
+            flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            window.getDecorView().setSystemUiVisibility(flags);
         }
 
-        if (ivImage != null) {
-            String imageUrl = message.getImageUrl();
-            if (imageUrl != null && !imageUrl.isEmpty()) {
-                ivImage.setVisibility(View.VISIBLE);
-                Glide.with(this).load(imageUrl).into(ivImage);
-            } else {
-                ivImage.setVisibility(View.GONE);
-            }
-        }
+        // Forzar color de iconos de navbar de la app (botones de barra inferior e iconos de acción)
+        btnSettings.setColorFilter(Color.WHITE);
+        btnProfile.setColorFilter(Color.WHITE);
+        btnAlbum.setColorFilter(Color.WHITE);
+        btnCalendar.setColorFilter(Color.WHITE);
+        btnFilterDate.setColorFilter(Color.WHITE);
+        btnExpand.setColorFilter(Color.WHITE);
+        btnSend.setColorFilter(Color.WHITE);
 
-        AlertDialog dialog = builder.create();
-        if (btnClose != null) btnClose.setOnClickListener(v -> dialog.dismiss());
+        // Ajustes de entrada para color de texto/hint
+        etMessage.setBackgroundColor(inputFieldBg);
+        etMessage.setTextColor(inputTextColor);
+        etMessage.setHintTextColor(theme.equals("Pixel Oscuro") ? Color.LTGRAY : Color.parseColor("#8B4513"));
+
+        // Botones de toolbar y send
+        btnExpand.setColorFilter(theme.equals("Pixel Oscuro") ? Color.WHITE : Color.parseColor("#4A2511"));
+        btnSend.setColorFilter(theme.equals("Pixel Oscuro") ? Color.WHITE : Color.parseColor("#4A2511"));
+    }
+
+    private void showProfileDialog() {
+        AlertDialog.Builder b = new AlertDialog.Builder(this);
+        View v = LayoutInflater.from(this).inflate(R.layout.dialog_profile, null);
+
+        b.setView(v);
+        ivDialogProfile = v.findViewById(R.id.ivProfileImage);
+        EditText etProfileName = v.findViewById(R.id.etProfileName);
+        TextView tvCurrentUserName = v.findViewById(R.id.tvCurrentUserName);
+        Button btnSaveProfile = v.findViewById(R.id.btnSaveProfile);
+        Button btnLogoutProfile = v.findViewById(R.id.btnLogoutProfile);
+
+        tvCurrentUserName.setVisibility(View.VISIBLE);
+        tvCurrentUserName.setText("Usuario: " + currentUserName);
+
+        etProfileName.setText("");
+        etProfileName.setHint("Ej. Kevin");
+        etProfileName.setVisibility(View.GONE); // no mostrar campo de edición para evitar duplicar el nombre
+
+        TextView tvTogetherTime = v.findViewById(R.id.tvTogetherTime);
+        tvTogetherTime.setText(calcRelationshipTime(2022, 1, 19));
+
+        if (currentUserImageUri != null) Glide.with(this).load(currentUserImageUri).circleCrop().into(ivDialogProfile);
+        ivDialogProfile.setOnClickListener(v1 -> pickImage(PICK_IMAGE_PROFILE));
+
+        btnSaveProfile.setOnClickListener(v1 -> {
+            String newName = etProfileName.getText().toString().trim();
+            if (newName.isEmpty()) {
+                newName = currentUserName; // no cambió nombre, usar actual
+            }
+            currentUserName = newName;
+            tvCurrentUserName.setText("Usuario: " + newName);
+            SharedPreferences prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE);
+            prefs.edit().putString("userName", newName).putString("userImage", currentUserImageUri).apply();
+            db.collection("users").document(currentUserId)
+                    .update("userName", newName, "profileImageUrl", currentUserImageUri)
+                    .addOnSuccessListener(aVoid -> Toast.makeText(this, "Perfil actualizado", Toast.LENGTH_SHORT).show())
+                    .addOnFailureListener(e -> Toast.makeText(this, "Error al actualizar perfil", Toast.LENGTH_SHORT).show());
+        });
+
+        btnLogoutProfile.setOnClickListener(v1 -> logout());
+
+        AlertDialog dialog = b.create();
         dialog.show();
     }
 
-    private void applySpan(EditText editText, Object span) {
-        int start = editText.getSelectionStart();
-        int end = editText.getSelectionEnd();
-        if (start != end) {
-            SpannableStringBuilder ssb = new SpannableStringBuilder(editText.getText());
-            ssb.setSpan(span, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            editText.setText(ssb);
-            editText.setSelection(start, end);
+    private void pickImage(int code) {
+        currentCropType = code;
+        Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+        i.setType("image/*");
+        if (code == PICK_IMAGE_ALBUM) {
+            i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        }
+        startActivityForResult(Intent.createChooser(i, "Selecciona imágenes del Diario"), code);
+    }
+
+    private void startCrop(Uri uri) {
+        String name = "crop_" + System.currentTimeMillis() + ".jpg";
+        UCrop.Options opt = new UCrop.Options();
+        opt.setCompressionFormat(Bitmap.CompressFormat.JPEG);
+        opt.setFreeStyleCropEnabled(true);
+        opt.setToolbarColor(Color.parseColor("#5D2E7A"));
+        opt.setStatusBarColor(Color.parseColor("#2D1444"));
+        opt.setToolbarWidgetColor(Color.WHITE);
+        UCrop.of(uri, Uri.fromFile(new File(getCacheDir(), name)))
+                .withOptions(opt)
+                .start(this);
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, @Nullable Intent data) {
+        super.onActivityResult(req, res, data);
+        if (res == RESULT_OK && data != null) {
+            if (req == PICK_IMAGE_PROFILE || req == PICK_IMAGE_CARTA) {
+                Uri selectedImage = data.getData();
+                if (selectedImage != null) startCrop(selectedImage);
+            } else if (req == PICK_IMAGE_ALBUM) {
+                if (data.getClipData() != null) {
+                    int count = data.getClipData().getItemCount();
+                    for (int i = 0; i < count; i++) {
+                        Uri imageUri = data.getClipData().getItemAt(i).getUri();
+                        if (imageUri != null) uploadToCloudinary(imageUri, PICK_IMAGE_ALBUM);
+                    }
+                } else {
+                    Uri imageUri = data.getData();
+                    if (imageUri != null) uploadToCloudinary(imageUri, PICK_IMAGE_ALBUM);
+                }
+            } else if (req == UCrop.REQUEST_CROP) {
+                Uri r = UCrop.getOutput(data);
+                if (r != null) uploadToCloudinary(r, currentCropType);
+            }
         }
     }
 
-    private void showEditDialog(@Nullable Message existingMessage) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_message, null);
-        builder.setView(view);
-
-        EditText etContent = view.findViewById(R.id.etDialogMessage);
-        ivSelectedCartaImage = view.findViewById(R.id.ivSelectedImage);
-        imageCartaContainer = view.findViewById(R.id.imageContainer);
-        Button btnAddImage = view.findViewById(R.id.btnAddImage);
-        ImageButton btnRemoveImage = view.findViewById(R.id.btnRemoveImage);
-        Button btnSave = view.findViewById(R.id.btnSave);
-        Button btnCancel = view.findViewById(R.id.btnCancel);
+    private void uploadToCloudinary(Uri uri, int code) {
+        // Mostrar un pequeño brindis para avisar que inició la subida
+        Toast.makeText(this, "Subiendo imagen...", Toast.LENGTH_SHORT).show();
         
-        Button btnBold = view.findViewById(R.id.btnBold);
-        Button btnItalic = view.findViewById(R.id.btnItalic);
-        Button btnColor = view.findViewById(R.id.btnColor);
-
-        if (existingMessage != null) {
-            if (existingMessage.getContent() != null) {
-                etContent.setText(Html.fromHtml(existingMessage.getContent(), Html.FROM_HTML_MODE_COMPACT));
+        MediaManager.get().upload(uri).callback(new UploadCallback() {
+            @Override public void onStart(String id) {}
+            @Override public void onProgress(String id, long b, long t) {}
+            @Override public void onSuccess(String id, Map res) {
+                String url = (String) res.get("secure_url");
+                Log.d("DIARIO_DEBUG", "Cloudinary Success: " + url + " Code: " + code);
+                runOnUiThread(() -> {
+                    if (code == PICK_IMAGE_PROFILE) { 
+                        currentUserImageUri = url; 
+                        db.collection("users").document(currentUserId).update("profileImageUrl", url); 
+                        if (ivDialogProfile != null) Glide.with(MainActivity.this).load(url).circleCrop().into(ivDialogProfile); 
+                    }
+                    else if (code == PICK_IMAGE_CARTA) { 
+                        currentSelectedCartaImageUrl = url; 
+                        if (ivSelectedCartaImage != null && imageCartaContainer != null) { 
+                            imageCartaContainer.setVisibility(View.VISIBLE); 
+                            Glide.with(MainActivity.this).load(url).into(ivSelectedCartaImage); 
+                        } 
+                    }
+                    else if (code == PICK_IMAGE_ALBUM) { 
+                        currentAlbumImages.add(url); 
+                        updateAlbumPreview(); 
+                    }
+                });
             }
-            currentSelectedCartaImageUrl = existingMessage.getImageUrl();
+            @Override public void onError(String id, ErrorInfo e) { 
+                Log.e("DIARIO_DEBUG", "Cloudinary Error: " + e.getDescription());
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Error subida: " + e.getDescription(), Toast.LENGTH_LONG).show()); 
+            }
+            @Override public void onReschedule(String id, ErrorInfo e) {}
+        }).dispatch();
+    }
+
+    private void applySpan(EditText et, Class<?> spanClass, Object newSpan) {
+        int s = et.getSelectionStart(), e = et.getSelectionEnd();
+        if (s == e) { Toast.makeText(this, "Selecciona texto primero", Toast.LENGTH_SHORT).show(); return; }
+        int start = Math.min(s, e);
+        int end = Math.max(s, e);
+        Spannable ssb = et.getText();
+        
+        Object[] existingSpans = ssb.getSpans(start, end, spanClass);
+        boolean found = false;
+        
+        for (Object existingSpan : existingSpans) {
+            if (existingSpan instanceof StyleSpan && newSpan instanceof StyleSpan) {
+                if (((StyleSpan) existingSpan).getStyle() == ((StyleSpan) newSpan).getStyle()) {
+                    ssb.removeSpan(existingSpan);
+                    found = true;
+                }
+            } else {
+                ssb.removeSpan(existingSpan);
+                found = true;
+            }
+        }
+        
+        if (!found) {
+            ssb.setSpan(newSpan, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        
+        et.setText(ssb);
+        et.setSelection(end);
+    }
+
+    private void showEditDialog(@Nullable Message edit) {
+        AlertDialog.Builder b = new AlertDialog.Builder(this);
+        View v = LayoutInflater.from(this).inflate(R.layout.dialog_edit_message, null);
+        b.setView(v); EditText et = v.findViewById(R.id.etDialogMessage);
+        ivSelectedCartaImage = v.findViewById(R.id.ivSelectedImage); imageCartaContainer = v.findViewById(R.id.imageContainer);
+        if (edit != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                et.setText(Html.fromHtml(edit.getContent(), Html.FROM_HTML_MODE_COMPACT));
+            } else {
+                et.setText(Html.fromHtml(edit.getContent()));
+            }
+            currentSelectedCartaImageUrl = edit.getImageUrl();
             if (currentSelectedCartaImageUrl != null) {
                 imageCartaContainer.setVisibility(View.VISIBLE);
                 Glide.with(this).load(currentSelectedCartaImageUrl).into(ivSelectedCartaImage);
             }
         } else {
             currentSelectedCartaImageUrl = null;
-        }
-
-        btnBold.setOnClickListener(v -> applySpan(etContent, new StyleSpan(Typeface.BOLD)));
-        btnItalic.setOnClickListener(v -> applySpan(etContent, new StyleSpan(Typeface.ITALIC)));
-        btnColor.setOnClickListener(v -> {
-            PopupMenu colorPopup = new PopupMenu(this, v);
-            colorPopup.getMenu().add("Rojo").setOnMenuItemClickListener(i -> { applySpan(etContent, new ForegroundColorSpan(Color.RED)); return true; });
-            colorPopup.getMenu().add("Azul").setOnMenuItemClickListener(i -> { applySpan(etContent, new ForegroundColorSpan(Color.BLUE)); return true; });
-            colorPopup.getMenu().add("Verde").setOnMenuItemClickListener(i -> { applySpan(etContent, new ForegroundColorSpan(Color.GREEN)); return true; });
-            colorPopup.getMenu().add("Rosa").setOnMenuItemClickListener(i -> { applySpan(etContent, new ForegroundColorSpan(Color.parseColor("#FF4081"))); return true; });
-            colorPopup.getMenu().add("Café").setOnMenuItemClickListener(i -> { applySpan(etContent, new ForegroundColorSpan(Color.parseColor("#4A2511"))); return true; });
-            colorPopup.show();
-        });
-
-        btnAddImage.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-            startActivityForResult(intent, PICK_IMAGE_CARTA);
-        });
-
-        btnRemoveImage.setOnClickListener(v -> {
-            currentSelectedCartaImageUrl = null;
             imageCartaContainer.setVisibility(View.GONE);
-        });
-
-        AlertDialog dialog = builder.create();
-        
-        if (btnCancel != null) {
-            btnCancel.setOnClickListener(v -> dialog.dismiss());
         }
-
-        btnSave.setOnClickListener(v -> {
-            String htmlContent = Html.toHtml(etContent.getText(), Html.TO_HTML_PARAGRAPH_LINES_CONSECUTIVE);
-            if (TextUtils.isEmpty(htmlContent)) return;
-
-            if (existingMessage == null) {
-                Message newMessage = new Message();
-                newMessage.setMessageId(UUID.randomUUID().toString());
-                newMessage.setPartnerId(currentCoupleId);
-                newMessage.setAuthorId(currentUserId);
-                newMessage.setAuthorName(currentUserName);
-                newMessage.setAuthorImageUrl(currentUserImageUri);
-                newMessage.setContent(htmlContent);
-                newMessage.setImageUrl(currentSelectedCartaImageUrl);
-                newMessage.setTimestamp(System.currentTimeMillis());
-                saveMessageToFirestore(newMessage);
+        v.findViewById(R.id.btnBold).setOnClickListener(v1 -> applySpan(et, StyleSpan.class, new StyleSpan(Typeface.BOLD)));
+        v.findViewById(R.id.btnItalic).setOnClickListener(v1 -> applySpan(et, StyleSpan.class, new StyleSpan(Typeface.ITALIC)));
+        v.findViewById(R.id.btnColor).setOnClickListener(v1 -> { int[] colors = {Color.RED, Color.BLUE, Color.GREEN, Color.MAGENTA}; String[] names = {"Rojo", "Azul", "Verde", "Rosa"}; new AlertDialog.Builder(this).setItems(names, (d, w) -> applySpan(et, ForegroundColorSpan.class, new ForegroundColorSpan(colors[w]))).show(); });
+        v.findViewById(R.id.btnAddImage).setOnClickListener(v1 -> pickImage(PICK_IMAGE_CARTA));
+        v.findViewById(R.id.btnRemoveImage).setOnClickListener(v1 -> { currentSelectedCartaImageUrl = null; imageCartaContainer.setVisibility(View.GONE); });
+        
+        final AlertDialog dialog = b.create();
+        v.findViewById(R.id.btnCancel).setOnClickListener(v1 -> dialog.dismiss());
+        v.findViewById(R.id.btnSave).setOnClickListener(v1 -> {
+            String html;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                html = Html.toHtml(et.getText(), Html.TO_HTML_PARAGRAPH_LINES_CONSECUTIVE);
             } else {
-                if (existingMessage.getImageUrl() != null && !existingMessage.getImageUrl().equals(currentSelectedCartaImageUrl)) {
-                    deleteImageFromCloudinary(existingMessage.getImageUrl());
-                }
-                existingMessage.setContent(htmlContent);
-                existingMessage.setImageUrl(currentSelectedCartaImageUrl);
-                updateMessageInFirestore(existingMessage);
+                html = Html.toHtml(et.getText());
             }
+            if (edit == null) { Message m = new Message(UUID.randomUUID().toString(), currentCoupleId, currentUserId, currentUserName, currentUserImageUri, html, new ArrayList<>(), System.currentTimeMillis(), false); m.setImageUrl(currentSelectedCartaImageUrl); db.collection("messages").document(m.getMessageId()).set(m).addOnSuccessListener(aVoid -> sendNotificationV1("Te han enviado una carta 💌")); }
+            else { edit.setContent(html); edit.setImageUrl(currentSelectedCartaImageUrl); db.collection("messages").document(edit.getMessageId()).set(edit); }
             dialog.dismiss();
+        });
+        dialog.show();
+    }
+
+    private void showAlbumOptionsDialog() {
+        AlertDialog.Builder b = new AlertDialog.Builder(this);
+        View v = LayoutInflater.from(this).inflate(R.layout.dialog_album_options, null);
+        b.setView(v);
+        
+        final AlertDialog dialog = b.create();
+        
+        v.findViewById(R.id.btnOptionAdd).setOnClickListener(v1 -> {
+            dialog.dismiss();
+            showAlbumDialog();
+        });
+        
+        v.findViewById(R.id.btnOptionView).setOnClickListener(v1 -> {
+            dialog.dismiss();
+            showSharedAlbumDialog();
+        });
+        
+        v.findViewById(R.id.btnOptionCancel).setOnClickListener(v1 -> dialog.dismiss());
+        
+        dialog.show();
+    }
+
+    private void showSharedAlbumDialog() {
+        AlertDialog.Builder b = new AlertDialog.Builder(this);
+        View v = LayoutInflater.from(this).inflate(R.layout.dialog_shared_album, null);
+        b.setView(v);
+        
+        RecyclerView rv = v.findViewById(R.id.rvAlbumPhotos);
+        rv.setLayoutManager(new LinearLayoutManager(this)); // Cambiado a vertical para el nuevo feed
+
+        final AlertDialog dialog = b.create();
+        v.findViewById(R.id.btnCloseAlbum).setOnClickListener(v1 -> dialog.dismiss());
+        v.findViewById(R.id.btnViewAll).setVisibility(View.GONE); // Ya no es necesario si mostramos todo el feed
+
+        // Para el álbum (mensajes filtrados)
+        db.collection("messages").whereEqualTo("partnerId", currentCoupleId).orderBy("timestamp", Query.Direction.DESCENDING).addSnapshotListener((querySnapshot, error) -> {
+            if (error != null) {
+                Toast.makeText(this, "Error cargando álbum", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            // Actualizar widget después de cualquier cambio en mensajes
+            Intent wIntent = new Intent(this, LastMessageWidget.class);
+            wIntent.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
+            int[] wIds = AppWidgetManager.getInstance(getApplication()).getAppWidgetIds(new ComponentName(getApplication(), LastMessageWidget.class));
+            wIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, wIds);
+            sendBroadcast(wIntent);
+
+            if (querySnapshot != null) {
+                List<Message> albumMessages = new ArrayList<>();
+                for (QueryDocumentSnapshot doc : querySnapshot) {
+                    String content = doc.getString("content");
+                    if (content != null && content.startsWith("[ALBUM]")) {
+                        albumMessages.add(doc.toObject(Message.class));
+                    }
+                }
+                rv.setAdapter(new AlbumFeedAdapter(albumMessages));
+            }
         });
 
         dialog.show();
     }
 
-    @Override
-    public void onMessageClick(View view, Message message) {
-        showViewMessageDialog(message);
+    private void showEditAlbumDialog(Message m) {
+        AlertDialog.Builder b = new AlertDialog.Builder(this);
+        View v = LayoutInflater.from(this).inflate(R.layout.dialog_edit_message, null);
+        b.setView(v); 
+        ((TextView)v.findViewById(R.id.tvDialogTitle)).setText("Editar Recuerdo");
+        v.findViewById(R.id.formatToolbar).setVisibility(View.GONE);
+        
+        EditText et = v.findViewById(R.id.etDialogMessage);
+        String currentDesc = m.getContent().replace("[ALBUM] ", "");
+        et.setText(currentDesc);
+        et.setHint("Descripción del momento");
+
+        imageCartaContainer = v.findViewById(R.id.imageContainer);
+        rvAlbumPreview = v.findViewById(R.id.rvAlbumPreview);
+        rvAlbumPreview.setVisibility(View.VISIBLE);
+        imageCartaContainer.setVisibility(View.GONE);
+
+        currentAlbumImages.clear();
+        if (m.getImageUrls() != null) currentAlbumImages.addAll(m.getImageUrls());
+        
+        rvAlbumPreview.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        updateAlbumPreview();
+
+        v.findViewById(R.id.btnAddImage).setOnClickListener(v1 -> pickImage(PICK_IMAGE_ALBUM));
+        
+        // Botón para limpiar fotos (ahora es "Limpiar todas")
+        v.findViewById(R.id.btnRemoveImage).setOnClickListener(v1 -> {
+            new AlertDialog.Builder(this, R.style.PixelAlertDialog)
+                .setTitle("Limpiar fotos")
+                .setMessage("¿Quieres quitar todas las fotos de este recuerdo?")
+                .setPositiveButton("Sí", (d, w) -> {
+                    currentAlbumImages.clear();
+                    updateAlbumPreview();
+                })
+                .setNegativeButton("No", null)
+                .show();
+        });
+
+        final AlertDialog dialog = b.create();
+        v.findViewById(R.id.btnCancel).setOnClickListener(v1 -> dialog.dismiss());
+        v.findViewById(R.id.btnSave).setOnClickListener(v1 -> {
+            String c = et.getText().toString().trim();
+            m.setContent("[ALBUM] " + c);
+            m.setImageUrls(new ArrayList<>(currentAlbumImages));
+            db.collection("messages").document(m.getMessageId()).set(m)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Recuerdo actualizado", Toast.LENGTH_SHORT).show();
+                    dialog.dismiss();
+                });
+        });
+        dialog.show();
     }
 
-    @Override
-    public void onMessageLongClick(View view, Message message) {
-        if (message.getAuthorId() != null && message.getAuthorId().equals(currentUserId)) {
-            PopupMenu popup = new PopupMenu(this, view);
-            popup.getMenu().add("Editar");
-            popup.getMenu().add("Eliminar");
-            popup.setOnMenuItemClickListener(item -> {
-                if (item.getTitle() != null && item.getTitle().equals("Editar")) {
-                    showEditDialog(message);
+    private class AlbumFeedAdapter extends RecyclerView.Adapter<AlbumFeedAdapter.ViewHolder> {
+        private List<Message> items;
+        private SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
+
+        public AlbumFeedAdapter(List<Message> items) { this.items = items; }
+
+        @NonNull @Override public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_moment_feed, parent, false);
+            return new ViewHolder(view);
+        }
+
+        @Override public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            Message m = items.get(position);
+            holder.tvUser.setText("Por: " + m.getAuthorName());
+            holder.tvDate.setText(sdf.format(new Date(m.getTimestamp())));
+            String desc = m.getContent().replace("[ALBUM] ", "");
+            holder.tvDesc.setText(desc.isEmpty() ? "Momento compartido" : desc);
+            
+            holder.rvPhotos.setLayoutManager(new LinearLayoutManager(holder.itemView.getContext(), LinearLayoutManager.HORIZONTAL, false));
+            holder.rvPhotos.setAdapter(new MessageAdapter.AlbumPhotosAdapter(m.getImageUrls()));
+
+            // Al hacer clic normal, abrimos el modo edición/visualización
+            holder.itemView.setOnClickListener(v -> {
+                if (m.getAuthorId().equals(currentUserId)) {
+                    showEditAlbumDialog(m);
                 } else {
-                    deleteMessage(message);
+                    Toast.makeText(holder.itemView.getContext(), "Solo el autor puede editar este recuerdo", Toast.LENGTH_SHORT).show();
                 }
+            });
+
+            // Acción de Borrar (Menú contextual idéntico a las cartas)
+            holder.itemView.setOnLongClickListener(v -> {
+                if (m.getAuthorId().equals(currentUserId)) {
+                    PopupMenu popup = new PopupMenu(holder.itemView.getContext(), v);
+                    popup.getMenu().add("Editar Recuerdo");
+                    popup.getMenu().add("Borrar Recuerdo");
+                    popup.setOnMenuItemClickListener(item -> {
+                        if (item.getTitle().equals("Editar Recuerdo")) {
+                            showEditAlbumDialog(m);
+                        } else if (item.getTitle().equals("Borrar Recuerdo")) {
+                            new AlertDialog.Builder(holder.itemView.getContext(), R.style.PixelAlertDialog)
+                                .setTitle("Borrar")
+                                .setMessage("¿Seguro que deseas eliminar este recuerdo?")
+                                .setPositiveButton("Sí", (d, w) -> {
+                                    db.collection("messages").document(m.getMessageId()).delete()
+                                        .addOnSuccessListener(aVoid -> Toast.makeText(holder.itemView.getContext(), "Recuerdo eliminado", Toast.LENGTH_SHORT).show());
+                                })
+                                .setNegativeButton("No", null)
+                                .show();
+                        }
+                        return true;
+                    });
+                    popup.show();
+                } else {
+                    Toast.makeText(holder.itemView.getContext(), "Solo puedes gestionar tus propios momentos", Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            });
+        }
+
+        @Override public int getItemCount() { return items.size(); }
+
+        class ViewHolder extends RecyclerView.ViewHolder {
+            TextView tvUser, tvDate, tvDesc;
+            RecyclerView rvPhotos;
+            public ViewHolder(@NonNull View itemView) {
+                super(itemView);
+                tvUser = itemView.findViewById(R.id.tvMomentUser);
+                tvDate = itemView.findViewById(R.id.tvMomentDate);
+                tvDesc = itemView.findViewById(R.id.tvMomentDescription);
+                rvPhotos = itemView.findViewById(R.id.rvMomentPhotos);
+            }
+        }
+    }
+
+    private void showAlbumDialog() {
+        AlertDialog.Builder b = new AlertDialog.Builder(this);
+        View v = LayoutInflater.from(this).inflate(R.layout.dialog_edit_message, null);
+        b.setView(v); ((TextView)v.findViewById(R.id.tvDialogTitle)).setText("Nuestro Álbum");
+        EditText et = v.findViewById(R.id.etDialogMessage); et.setHint("¿Qué hacíamos hoy?");
+        v.findViewById(R.id.formatToolbar).setVisibility(View.GONE);
+        ivSelectedCartaImage = v.findViewById(R.id.ivSelectedImage); imageCartaContainer = v.findViewById(R.id.imageContainer);
+        rvAlbumPreview = v.findViewById(R.id.rvAlbumPreview); rvAlbumPreview.setVisibility(View.VISIBLE);
+        currentAlbumImages.clear(); rvAlbumPreview.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        v.findViewById(R.id.btnAddImage).setOnClickListener(v1 -> pickImage(PICK_IMAGE_ALBUM));
+
+        v.findViewById(R.id.btnRemoveImage).setOnClickListener(v1 -> {
+            if (!currentAlbumImages.isEmpty()) {
+                currentAlbumImages.remove(currentAlbumImages.size() - 1);
+                updateAlbumPreview();
+            }
+        });
+
+        final AlertDialog dialog = b.create();
+        v.findViewById(R.id.btnCancel).setOnClickListener(v1 -> dialog.dismiss());
+        v.findViewById(R.id.btnSave).setOnClickListener(v1 -> {
+            String c = et.getText().toString().trim(); 
+            if (c.isEmpty() && currentAlbumImages.isEmpty()) {
+                Toast.makeText(this, "Agrega texto o al menos una foto", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            // Guardar con [ALBUM] al inicio para que showSharedAlbumDialog lo reconozca
+            Message m = new Message(UUID.randomUUID().toString(), currentCoupleId, currentUserId, currentUserName, currentUserImageUri, "[ALBUM] " + c, new ArrayList<>(currentAlbumImages), System.currentTimeMillis(), false);
+            db.collection("messages").document(m.getMessageId()).set(m)
+                .addOnSuccessListener(aVoid -> {
+                    sendNotificationV1("Se ha añadido un nuevo momento al álbum 📸");
+                    Toast.makeText(this, "Momento guardado en el álbum", Toast.LENGTH_SHORT).show();
+                    dialog.dismiss();
+                })
+                .addOnFailureListener(e -> Toast.makeText(this, "Error al guardar el momento", Toast.LENGTH_SHORT).show());
+        });
+        dialog.show();
+    }
+
+    private void updateAlbumPreview() {
+        if (rvAlbumPreview != null) {
+            rvAlbumPreview.setAdapter(new AlbumPreviewAdapter(currentAlbumImages));
+        }
+    }
+
+    private class AlbumPreviewAdapter extends RecyclerView.Adapter<AlbumPreviewAdapter.PreviewViewHolder> {
+        private List<String> photos;
+        public AlbumPreviewAdapter(List<String> photos) { this.photos = photos; }
+        @NonNull @Override public PreviewViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_album_preview, parent, false);
+            return new PreviewViewHolder(view);
+        }
+        @Override public void onBindViewHolder(@NonNull PreviewViewHolder holder, int position) {
+            String url = photos.get(position);
+            ImageView iv = holder.itemView.findViewById(R.id.ivPreviewPhoto);
+            Glide.with(holder.itemView.getContext()).load(url).into(iv);
+            
+            TextView tv = holder.itemView.findViewById(R.id.tvRemovePhoto);
+            tv.setOnClickListener(v -> {
+                photos.remove(position);
+                notifyDataSetChanged();
+            });
+        }
+        @Override public int getItemCount() { return photos.size(); }
+        class PreviewViewHolder extends RecyclerView.ViewHolder {
+            public PreviewViewHolder(@NonNull View itemView) { super(itemView); }
+        }
+    }
+
+    @Override public void onMessageClick(View v, Message msg) {
+        if (msg.getContent() != null && msg.getContent().startsWith("[ALBUM]")) {
+            showAlbumDetail(msg);
+        } else {
+            showMessageDetail(msg);
+        }
+    }
+    @Override public void onMessageLongClick(View v, Message msg) { 
+        if (msg.getAuthorId().equals(currentUserId)) {
+            PopupMenu popup = new PopupMenu(this, v);
+            popup.getMenu().add("Editar");
+            popup.getMenu().add("Borrar");
+            popup.setOnMenuItemClickListener(item -> {
+                if (item.getTitle().equals("Editar")) showEditDialog(msg);
+                else if (item.getTitle().equals("Borrar")) new AlertDialog.Builder(this).setTitle("Borrar").setPositiveButton("Sí", (d, w) -> deleteMessage(msg)).show();
                 return true;
             });
             popup.show();
         }
     }
+    @Override public void onDeleteClick(Message m) { deleteMessage(m); }
 
-    @Override
-    public void onDeleteClick(Message message) {
-        deleteMessage(message);
+    private void showAlbumDetail(Message msg) {
+        AlertDialog.Builder b = new AlertDialog.Builder(this);
+        View v = LayoutInflater.from(this).inflate(R.layout.dialog_date_filter, null);
+        b.setView(v);
+        ((TextView)v.findViewById(R.id.tvFilterTitle)).setText("Momento Especial");
+        String date = new SimpleDateFormat("EEEE d 'de' MMMM", new Locale("es", "ES")).format(new Date(msg.getTimestamp()));
+        ((TextView)v.findViewById(R.id.tvFilterSubtitle)).setText(date + "\n" + msg.getContent().replace("[ALBUM] ", ""));
+        RecyclerView rv = v.findViewById(R.id.rvAvailableDates);
+        rv.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        rv.setAdapter(new MessageAdapter.AlbumPhotosAdapter(msg.getImageUrls()));
+
+        final AlertDialog dialog = b.create();
+        v.findViewById(R.id.btnCancelFilter).setOnClickListener(v1 -> dialog.dismiss());
+        v.findViewById(R.id.btnClearFilter).setVisibility(View.GONE);
+        dialog.show();
+    }
+
+    private void showMessageDetail(Message msg) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_message_detail, null);
+        builder.setView(view);
+
+        TextView tvTitle = view.findViewById(R.id.tvMessageDetailTitle);
+        TextView tvContent = view.findViewById(R.id.tvMessageDetailContent);
+        ImageView ivImage = view.findViewById(R.id.ivMessageDetailImage);
+        Button btnClose = view.findViewById(R.id.btnMessageDetailClose);
+
+        tvTitle.setText("Carta de " + msg.getAuthorName());
+        tvContent.setText(Html.fromHtml(msg.getContent(), Html.FROM_HTML_MODE_COMPACT));
+
+        if (msg.getImageUrl() != null && !msg.getImageUrl().isEmpty()) {
+            ivImage.setVisibility(View.VISIBLE);
+            Glide.with(this).load(msg.getImageUrl()).into(ivImage);
+        } else {
+            ivImage.setVisibility(View.GONE);
+        }
+
+        final AlertDialog dialog = builder.create();
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
+    }
+
+    private String calcRelationshipTime(int yearStart, int monthStart, int dayStart) {
+        Calendar start = Calendar.getInstance();
+        start.set(yearStart, monthStart - 1, dayStart, 0, 0, 0);
+        start.set(Calendar.MILLISECOND, 0);
+
+        Calendar now = Calendar.getInstance();
+
+        int years = now.get(Calendar.YEAR) - start.get(Calendar.YEAR);
+        int months = now.get(Calendar.MONTH) - start.get(Calendar.MONTH);
+        int days = now.get(Calendar.DAY_OF_MONTH) - start.get(Calendar.DAY_OF_MONTH);
+
+        if (days < 0) {
+            months -= 1;
+            Calendar prevMonth = (Calendar) now.clone();
+            prevMonth.add(Calendar.MONTH, -1);
+            days += prevMonth.getActualMaximum(Calendar.DAY_OF_MONTH);
+        }
+        if (months < 0) {
+            years -= 1;
+            months += 12;
+        }
+
+        return String.format(Locale.getDefault(), "Juntos: %d año(s), %d mes(es), %d día(s)", years, months, days);
+    }
+
+    private void logout() { 
+        getSharedPreferences("DiarioPrefs", MODE_PRIVATE).edit().clear().apply(); 
+        
+        // Avisar al widget que se cerró sesión
+        Intent intent = new Intent(this, LastMessageWidget.class);
+        intent.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
+        int[] ids = AppWidgetManager.getInstance(getApplication()).getAppWidgetIds(new ComponentName(getApplication(), LastMessageWidget.class));
+        intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids);
+        sendBroadcast(intent);
+
+        startActivity(new Intent(this, LoginActivity.class)); 
+        finish(); 
+    }
+
+    private void checkUpdatesFromGitHub() {
+        new OkHttpClient().newCall(new Request.Builder().url("https://api.github.com/repos/KevShupp/Diario-KevinAli/releases/latest").build()).enqueue(new Callback() {
+            @Override public void onResponse(@NonNull Call c, @NonNull Response r) throws IOException {
+                if (r.isSuccessful() && r.body() != null) {
+                    try {
+                        JSONObject j = new JSONObject(r.body().string());
+                        if (isNewerVersion(calendario.kevshupp.diariokevinali.BuildConfig.VERSION_NAME, j.getString("tag_name").replace("v", ""))) {
+                            String url = j.getJSONArray("assets").getJSONObject(0).getString("browser_download_url");
+                            runOnUiThread(() -> showUpdateDialog(url));
+                        }
+                    } catch (Exception e) {}
+                }
+            }
+            @Override public void onFailure(@NonNull Call c, @NonNull IOException e) {}
+        });
+    }
+
+    private boolean isNewerVersion(String current, String latest) {
+        try {
+            String[] currParts = current.split("\\.");
+            String[] lateParts = latest.split("\\.");
+            int length = Math.max(currParts.length, lateParts.length);
+            for (int i = 0; i < length; i++) {
+                int curr = i < currParts.length ? Integer.parseInt(currParts[i]) : 0;
+                int late = i < lateParts.length ? Integer.parseInt(lateParts[i]) : 0;
+                if (late > curr) return true;
+                if (curr > late) return false;
+            }
+        } catch (Exception e) {
+            return !current.equals(latest);
+        }
+        return false;
+    }
+
+    private void showUpdateDialog(String url) {
+        new AlertDialog.Builder(this)
+                .setTitle("Actualización disponible")
+                .setMessage("Una nueva versión está disponible en GitHub.")
+                .setPositiveButton("Descargar", (d, w) -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))))
+                .setNegativeButton("Cancelar", null)
+                .show();
     }
 }

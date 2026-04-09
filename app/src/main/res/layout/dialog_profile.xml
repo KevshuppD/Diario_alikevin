@@ -46,6 +46,22 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/ivProfileImage" />
 
+    <EditText
+        android:id="@+id/etProfileName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_message_pixel"
+        android:fontFamily="@font/vt323"
+        android:hint="Nombre de usuario"
+        android:inputType="textPersonName"
+        android:padding="12dp"
+        android:textColor="#4A2511"
+        android:textSize="20sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvCurrentUserName" />
+
     <!-- Relationship counter -->
     <TextView
         android:id="@+id/tvTogetherTime"

@@ -1,5 +1,7 @@
 package calendario.kevshupp.diariokevinali;
 
+import android.appwidget.AppWidgetManager;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -55,7 +57,15 @@ public class LoginActivity extends AppCompatActivity {
         
         editor.putString("userId", userId);
         editor.putString("userName", displayName);
+        editor.putString("coupleId", "vínculo_único_123");
         editor.apply();
+
+        Intent wIntent = new Intent(this, LastMessageWidget.class);
+        wIntent.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
+        int[] wIds = AppWidgetManager.getInstance(getApplication())
+            .getAppWidgetIds(new ComponentName(getApplication(), LastMessageWidget.class));
+        wIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, wIds);
+        sendBroadcast(wIntent);
 
         startActivity(new Intent(this, MainActivity.class));
         finish();

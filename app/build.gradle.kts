@@ -40,6 +40,16 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "META-INF/native-image/**"
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/license.txt"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/NOTICE.txt"
+            excludes += "META-INF/notice.txt"
+            excludes += "META-INF/ASL2.0"
+            excludes += "META-INF/*.kotlin_module"
         }
     }
 }
@@ -50,11 +60,16 @@ dependencies {
     implementation(libs.activity)
     implementation(libs.constraintlayout)
     
-    // Firebase (Sin Storage para evitar facturación)
+    // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.analytics)
+    implementation(libs.firebase.messaging)
+
+    // Google Auth para FCM v1
+    implementation(libs.google.auth)
+    implementation("com.google.guava:guava:33.2.1-android")
 
     // Cloudinary (Opción gratuita sin tarjeta)
     implementation(libs.cloudinary.android)
@@ -65,7 +80,7 @@ dependencies {
     // UCrop para recortar imágenes
     implementation(libs.ucrop)
 
-    // OkHttp para la API de GitHub
+    // OkHttp para la API de GitHub y FCM
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")

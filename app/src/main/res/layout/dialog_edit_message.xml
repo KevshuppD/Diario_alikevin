@@ -20,7 +20,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Barra de herramientas mejorada con mejor contraste -->
     <LinearLayout
         android:id="@+id/formatToolbar"
         android:layout_width="match_parent"
@@ -35,12 +34,12 @@
             style="@style/Widget.Material3.Button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Negrita"
+            android:text="B"
             android:textStyle="bold"
             android:fontFamily="@font/vt323"
-            android:textSize="16sp"
-            android:minWidth="0dp"
-            android:paddingHorizontal="12dp"
+            android:textSize="18sp"
+            android:minWidth="40dp"
+            android:paddingHorizontal="8dp"
             android:textColor="#FFFFFF"
             android:backgroundTint="#5D2E7A" />
 
@@ -51,12 +50,12 @@
             style="@style/Widget.Material3.Button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Cursiva"
+            android:text="I"
             android:textStyle="italic"
             android:fontFamily="@font/vt323"
-            android:textSize="16sp"
-            android:minWidth="0dp"
-            android:paddingHorizontal="12dp"
+            android:textSize="18sp"
+            android:minWidth="40dp"
+            android:paddingHorizontal="8dp"
             android:textColor="#FFFFFF"
             android:backgroundTint="#5D2E7A" />
 
@@ -86,7 +85,7 @@
         android:gravity="top"
         android:hint="Querida Ali..."
         android:inputType="textMultiLine"
-        android:minHeight="150dp"
+        android:minHeight="120dp"
         android:padding="16dp"
         android:textColor="#4A2511"
         android:textColorHint="#8B4513"
@@ -107,7 +106,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:adjustViewBounds="true"
-            android:maxHeight="200dp"
+            android:maxHeight="150dp"
             android:scaleType="centerCrop"
             app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.SmallComponent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -123,13 +122,25 @@
             app:tint="#FF0000" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvAlbumPreview"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:layout_marginTop="8dp"
+        android:visibility="gone"
+        android:orientation="horizontal"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintTop_toBottomOf="@id/imageContainer"
+        tools:listitem="@android:layout/simple_list_item_1"
+        tools:visibility="visible" />
+
     <LinearLayout
         android:id="@+id/buttonLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/imageContainer">
+        app:layout_constraintTop_toBottomOf="@id/rvAlbumPreview">
 
         <Button
             android:id="@+id/btnAddImage"

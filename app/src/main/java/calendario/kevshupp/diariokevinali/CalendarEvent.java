@@ -14,6 +14,16 @@ public class CalendarEvent {
         this.recurrence = "NONE";
     }
 
+    public CalendarEvent(String eventId, String title, String description, long date, String authorId, String partnerId) {
+        this.eventId = eventId;
+        this.title = title;
+        this.description = description;
+        this.date = date;
+        this.authorId = authorId;
+        this.partnerId = partnerId;
+        this.recurrence = "NONE";
+    }
+
     public String getEventId() { return eventId; }
     public void setEventId(String eventId) { this.eventId = eventId; }
 

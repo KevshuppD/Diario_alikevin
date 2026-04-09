@@ -79,6 +79,7 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/llRecurrence"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
@@ -99,7 +100,48 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_message_pixel"
-            android:padding="8dp" />
+            android:padding="8dp"
+            android:spinnerMode="dropdown"
+            android:popupBackground="#F3E5AB"
+            android:popupTheme="@style/SpinnerDropdownStyle"
+            android:textColor="#4A2511" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/llButtons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toBottomOf="@id/llRecurrence">
+
+        <Button
+            android:id="@+id/btnCancelEvent"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/vt323"
+            android:text="Cancelar"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#8B4513" />
+
+        <View
+            android:layout_width="12dp"
+            android:layout_height="0dp" />
+
+        <Button
+            android:id="@+id/btnSaveEvent"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/vt323"
+            android:text="Guardar"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#5D2E7A" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widgetRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/bg_parchment_pixel">
+
+    <TextView
+        android:id="@+id/tvWidgetTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Último mensaje"
+        android:textColor="#4A2511"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvWidgetMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:maxLines="6"
+        android:text="Cargando mensaje..."
+        android:textColor="#8B4513"
+        android:textSize="18sp" />
+
+    <TextView
+        android:id="@+id/tvWidgetSeparator"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="6dp"
+        android:text="────────"
+        android:textColor="#D1B48A"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/tvWidgetEventLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Próxima cita"
+        android:textColor="#4A2511"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvWidgetEventTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Sin eventos próximos"
+        android:textColor="#8B4513"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/tvWidgetEventDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text=""
+        android:textColor="#8B4513"
+        android:textSize="16sp" />
+
+</LinearLayout>

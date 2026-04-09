@@ -16,10 +16,12 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.res.ResourcesCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.google.android.material.card.MaterialCardView;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -70,155 +72,137 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
     static class MessageViewHolder extends RecyclerView.ViewHolder {
         MaterialCardView cardView;
-        View contentLayout;
         TextView tvAuthor, tvContent, tvTimestamp;
         ImageView ivMessageImage, ivAvatar;
-        ImageButton btnDelete;
+        RecyclerView rvAlbumPhotos;
+        ImageButton btnDelete, btnLike;
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
 
         public MessageViewHolder(@NonNull View itemView) {
             super(itemView);
             cardView = itemView.findViewById(R.id.cardMessage);
-            contentLayout = itemView.findViewById(R.id.messageContentLayout);
             tvAuthor = itemView.findViewById(R.id.tvAuthor);
             tvContent = itemView.findViewById(R.id.tvContent);
             tvTimestamp = itemView.findViewById(R.id.tvTimestamp);
             ivMessageImage = itemView.findViewById(R.id.ivMessageImage);
             ivAvatar = itemView.findViewById(R.id.ivAvatar);
+            rvAlbumPhotos = itemView.findViewById(R.id.rvAlbumPhotos);
             btnDelete = itemView.findViewById(R.id.btnDelete);
+            btnLike = itemView.findViewById(R.id.btnLike);
         }
 
         public void bind(Message message, String theme, String currentUserId, OnMessageClickListener listener) {
             tvAuthor.setText("De: " + message.getAuthorName());
             
-            if (message.getContent() != null) {
-                tvContent.setText(Html.fromHtml(message.getContent(), Html.FROM_HTML_MODE_COMPACT));
-            } else {
-                tvContent.setText("");
+            boolean isAlbum = message.getContent() != null && message.getContent().startsWith("[ALBUM]");
+            String displayContent = message.getContent();
+            if (isAlbum) {
+                displayContent = displayContent.replace("[ALBUM] ", "📸 <b>Momento:</b> ");
             }
             
+            tvContent.setText(Html.fromHtml(displayContent, Html.FROM_HTML_MODE_COMPACT));
             tvTimestamp.setText(dateFormat.format(new Date(message.getTimestamp())));
 
             applyPixelTheme(theme);
 
-            ivAvatar.setVisibility(View.VISIBLE);
             if (message.getAuthorImageUrl() != null && !message.getAuthorImageUrl().isEmpty()) {
-                Glide.with(itemView.getContext())
-                        .load(message.getAuthorImageUrl())
-                        .placeholder(R.drawable.ic_profile_pixel)
-                        .error(R.drawable.ic_profile_pixel)
-                        .into(ivAvatar);
+                Glide.with(itemView.getContext()).load(message.getAuthorImageUrl())
+                        .placeholder(R.drawable.ic_profile_pixel).into(ivAvatar);
             } else {
                 ivAvatar.setImageResource(R.drawable.ic_profile_pixel);
             }
 
-            if (message.getImageUrls() != null && !message.getImageUrls().isEmpty()) {
-                ivMessageImage.setVisibility(View.VISIBLE);
-                Glide.with(itemView.getContext())
-                        .load(message.getImageUrls().get(0))
-                        .into(ivMessageImage);
-            } else {
+            if (isAlbum) {
                 ivMessageImage.setVisibility(View.GONE);
+                rvAlbumPhotos.setVisibility(View.VISIBLE);
+                rvAlbumPhotos.setLayoutManager(new LinearLayoutManager(itemView.getContext(), LinearLayoutManager.HORIZONTAL, false));
+                rvAlbumPhotos.setAdapter(new AlbumPhotosAdapter(message.getImageUrls()));
+            } else {
+                rvAlbumPhotos.setVisibility(View.GONE);
+                if (message.getImageUrl() != null) {
+                    ivMessageImage.setVisibility(View.VISIBLE);
+                    Glide.with(itemView.getContext()).load(message.getImageUrl()).into(ivMessageImage);
+                } else {
+                    ivMessageImage.setVisibility(View.GONE);
+                }
+            }
+
+            btnLike.setColorFilter(message.isLiked() ? Color.parseColor("#FF4081") : Color.parseColor("#CCCCCC"));
+            if (!message.getAuthorId().equals(currentUserId)) {
+                btnLike.setEnabled(true);
+                btnLike.setOnClickListener(v -> {
+                    message.setLiked(!message.isLiked());
+                    FirebaseFirestore.getInstance().collection("messages")
+                            .document(message.getMessageId())
+                            .update("liked", message.isLiked());
+                });
+            } else {
+                btnLike.setEnabled(false);
             }
 
             if (message.getAuthorId() != null && message.getAuthorId().equals(currentUserId)) {
                 btnDelete.setVisibility(View.VISIBLE);
-                btnDelete.setOnClickListener(v -> {
-                    if (listener != null) listener.onDeleteClick(message);
-                });
+                btnDelete.setOnClickListener(v -> { if (listener != null) listener.onDeleteClick(message); });
             } else {
                 btnDelete.setVisibility(View.GONE);
             }
 
-            itemView.setOnClickListener(v -> {
-                if (listener != null) listener.onMessageClick(v, message);
-            });
-
-            itemView.setOnLongClickListener(v -> {
-                if (listener != null) listener.onMessageLongClick(v, message);
-                return true;
-            });
+            itemView.setOnClickListener(v -> { if (listener != null) listener.onMessageClick(v, message); });
+            itemView.setOnLongClickListener(v -> { if (listener != null) listener.onMessageLongClick(v, message); return true; });
         }
 
         private void applyPixelTheme(String theme) {
             Typeface pixelFont;
-            try {
-                pixelFont = ResourcesCompat.getFont(itemView.getContext(), R.font.vt323);
-            } catch (Exception e) {
-                pixelFont = Typeface.MONOSPACE;
-            }
-            
+            try { pixelFont = ResourcesCompat.getFont(itemView.getContext(), R.font.vt323); } 
+            catch (Exception e) { pixelFont = Typeface.MONOSPACE; }
             tvContent.setTypeface(pixelFont);
             tvAuthor.setTypeface(pixelFont, Typeface.BOLD);
             tvTimestamp.setTypeface(pixelFont);
-            
-            tvContent.setTextSize(22);
-            tvAuthor.setTextSize(20);
-
-            cardView.setCardElevation(0f);
-            cardView.setRadius(0f);
-            cardView.setStrokeWidth(0);
-            cardView.setCardBackgroundColor(Color.TRANSPARENT);
-
             switch (theme) {
-                case "Pixel Oscuro":
-                    setupStyles("#1A1A1A", "#91465F", "#FF4081", "#FFFFFF", "#AAAAAA");
-                    break;
-                case "Pixel Monocromático":
-                    // Black and White
-                    setupStyles("#FFFFFF", "#000000", "#000000", "#000000", "#333333");
-                    break;
-                case "Pixel Claro":
-                default:
-                    setupStyles("#F3E5AB", "#4A2511", "#1A5D1A", "#4A2511", "#8B4513");
-                    break;
+                case "Pixel Oscuro": setupStyles("#1A1A1A", "#91465F", "#FF4081", "#FFFFFF", "#AAAAAA"); break;
+                case "Pixel Monocromático": setupStyles("#FFFFFF", "#000000", "#000000", "#000000", "#333333"); break;
+                default: setupStyles("#F3E5AB", "#4A2511", "#1A5D1A", "#4A2511", "#8B4513"); break;
             }
         }
 
         private void setupStyles(String bgColor, String borderColor, String authorColor, String contentColor, String timeColor) {
-            Drawable pixelBg = createPixelDrawable(Color.parseColor(bgColor), Color.parseColor(borderColor));
-            cardView.setBackground(pixelBg);
-            
+            cardView.setBackground(createPixelDrawable(Color.parseColor(bgColor), Color.parseColor(borderColor)));
             tvAuthor.setTextColor(Color.parseColor(authorColor));
             tvContent.setTextColor(Color.parseColor(contentColor));
             tvTimestamp.setTextColor(Color.parseColor(timeColor));
-            
             ivAvatar.setBackground(createPixelDrawable(Color.parseColor(bgColor), Color.parseColor(borderColor)));
             ivAvatar.setPadding(6, 6, 6, 6);
         }
 
         private Drawable createPixelDrawable(int bgColor, int borderColor) {
-            GradientDrawable border = new GradientDrawable();
-            border.setColor(borderColor);
-            
-            GradientDrawable main = new GradientDrawable();
-            main.setColor(bgColor);
-            
-            GradientDrawable notch = new GradientDrawable();
-            notch.setColor(borderColor);
-
-            Drawable[] layers = new Drawable[6];
-            layers[0] = border;
-            layers[1] = main;
-            layers[2] = notch; layers[3] = notch; layers[4] = notch; layers[5] = notch;
-
-            LayerDrawable layerDrawable = new LayerDrawable(layers);
-            
-            layerDrawable.setLayerInset(1, 6, 6, 6, 6);
-            
-            layerDrawable.setLayerSize(2, 12, 12);
-            layerDrawable.setLayerGravity(2, Gravity.TOP | Gravity.START);
-            
-            layerDrawable.setLayerSize(3, 12, 12);
-            layerDrawable.setLayerGravity(3, Gravity.TOP | Gravity.END);
-            
-            layerDrawable.setLayerSize(4, 12, 12);
-            layerDrawable.setLayerGravity(4, Gravity.BOTTOM | Gravity.START);
-            
-            layerDrawable.setLayerSize(5, 12, 12);
-            layerDrawable.setLayerGravity(5, Gravity.BOTTOM | Gravity.END);
-
-            return layerDrawable;
+            GradientDrawable border = new GradientDrawable(); border.setColor(borderColor);
+            GradientDrawable main = new GradientDrawable(); main.setColor(bgColor);
+            GradientDrawable notch = new GradientDrawable(); notch.setColor(borderColor);
+            Drawable[] layers = {border, main, notch, notch, notch, notch};
+            LayerDrawable ld = new LayerDrawable(layers);
+            ld.setLayerInset(1, 6, 6, 6, 6);
+            ld.setLayerSize(2, 12, 12); ld.setLayerGravity(2, Gravity.TOP | Gravity.START);
+            ld.setLayerSize(3, 12, 12); ld.setLayerGravity(3, Gravity.TOP | Gravity.END);
+            ld.setLayerSize(4, 12, 12); ld.setLayerGravity(4, Gravity.BOTTOM | Gravity.START);
+            ld.setLayerSize(5, 12, 12); ld.setLayerGravity(5, Gravity.BOTTOM | Gravity.END);
+            return ld;
         }
+    }
+
+    static class AlbumPhotosAdapter extends RecyclerView.Adapter<AlbumPhotosAdapter.PhotoViewHolder> {
+        private List<String> photos;
+        public AlbumPhotosAdapter(List<String> photos) { this.photos = photos; }
+        @NonNull @Override public PhotoViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            ImageView iv = new ImageView(parent.getContext());
+            iv.setLayoutParams(new ViewGroup.LayoutParams(300, 300));
+            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            iv.setPadding(4, 0, 4, 0);
+            return new PhotoViewHolder(iv);
+        }
+        @Override public void onBindViewHolder(@NonNull PhotoViewHolder holder, int position) {
+            Glide.with(holder.itemView.getContext()).load(photos.get(position)).into((ImageView)holder.itemView);
+        }
+        @Override public int getItemCount() { return photos != null ? photos.size() : 0; }
+        static class PhotoViewHolder extends RecyclerView.ViewHolder { public PhotoViewHolder(@NonNull View itemView) { super(itemView); } }
     }
 }
