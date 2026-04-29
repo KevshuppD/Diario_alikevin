@@ -5,6 +5,8 @@ import android.util.Log;
 import com.cloudinary.android.MediaManager;
 import com.cloudinary.android.signed.Signature;
 import com.cloudinary.android.signed.SignatureProvider;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreSettings;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
@@ -16,6 +18,13 @@ public class DiarioApp extends Application {
     public void onCreate() {
         super.onCreate();
         
+        // Habilitar persistencia offline de Firestore
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
+                .setPersistenceEnabled(true)
+                .build();
+        db.setFirestoreSettings(settings);
+
         Map<String, Object> config = new HashMap<>();
         config.put("cloud_name", "dhaqjw7se");
         

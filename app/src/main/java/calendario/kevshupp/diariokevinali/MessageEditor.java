@@ -12,6 +12,7 @@ import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -36,6 +37,7 @@ public class MessageEditor {
     private final String userName;
     private final String userImageUri;
     private String currentSelectedImageUrl = null;
+    private String currentTheme = "Pixel Claro";
     
     public interface EditorCallback {
         void onSave(Message message);
@@ -53,7 +55,22 @@ public class MessageEditor {
     public void showEditDialog(@Nullable Message edit, EditorCallback callback) {
         AlertDialog.Builder b = new AlertDialog.Builder(context);
         View v = LayoutInflater.from(context).inflate(R.layout.dialog_edit_message, null);
+        currentDialogView = v;
         b.setView(v);
+
+        if ("Pixel Oscuro".equals(currentTheme)) {
+            v.setBackgroundResource(R.drawable.bg_parchment_pixel_dark);
+            ((TextView) v.findViewById(R.id.tvDialogTitle)).setTextColor(Color.WHITE);
+            EditText et1 = v.findViewById(R.id.etDialogTitle); et1.setTextColor(Color.WHITE); et1.setHintTextColor(Color.LTGRAY);
+            EditText et2 = v.findViewById(R.id.etDialogMessage); et2.setTextColor(Color.WHITE); et2.setHintTextColor(Color.LTGRAY);
+            et2.setBackgroundResource(R.drawable.bg_message_pixel_dark);
+            ((Button) v.findViewById(R.id.btnSave)).setTextColor(Color.WHITE);
+            ((Button) v.findViewById(R.id.btnCancel)).setTextColor(Color.WHITE);
+            ((Button) v.findViewById(R.id.btnAddImage)).setTextColor(Color.WHITE);
+            ((Button) v.findViewById(R.id.btnBold)).setTextColor(Color.WHITE);
+            ((Button) v.findViewById(R.id.btnItalic)).setTextColor(Color.WHITE);
+            ((Button) v.findViewById(R.id.btnColor)).setTextColor(Color.WHITE);
+        }
         
         EditText et = v.findViewById(R.id.etDialogMessage);
         EditText etTitle = v.findViewById(R.id.etDialogTitle);
@@ -87,6 +104,7 @@ public class MessageEditor {
         });
 
         AlertDialog dialog = b.create();
+        dialog.setOnDismissListener(d -> currentDialogView = null);
         v.findViewById(R.id.btnCancel).setOnClickListener(v1 -> dialog.dismiss());
         v.findViewById(R.id.btnSave).setOnClickListener(v1 -> {
             String html = "";
@@ -110,6 +128,13 @@ public class MessageEditor {
         AlertDialog.Builder b = new AlertDialog.Builder(context);
         View v = LayoutInflater.from(context).inflate(R.layout.dialog_message_detail, null);
         b.setView(v);
+
+        if ("Pixel Oscuro".equals(currentTheme)) {
+            v.setBackgroundResource(R.drawable.bg_parchment_pixel_dark);
+            ((TextView) v.findViewById(R.id.tvMessageDetailTitle)).setTextColor(Color.WHITE);
+            ((TextView) v.findViewById(R.id.tvMessageDetailContent)).setTextColor(Color.WHITE);
+            ((Button) v.findViewById(R.id.btnMessageDetailClose)).setTextColor(Color.WHITE);
+        }
         
         TextView tvTitle = v.findViewById(R.id.tvMessageDetailTitle);
         String title = msg.getTitle();
@@ -146,6 +171,21 @@ public class MessageEditor {
 
     public void setImageUrl(String url) {
         this.currentSelectedImageUrl = url;
+        // Si el diálogo está abierto, queremos que la imagen se vea inmediatamente
+        if (currentDialogView != null) {
+            ImageView ivSelectedImage = currentDialogView.findViewById(R.id.ivSelectedImage);
+            View imageContainer = currentDialogView.findViewById(R.id.imageContainer);
+            if (ivSelectedImage != null && imageContainer != null) {
+                imageContainer.setVisibility(View.VISIBLE);
+                Glide.with(context).load(url).into(ivSelectedImage);
+            }
+        }
+    }
+
+    private View currentDialogView = null;
+
+    public void setTheme(String theme) {
+        this.currentTheme = theme;
     }
 
     public void uploadImage(Uri uri, UploadCallback callback) {

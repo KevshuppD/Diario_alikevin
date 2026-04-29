@@ -2,7 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:padding="24dp"
     android:background="@drawable/bg_parchment_pixel">
 
@@ -46,42 +46,45 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/ivProfileImage" />
 
-    <EditText
-        android:id="@+id/etProfileName"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_message_pixel"
-        android:fontFamily="@font/vt323"
-        android:hint="Nombre de usuario"
-        android:inputType="textPersonName"
-        android:padding="12dp"
-        android:textColor="#4A2511"
-        android:textSize="20sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvCurrentUserName" />
-
     <!-- Relationship counter -->
     <TextView
         android:id="@+id/tvTogetherTime"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="12dp"
         android:fontFamily="@font/vt323"
         android:text="Juntos por: --"
         android:textColor="#D81B60"
         android:textSize="22sp"
         android:gravity="center"
+        android:background="@drawable/bg_message_pixel"
+        android:padding="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvCurrentUserName" />
+
+    <EditText
+        android:id="@+id/etProfileName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_message_pixel"
+        android:fontFamily="@font/vt323"
+        android:hint="Cambiar nombre"
+        android:inputType="textPersonName"
+        android:padding="12dp"
+        android:textColor="#4A2511"
+        android:textSize="20sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvTogetherTime" />
 
     <TextView
         android:id="@+id/tvProfileInfo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="8dp"
         android:fontFamily="@font/vt323"
         android:text="Toca la imagen para cambiarla"
         android:textColor="#8B4513"

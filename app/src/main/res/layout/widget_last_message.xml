@@ -4,8 +4,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="12dp"
-    android:background="@drawable/bg_parchment_pixel">
+    android:padding="16dp"
+    android:background="#F3E5AB">
 
     <TextView
         android:id="@+id/tvWidgetTitle"
@@ -20,9 +20,10 @@
         android:id="@+id/tvWidgetMessage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
         android:ellipsize="end"
-        android:maxLines="4"
+        android:maxLines="8"
+        android:lineSpacingExtra="2dp"
         android:text="Cargando mensaje..."
         android:textColor="#8B4513"
         android:textSize="16sp" />

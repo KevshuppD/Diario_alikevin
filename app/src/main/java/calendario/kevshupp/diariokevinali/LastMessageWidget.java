@@ -58,6 +58,9 @@ public class LastMessageWidget extends AppWidgetProvider {
         PendingIntent basePending = PendingIntent.getActivity(context, appWidgetId, baseIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         views.setOnClickPendingIntent(R.id.widgetRoot, basePending);
 
+        // Update immediately with loading state
+        appWidgetManager.updateAppWidget(appWidgetId, views);
+
         if (coupleId != null && myId != null) {
             FirebaseFirestore.getInstance().collection("messages")
                 .whereEqualTo("partnerId", coupleId)
@@ -92,6 +95,9 @@ public class LastMessageWidget extends AppWidgetProvider {
                     }
 
                     if (isLargeFinal) {
+                        // Actualizar primero con el mensaje, mientras cargan los eventos
+                        appWidgetManager.updateAppWidget(appWidgetId, views);
+
                         FirebaseFirestore.getInstance().collection("calendar")
                             .whereEqualTo("partnerId", coupleId)
                             .get()
@@ -148,12 +154,6 @@ public class LastMessageWidget extends AppWidgetProvider {
     @Override
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
-        // Si hay una actualización manual o push, podemos forzar el update
-        if (AppWidgetManager.ACTION_APPWIDGET_UPDATE.equals(intent.getAction())) {
-            AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
-            ComponentName thisWidget = new ComponentName(context, LastMessageWidget.class);
-            int[] appWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget);
-            onUpdate(context, appWidgetManager, appWidgetIds);
-        }
+        // El super.onReceive ya maneja ACTION_APPWIDGET_UPDATE llamando a onUpdate si hay IDs.
     }
 }

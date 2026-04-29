@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_large_desc"
+    android:previewLayout="@layout/widget_last_message_large"
     android:initialLayout="@layout/widget_last_message_large"
     android:minHeight="180dp"
     android:minWidth="250dp"

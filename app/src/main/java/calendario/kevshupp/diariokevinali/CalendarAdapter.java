@@ -1,5 +1,6 @@
 package calendario.kevshupp.diariokevinali;
 
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,6 +18,7 @@ public class CalendarAdapter extends RecyclerView.Adapter<CalendarAdapter.Calend
     private List<CalendarEvent> eventList;
     private String currentUserId;
     private OnEventActionListener listener;
+    private String theme = "Pixel Claro";
     private SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
 
     public interface OnEventActionListener {
@@ -41,6 +43,21 @@ public class CalendarAdapter extends RecyclerView.Adapter<CalendarAdapter.Calend
     public void onBindViewHolder(@NonNull CalendarViewHolder holder, int position) {
         CalendarEvent event = eventList.get(position);
         
+        boolean isDark = "Pixel Oscuro".equals(theme);
+        if (isDark) {
+            holder.cardView.setCardBackgroundColor(Color.parseColor("#1A1A2E"));
+            holder.cardView.setStrokeColor(Color.parseColor("#30304A"));
+            holder.tvTitle.setTextColor(Color.WHITE);
+            holder.tvDescription.setTextColor(Color.LTGRAY);
+            holder.tvAuthor.setTextColor(Color.parseColor("#A084CA"));
+        } else {
+            holder.cardView.setCardBackgroundColor(Color.WHITE);
+            holder.cardView.setStrokeColor(Color.parseColor("#DDDDDD"));
+            holder.tvTitle.setTextColor(Color.parseColor("#5D2E7A"));
+            holder.tvDescription.setTextColor(Color.parseColor("#333333"));
+            holder.tvAuthor.setTextColor(Color.parseColor("#91465F"));
+        }
+
         String timeStr = timeFormat.format(new Date(event.getDate()));
         String recurrenceStr = "";
         if ("WEEKLY".equals(event.getRecurrence())) recurrenceStr = " (Semanal)";
@@ -71,12 +88,19 @@ public class CalendarAdapter extends RecyclerView.Adapter<CalendarAdapter.Calend
         return eventList.size();
     }
 
+    public void setTheme(String theme) {
+        this.theme = theme;
+        notifyDataSetChanged();
+    }
+
     static class CalendarViewHolder extends RecyclerView.ViewHolder {
         TextView tvTitle, tvDescription, tvAuthor;
         ImageButton btnDelete;
+        com.google.android.material.card.MaterialCardView cardView;
 
         public CalendarViewHolder(@NonNull View itemView) {
             super(itemView);
+            cardView = (com.google.android.material.card.MaterialCardView) itemView.findViewById(R.id.cardEvent);
             tvTitle = itemView.findViewById(R.id.tvEventTitle);
             tvDescription = itemView.findViewById(R.id.tvEventDescription);
             tvAuthor = itemView.findViewById(R.id.tvEventAuthor);

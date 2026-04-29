@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_time_travel"
+        android:title="Viajar en el tiempo" />
+    <item
+        android:id="@+id/menu_calendar"
+        android:title="Calendario" />
+    <item
+        android:id="@+id/menu_album"
+        android:title="Álbum de fotos" />
+    <item
+        android:id="@+id/menu_recipe"
+        android:title="Recetario" />
+    <item
+        android:id="@+id/menu_profile"
+        android:title="Perfil" />
+    <item
+        android:id="@+id/menu_settings"
+        android:title="Configuración" />
+</menu>
+

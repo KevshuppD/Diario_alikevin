@@ -11,8 +11,8 @@ android {
         applicationId = "calendario.kevshupp.diariokevinali"
         minSdk = 33
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.0.5"
+        versionCode = 9
+        versionName = "1.0.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -27,6 +27,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // applicationIdSuffix = ".debug"
+            versionNameSuffix = "-DEBUG"
+        }
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("release")

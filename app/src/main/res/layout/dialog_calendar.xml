@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:padding="16dp"
     android:background="@drawable/bg_parchment_pixel">
 
@@ -37,7 +37,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:theme="@style/Theme.AppCompat.Light"
         app:layout_constraintTop_toBottomOf="@id/tvDaysWithEvents" />
 
     <TextView
@@ -55,39 +54,23 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvEvents"
         android:layout_width="match_parent"
-        android:layout_height="120dp"
+        android:layout_height="0dp"
         android:layout_marginTop="4dp"
         app:layout_constraintTop_toBottomOf="@id/tvSelectedDate"
+        app:layout_constraintBottom_toTopOf="@id/btnAddEvent"
         tools:listitem="@layout/item_calendar_event" />
 
     <Button
         android:id="@+id/btnAddEvent"
-        style="@style/Widget.Material3.Button"
-        android:layout_width="0dp"
+        style="@style/Widget.Material3.Button.TonalButton"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:fontFamily="@font/vt323"
         android:text="Agendar Cita"
-        android:textSize="18sp"
+        android:textSize="20sp"
         android:textColor="#FFFFFF"
         android:backgroundTint="#5D2E7A"
-        app:layout_constraintEnd_toStartOf="@+id/btnCalendarClose"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rvEvents" />
-
-    <Button
-        android:id="@+id/btnCalendarClose"
-        style="@style/Widget.Material3.Button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="12dp"
-        android:fontFamily="@font/vt323"
-        android:text="Cerrar"
-        android:textSize="18sp"
-        android:textColor="#FFFFFF"
-        android:backgroundTint="#8B4513"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rvEvents" />
+        app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

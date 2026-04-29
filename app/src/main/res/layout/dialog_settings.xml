@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="20dp"
     android:background="@drawable/bg_parchment_pixel">
@@ -19,6 +19,7 @@
         android:layout_marginBottom="24dp"/>
 
     <TextView
+        android:id="@+id/tvLabelTheme"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="TEMA VISUAL"
@@ -32,7 +33,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="24dp">
+        android:layout_marginBottom="16dp">
 
         <RadioButton
             android:id="@+id/rbPixelClaro"
@@ -52,6 +53,89 @@
             android:textSize="18sp"
             android:text="Pixel Oscuro"/>
     </RadioGroup>
+
+    <TextView
+        android:id="@+id/tvLabelColor"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="COLOR DE BARRAS (TEMA CLARO)"
+        android:textSize="18sp"
+        android:fontFamily="@font/vt323"
+        android:textColor="#8B4513"
+        android:layout_marginBottom="12dp"/>
+
+    <LinearLayout
+        android:id="@+id/colorSelectionLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="24dp">
+
+        <View
+            android:id="@+id/colorPurple"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_purple"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorBlue"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_blue"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorGreen"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_green"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorPink"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_pink"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorOrange"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_orange"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorCyan"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_cyan"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorBrown"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_brown"
+            android:clickable="true"
+            android:focusable="true" />
+
+    </LinearLayout>
 
     <View
         android:layout_width="match_parent"

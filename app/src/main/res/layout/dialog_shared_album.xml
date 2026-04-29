@@ -1,85 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:padding="20dp"
+    android:layout_height="match_parent"
     android:background="@drawable/bg_parchment_pixel">
 
-    <TextView
-        android:id="@+id/tvAlbumTitle"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:id="@+id/llAlbumHeader"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/vt323"
-        android:text="Álbum de Recuerdos"
-        android:textColor="#4A2511"
-        android:textSize="32sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:orientation="vertical"
+        android:padding="16dp"
+        app:layout_constraintTop_toTopOf="parent">
 
-    <TextView
-        android:id="@+id/tvAlbumSubtitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:fontFamily="@font/vt323"
-        android:text="Nuestras fotos juntos ❤️"
-        android:textColor="#8B4513"
-        android:textSize="20sp"
-        android:layout_marginTop="4dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvAlbumTitle" />
+        <TextView
+            android:id="@+id/tvAlbumTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/vt323"
+            android:text="Galería de imágenes"
+            android:textColor="#333333"
+            android:textSize="32sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvAlbumSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/vt323"
+            android:text="MOMENTOS COMPARTIDOS"
+            android:textColor="#666666"
+            android:textSize="14sp"
+            android:layout_marginTop="8dp"
+            android:letterSpacing="0.1" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#DDDDDD"
+            android:layout_marginTop="12dp" />
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvAlbumPhotos"
         android:layout_width="match_parent"
-        android:layout_height="400dp"
-        android:layout_marginTop="16dp"
+        android:layout_height="0dp"
         android:clipToPadding="false"
-        android:paddingBottom="8dp"
-        app:layout_constraintTop_toBottomOf="@id/tvAlbumSubtitle"
-        tools:listitem="@android:layout/simple_list_item_1" />
+        android:paddingHorizontal="14dp"
+        app:layout_constraintTop_toBottomOf="@id/llAlbumHeader"
+        app:layout_constraintBottom_toTopOf="@id/btnAddMoment" />
 
-    <LinearLayout
+    <Button
+        android:id="@+id/btnAddMoment"
+        style="@style/Widget.Material3.Button.TonalButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:orientation="horizontal"
-        android:gravity="center"
-        app:layout_constraintTop_toBottomOf="@id/rvAlbumPhotos"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <Button
-            android:id="@+id/btnViewAll"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:backgroundTint="#8B4513"
-            android:fontFamily="@font/vt323"
-            android:text="Ver Todo"
-            android:textAllCaps="false"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            style="@style/Widget.Material3.Button.TonalButton" />
-
-        <Button
-            android:id="@+id/btnCloseAlbum"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:backgroundTint="#5D2E7A"
-            android:fontFamily="@font/vt323"
-            android:text="Cerrar"
-            android:textAllCaps="false"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            style="@style/Widget.Material3.Button.TonalButton" />
-
-    </LinearLayout>
+        android:backgroundTint="#8B4513"
+        android:fontFamily="@font/vt323"
+        android:text="Añadir Momento"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

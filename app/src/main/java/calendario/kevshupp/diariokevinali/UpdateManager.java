@@ -55,6 +55,9 @@ public class UpdateManager {
         new OkHttpClient().newCall(new Request.Builder().url(repoUrl).build()).enqueue(new Callback() {
             @Override public void onFailure(@NonNull Call c, @NonNull IOException e) {
                 Log.e(TAG, "Request failed", e);
+                if (callback != null) {
+                    new Handler(Looper.getMainLooper()).post(callback::onNoUpdate);
+                }
             }
             @Override public void onResponse(@NonNull Call c, @NonNull Response r) throws IOException {
                 if (r.isSuccessful() && r.body() != null) {
@@ -74,13 +77,23 @@ public class UpdateManager {
                                     break;
                                 }
                             }
-                            if (url != null && callback != null) callback.onUpdateAvailable(url);
+                            if (url != null && callback != null) {
+                                String finalUrl = url;
+                                new Handler(Looper.getMainLooper()).post(() -> callback.onUpdateAvailable(finalUrl));
+                            } else if (callback != null) {
+                                new Handler(Looper.getMainLooper()).post(callback::onNoUpdate);
+                            }
                         } else if (callback != null) {
-                            callback.onNoUpdate();
+                            new Handler(Looper.getMainLooper()).post(callback::onNoUpdate);
                         }
                     } catch (Exception e) {
                         Log.e(TAG, "Error parsing response", e);
+                        if (callback != null) {
+                            new Handler(Looper.getMainLooper()).post(callback::onNoUpdate);
+                        }
                     }
+                } else if (callback != null) {
+                    new Handler(Looper.getMainLooper()).post(callback::onNoUpdate);
                 }
             }
         });

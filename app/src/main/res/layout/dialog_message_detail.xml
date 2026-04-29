@@ -25,7 +25,7 @@
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
         app:layout_constraintTop_toBottomOf="@id/tvMessageDetailTitle"
-        app:layout_constraintBottom_toTopOf="@+id/btnMessageDetailClose"
+        app:layout_constraintBottom_toTopOf="@+id/llDetailButtons"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHeight_default="wrap"
@@ -54,18 +54,41 @@
                 android:adjustViewBounds="true"
                 android:scaleType="fitCenter"
                 android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvMessageDetailPhotos"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:visibility="gone" />
         </LinearLayout>
     </ScrollView>
 
-    <Button
-        android:id="@+id/btnMessageDetailClose"
-        style="@style/PixelButton"
+    <LinearLayout
+        android:id="@+id/llDetailButtons"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Cerrar"
+        android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="16dp"/>
+        android:layout_marginTop="16dp">
+
+        <Button
+            android:id="@+id/btnMessageDetailEdit"
+            style="@style/PixelButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Editar"
+            android:layout_marginEnd="8dp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnMessageDetailClose"
+            style="@style/PixelButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cerrar"/>
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

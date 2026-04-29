@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="6dp"
+    android:background="@drawable/bg_message_pixel"
+    android:padding="10dp">
+
+    <TextView
+        android:id="@+id/tvRecipeTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/vt323"
+        android:textColor="#4A2511"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btnEditRecipe" />
+
+    <ImageButton
+        android:id="@+id/btnEditRecipe"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:background="@android:color/transparent"
+        android:src="@android:drawable/ic_menu_edit"
+        app:tint="#5D2E7A"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btnDeleteRecipe" />
+
+    <ImageButton
+        android:id="@+id/btnDeleteRecipe"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/ic_delete_pixel"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tvRecipeAuthor"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:fontFamily="@font/vt323"
+        android:textColor="#8B4513"
+        android:textSize="18sp"
+        app:layout_constraintTop_toBottomOf="@id/tvRecipeTitle"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ImageView
+        android:id="@+id/ivRecipeImage"
+        android:layout_width="match_parent"
+        android:layout_height="130dp"
+        android:layout_marginTop="8dp"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/tvRecipeAuthor"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tvRecipeIngredients"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/vt323"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:textColor="#4A2511"
+        android:textSize="19sp"
+        app:layout_constraintTop_toBottomOf="@id/ivRecipeImage"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
