@@ -63,9 +63,8 @@ public class CalendarFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         boolean isDark = "Pixel Oscuro".equals(theme);
         // Usamos un inflater con el tema adecuado para que el CalendarView tome los colores
-        LayoutInflater themedInflater = isDark ? 
-                inflater.cloneInContext(new ContextThemeWrapper(requireContext(), R.style.DarkCalendarTheme)) : 
-                inflater;
+        LayoutInflater themedInflater = inflater.cloneInContext(new ContextThemeWrapper(requireContext(), 
+                isDark ? R.style.DarkCalendarTheme : R.style.LightCalendarTheme));
                 
         View view = themedInflater.inflate(R.layout.dialog_calendar, container, false);
 

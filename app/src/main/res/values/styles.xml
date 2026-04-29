@@ -37,9 +37,27 @@
         <item name="android:headerMonthTextAppearance">@style/CalendarWhiteText</item>
     </style>
 
+    <!-- Estilo para CalendarView en Modo Claro -->
+    <style name="LightCalendarTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:isLightTheme">true</item>
+        <item name="android:textColorPrimary">#4A2511</item>
+        <item name="android:textColorSecondary">#8B4513</item>
+        <item name="android:textColorPrimaryInverse">#4A2511</item>
+        <item name="android:colorAccent">#5D2E7A</item>
+        <item name="android:weekDayTextAppearance">@style/CalendarBrownText</item>
+        <item name="android:dateTextAppearance">@style/CalendarBrownText</item>
+        <item name="android:headerMonthTextAppearance">@style/CalendarBrownText</item>
+    </style>
+
     <style name="CalendarWhiteText" parent="TextAppearance.AppCompat">
         <item name="android:textColor">#FFFFFF</item>
         <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:fontFamily">@font/vt323</item>
+    </style>
+
+    <style name="CalendarBrownText" parent="TextAppearance.AppCompat">
+        <item name="android:textColor">#4A2511</item>
+        <item name="android:textColorPrimary">#4A2511</item>
         <item name="android:fontFamily">@font/vt323</item>
     </style>
 </resources>
