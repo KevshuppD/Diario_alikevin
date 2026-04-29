@@ -210,6 +210,9 @@ public class RecipeManager {
             );
 
             db.collection("recipes").document(recipeId).set(recipe).addOnSuccessListener(aVoid -> {
+                if (context instanceof MainActivity) {
+                    ((MainActivity) context).sendNotificationV1("Nueva receta: " + title, currentSelectedImageUrl);
+                }
                 Toast.makeText(context, "Receta guardada", Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
             });

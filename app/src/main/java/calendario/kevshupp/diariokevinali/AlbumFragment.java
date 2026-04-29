@@ -79,7 +79,9 @@ public class AlbumFragment extends Fragment {
                 if (getActivity() instanceof MainActivity) ((MainActivity) getActivity()).pickImage(4); 
             }
             @Override public void onMomentSaved() {
-                if (getActivity() instanceof MainActivity) ((MainActivity) getActivity()).sendNotificationV1("Nuevo momento en el álbum 📸");
+                if (getActivity() instanceof MainActivity) {
+                    ((MainActivity) getActivity()).sendNotificationV1("Nuevo momento en el álbum 📸", null);
+                }
             }
         }));
 

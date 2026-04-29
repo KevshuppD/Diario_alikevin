@@ -1,6 +1,8 @@
 package calendario.kevshupp.diariokevinali;
 
 import android.Manifest;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Context;
@@ -581,6 +583,26 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
 
     public long normalizeDate(long ts) { Calendar c = Calendar.getInstance(); c.setTimeInMillis(ts); c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0); return c.getTimeInMillis(); }
 
+    private void scheduleCalendarReminder(CalendarEvent event) {
+        if (event.getDate() < System.currentTimeMillis()) return;
+
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager == null) return;
+
+        Intent intent = new Intent(this, NotificationReceiver.class);
+        intent.putExtra("title", "¡Tienes una cita!");
+        intent.putExtra("content", event.getTitle() + " - " + event.getDescription());
+
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, event.getEventId().hashCode(), intent, 
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, event.getDate(), pendingIntent);
+        } else {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, event.getDate(), pendingIntent);
+        }
+    }
+
     public void showAddEventDialog(long ts, @Nullable CalendarEvent edit) {
         AlertDialog.Builder b = new AlertDialog.Builder(this);
         View v = LayoutInflater.from(this).inflate(R.layout.dialog_add_calendar_event, null);
@@ -660,7 +682,9 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
             ev.setAuthorName(currentUserName);
             int pos = spinner.getSelectedItemPosition();
             ev.setRecurrence(pos >= 0 ? values[pos] : "NONE"); 
-            db.collection("calendar").document(id).set(ev); 
+            db.collection("calendar").document(id).set(ev).addOnSuccessListener(aVoid -> {
+                scheduleCalendarReminder(ev);
+            });
             d.dismiss(); 
         });
         v.findViewById(R.id.btnCancelEvent).setOnClickListener(v1 -> d.dismiss());
@@ -693,14 +717,15 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
             etHint = Color.parseColor("#AAAAAA");
         } else {
             bg = Color.parseColor("#F5F5F5");
-            if (lightColor == null) {
-                lightColor = getSharedPreferences("DiarioPrefs", MODE_PRIVATE).getString("lightColor", "#4A148C");
+            String actualLightColor = lightColor;
+            if (actualLightColor == null) {
+                actualLightColor = getSharedPreferences("DiarioPrefs", MODE_PRIVATE).getString("lightColor", "#4A148C");
             }
-            tb = Color.parseColor(lightColor); 
+            tb = Color.parseColor(actualLightColor); 
             inputBg = Color.parseColor("#6A1B9A"); 
             
             // Lógica refinada para el fondo del área de entrada basado en el color de barra
-            switch (lightColor.toUpperCase()) {
+            switch (actualLightColor.toUpperCase()) {
                 case "#0D47A1": inputBg = Color.parseColor("#1976D2"); break; // Azul
                 case "#1B5E20": inputBg = Color.parseColor("#388E3C"); break; // Verde
                 case "#C2185B": inputBg = Color.parseColor("#D81B60"); break; // Rosa
