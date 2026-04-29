@@ -52,7 +52,13 @@ public class UpdateManager {
 
     public void checkForUpdates(UpdateCallback callback) {
         String repoUrl = "https://api.github.com/repos/KevshuppD/Diario_alikevin/releases/latest";
-        new OkHttpClient().newCall(new Request.Builder().url(repoUrl).build()).enqueue(new Callback() {
+        Request request = new Request.Builder()
+                .url(repoUrl)
+                .header("User-Agent", "DiarioKevinAli-App")
+                .header("Cache-Control", "no-cache")
+                .build();
+
+        new OkHttpClient().newCall(request).enqueue(new Callback() {
             @Override public void onFailure(@NonNull Call c, @NonNull IOException e) {
                 Log.e(TAG, "Request failed", e);
                 if (callback != null) {
@@ -67,7 +73,9 @@ public class UpdateManager {
                         String latestTag = j.getString("tag_name");
                         String currentVersion = BuildConfig.VERSION_NAME;
 
-                        if (isNewerVersion(currentVersion, latestTag.replace("v", ""))) {
+                        Log.d(TAG, "Checking updates. Current: " + currentVersion + ", Latest on GitHub: " + latestTag);
+
+                        if (isNewerVersion(currentVersion, latestTag)) {
                             String url = null;
                             org.json.JSONArray assets = j.getJSONArray("assets");
                             for (int i = 0; i < assets.length(); i++) {
@@ -92,20 +100,29 @@ public class UpdateManager {
                             new Handler(Looper.getMainLooper()).post(callback::onNoUpdate);
                         }
                     }
-                } else if (callback != null) {
-                    new Handler(Looper.getMainLooper()).post(callback::onNoUpdate);
+                } else {
+                    Log.e(TAG, "Response not successful: " + r.code());
+                    if (callback != null) {
+                        new Handler(Looper.getMainLooper()).post(callback::onNoUpdate);
+                    }
                 }
             }
         });
     }
 
     private boolean isNewerVersion(String current, String latest) {
+        if (current == null || latest == null) return false;
         try {
-            current = current.replace("v", "");
-            latest = latest.replace("v", "");
-            String[] currParts = current.split("\\.");
-            String[] lateParts = latest.split("\\.");
+            // Normalizar eliminando prefijos 'v' y sufijos de build
+            String cleanCurrent = current.toLowerCase().replace("v", "").split("-")[0];
+            String cleanLatest = latest.toLowerCase().replace("v", "").split("-")[0];
+            
+            if (cleanCurrent.equals(cleanLatest)) return false;
+
+            String[] currParts = cleanCurrent.split("\\.");
+            String[] lateParts = cleanLatest.split("\\.");
             int length = Math.max(currParts.length, lateParts.length);
+            
             for (int i = 0; i < length; i++) {
                 int curr = i < currParts.length ? Integer.parseInt(currParts[i].replaceAll("[^0-9]", "")) : 0;
                 int late = i < lateParts.length ? Integer.parseInt(lateParts[i].replaceAll("[^0-9]", "")) : 0;
@@ -113,6 +130,7 @@ public class UpdateManager {
                 if (curr > late) return false;
             }
         } catch (Exception e) {
+            Log.e(TAG, "Version comparison error", e);
             return !current.equals(latest);
         }
         return false;
