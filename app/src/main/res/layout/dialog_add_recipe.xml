@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_parchment_pixel">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tvRecipeEditorTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/vt323"
+            android:text="Nueva receta"
+            android:textColor="#4A2511"
+            android:textSize="30sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etRecipeTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_message_pixel"
+            android:fontFamily="@font/vt323"
+            android:hint="Título"
+            android:padding="12dp"
+            android:textColor="#4A2511"
+            android:textColorHint="#8B4513"
+            android:textSize="22sp" />
+
+        <EditText
+            android:id="@+id/etRecipeIngredients"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_message_pixel"
+            android:fontFamily="@font/vt323"
+            android:gravity="top"
+            android:hint="Ingredientes"
+            android:inputType="textMultiLine"
+            android:minHeight="90dp"
+            android:padding="12dp"
+            android:textColor="#4A2511"
+            android:textColorHint="#8B4513"
+            android:textSize="20sp" />
+
+        <EditText
+            android:id="@+id/etRecipeSteps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_message_pixel"
+            android:fontFamily="@font/vt323"
+            android:gravity="top"
+            android:hint="Pasos"
+            android:inputType="textMultiLine"
+            android:minHeight="110dp"
+            android:padding="12dp"
+            android:textColor="#4A2511"
+            android:textColorHint="#8B4513"
+            android:textSize="20sp" />
+
+        <FrameLayout
+            android:id="@+id/recipePreviewContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/ivRecipePreview"
+                android:layout_width="match_parent"
+                android:layout_height="170dp"
+                android:adjustViewBounds="true"
+                android:background="@drawable/bg_message_pixel"
+                android:scaleType="fitCenter" />
+
+            <ImageButton
+                android:id="@+id/btnRemoveRecipeImage"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="top|end"
+                android:layout_margin="4dp"
+                android:background="@android:drawable/ic_menu_close_clear_cancel"
+                android:backgroundTint="#FF0000" />
+
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnRecipeAddImage"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:backgroundTint="#8B4513"
+                android:fontFamily="@font/vt323"
+                android:text="Foto"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp" />
+
+            <Button
+                android:id="@+id/btnCancelRecipe"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:backgroundTint="#8B4513"
+                android:fontFamily="@font/vt323"
+                android:text="Cancelar"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp" />
+
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnSaveRecipe"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:backgroundTint="#5D2E7A"
+            android:fontFamily="@font/vt323"
+            android:text="Guardar receta"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp" />
+
+    </LinearLayout>
+
+</ScrollView>
+

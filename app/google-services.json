@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "439201068702",
+    "project_id": "diario-pareja-a2d35",
+    "storage_bucket": "diario-pareja-a2d35.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:439201068702:android:baaa7771e132758a3ced8f",
+        "android_client_info": {
+          "package_name": "calendario.kevshupp.diariokevinali"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAY4lXaHIXNlftWZ3XcLgm4xuQE0atLnoM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

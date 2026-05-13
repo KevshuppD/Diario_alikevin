@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#F3E5AB" /> <!-- Color pergamino -->
+    <corners android:radius="2dp" />
+    <stroke android:width="3dp" android:color="#8B4513" /> <!-- Borde café oscuro pixelado -->
+</shape>

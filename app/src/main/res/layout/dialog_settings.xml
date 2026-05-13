@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="@drawable/bg_parchment_pixel">
+
+    <TextView
+        android:id="@+id/tvSettingsTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="CONFIGURACIÓN"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:fontFamily="@font/vt323"
+        android:textColor="#4A2511"
+        android:layout_gravity="center"
+        android:layout_marginBottom="24dp"/>
+
+    <TextView
+        android:id="@+id/tvLabelTheme"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TEMA VISUAL"
+        android:textSize="18sp"
+        android:fontFamily="@font/vt323"
+        android:textColor="#8B4513"
+        android:layout_marginBottom="12dp"/>
+
+    <RadioGroup
+        android:id="@+id/rgThemes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="16dp">
+
+        <RadioButton
+            android:id="@+id/rbPixelClaro"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/vt323"
+            android:textColor="#4A2511"
+            android:textSize="18sp"
+            android:text="Pixel Claro"/>
+
+        <RadioButton
+            android:id="@+id/rbPixelOscuro"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/vt323"
+            android:textColor="#4A2511"
+            android:textSize="18sp"
+            android:text="Pixel Oscuro"/>
+    </RadioGroup>
+
+    <TextView
+        android:id="@+id/tvLabelColor"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="COLOR DE BARRAS (TEMA CLARO)"
+        android:textSize="18sp"
+        android:fontFamily="@font/vt323"
+        android:textColor="#8B4513"
+        android:layout_marginBottom="12dp"/>
+
+    <LinearLayout
+        android:id="@+id/colorSelectionLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="24dp">
+
+        <View
+            android:id="@+id/colorPurple"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_purple"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorBlue"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_blue"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorGreen"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_green"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorPink"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_pink"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorOrange"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_orange"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorCyan"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_cyan"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorBrown"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:background="@drawable/color_circle_brown"
+            android:clickable="true"
+            android:focusable="true" />
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#D2B48C"
+        android:layout_marginBottom="24dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:id="@+id/tvAppVersion"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/vt323"
+            android:textColor="#8B4513"
+            android:textSize="16sp"
+            android:text="Versión actual: 1.0.4"/>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnCheckUpdates"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="BUSCAR ACTUALIZACIONES"
+        android:fontFamily="@font/vt323"
+        android:textSize="16sp"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#5D2E7A"
+        android:layout_marginBottom="12dp"/>
+
+    <Button
+        android:id="@+id/btnLogout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="CERRAR SESIÓN"
+        android:fontFamily="@font/vt323"
+        android:textSize="16sp"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#8B4513"
+        android:layout_marginBottom="12dp"/>
+
+    <Button
+        android:id="@+id/btnDismissSettings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="VOLVER"
+        android:fontFamily="@font/vt323"
+        android:textSize="16sp"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#5D2E7A"/>
+</LinearLayout>
