@@ -285,7 +285,6 @@ public class AlbumManager {
             rvPhotos.setVisibility(View.VISIBLE);
 
             rvPhotos.setLayoutManager(new androidx.recyclerview.widget.GridLayoutManager(context, 2));
-            rvPhotos.setHasFixedSize(true);
 
             rvPhotos.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 @NonNull @Override public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup p, int vt) {
