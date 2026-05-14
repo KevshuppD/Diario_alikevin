@@ -47,6 +47,7 @@ class AlbumManager(
     fun showAddMomentDialog(callback: AlbumCallback) {
         val b = AlertDialog.Builder(context)
         val v = LayoutInflater.from(context).inflate(R.layout.dialog_edit_message, null)
+        activeDialogView = v
         b.setView(v)
         v.findViewById<TextView>(R.id.tvDialogTitle).text = "Nuestro Álbum"
         v.findViewById<View>(R.id.formatToolbar).visibility = View.GONE
@@ -121,6 +122,7 @@ class AlbumManager(
         v.findViewById<View>(R.id.btnCancel).setOnClickListener { dialog.dismiss() }
         dialog.setOnDismissListener {
             activeSaveButton = null
+            activeDialogView = null
             if (!saved[0]) {
                 clearDeferredUploadTarget()
             }
@@ -283,9 +285,12 @@ class AlbumManager(
         d.show()
     }
 
+    private var activeDialogView: View? = null
+
     fun addImageUrl(url: String) {
         currentAlbumImages.add(url)
         previewAdapter?.notifyDataSetChanged()
+        activeDialogView?.findViewById<View>(R.id.rvAlbumPreview)?.visibility = View.VISIBLE
         
         // Si hay una subida diferida activa, actualizar inmediatamente Firestore
         if (allowDeferredUploads && deferredMessageId != null) {

@@ -26,6 +26,7 @@ import coil.compose.AsyncImage
 fun RecipeDetailDialog(
     recipe: Recipe,
     isDark: Boolean,
+    onEdit: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val backgroundColor = if (isDark) Color(0xFF2D2D2D) else Color(0xFFF5E6BE)
@@ -134,19 +135,38 @@ fun RecipeDetailDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Botón Cerrar
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RectangleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isDark) Color(0xFF4A148C) else Color(0xFF5D2E7A),
-                        contentColor = Color.White
-                    )
+                // Botones
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Cerrar", fontFamily = Vt323, fontSize = 22.sp)
+                    Button(
+                        onClick = onEdit,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp),
+                        shape = RectangleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isDark) Color(0xFF00796B) else Color(0xFF00897B),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Editar", fontFamily = Vt323, fontSize = 22.sp)
+                    }
+
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp),
+                        shape = RectangleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isDark) Color(0xFF4A148C) else Color(0xFF5D2E7A),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Cerrar", fontFamily = Vt323, fontSize = 22.sp)
+                    }
                 }
             }
         }

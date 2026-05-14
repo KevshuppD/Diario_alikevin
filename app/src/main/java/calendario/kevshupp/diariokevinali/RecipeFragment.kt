@@ -96,6 +96,10 @@ class RecipeFragment : Fragment() {
                     calendario.kevshupp.diariokevinali.compose.RecipeDetailDialog(
                         recipe = recipe,
                         isDark = isDark,
+                        onEdit = {
+                            selectedRecipe = null
+                            activityRef?.recipeManager?.showAddRecipeDialog(recipe)
+                        },
                         onDismiss = { selectedRecipe = null }
                     )
                 }

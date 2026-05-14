@@ -131,8 +131,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
 
     private UpdateManager updateManager;
     private MessageEditor messageEditor;
+    public RecipeManager recipeManager;
     private AlbumManager albumManager;
-    private RecipeManager recipeManager;
+    private MutableState<Boolean> isUploadingState = SnapshotStateKt.mutableStateOf(false, SnapshotStateKt.neverEqualPolicy());
 
     // Launchers modernos para resultados de actividades
     private final androidx.activity.result.ActivityResultLauncher<Intent> pickImageLauncher = registerForActivityResult(
@@ -287,6 +288,8 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         listenUserInfo();
         listenPet();
         listenCalendar();
+        setupOverlays();
+        checkNotificationPermission();
     }
 
     @Override
@@ -487,6 +490,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     m.setAuthorName(currentUserName);
                     m.setAuthorImageUrl(currentUserImageUri);
                     m.setTimestamp(System.currentTimeMillis());
+                    m.setPartnerId(currentCoupleId);
                 }
                 m.setTitle(title);
                 m.setContent(content);
@@ -528,10 +532,15 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             query = query.whereGreaterThanOrEqualTo("timestamp", s.getTimeInMillis()).whereLessThanOrEqualTo("timestamp", e.getTimeInMillis());
         }
         firestoreListener = query.addSnapshotListener((value, error) -> {
+            if (error != null) {
+                android.util.Log.e("Firestore", "Error en el listener de mensajes", error);
+                return;
+            }
             if (value != null) {
                 List<Message> newMessages = new ArrayList<>();
                 for (QueryDocumentSnapshot doc : value) {
                     Message m = doc.toObject(Message.class);
+                    m.setMessageId(doc.getId());
                     if (m.getContent() == null || !m.getContent().startsWith("[ALBUM]")) {
                         newMessages.add(m);
                     }
@@ -724,12 +733,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             vibrator.vibrate(VibrationEffect.createOneShot(70, VibrationEffect.DEFAULT_AMPLITUDE));
         }
 
-        db.collection("messages").document(msg.getMessageId()).set(msg).addOnSuccessListener(aVoid -> {
-            sendNotificationV1(txt, selectedImageUrl);
-            selectedImageUrl = null;
-            previewContainer.setVisibility(View.GONE);
-        });
+        saveMessageToFirestore(msg);
         etMessage.setText("");
+        selectedImageUrl = null;
+        previewContainer.setVisibility(View.GONE);
     }
 
     public void sendNotificationV1(String messageText, String imageUrl) {
@@ -866,11 +873,13 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         long leadTimeMillis = leadTimeMinutes * 60 * 1000;
         long reminderTime = event.getDate() - leadTimeMillis;
 
-        if (reminderTime < System.currentTimeMillis()) return;
-
         AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        if (alarmManager == null) return;
+        if (reminderTime < System.currentTimeMillis()) {
+            android.util.Log.d("CalendarSync", "Recordatorio omitido: la fecha ya pasó (" + event.getTitle() + ")");
+            return;
+        }
 
+        android.util.Log.d("CalendarSync", "Programando alarma para: " + event.getTitle() + " en " + new java.util.Date(reminderTime));
         Intent intent = new Intent(this, NotificationReceiver.class);
         intent.putExtra("title", "¡Tienes una cita cercana! ❤️");
         intent.putExtra("content", event.getTitle() + (event.getDescription() != null && !event.getDescription().isEmpty() ? " - " + event.getDescription() : ""));
@@ -1007,12 +1016,6 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         v.findViewById(R.id.btnCancelEvent).setOnClickListener(v1 -> d.dismiss());
         d.show();
     }
-
-
-
-
-
-
 
     public void applyTheme(String theme) {
         applyTheme(theme, null, null);
@@ -1184,7 +1187,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
 
     private void updateUploadProgress() {
         runOnUiThread(() -> {
-            if (pendingUploads > 0 && completedUploads < pendingUploads) {
+            boolean uploading = pendingUploads > 0 && completedUploads < pendingUploads;
+            isUploadingState.setValue(uploading);
+            if (uploading) {
                 downloadProgressContainer.setVisibility(View.VISIBLE);
                 ((TextView) downloadProgressContainer.getChildAt(0)).setText("Subiendo imágenes (" + completedUploads + "/" + pendingUploads + ")...");
                 downloadProgressBar.setIndeterminate(false);
@@ -1237,5 +1242,45 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         handleUpdateIntent(intent);
+    }
+    private void saveMessageToFirestore(Message m) {
+        String docId = m.getMessageId();
+        if (docId == null) docId = UUID.randomUUID().toString();
+        if (m.getPartnerId() == null) m.setPartnerId(currentCoupleId);
+        
+        db.collection("messages").document(docId).set(m)
+            .addOnSuccessListener(aVoid -> {
+                android.util.Log.d("Firestore", "Mensaje guardado con éxito: " + m.getMessageId());
+                Toast.makeText(MainActivity.this, "¡Carta enviada!", Toast.LENGTH_SHORT).show();
+                sendNotificationV1("¡Carta nueva! 💌", m.getContent());
+            })
+            .addOnFailureListener(e -> {
+                android.util.Log.e("Firestore", "Error al guardar mensaje", e);
+                Toast.makeText(MainActivity.this, "Error al enviar carta: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            });
+    }
+
+    private void setupOverlays() {
+        ComposeView overlayCompose = findViewById(R.id.overlayCompose);
+        if (overlayCompose != null) {
+            calendario.kevshupp.diariokevinali.compose.SharedComposeKt.setOverlayContent(overlayCompose, isUploadingState);
+        }
+    }
+
+    private void checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+            }
+        }
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            if (!alarmManager.canScheduleExactAlarms()) {
+                Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                startActivity(intent);
+                Toast.makeText(this, "Por favor, permite alarmas exactas para los recordatorios", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 }
