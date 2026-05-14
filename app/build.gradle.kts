@@ -10,17 +10,17 @@ android {
 
     defaultConfig {
         applicationId = "calendario.kevshupp.diariokevinali"
-        minSdk = 33
+        minSdk = 24
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.2.1"
+        versionCode = 21
+        versionName = "1.2.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file("../diario_keystore.jks")
+            storeFile = file("${rootDir}/diario_keystore.jks")
             storePassword = "diario123"
             keyAlias = "diario_alias"
             keyPassword = "diario123"

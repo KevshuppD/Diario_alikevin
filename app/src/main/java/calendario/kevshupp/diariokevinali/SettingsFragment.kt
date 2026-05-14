@@ -45,6 +45,9 @@ class SettingsFragment : Fragment() {
                 var currentUpdateInterval by remember {
                     mutableStateOf(prefs?.getLong("updateInterval", 720L) ?: 720L)
                 }
+                var currentAppointmentLeadTime by remember {
+                    mutableStateOf(prefs?.getLong("appointmentLeadTime", 60L) ?: 60L)
+                }
 
                 androidx.compose.material3.MaterialTheme {
                     SettingsScreen(
@@ -90,6 +93,13 @@ class SettingsFragment : Fragment() {
                             currentUpdateInterval = newInterval
                             prefs?.edit()?.putLong("updateInterval", newInterval)?.apply()
                             DiarioApp.rescheduleUpdateCheck(requireContext(), newInterval)
+                        },
+                        appointmentLeadTime = currentAppointmentLeadTime,
+                        onAppointmentLeadTimeChange = { newLeadTime ->
+                            currentAppointmentLeadTime = newLeadTime
+                            prefs?.edit()?.putLong("appointmentLeadTime", newLeadTime)?.apply()
+                            // Notificar a MainActivity para que reprograme las alarmas si es necesario
+                            act?.rescheduleAllCalendarReminders()
                         }
                     )
                 }

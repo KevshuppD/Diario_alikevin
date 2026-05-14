@@ -286,6 +286,7 @@ public class MainActivity extends AppCompatActivity {
         listenMessagesFromFirestore();
         listenUserInfo();
         listenPet();
+        listenCalendar();
     }
 
     @Override
@@ -610,7 +611,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupFirebaseMessaging() {
-        String topicName = "diario_" + currentCoupleId.replace("ú", "u").replace("í", "i");
+        String topicName = "diario_" + currentCoupleId.toLowerCase()
+                .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                .replace("ñ", "n").replace(" ", "_");
         FirebaseMessaging.getInstance().subscribeToTopic(topicName)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
@@ -761,10 +764,19 @@ public class MainActivity extends AppCompatActivity {
                 if (imageUrl != null) data.put("imageUrl", imageUrl);
 
                 // Topic name sin acentos para evitar errores en FCM
-                String topicName = "diario_" + currentCoupleId.replace("ú", "u").replace("í", "i");
+                String topicName = "diario_" + currentCoupleId.toLowerCase()
+                        .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                        .replace("ñ", "n").replace(" ", "_");
+                
+                JSONObject android = new JSONObject();
+                JSONObject androidNotification = new JSONObject();
+                androidNotification.put("channel_id", "diario_channel");
+                android.put("notification", androidNotification);
+
                 message.put("topic", topicName);
                 message.put("notification", notification);
                 message.put("data", data);
+                message.put("android", android);
                 jsonBody.put("message", message);
 
                 RequestBody body = RequestBody.create(jsonBody.toString(), MediaType.parse("application/json; charset=utf-8"));
@@ -850,23 +862,52 @@ public class MainActivity extends AppCompatActivity {
     public long normalizeDate(long ts) { Calendar c = Calendar.getInstance(); c.setTimeInMillis(ts); c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0); return c.getTimeInMillis(); }
 
     private void scheduleCalendarReminder(CalendarEvent event) {
-        if (event.getDate() < System.currentTimeMillis()) return;
+        long leadTimeMinutes = getSharedPreferences("DiarioPrefs", MODE_PRIVATE).getLong("appointmentLeadTime", 15L);
+        long leadTimeMillis = leadTimeMinutes * 60 * 1000;
+        long reminderTime = event.getDate() - leadTimeMillis;
+
+        if (reminderTime < System.currentTimeMillis()) return;
 
         AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return;
 
         Intent intent = new Intent(this, NotificationReceiver.class);
-        intent.putExtra("title", "¡Tienes una cita!");
-        intent.putExtra("content", event.getTitle() + " - " + event.getDescription());
+        intent.putExtra("title", "¡Tienes una cita cercana! ❤️");
+        intent.putExtra("content", event.getTitle() + (event.getDescription() != null && !event.getDescription().isEmpty() ? " - " + event.getDescription() : ""));
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(this, event.getEventId().hashCode(), intent, 
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, event.getDate(), pendingIntent);
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, reminderTime, pendingIntent);
         } else {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, event.getDate(), pendingIntent);
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, reminderTime, pendingIntent);
         }
+    }
+
+    public void rescheduleAllCalendarReminders() {
+        db.collection("calendar").whereEqualTo("partnerId", currentCoupleId)
+            .get().addOnSuccessListener(snaps -> {
+                for (QueryDocumentSnapshot doc : snaps) {
+                    CalendarEvent ev = doc.toObject(CalendarEvent.class);
+                    if (ev.getEventId() == null) ev.setEventId(doc.getId());
+                    scheduleCalendarReminder(ev);
+                }
+            });
+    }
+
+    private void listenCalendar() {
+        if (calendarListener != null) calendarListener.remove();
+        calendarListener = db.collection("calendar").whereEqualTo("partnerId", currentCoupleId)
+            .addSnapshotListener((snaps, e) -> {
+                if (snaps != null) {
+                    for (QueryDocumentSnapshot doc : snaps) {
+                        CalendarEvent ev = doc.toObject(CalendarEvent.class);
+                        if (ev.getEventId() == null) ev.setEventId(doc.getId());
+                        scheduleCalendarReminder(ev);
+                    }
+                }
+            });
     }
 
     public void showAddEventDialog(long ts, @Nullable CalendarEvent edit) {

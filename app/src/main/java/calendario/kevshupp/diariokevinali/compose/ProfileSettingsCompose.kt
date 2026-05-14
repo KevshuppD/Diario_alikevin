@@ -3,6 +3,8 @@ package calendario.kevshupp.diariokevinali.compose
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
@@ -63,6 +65,7 @@ fun ProfileScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(backgroundColor)
+            .verticalScroll(rememberScrollState())
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -177,7 +180,7 @@ fun ProfileScreen(
             modifier = Modifier.padding(top = 8.dp)
         )
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Button(
             onClick = { onSaveProfile(nameText, currentUserImageUri) },
@@ -214,7 +217,9 @@ fun SettingsScreen(
     onCacheLimitChange: (Long) -> Unit,
     onTestNotification: () -> Unit,
     updateInterval: Long,
-    onUpdateIntervalChange: (Long) -> Unit
+    onUpdateIntervalChange: (Long) -> Unit,
+    appointmentLeadTime: Long,
+    onAppointmentLeadTimeChange: (Long) -> Unit
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val backgroundColor = if (isDark) Color(0xFF2D2D2D) else Color(0xFFF5E6BE)
@@ -225,6 +230,7 @@ fun SettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(backgroundColor)
+            .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
         Row(
@@ -324,6 +330,28 @@ fun SettingsScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(text = "AVISO DE CITAS (CALENDARIO)", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+        
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(selected = appointmentLeadTime == 15L, onClick = { onAppointmentLeadTimeChange(15L) })
+                Text("15m", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(selected = appointmentLeadTime == 60L, onClick = { onAppointmentLeadTimeChange(60L) })
+                Text("1h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(selected = appointmentLeadTime == 180L, onClick = { onAppointmentLeadTimeChange(180L) })
+                Text("3h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(selected = appointmentLeadTime == 1440L, onClick = { onAppointmentLeadTimeChange(1440L) })
+                Text("1d", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+            }
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
@@ -358,7 +386,7 @@ fun SettingsScreen(
         }
 
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "Versión actual: $versionName",
