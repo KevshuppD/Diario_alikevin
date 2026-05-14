@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
@@ -48,6 +49,7 @@ android {
 
     buildFeatures {
         buildConfig = true
+        compose = true
     }
 
     packaging {
@@ -72,7 +74,18 @@ dependencies {
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
+    implementation(libs.activity.compose)
     implementation(libs.constraintlayout)
+    
+    // Compose
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.ui)
+    implementation(libs.compose.ui.graphics)
+    implementation(libs.compose.ui.tooling.preview)
+    implementation("androidx.compose.foundation:foundation")
+    implementation(libs.compose.material3)
+    implementation(libs.lifecycle.runtime.compose)
+    implementation(libs.coil.compose)
     
     // Firebase
     implementation(platform(libs.firebase.bom))

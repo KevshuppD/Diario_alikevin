@@ -121,6 +121,7 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
     private AlbumManager albumManager;
     private RecipeManager recipeManager;
 
+        private androidx.fragment.app.Fragment fragment;
     private FirebaseFirestore db;
     private ListenerRegistration firestoreListener, calendarListener;
     private Calendar selectedFilterDate = null;
@@ -159,6 +160,11 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
         recipeManager.setTheme(currentTheme);
 
         initViews();
+
+        btnRecipes.setOnClickListener(v -> showFragment(RecipeFragment.newInstance(currentCoupleId, currentTheme)));
+        btnCalendar.setOnClickListener(v -> showFragment(CalendarFragment.newInstance(currentCoupleId, currentUserId, currentTheme)));
+        btnProfile.setOnClickListener(v -> showFragment(ProfileFragment.newInstance(currentUserId, currentCoupleId, currentTheme)));
+        btnSettings.setOnClickListener(v -> showFragment(SettingsFragment.newInstance(currentUserId, currentCoupleId, currentTheme)));
         setupDynamicMargins();
         setupOfflineStatusListener();
         
@@ -193,18 +199,14 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
             }
         }));
 
-        btnRecipes.setOnClickListener(v -> showFragment(RecipeFragment.newInstance(currentCoupleId, currentUserId, currentUserName, currentTheme)));
         
-        btnCalendar.setOnClickListener(v -> showFragment(CalendarFragment.newInstance(currentCoupleId, currentUserId, currentTheme)));
         btnAlbum.setOnClickListener(v -> showFragment(AlbumFragment.newInstance(currentCoupleId, currentUserId, currentUserName, currentUserImageUri, currentTheme)));
-        btnProfile.setOnClickListener(v -> showFragment(ProfileFragment.newInstance(currentUserId, currentUserName, currentUserImageUri, currentTheme, currentCoupleId)));
         btnHome.setOnClickListener(v -> {
             fragmentContainer.setVisibility(View.GONE);
             rvMessages.setVisibility(View.VISIBLE);
             inputArea.setVisibility(View.VISIBLE);
             btnMenuMore.setVisibility(View.VISIBLE); // Mostrar filtro en cartas
         });
-        btnSettings.setOnClickListener(v -> showFragment(SettingsFragment.newInstance(currentTheme)));
 
         applyTheme(prefs.getString("theme", "Pixel Claro"));
         updateManager.checkForUpdates(new UpdateManager.UpdateCallback() {
@@ -839,6 +841,14 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
     public UpdateManager getUpdateManager() { return updateManager; }
     public ProgressBar getDownloadProgressBar() { return downloadProgressBar; }
     public View getDownloadProgressContainer() { return downloadProgressContainer; }
+
+    public void openAddRecipeDialog() {
+        if (recipeManager != null) recipeManager.showAddRecipeDialog(null);
+    }
+
+    public void openRecipeDetailDialog(Recipe recipe) {
+        if (recipeManager != null && recipe != null) recipeManager.showRecipeDetailDialog(recipe);
+    }
 
     @Override
     protected void onActivityResult(int req, int res, @Nullable Intent data) {
