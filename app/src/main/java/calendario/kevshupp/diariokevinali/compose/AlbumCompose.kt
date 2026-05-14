@@ -121,7 +121,10 @@ fun AlbumScreen(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(moments) { moment ->
+                items(
+                    items = moments,
+                    key = { it.messageId ?: "moment_${it.timestamp}" }
+                ) { moment ->
                     AlbumGridItem(
                         moment = moment,
                         isDark = isDark,
@@ -198,7 +201,7 @@ private fun AlbumGridItem(
             }
         } else {
             AsyncImage(
-                model = displayUrl,
+                model = displayUrl.optimizeCloudinary(250),
                 contentDescription = "Foto del album",
                 modifier = Modifier
                     .fillMaxWidth()

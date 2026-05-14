@@ -12,16 +12,31 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import coil.ImageLoader;
+import coil.ImageLoaderFactory;
+import coil.disk.DiskCache;
+import coil.memory.MemoryCache;
+import androidx.annotation.NonNull;
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
+import java.util.concurrent.TimeUnit;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.os.Build;
 
-public class DiarioApp extends Application {
+public class DiarioApp extends Application implements ImageLoaderFactory {
     @Override
     public void onCreate() {
         super.onCreate();
         
-        // Habilitar persistencia offline de Firestore
+        // Habilitar persistencia offline de Firestore con un caché mayor (50MB)
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
                 .setPersistenceEnabled(true)
+                .setCacheSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
                 .build();
         db.setFirestoreSettings(settings);
 
@@ -76,6 +91,54 @@ public class DiarioApp extends Application {
                 return "DiarioAppSignatureProvider";
             }
         }, config);
+        
+        long interval = getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+                .getLong("updateInterval", 720L); // 12h por defecto
+        rescheduleUpdateCheck(this, interval);
+        createNotificationChannel();
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            String name = "Diario";
+            String description = "Notificaciones de mensajes y momentos compartidos";
+            int importance = NotificationManager.IMPORTANCE_HIGH;
+            NotificationChannel channel = new NotificationChannel("diario_channel", name, importance);
+            channel.setDescription(description);
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            if (notificationManager != null) {
+                notificationManager.createNotificationChannel(channel);
+            }
+        }
+    }
+    
+    public static void rescheduleUpdateCheck(Context context, long intervalMinutes) {
+        PeriodicWorkRequest updateRequest = new PeriodicWorkRequest.Builder(UpdateWorker.class, intervalMinutes, TimeUnit.MINUTES)
+                .build();
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                "UpdateCheck",
+                ExistingPeriodicWorkPolicy.REPLACE, // Usar REPLACE para aplicar el nuevo intervalo
+                updateRequest
+        );
+    }
+
+    @NonNull
+    @Override
+    public ImageLoader newImageLoader() {
+        return new ImageLoader.Builder(this)
+                .memoryCache(() -> new MemoryCache.Builder(this)
+                        .maxSizePercent(0.25) // Usar hasta el 25% de la memoria disponible
+                        .build())
+                .diskCache(() -> {
+                    long cacheSizeMB = getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+                            .getLong("cacheSizeLimit", 100L);
+                    return new DiskCache.Builder()
+                            .directory(getCacheDir().toPath().resolve("image_cache").toFile())
+                            .maxSizeBytes(cacheSizeMB * 1024 * 1024)
+                            .build();
+                })
+                .crossfade(true)
+                .build();
     }
 
     private String sha1(String input) {

@@ -64,7 +64,10 @@ fun RecipeListScreen(
                 .padding(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(recipes) { recipe ->
+            items(
+                items = recipes,
+                key = { it.recipeId ?: "recipe_${it.timestamp}" }
+            ) { recipe ->
                 RecipeItem(recipe, isDarkTheme, onRecipeClick)
             }
         }
@@ -123,7 +126,7 @@ fun RecipeItem(recipe: Recipe, isDarkTheme: Boolean, onClick: (Recipe) -> Unit) 
 
             if (!recipe.imageUrl.isNullOrEmpty()) {
                 AsyncImage(
-                    model = recipe.imageUrl,
+                    model = recipe.imageUrl.optimizeCloudinary(600),
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()

@@ -39,6 +39,12 @@ class SettingsFragment : Fragment() {
                 
                 // Usar remember para que Compose mantenga el estado correctamente
                 var currentTheme by remember { mutableStateOf(theme) }
+                var currentCacheLimit by remember { 
+                    mutableStateOf(prefs?.getLong("cacheSizeLimit", 100L) ?: 100L) 
+                }
+                var currentUpdateInterval by remember {
+                    mutableStateOf(prefs?.getLong("updateInterval", 720L) ?: 720L)
+                }
 
                 androidx.compose.material3.MaterialTheme {
                     SettingsScreen(
@@ -69,6 +75,21 @@ class SettingsFragment : Fragment() {
                                 prefs?.edit()?.putString("lightColor", colorHex)?.apply()
                                 act?.applyTheme(currentTheme, colorHex, null)
                             }
+                        },
+                        currentCacheLimit = currentCacheLimit,
+                        onCacheLimitChange = { newLimit ->
+                            currentCacheLimit = newLimit
+                            prefs?.edit()?.putLong("cacheSizeLimit", newLimit)?.apply()
+                            // Nota: El cambio de caché de Coil se aplicará la próxima vez que se inicie la app
+                        },
+                        onTestNotification = {
+                            act?.testLocalNotification()
+                        },
+                        updateInterval = currentUpdateInterval,
+                        onUpdateIntervalChange = { newInterval ->
+                            currentUpdateInterval = newInterval
+                            prefs?.edit()?.putLong("updateInterval", newInterval)?.apply()
+                            DiarioApp.rescheduleUpdateCheck(requireContext(), newInterval)
                         }
                     )
                 }

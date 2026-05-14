@@ -12,8 +12,8 @@ android {
         applicationId = "calendario.kevshupp.diariokevinali"
         minSdk = 33
         targetSdk = 35
-        versionCode = 18
-        versionName = "1.2.0"
+        versionCode = 19
+        versionName = "1.2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -86,6 +86,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.coil.compose)
+    implementation(libs.work.runtime.ktx)
     
     // Firebase
     implementation(platform(libs.firebase.bom))
@@ -103,6 +104,7 @@ dependencies {
 
     // Glide
     implementation(libs.glide)
+    annotationProcessor(libs.glide.compiler)
 
     // UCrop para recortar imágenes
     implementation(libs.ucrop)

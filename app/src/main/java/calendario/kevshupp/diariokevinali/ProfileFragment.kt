@@ -4,12 +4,14 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.Fragment
 import calendario.kevshupp.diariokevinali.compose.ProfileScreen
+import com.google.firebase.firestore.FirebaseFirestore
 
 class ProfileFragment : Fragment() {
     private var userId: String? = null
@@ -66,7 +68,26 @@ class ProfileFragment : Fragment() {
                     coupleId = partnerId,
                     currentUserId = userId ?: "",
                     onPickImage = { act?.pickImage(1) },
-                    onSaveProfile = { },
+                    onSaveProfile = { newName, newImage ->
+                        if (userId != null) {
+                            val db = FirebaseFirestore.getInstance()
+                            val updates = mutableMapOf<String, Any>()
+                            updates["userName"] = newName
+                            if (newImage != null) updates["profileImageUrl"] = newImage
+                            
+                            db.collection("users").document(userId!!).update(updates)
+                                .addOnSuccessListener {
+                                    val prefs = act?.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
+                                    prefs?.edit()?.putString("userName", newName)?.apply()
+                                    if (newImage != null) prefs?.edit()?.putString("userImage", newImage)?.apply()
+                                    
+                                    currentUserName = newName
+                                    act?.runOnUiThread {
+                                        Toast.makeText(requireContext(), "Perfil actualizado", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                        }
+                    },
                     onLogout = { act?.logout() }
                 )
             }

@@ -84,7 +84,7 @@ fun RecipeDetailDialog(
                             .padding(4.dp)
                     ) {
                         AsyncImage(
-                            model = recipe.imageUrl,
+                            model = recipe.imageUrl.optimizeCloudinary(1000),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop

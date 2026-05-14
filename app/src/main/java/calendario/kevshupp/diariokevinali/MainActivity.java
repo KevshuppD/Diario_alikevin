@@ -18,8 +18,10 @@ import android.net.NetworkRequest;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -44,6 +46,8 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -130,10 +134,53 @@ public class MainActivity extends AppCompatActivity {
     private AlbumManager albumManager;
     private RecipeManager recipeManager;
 
-        private androidx.fragment.app.Fragment fragment;
+    // Launchers modernos para resultados de actividades
+    private final androidx.activity.result.ActivityResultLauncher<Intent> pickImageLauncher = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Intent data = result.getData();
+                    if (currentCropType == PICK_IMAGE_PROFILE) {
+                        Uri uri = data.getData();
+                        if (uri != null) startCrop(uri);
+                    } else if (currentCropType == PICK_IMAGE_ALBUM) {
+                        if (data.getClipData() != null) {
+                            for (int i = 0; i < data.getClipData().getItemCount(); i++) {
+                                upload(data.getClipData().getItemAt(i).getUri(), PICK_IMAGE_ALBUM);
+                            }
+                        } else if (data.getData() != null) {
+                            upload(data.getData(), PICK_IMAGE_ALBUM);
+                        }
+                    } else if (currentCropType == PICK_IMAGE_CARTA) {
+                        Uri uri = data.getData();
+                        if (uri != null) upload(uri, PICK_IMAGE_CARTA);
+                    } else if (currentCropType == PICK_IMAGE_RECIPE) {
+                        Uri uri = data.getData();
+                        if (uri != null) startCrop(uri);
+                    }
+                }
+            }
+    );
+
+    private final androidx.activity.result.ActivityResultLauncher<Intent> cropImageLauncher = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Uri r = UCrop.getOutput(result.getData());
+                    if (r != null) {
+                        if (currentCropType == PICK_IMAGE_PROFILE) upload(r, PICK_IMAGE_PROFILE);
+                        else if (currentCropType == PICK_IMAGE_RECIPE) upload(r, PICK_IMAGE_RECIPE);
+                    }
+                }
+            }
+    );
+
+    private androidx.fragment.app.Fragment fragment;
     private FirebaseFirestore db;
-    private ListenerRegistration firestoreListener, calendarListener;
+    private ListenerRegistration firestoreListener, calendarListener, userListener, petListener;
     private Calendar selectedFilterDate = null;
+
+    private final MutableState<Pet> petState = androidx.compose.runtime.SnapshotStateKt.mutableStateOf(new Pet(), androidx.compose.runtime.SnapshotStateKt.neverEqualPolicy());
 
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
@@ -180,16 +227,15 @@ public class MainActivity extends AppCompatActivity {
         btnMenuMore.setOnClickListener(this::showOverflowMenu);
 
         setupRecyclerView();
-        listenMessagesFromFirestore();
-        listenUserInfo();
         checkAndRequestPermissions();
         setupFirebaseMessaging();
-
         btnSend.setOnClickListener(v -> sendMessage());
         btnRemovePreview.setOnClickListener(v -> {
             selectedImageUrl = null;
             previewContainer.setVisibility(View.GONE);
         });
+
+        handleUpdateIntent(getIntent());
 
         // El botón del lápiz ahora abre el editor de cartas completo en Compose
         btnExpand.setOnClickListener(v -> {
@@ -208,12 +254,47 @@ public class MainActivity extends AppCompatActivity {
         });
 
         applyTheme(prefs.getString("theme", "Pixel Claro"));
+
+        // Manejo moderno del botón Atrás
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+                    getSupportFragmentManager().popBackStack();
+                    composeFeed.setVisibility(View.VISIBLE);
+                    inputArea.setVisibility(View.VISIBLE);
+                    btnMenuMore.setVisibility(View.VISIBLE);
+                    fragmentContainer.setVisibility(View.GONE);
+                } else {
+                    setEnabled(false);
+                    MainActivity.this.getOnBackPressedDispatcher().onBackPressed();
+                    setEnabled(true);
+                }
+            }
+        });
         updateManager.checkForUpdates(new UpdateManager.UpdateCallback() {
             @Override public void onUpdateAvailable(String url) { showUpdateDialog(url); }
             @Override public void onNoUpdate() {}
             @Override public void onDownloadProgress(int p) { runOnUiThread(() -> downloadProgressBar.setProgress(p)); }
             @Override public void onDownloadComplete() { runOnUiThread(() -> { downloadProgressContainer.setVisibility(View.GONE); updateManager.installApk(); }); }
         });
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        listenMessagesFromFirestore();
+        listenUserInfo();
+        listenPet();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (firestoreListener != null) { firestoreListener.remove(); firestoreListener = null; }
+        if (calendarListener != null) { calendarListener.remove(); calendarListener = null; }
+        if (userListener != null) { userListener.remove(); userListener = null; }
+        if (petListener != null) { petListener.remove(); petListener = null; }
     }
 
     public void showUpdateDialog(String url) {
@@ -286,18 +367,6 @@ public class MainActivity extends AppCompatActivity {
                 .commit();
     }
 
-    @Override
-    public void onBackPressed() {
-        if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
-            getSupportFragmentManager().popBackStack();
-            composeFeed.setVisibility(View.VISIBLE);
-            inputArea.setVisibility(View.VISIBLE);
-            btnMenuMore.setVisibility(View.VISIBLE); // Volver a mostrar filtro en cartas
-            fragmentContainer.setVisibility(View.GONE);
-        } else {
-            super.onBackPressed();
-        }
-    }
 
     private void setupDynamicMargins() {
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.mainLayout), (v, insets) -> {
@@ -381,6 +450,7 @@ public class MainActivity extends AppCompatActivity {
         MessageFeedComposeKt.setFeedContent(
             composeFeed,
             messagesState,
+            petState,
             currentUserId,
             themeState,
             editingMessageState,
@@ -428,6 +498,7 @@ public class MainActivity extends AppCompatActivity {
 
                 db.collection("messages").document(m.getMessageId()).set(m)
                     .addOnSuccessListener(aVoid -> {
+                        updatePetOnInteraction();
                         if (editingMessageState.getValue() == null) {
                             sendNotificationV1(title != null && !title.isEmpty() ? title : "Nueva carta enviada", imageUrl);
                             Toast.makeText(MainActivity.this, "Carta enviada ❤️", Toast.LENGTH_SHORT).show();
@@ -435,6 +506,10 @@ public class MainActivity extends AppCompatActivity {
                             Toast.makeText(MainActivity.this, "Carta actualizada ✨", Toast.LENGTH_SHORT).show();
                         }
                     });
+                return kotlin.Unit.INSTANCE;
+            },
+            newName -> {
+                db.collection("pets").document(currentCoupleId).update("name", newName);
                 return kotlin.Unit.INSTANCE;
             },
             () -> { pickImage(PICK_IMAGE_CARTA); return kotlin.Unit.INSTANCE; }
@@ -522,7 +597,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void listenUserInfo() {
-        db.collection("users").document(currentUserId).addSnapshotListener((snapshot, e) -> {
+        if (userListener != null) userListener.remove();
+        userListener = db.collection("users").document(currentUserId).addSnapshotListener((snapshot, e) -> {
             if (snapshot != null && snapshot.exists()) {
                 String url = snapshot.getString("profileImageUrl");
                 if (url != null && !url.equals(currentUserImageUri)) {
@@ -545,6 +621,54 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
+    private void listenPet() {
+        if (petListener != null) petListener.remove();
+        petListener = db.collection("pets").document(currentCoupleId).addSnapshotListener((snapshot, e) -> {
+            if (snapshot != null && snapshot.exists()) {
+                Pet p = snapshot.toObject(Pet.class);
+                if (p != null) {
+                    petState.setValue(p);
+                    checkPetDecay(p);
+                }
+            } else {
+                // Crear mascota inicial si no existe
+                Pet initialPet = new Pet();
+                db.collection("pets").document(currentCoupleId).set(initialPet);
+            }
+        });
+    }
+
+    private void checkPetDecay(Pet p) {
+        long now = System.currentTimeMillis();
+        long diff = now - p.getLastInteraction();
+        long hours = diff / (1000 * 60 * 60);
+        
+        if (hours >= 24 && p.getHappiness() > 0) {
+            // Cada 24h baja un 20%
+            int decay = (int)(hours / 24) * 20;
+            int newHappiness = Math.max(0, p.getHappiness() - decay);
+            String newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
+            
+            db.collection("pets").document(currentCoupleId)
+                .update("happiness", newHappiness, "status", newStatus);
+        }
+    }
+
+    private void updatePetOnInteraction() {
+        Pet p = petState.getValue();
+        if (p == null) return;
+        
+        int newHappiness = Math.min(100, p.getHappiness() + 10);
+        int newLevel = p.getLevel();
+        if (newHappiness >= 100 && p.getHappiness() < 100) {
+             // Bonus de nivel si estaba al máximo
+        }
+        
+        db.collection("pets").document(currentCoupleId)
+            .update("happiness", newHappiness, 
+                    "lastInteraction", System.currentTimeMillis(),
+                    "status", Pet.STATUS_HAPPY);
+    }
     private void checkAndRequestPermissions() {
         List<String> permissions = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -553,7 +677,33 @@ public class MainActivity extends AppCompatActivity {
         } else {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
         }
-        if (!permissions.isEmpty()) ActivityCompat.requestPermissions(this, permissions.toArray(new String[0]), PERMISSION_REQUEST_CODE);
+        if (!permissions.isEmpty()) ActivityCompat.requestPermissions(this, permissions.toArray(new String[0]), 100);
+        
+        // Pedir permiso de segundo plano
+        requestIgnoreBatteryOptimizations();
+    }
+    private void requestIgnoreBatteryOptimizations() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            if (!pm.isIgnoringBatteryOptimizations(getPackageName())) {
+                try {
+                    Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Error requesting battery optimization ignore", e);
+                }
+            }
+        }
+    }
+
+    private void handleUpdateIntent(Intent intent) {
+        if (intent != null && intent.hasExtra("update_url")) {
+            String url = intent.getStringExtra("update_url");
+            if (url != null) {
+                showUpdateDialog(url);
+            }
+        }
     }
 
     private void sendMessage() {
@@ -565,11 +715,10 @@ public class MainActivity extends AppCompatActivity {
         
         Message msg = new Message(UUID.randomUUID().toString(), currentCoupleId, currentUserId, currentUserName, currentUserImageUri, txt, imgs, System.currentTimeMillis(), false);
         
-        // Vibrar al enviar
+        // Vibrar al enviar (uso moderno de VibrationEffect)
         Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         if (vibrator != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator.vibrate(VibrationEffect.createOneShot(70, VibrationEffect.DEFAULT_AMPLITUDE));
-            else vibrator.vibrate(70);
+            vibrator.vibrate(VibrationEffect.createOneShot(70, VibrationEffect.DEFAULT_AMPLITUDE));
         }
 
         db.collection("messages").document(msg.getMessageId()).set(msg).addOnSuccessListener(aVoid -> {
@@ -643,6 +792,23 @@ public class MainActivity extends AppCompatActivity {
     }
     // Simplificado para no romper compatibilidad con llamadas existentes
     public void sendNotificationV1(String messageText) { sendNotificationV1(messageText, null); }
+
+    public void testLocalNotification() {
+        Toast.makeText(this, "Enviando notificación de prueba...", Toast.LENGTH_SHORT).show();
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "diario_channel")
+                .setSmallIcon(R.drawable.ic_heart_pixel)
+                .setContentTitle("Prueba de Diario Pixel 🔔")
+                .setContentText("¡Funciona! Esta es una notificación de prueba local.")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true);
+
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            notificationManager.notify(999, builder.build());
+        } else {
+            Toast.makeText(this, "Permiso de notificaciones denegado", Toast.LENGTH_SHORT).show();
+        }
+    }
 
     private void showDatePicker() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -885,9 +1051,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void pickImage(int code) {
-        currentCropType = code; Intent i = new Intent(Intent.ACTION_GET_CONTENT); i.setType("image/*");
+        currentCropType = code;
+        Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+        i.setType("image/*");
         if (code == PICK_IMAGE_ALBUM) i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-        startActivityForResult(Intent.createChooser(i, "Selecciona imágenes"), code);
+        pickImageLauncher.launch(Intent.createChooser(i, "Selecciona imágenes"));
     }
 
     public String getCurrentTheme() { return currentTheme; }
@@ -903,34 +1071,6 @@ public class MainActivity extends AppCompatActivity {
         if (recipeManager != null && recipe != null) recipeManager.showRecipeDetailDialog(recipe);
     }
 
-    @Override
-    protected void onActivityResult(int req, int res, @Nullable Intent data) {
-        super.onActivityResult(req, res, data);
-        if (res == RESULT_OK && data != null) {
-            if (req == PICK_IMAGE_PROFILE) { Uri uri = data.getData(); if (uri != null) startCrop(uri); }
-            else if (req == PICK_IMAGE_ALBUM) { if (data.getClipData() != null) { for (int i = 0; i < data.getClipData().getItemCount(); i++) upload(data.getClipData().getItemAt(i).getUri(), PICK_IMAGE_ALBUM); } else upload(data.getData(), PICK_IMAGE_ALBUM); }
-            else if (req == PICK_IMAGE_CARTA) {
-                Uri uri = data.getData();
-                if (uri != null) {
-                    upload(uri, PICK_IMAGE_CARTA);
-                }
-            }
-            else if (req == PICK_IMAGE_RECIPE) {
-                Uri uri = data.getData();
-                if (uri != null) {
-                    currentCropType = PICK_IMAGE_RECIPE;
-                    startCrop(uri);
-                }
-            }
-            else if (req == UCrop.REQUEST_CROP) {
-                Uri r = UCrop.getOutput(data);
-                if (r != null) {
-                    if (currentCropType == PICK_IMAGE_PROFILE) upload(r, PICK_IMAGE_PROFILE);
-                    else if (currentCropType == PICK_IMAGE_RECIPE) upload(r, PICK_IMAGE_RECIPE);
-                }
-            }
-        }
-    }
 
     private int pendingUploads = 0;
     private int completedUploads = 0;
@@ -1006,8 +1146,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startCrop(Uri uri) {
-        UCrop.Options opt = new UCrop.Options(); opt.setCompressionFormat(Bitmap.CompressFormat.JPEG); opt.setFreeStyleCropEnabled(true);
-        UCrop.of(uri, Uri.fromFile(new File(getCacheDir(), "crop_" + System.currentTimeMillis() + ".jpg"))).withOptions(opt).start(this);
+        UCrop.Options opt = new UCrop.Options();
+        opt.setCompressionFormat(Bitmap.CompressFormat.JPEG);
+        opt.setFreeStyleCropEnabled(true);
+        Intent cropIntent = UCrop.of(uri, Uri.fromFile(new File(getCacheDir(), "crop_" + System.currentTimeMillis() + ".jpg")))
+                .withOptions(opt)
+                .getIntent(this);
+        cropImageLauncher.launch(cropIntent);
     }
 
     public void logout() { getSharedPreferences("DiarioPrefs", MODE_PRIVATE).edit().clear().apply(); updateWidget(); startActivity(new Intent(this, LoginActivity.class)); finish(); }
@@ -1036,4 +1181,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     public void onDeleteClick(Message m) { db.collection("messages").document(m.getMessageId()).delete(); }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleUpdateIntent(intent);
+    }
 }

@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import calendario.kevshupp.diariokevinali.Recipe
+import calendario.kevshupp.diariokevinali.R
 import coil.compose.AsyncImage
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.*
@@ -29,7 +30,7 @@ fun ProfileScreen(
     coupleId: String?,
     currentUserId: String,
     onPickImage: () -> Unit,
-    onSaveProfile: (String?) -> Unit,
+    onSaveProfile: (String, String?) -> Unit,
     onLogout: () -> Unit
 ) {
     val isDark = theme == "Pixel Oscuro"
@@ -98,12 +99,20 @@ fun ProfileScreen(
             }
         }
 
-        Text(
-            text = currentUserName,
-            fontFamily = Vt323,
-            fontSize = 28.sp,
-            color = textColor,
-            modifier = Modifier.padding(top = 8.dp)
+        var nameText by remember { mutableStateOf(currentUserName) }
+
+        OutlinedTextField(
+            value = nameText,
+            onValueChange = { nameText = it },
+            label = { Text("Nombre", fontFamily = Vt323) },
+            textStyle = LocalTextStyle.current.copy(fontFamily = Vt323, fontSize = 24.sp, color = textColor),
+            modifier = Modifier.padding(top = 8.dp).fillMaxWidth(0.8f),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = pinkColor,
+                unfocusedBorderColor = borderColor,
+                focusedLabelColor = pinkColor,
+                unfocusedLabelColor = secondaryTextColor
+            )
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -171,7 +180,7 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
-            onClick = { onSaveProfile(currentUserImageUri) },
+            onClick = { onSaveProfile(nameText, currentUserImageUri) },
             modifier = Modifier.fillMaxWidth().height(54.dp),
             shape = RectangleShape,
             colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF4A148C) else Color(0xFF673AB7))
@@ -200,7 +209,12 @@ fun SettingsScreen(
     onCheckUpdates: () -> Unit,
     onLogout: () -> Unit,
     onBack: () -> Unit,
-    onColorSelect: (String) -> Unit
+    onColorSelect: (String) -> Unit,
+    currentCacheLimit: Long,
+    onCacheLimitChange: (Long) -> Unit,
+    onTestNotification: () -> Unit,
+    updateInterval: Long,
+    onUpdateIntervalChange: (Long) -> Unit
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val backgroundColor = if (isDark) Color(0xFF2D2D2D) else Color(0xFFF5E6BE)
@@ -213,14 +227,29 @@ fun SettingsScreen(
             .background(backgroundColor)
             .padding(20.dp)
     ) {
-        Text(
-            text = "Configuración",
-            fontFamily = Vt323,
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            color = textColor,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_back_pixel),
+                    contentDescription = "Volver",
+                    tint = textColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Text(
+                text = "Configuración",
+                fontFamily = Vt323,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor,
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.width(48.dp)) // Espaciador para centrar el título
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -257,7 +286,56 @@ fun SettingsScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(text = "LÍMITE DE CACHÉ", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+        
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(selected = currentCacheLimit == 100L, onClick = { onCacheLimitChange(100L) })
+            Text("100MB", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onCacheLimitChange(100L) })
+            Spacer(modifier = Modifier.width(12.dp))
+            RadioButton(selected = currentCacheLimit == 500L, onClick = { onCacheLimitChange(500L) })
+            Text("500MB", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onCacheLimitChange(500L) })
+            Spacer(modifier = Modifier.width(12.dp))
+            RadioButton(selected = currentCacheLimit == 1024L, onClick = { onCacheLimitChange(1024L) })
+            Text("1GB", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onCacheLimitChange(1024L) })
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(text = "FRECUENCIA DE ACTUALIZACIÓN", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+        Text(text = "(Mínimo 15 min por sistema Android)", fontFamily = Vt323, fontSize = 14.sp, color = textColor.copy(alpha = 0.6f))
+        
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(selected = updateInterval == 15L, onClick = { onUpdateIntervalChange(15L) })
+                Text("15m", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(selected = updateInterval == 60L, onClick = { onUpdateIntervalChange(60L) })
+                Text("1h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(selected = updateInterval == 360L, onClick = { onUpdateIntervalChange(360L) })
+                Text("6h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(selected = updateInterval == 720L, onClick = { onUpdateIntervalChange(720L) })
+                Text("12h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+            }
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = onTestNotification,
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = RectangleShape,
+            colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF1976D2) else Color(0xFF2196F3))
+        ) {
+            Text("PROBAR NOTIFICACIÓN", fontFamily = Vt323, fontSize = 22.sp)
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         Button(
             onClick = onCheckUpdates,
@@ -279,16 +357,6 @@ fun SettingsScreen(
             Text("CERRAR SESIÓN", fontFamily = Vt323, fontSize = 22.sp)
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth().height(54.dp),
-            shape = RectangleShape,
-            colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF311B92) else Color(0xFF512DA8))
-        ) {
-            Text("VOLVER", fontFamily = Vt323, fontSize = 22.sp)
-        }
 
         Spacer(modifier = Modifier.weight(1f))
 

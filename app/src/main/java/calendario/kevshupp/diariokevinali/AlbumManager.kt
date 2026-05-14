@@ -43,32 +43,6 @@ class AlbumManager(
         this.currentTheme = theme
     }
 
-    fun showAlbumOptions(callback: AlbumCallback) {
-        val b = AlertDialog.Builder(context)
-        val v = LayoutInflater.from(context).inflate(R.layout.dialog_album_options, null)
-        b.setView(v)
-
-        if ("Pixel Oscuro" == currentTheme) {
-            v.setBackgroundResource(R.drawable.bg_parchment_pixel_dark)
-            v.findViewById<TextView>(R.id.tvOptionsTitle).setTextColor(Color.WHITE)
-            v.findViewById<Button>(R.id.btnOptionAdd).setTextColor(Color.WHITE)
-            v.findViewById<Button>(R.id.btnOptionView).setTextColor(Color.WHITE)
-            v.findViewById<Button>(R.id.btnOptionCancel).setTextColor(Color.WHITE)
-        }
-
-        val dialog = b.create()
-
-        v.findViewById<View>(R.id.btnOptionAdd).setOnClickListener {
-            dialog.dismiss()
-            showAddMomentDialog(callback)
-        }
-        v.findViewById<View>(R.id.btnOptionView).setOnClickListener {
-            dialog.dismiss()
-            showSharedAlbum(callback)
-        }
-        v.findViewById<View>(R.id.btnOptionCancel).setOnClickListener { dialog.dismiss() }
-        dialog.show()
-    }
 
     fun showAddMomentDialog(callback: AlbumCallback) {
         val b = AlertDialog.Builder(context)
@@ -154,74 +128,6 @@ class AlbumManager(
         dialog.show()
     }
 
-    fun showSharedAlbum(callback: AlbumCallback) {
-        val b = AlertDialog.Builder(context, android.R.style.Theme_Material_Light_NoActionBar_Fullscreen)
-        val v = LayoutInflater.from(context).inflate(R.layout.dialog_shared_album, null)
-        b.setView(v)
-
-        val btnAdd = v.findViewById<Button>(R.id.btnAddMoment)
-
-        if ("Pixel Oscuro" == currentTheme) {
-            v.setBackgroundResource(R.drawable.bg_parchment_pixel_dark)
-            v.findViewById<TextView>(R.id.tvAlbumTitle).setTextColor(Color.WHITE)
-            v.findViewById<TextView>(R.id.tvAlbumSubtitle).setTextColor(Color.LTGRAY)
-            btnAdd.setTextColor(Color.WHITE)
-            btnAdd.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#1A1A2E"))
-        } else {
-            v.setBackgroundResource(R.drawable.bg_parchment_pixel)
-            btnAdd.setTextColor(Color.WHITE)
-            btnAdd.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#8B4513"))
-        }
-
-        val rv = v.findViewById<RecyclerView>(R.id.rvAlbumPhotos)
-        val moments = mutableListOf<Message>()
-        val adp = AlbumGalleryAdapter(moments, object : AlbumGalleryAdapter.OnMomentClickListener {
-            override fun onMomentClick(m: Message) {
-                showAlbumDetail(m)
-            }
-
-            override fun onMomentLongClick(v: View, m: Message) {
-                if (m.authorId == userId) {
-                    val p = PopupMenu(context, v)
-                    p.menu.add("Editar Momento")
-                    p.menu.add("Eliminar momento completo")
-                    p.setOnMenuItemClickListener { menuItem ->
-                        val title = menuItem.title.toString()
-                        if (title == "Editar Momento") {
-                            showEditAlbumDialog(m)
-                        } else if (title == "Eliminar momento completo") {
-                            m.messageId?.let { db.collection("messages").document(it).delete() }
-                        }
-                        true
-                    }
-                    p.show()
-                }
-            }
-        })
-        rv.layoutManager = GridLayoutManager(context, 3)
-        rv.adapter = adp
-
-        db.collection("messages").whereEqualTo("partnerId", coupleId)
-            .addSnapshotListener { shots, _ ->
-                if (shots != null) {
-                    moments.clear()
-                    for (doc in shots) {
-                        val m = doc.toObject(Message::class.java)
-                        if (m.content?.startsWith("[ALBUM]") == true) moments.add(m)
-                    }
-                    moments.sortByDescending { it.timestamp }
-                    adp.notifyDataSetChanged()
-                }
-            }
-
-        val d = b.create()
-        d.setOnShowListener {
-            d.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-        }
-
-        btnAdd?.setOnClickListener { showAddMomentDialog(callback) }
-        d.show()
-    }
 
     fun showAlbumDetail(msg: Message) {
         val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)

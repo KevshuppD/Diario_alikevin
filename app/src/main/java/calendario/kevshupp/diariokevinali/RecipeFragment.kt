@@ -65,36 +65,19 @@ class RecipeFragment : Fragment() {
 
                 DisposableEffect(coupleId) {
                     recipeListener?.remove()
-                    recipeListener = db.collection("recipes")
-                        .orderBy("timestamp", Query.Direction.DESCENDING)
-                        .addSnapshotListener { value, _ ->
-                            if (value != null) {
-                                val wantedId = coupleId
-                                val wantedIdNormalized = normalizeCoupleId(wantedId)
-                                val ownerId = currentUserId
-                                val filtered = value.mapNotNull { doc ->
-                                    val recipe = doc.toObject(Recipe::class.java).apply { recipeId = doc.id }
-                                    val docCoupleId = doc.getString("coupleId") ?: recipe.coupleId
-                                    val docPartnerId = doc.getString("partnerId")
-                                    val docAltId = doc.getString("couple_id")
-                                    val docAuthorId = recipe.authorId ?: doc.getString("authorId")
-
-                                    val matchesCouple = listOf(docCoupleId, docPartnerId, docAltId)
-                                        .filterNotNull()
-                                        .any { candidate ->
-                                            candidate == wantedId || normalizeCoupleId(candidate) == wantedIdNormalized
-                                        }
-
-                                    val matchesOwner = ownerId != null && docAuthorId == ownerId
-                                    if (matchesCouple || (docCoupleId == null && docPartnerId == null && docAltId == null && matchesOwner)) {
-                                        recipe
-                                    } else {
-                                        null
+                    recipeListener = coupleId?.let { id ->
+                        db.collection("recipes")
+                            .whereEqualTo("coupleId", id)
+                            .orderBy("timestamp", Query.Direction.DESCENDING)
+                            .addSnapshotListener { value, _ ->
+                                if (value != null) {
+                                    val items = value.mapNotNull { doc ->
+                                        doc.toObject(Recipe::class.java).apply { recipeId = doc.id }
                                     }
+                                    recipes = items
                                 }
-                                recipes = filtered
                             }
-                        }
+                    }
                     onDispose {
                         recipeListener?.remove()
                         recipeListener = null
