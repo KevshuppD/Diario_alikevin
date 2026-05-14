@@ -94,7 +94,7 @@ import androidx.compose.runtime.SnapshotStateKt;
 import calendario.kevshupp.diariokevinali.compose.MessageFeedComposeKt;
 import androidx.lifecycle.MutableLiveData;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements AppNavigation {
 
     private static final int PICK_IMAGE_PROFILE = 1;
     private static final int PICK_IMAGE_CARTA = 3;
@@ -908,6 +908,16 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             });
+    }
+
+    @Override
+    public void showAddEventDialog(String date, CalendarEvent event) {
+        try {
+            long ts = Long.parseLong(date);
+            showAddEventDialog(ts, event);
+        } catch (NumberFormatException e) {
+            android.util.Log.e("MainActivity", "Error parsing date: " + date);
+        }
     }
 
     public void showAddEventDialog(long ts, @Nullable CalendarEvent edit) {

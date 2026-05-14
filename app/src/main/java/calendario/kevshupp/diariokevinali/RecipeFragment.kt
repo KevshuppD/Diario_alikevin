@@ -49,35 +49,42 @@ class RecipeFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return ComposeView(requireContext()).apply {
             setContent {
+                val activityRef = activity as? MainActivity
+                val prefs = activityRef?.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
+                
                 var recipes by remember { mutableStateOf(listOf<Recipe>()) }
                 var selectedRecipe by remember { mutableStateOf<Recipe?>(null) }
-                val isDark = theme == "Pixel Oscuro"
-                val activityRef = activity as? MainActivity
-
-                LaunchedEffect(Unit) {
-                    if (coupleId.isNullOrEmpty()) {
-                        val prefs = activityRef?.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
-                        coupleId = prefs?.getString("coupleId", coupleId)
-                        currentUserId = prefs?.getString("userId", currentUserId)
-                        theme = prefs?.getString("theme", theme) ?: theme
-                    }
+                var currentId by remember { 
+                    mutableStateOf(coupleId ?: prefs?.getString("coupleId", "vínculo_único_123")) 
                 }
+                
+                val isDark = (theme ?: prefs?.getString("theme", "Pixel Claro")) == "Pixel Oscuro"
 
-                DisposableEffect(coupleId) {
+                DisposableEffect(currentId) {
+                    val finalId = currentId
                     recipeListener?.remove()
-                    recipeListener = coupleId?.let { id ->
-                        db.collection("recipes")
-                            .whereEqualTo("coupleId", id)
-                            .orderBy("timestamp", Query.Direction.DESCENDING)
-                            .addSnapshotListener { value, _ ->
+                    
+                    if (!finalId.isNullOrEmpty()) {
+                        android.util.Log.d("RecipeFragment", "Escuchando recetas para ID: $finalId")
+                        recipeListener = db.collection("recipes")
+                            .whereEqualTo("coupleId", finalId)
+                            .addSnapshotListener { value, error ->
+                                if (error != null) {
+                                    android.util.Log.e("RecipeFragment", "Error cargando recetas: ${error.message}")
+                                    return@addSnapshotListener
+                                }
                                 if (value != null) {
                                     val items = value.mapNotNull { doc ->
                                         doc.toObject(Recipe::class.java).apply { recipeId = doc.id }
-                                    }
+                                    }.sortedByDescending { it.timestamp }
+                                    android.util.Log.d("RecipeFragment", "Recetas cargadas: ${items.size}")
                                     recipes = items
                                 }
                             }
+                    } else {
+                        android.util.Log.w("RecipeFragment", "coupleId es nulo o vacío, no se puede cargar el recetario")
                     }
+                    
                     onDispose {
                         recipeListener?.remove()
                         recipeListener = null
