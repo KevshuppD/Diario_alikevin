@@ -84,8 +84,13 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import androidx.compose.ui.platform.ComposeView;
+import androidx.compose.runtime.MutableState;
+import androidx.compose.runtime.SnapshotStateKt;
+import calendario.kevshupp.diariokevinali.compose.MessageFeedComposeKt;
+import androidx.lifecycle.MutableLiveData;
 
-public class MainActivity extends AppCompatActivity implements MessageAdapter.OnMessageClickListener {
+public class MainActivity extends AppCompatActivity {
 
     private static final int PICK_IMAGE_PROFILE = 1;
     private static final int PICK_IMAGE_CARTA = 3;
@@ -97,8 +102,12 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
     private MaterialToolbar toolbar;
     private TextView tvToolbarTitle;
     private ImageView ivToolbarHeart;
-    private RecyclerView rvMessages;
-    private MessageAdapter adapter;
+    private ComposeView composeFeed;
+    private MutableState<List<Message>> messagesState = SnapshotStateKt.mutableStateOf(new ArrayList<>(), SnapshotStateKt.neverEqualPolicy());
+    private MutableState<String> themeState = SnapshotStateKt.mutableStateOf("Pixel Claro", SnapshotStateKt.neverEqualPolicy());
+    private MutableState<Boolean> showEditorState = SnapshotStateKt.mutableStateOf(false, SnapshotStateKt.neverEqualPolicy());
+    private MutableState<Message> editingMessageState = SnapshotStateKt.mutableStateOf(null, SnapshotStateKt.neverEqualPolicy());
+    private MutableState<String> currentSelectedImageUrlState = SnapshotStateKt.mutableStateOf(null, SnapshotStateKt.neverEqualPolicy());
     private List<Message> messages;
     private EditText etMessage;
     private ImageButton btnSend, btnExpand, btnMenuMore, btnRecipes, btnCalendar, btnAlbum, btnProfile, btnHome, btnSettings;
@@ -182,28 +191,18 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
             previewContainer.setVisibility(View.GONE);
         });
 
-        // El botón del lápiz ahora abre el editor de cartas completo
-        btnExpand.setOnClickListener(v -> messageEditor.showEditDialog(null, new MessageEditor.EditorCallback() {
-            @Override
-            public void onSave(Message m) {
-                db.collection("messages").document(m.getMessageId()).set(m)
-                    .addOnSuccessListener(aVoid -> {
-                        sendNotificationV1(m.getTitle() != null ? m.getTitle() : "Nueva carta enviada", m.getImageUrl());
-                        Toast.makeText(MainActivity.this, "Carta enviada ❤️", Toast.LENGTH_SHORT).show();
-                    });
-            }
-
-            @Override
-            public void onPickImage(int c) {
-                pickImage(c);
-            }
-        }));
+        // El botón del lápiz ahora abre el editor de cartas completo en Compose
+        btnExpand.setOnClickListener(v -> {
+            editingMessageState.setValue(null);
+            currentSelectedImageUrlState.setValue(null);
+            showEditorState.setValue(true);
+        });
 
         
         btnAlbum.setOnClickListener(v -> showFragment(AlbumFragment.newInstance(currentCoupleId, currentUserId, currentUserName, currentUserImageUri, currentTheme)));
         btnHome.setOnClickListener(v -> {
             fragmentContainer.setVisibility(View.GONE);
-            rvMessages.setVisibility(View.VISIBLE);
+            composeFeed.setVisibility(View.VISIBLE);
             inputArea.setVisibility(View.VISIBLE);
             btnMenuMore.setVisibility(View.VISIBLE); // Mostrar filtro en cartas
         });
@@ -239,7 +238,7 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
         toolbar = findViewById(R.id.toolbar);
         tvToolbarTitle = findViewById(R.id.tvToolbarTitle);
         ivToolbarHeart = findViewById(R.id.ivToolbarHeart);
-        rvMessages = findViewById(R.id.rvMessages);
+        composeFeed = findViewById(R.id.composeFeed);
         etMessage = findViewById(R.id.etMessage);
         btnSend = findViewById(R.id.btnSend);
         btnExpand = findViewById(R.id.btnExpand);
@@ -277,7 +276,7 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
 
     private void showFragment(androidx.fragment.app.Fragment fragment) {
         btnMenuMore.setVisibility(View.GONE); // Ocultar filtro fuera de cartas
-        rvMessages.setVisibility(View.GONE);
+        composeFeed.setVisibility(View.GONE);
         inputArea.setVisibility(View.GONE);
         fragmentContainer.setVisibility(View.VISIBLE);
         
@@ -291,7 +290,7 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
     public void onBackPressed() {
         if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
             getSupportFragmentManager().popBackStack();
-            rvMessages.setVisibility(View.VISIBLE);
+            composeFeed.setVisibility(View.VISIBLE);
             inputArea.setVisibility(View.VISIBLE);
             btnMenuMore.setVisibility(View.VISIBLE); // Volver a mostrar filtro en cartas
             fragmentContainer.setVisibility(View.GONE);
@@ -379,9 +378,67 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
 
     private void setupRecyclerView() {
         messages = new ArrayList<>();
-        adapter = new MessageAdapter(messages, currentUserId, this);
-        rvMessages.setLayoutManager(new LinearLayoutManager(this));
-        rvMessages.setAdapter(adapter);
+        MessageFeedComposeKt.setFeedContent(
+            composeFeed,
+            messagesState,
+            currentUserId,
+            themeState,
+            editingMessageState,
+            showEditorState,
+            currentSelectedImageUrlState,
+            msg -> { onMessageClick(null, msg); return kotlin.Unit.INSTANCE; },
+            msg -> {
+                // Ahora el menú se maneja en Compose, este callback se llama al pulsar "Editar"
+                if (msg.getContent() != null && msg.getContent().startsWith("[ALBUM]")) {
+                    albumManager.showEditAlbumDialog(msg);
+                } else {
+                    editingMessageState.setValue(msg);
+                    currentSelectedImageUrlState.setValue(msg.getImageUrl());
+                    showEditorState.setValue(true);
+                }
+                return kotlin.Unit.INSTANCE;
+            },
+            msg -> { db.collection("messages").document(msg.getMessageId()).delete(); return kotlin.Unit.INSTANCE; },
+            msg -> {
+                msg.setLiked(!msg.isLiked());
+                db.collection("messages").document(msg.getMessageId()).update("liked", msg.isLiked());
+                // Forzar actualización del estado local
+                messagesState.setValue(new ArrayList<>(messagesState.getValue()));
+                return kotlin.Unit.INSTANCE;
+            },
+            (title, content, imageUrl) -> {
+                Message m = editingMessageState.getValue();
+                if (m == null) {
+                    // Nuevo mensaje
+                    m = new Message();
+                    m.setMessageId(db.collection("messages").document().getId());
+                    m.setAuthorId(currentUserId);
+                    m.setAuthorName(currentUserName);
+                    m.setAuthorImageUrl(currentUserImageUri);
+                    m.setTimestamp(System.currentTimeMillis());
+                }
+                m.setTitle(title);
+                m.setContent(content);
+                m.setImageUrl(imageUrl);
+                if (imageUrl != null) {
+                    List<String> urls = new ArrayList<>();
+                    urls.add(imageUrl);
+                    m.setImageUrls(urls);
+                }
+
+                db.collection("messages").document(m.getMessageId()).set(m)
+                    .addOnSuccessListener(aVoid -> {
+                        if (editingMessageState.getValue() == null) {
+                            sendNotificationV1(title != null && !title.isEmpty() ? title : "Nueva carta enviada", imageUrl);
+                            Toast.makeText(MainActivity.this, "Carta enviada ❤️", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "Carta actualizada ✨", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                return kotlin.Unit.INSTANCE;
+            },
+            () -> { pickImage(PICK_IMAGE_CARTA); return kotlin.Unit.INSTANCE; }
+        );
     }
 
     private void listenMessagesFromFirestore() {
@@ -403,11 +460,7 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
                         newMessages.add(m);
                     }
                 }
-                adapter.setMessageList(newMessages);
-                // Desplazar al inicio automáticamente al recibir un nuevo mensaje
-                if (!newMessages.isEmpty()) {
-                    rvMessages.postDelayed(() -> rvMessages.smoothScrollToPosition(0), 100);
-                }
+                messagesState.setValue(newMessages);
                 updateWidget();
             }
         });
@@ -754,7 +807,7 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
 
     public void applyTheme(String theme, String lightColor, String darkColor) {
         this.currentTheme = theme;
-        adapter.setTheme(theme);
+        themeState.setValue(theme);
         albumManager.setTheme(theme);
         recipeManager.setTheme(theme);
         messageEditor.setTheme(theme);
@@ -905,6 +958,7 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
                     }
                     else if (code == PICK_IMAGE_CARTA) {
                         messageEditor.setImageUrl(url);
+                        currentSelectedImageUrlState.setValue(url);
                         selectedImageUrl = url;
                     }
                     else if (code == PICK_IMAGE_ALBUM) {
@@ -958,7 +1012,28 @@ public class MainActivity extends AppCompatActivity implements MessageAdapter.On
 
     public void logout() { getSharedPreferences("DiarioPrefs", MODE_PRIVATE).edit().clear().apply(); updateWidget(); startActivity(new Intent(this, LoginActivity.class)); finish(); }
 
-    @Override public void onMessageClick(View v, Message msg) { if (msg.getContent() != null && msg.getContent().startsWith("[ALBUM]")) albumManager.showAlbumDetail(msg); else messageEditor.showMessageDetail(msg); }
-    @Override public void onMessageLongClick(View v, Message msg) { if (msg.getAuthorId().equals(currentUserId)) { PopupMenu p = new PopupMenu(this, v); p.getMenu().add("Editar"); p.getMenu().add("Borrar"); p.setOnMenuItemClickListener(item -> { if (item.getTitle().equals("Editar")) { if (msg.getContent() != null && msg.getContent().startsWith("[ALBUM]")) albumManager.showEditAlbumDialog(msg); else messageEditor.showEditDialog(msg, new MessageEditor.EditorCallback() { @Override public void onSave(Message m) { db.collection("messages").document(m.getMessageId()).set(m); } @Override public void onPickImage(int c) { pickImage(PICK_IMAGE_CARTA); } }); } else if (item.getTitle().equals("Borrar")) db.collection("messages").document(msg.getMessageId()).delete(); return true; }); p.show(); } }
-    @Override public void onDeleteClick(Message m) { db.collection("messages").document(m.getMessageId()).delete(); }
+    public void onMessageClick(View v, Message msg) { if (msg.getContent() != null && msg.getContent().startsWith("[ALBUM]")) albumManager.showAlbumDetail(msg); else messageEditor.showMessageDetail(msg); }
+    public void onMessageLongClick(View v, Message msg) {
+        if (msg.getAuthorId().equals(currentUserId)) {
+            PopupMenu p = new PopupMenu(this, v != null ? v : composeFeed);
+            p.getMenu().add("Editar");
+            p.getMenu().add("Borrar");
+            p.setOnMenuItemClickListener(item -> {
+                if (item.getTitle().equals("Editar")) {
+                    if (msg.getContent() != null && msg.getContent().startsWith("[ALBUM]")) {
+                        albumManager.showEditAlbumDialog(msg);
+                    } else {
+                        editingMessageState.setValue(msg);
+                        currentSelectedImageUrlState.setValue(msg.getImageUrl());
+                        showEditorState.setValue(true);
+                    }
+                } else if (item.getTitle().equals("Borrar")) {
+                    db.collection("messages").document(msg.getMessageId()).delete();
+                }
+                return true;
+            });
+            p.show();
+        }
+    }
+    public void onDeleteClick(Message m) { db.collection("messages").document(m.getMessageId()).delete(); }
 }

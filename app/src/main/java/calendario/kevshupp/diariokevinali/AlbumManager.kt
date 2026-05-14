@@ -23,7 +23,7 @@ class AlbumManager(
     private val coupleId: String,
     private val userId: String,
     private val userName: String,
-    private val userImageUri: String
+    private val userImageUri: String?
 ) {
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
     private val currentAlbumImages = mutableListOf<String>()

@@ -29,7 +29,7 @@ class AlbumFragment : Fragment() {
 
     companion object {
         @JvmStatic
-        fun newInstance(coupleId: String, userId: String, userName: String, userImageUri: String, theme: String): AlbumFragment {
+        fun newInstance(coupleId: String, userId: String, userName: String, userImageUri: String?, theme: String): AlbumFragment {
             val fragment = AlbumFragment()
             val args = Bundle()
             args.putString("coupleId", coupleId)
@@ -54,8 +54,7 @@ class AlbumFragment : Fragment() {
         val safeCoupleId = coupleId ?: ""
         val safeUserId = userId ?: ""
         val safeUserName = userName ?: ""
-        val safeUserImage = userImageUri ?: ""
-        albumManager = AlbumManager(requireContext(), safeCoupleId, safeUserId, safeUserName, safeUserImage)
+        albumManager = AlbumManager(requireContext(), safeCoupleId, safeUserId, safeUserName, userImageUri)
         albumManager?.setTheme(theme)
     }
 

@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.Fragment
@@ -35,37 +36,42 @@ class SettingsFragment : Fragment() {
             setContent {
                 val act = activity as? MainActivity
                 val prefs = act?.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
-                var currentTheme by mutableStateOf(theme)
+                
+                // Usar remember para que Compose mantenga el estado correctamente
+                var currentTheme by remember { mutableStateOf(theme) }
 
-                SettingsScreen(
-                    currentTheme = currentTheme,
-                    versionName = BuildConfig.VERSION_NAME,
-                    onThemeChange = { newTheme ->
-                        currentTheme = newTheme
-                        prefs?.edit()?.putString("theme", newTheme)?.apply()
-                        act?.applyTheme(newTheme)
-                    },
-                    onCheckUpdates = {
-                        act?.getUpdateManager()?.checkForUpdates(object : UpdateManager.UpdateCallback {
-                            override fun onUpdateAvailable(url: String) { act.showUpdateDialog(url) }
-                            override fun onNoUpdate() {}
-                            override fun onDownloadProgress(progress: Int) {}
-                            override fun onDownloadComplete() {}
-                        })
-                    },
-                    onLogout = { act?.logout() },
-                    onBack = { act?.onBackPressedDispatcher?.onBackPressed() },
-                    onColorSelect = { colorHex ->
-                        val isDark = currentTheme == "Pixel Oscuro"
-                        if (isDark) {
-                            prefs?.edit()?.putString("darkColor", colorHex)?.apply()
-                            act?.applyTheme(currentTheme, null, colorHex)
-                        } else {
-                            prefs?.edit()?.putString("lightColor", colorHex)?.apply()
-                            act?.applyTheme(currentTheme, colorHex, null)
+                androidx.compose.material3.MaterialTheme {
+                    SettingsScreen(
+                        currentTheme = currentTheme,
+                        versionName = BuildConfig.VERSION_NAME,
+                        onThemeChange = { newTheme ->
+                            currentTheme = newTheme
+                            theme = newTheme // Actualizar la propiedad del fragmento también
+                            prefs?.edit()?.putString("theme", newTheme)?.apply()
+                            act?.applyTheme(newTheme)
+                        },
+                        onCheckUpdates = {
+                            act?.getUpdateManager()?.checkForUpdates(object : UpdateManager.UpdateCallback {
+                                override fun onUpdateAvailable(url: String) { act.showUpdateDialog(url) }
+                                override fun onNoUpdate() {}
+                                override fun onDownloadProgress(progress: Int) {}
+                                override fun onDownloadComplete() {}
+                            })
+                        },
+                        onLogout = { act?.logout() },
+                        onBack = { act?.onBackPressedDispatcher?.onBackPressed() },
+                        onColorSelect = { colorHex ->
+                            val isDark = currentTheme == "Pixel Oscuro"
+                            if (isDark) {
+                                prefs?.edit()?.putString("darkColor", colorHex)?.apply()
+                                act?.applyTheme(currentTheme, null, colorHex)
+                            } else {
+                                prefs?.edit()?.putString("lightColor", colorHex)?.apply()
+                                act?.applyTheme(currentTheme, colorHex, null)
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
     }

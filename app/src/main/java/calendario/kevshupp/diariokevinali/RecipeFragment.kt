@@ -50,6 +50,7 @@ class RecipeFragment : Fragment() {
         return ComposeView(requireContext()).apply {
             setContent {
                 var recipes by remember { mutableStateOf(listOf<Recipe>()) }
+                var selectedRecipe by remember { mutableStateOf<Recipe?>(null) }
                 val isDark = theme == "Pixel Oscuro"
                 val activityRef = activity as? MainActivity
 
@@ -100,10 +101,19 @@ class RecipeFragment : Fragment() {
                     }
                 }
 
+                // Mostrar el detalle si hay una receta seleccionada
+                selectedRecipe?.let { recipe ->
+                    calendario.kevshupp.diariokevinali.compose.RecipeDetailDialog(
+                        recipe = recipe,
+                        isDark = isDark,
+                        onDismiss = { selectedRecipe = null }
+                    )
+                }
+
                 RecipeListScreen(
                     recipes = recipes,
                     isDarkTheme = isDark,
-                    onRecipeClick = { recipe -> activityRef?.openRecipeDetailDialog(recipe) },
+                    onRecipeClick = { recipe -> selectedRecipe = recipe },
                     onAddRecipeClick = { activityRef?.openAddRecipeDialog() }
                 )
             }

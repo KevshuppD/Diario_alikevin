@@ -162,7 +162,14 @@ class RecipeManager(
             title.setTextColor(Color.WHITE)
             author.setTextColor(Color.LTGRAY)
             ingredients.setTextColor(Color.WHITE)
+            ingredients.setBackgroundResource(R.drawable.bg_message_pixel_dark)
             steps.setTextColor(Color.WHITE)
+            steps.setBackgroundResource(R.drawable.bg_message_pixel_dark)
+            
+            // Ajustar colores de títulos de sección que eran difíciles de leer
+            view.findViewById<TextView>(R.id.tvIngredientsTitle).setTextColor(Color.parseColor("#FF80AB")) // Rosa claro pixel
+            view.findViewById<TextView>(R.id.tvStepsTitle).setTextColor(Color.parseColor("#FF80AB"))
+            
             btnClose.setTextColor(Color.WHITE)
         }
 

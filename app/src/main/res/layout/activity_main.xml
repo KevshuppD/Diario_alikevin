@@ -195,19 +195,15 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- RecyclerView de Mensajes -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvMessages"
+    <!-- Feed de Mensajes en Compose -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/composeFeed"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:clipToPadding="false"
-        android:padding="8dp"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constraintTop_toBottomOf="@id/inputArea"
         app:layout_constraintBottom_toTopOf="@+id/bottomActionsBar"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        tools:listitem="@layout/item_message" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <!-- Barra inferior fija de acciones -->
     <LinearLayout
