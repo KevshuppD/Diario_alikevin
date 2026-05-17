@@ -109,6 +109,7 @@ class AlbumFragment : Fragment() {
                             }
 
                             override fun onMomentSaved() {
+                                activityRef?.updatePetOnInteraction()
                                 activityRef?.sendNotificationV1("Nuevo momento en el álbum 📸", null)
                             }
                         })

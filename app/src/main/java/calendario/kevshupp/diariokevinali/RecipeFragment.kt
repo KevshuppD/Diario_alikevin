@@ -95,10 +95,24 @@ class RecipeFragment : Fragment() {
                 selectedRecipe?.let { recipe ->
                     calendario.kevshupp.diariokevinali.compose.RecipeDetailDialog(
                         recipe = recipe,
+                        currentUserId = currentUserId,
                         isDark = isDark,
                         onEdit = {
                             selectedRecipe = null
                             activityRef?.recipeManager?.showAddRecipeDialog(recipe)
+                        },
+                        onDelete = {
+                            val id = recipe.recipeId
+                            if (id != null) {
+                                db.collection("recipes").document(id).delete()
+                                    .addOnSuccessListener {
+                                        android.widget.Toast.makeText(context, "Receta eliminada", android.widget.Toast.LENGTH_SHORT).show()
+                                        selectedRecipe = null
+                                    }
+                                    .addOnFailureListener {
+                                        android.widget.Toast.makeText(context, "Error al eliminar", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                            }
                         },
                         onDismiss = { selectedRecipe = null }
                     )

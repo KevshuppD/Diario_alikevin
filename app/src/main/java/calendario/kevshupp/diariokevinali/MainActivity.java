@@ -517,6 +517,27 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 db.collection("pets").document(currentCoupleId).update("name", newName);
                 return kotlin.Unit.INSTANCE;
             },
+            (accessoryId, cost) -> {
+                Pet p = petState.getValue();
+                if (p != null && p.getLovePoints() >= cost) {
+                    List<String> unlocked = new ArrayList<>(p.getUnlockedAccessories());
+                    if (!unlocked.contains(accessoryId)) {
+                        unlocked.add(accessoryId);
+                        db.collection("pets").document(currentCoupleId)
+                            .update("lovePoints", p.getLovePoints() - cost,
+                                    "unlockedAccessories", unlocked,
+                                    "equippedAccessory", accessoryId);
+                        Toast.makeText(MainActivity.this, "¡Accesorio comprado y equipado! ✨", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(MainActivity.this, "No tienes suficientes puntos de amor ❤️", Toast.LENGTH_SHORT).show();
+                }
+                return kotlin.Unit.INSTANCE;
+            },
+            accessoryId -> {
+                db.collection("pets").document(currentCoupleId).update("equippedAccessory", accessoryId);
+                return kotlin.Unit.INSTANCE;
+            },
             () -> { pickImage(PICK_IMAGE_CARTA); return kotlin.Unit.INSTANCE; }
         );
     }
@@ -666,19 +687,54 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         }
     }
 
-    private void updatePetOnInteraction() {
+    public void updatePetOnInteraction() {
         Pet p = petState.getValue();
         if (p == null) return;
         
+        long now = System.currentTimeMillis();
+        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new java.util.Date(now));
+        
         int newHappiness = Math.min(100, p.getHappiness() + 10);
+        int newLovePoints = p.getLovePoints() + 5; // +5 puntos por interacción
+        int newExp = p.getExperience() + 10;
         int newLevel = p.getLevel();
-        if (newHappiness >= 100 && p.getHappiness() < 100) {
-             // Bonus de nivel si estaba al máximo
+        int newStreak = p.getStreakDays();
+        
+        // Manejo de racha diaria
+        if (p.getLastInteractionDate() == null || !p.getLastInteractionDate().equals(today)) {
+            if (p.getLastInteractionDate() != null) {
+                // Verificar si ayer hubo interacción
+                Calendar yesterday = Calendar.getInstance();
+                yesterday.add(Calendar.DAY_OF_YEAR, -1);
+                String yesterdayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(yesterday.getTime());
+                
+                if (p.getLastInteractionDate().equals(yesterdayStr)) {
+                    newStreak++;
+                    newLovePoints += (newStreak * 2); // Bonus por racha
+                } else {
+                    newStreak = 1;
+                }
+            } else {
+                newStreak = 1;
+            }
+        }
+        
+        // Subida de nivel (cada 100 XP)
+        if (newExp >= 100) {
+            newLevel++;
+            newExp -= 100;
+            newLovePoints += 50; // Bonus por nivel
+            Toast.makeText(this, "¡" + p.getName() + " ha subido al nivel " + newLevel + "! 🎉", Toast.LENGTH_SHORT).show();
         }
         
         db.collection("pets").document(currentCoupleId)
             .update("happiness", newHappiness, 
-                    "lastInteraction", System.currentTimeMillis(),
+                    "lovePoints", newLovePoints,
+                    "experience", newExp,
+                    "level", newLevel,
+                    "streakDays", newStreak,
+                    "lastInteractionDate", today,
+                    "lastInteraction", now,
                     "status", Pet.STATUS_HAPPY);
     }
     private void checkAndRequestPermissions() {
@@ -1251,6 +1307,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         db.collection("messages").document(docId).set(m)
             .addOnSuccessListener(aVoid -> {
                 android.util.Log.d("Firestore", "Mensaje guardado con éxito: " + m.getMessageId());
+                updatePetOnInteraction();
                 Toast.makeText(MainActivity.this, "¡Carta enviada!", Toast.LENGTH_SHORT).show();
                 sendNotificationV1("¡Carta nueva! 💌", m.getContent());
             })

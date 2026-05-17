@@ -16,3 +16,7 @@ app/src/main/assets/service-account.json
 .cxx
 local.properties
 .kotlin/
+venv/
+*.py
+.idea/
+

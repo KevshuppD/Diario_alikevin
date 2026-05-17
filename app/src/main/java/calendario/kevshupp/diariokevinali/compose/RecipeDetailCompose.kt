@@ -25,8 +25,10 @@ import coil.compose.AsyncImage
 @Composable
 fun RecipeDetailDialog(
     recipe: Recipe,
+    currentUserId: String?,
     isDark: Boolean,
     onEdit: () -> Unit,
+    onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val backgroundColor = if (isDark) Color(0xFF2D2D2D) else Color(0xFFF5E6BE)
@@ -36,6 +38,8 @@ fun RecipeDetailDialog(
     val sectionTitleColor = if (isDark) Color(0xFFFF80AB) else Color(0xFF5D2E7A)
     val boxBackground = if (isDark) Color(0xFF1A1A2E) else Color(0xFFFFFFFF).copy(alpha = 0.5f)
     val borderColor = if (isDark) Color(0xFFE0E0E0) else Color(0xFF4A2511)
+
+    val isAuthor = currentUserId == recipe.authorId
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -135,38 +139,56 @@ fun RecipeDetailDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Botones
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = onEdit,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp),
-                        shape = RectangleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isDark) Color(0xFF00796B) else Color(0xFF00897B),
-                            contentColor = Color.White
-                        )
+                // Botones de acción (solo si es autor)
+                if (isAuthor) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Editar", fontFamily = Vt323, fontSize = 22.sp)
-                    }
+                        Button(
+                            onClick = onEdit,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp),
+                            shape = RectangleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isDark) Color(0xFF00796B) else Color(0xFF00897B),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text("Editar", fontFamily = Vt323, fontSize = 22.sp)
+                        }
 
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp),
-                        shape = RectangleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isDark) Color(0xFF4A148C) else Color(0xFF5D2E7A),
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Text("Cerrar", fontFamily = Vt323, fontSize = 22.sp)
+                        Button(
+                            onClick = onDelete,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp),
+                            shape = RectangleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFD32F2F),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text("Eliminar", fontFamily = Vt323, fontSize = 22.sp)
+                        }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Botón Cerrar (siempre visible)
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    shape = RectangleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isDark) Color(0xFF4A148C) else Color(0xFF5D2E7A),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Cerrar", fontFamily = Vt323, fontSize = 22.sp)
                 }
             }
         }

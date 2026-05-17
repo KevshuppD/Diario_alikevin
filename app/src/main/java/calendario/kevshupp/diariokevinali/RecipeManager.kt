@@ -81,6 +81,11 @@ class RecipeManager(
             btnSave.setTextColor(Color.WHITE)
         }
 
+        if (existing != null && existing.authorId != userId) {
+            Toast.makeText(context, "No puedes editar recetas de otros", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         if (existing != null) {
             titleView.text = "Editar receta"
             etTitle.setText(existing.title ?: "")
@@ -116,14 +121,17 @@ class RecipeManager(
                 ingredients = etIngredients.text.toString().trim(),
                 steps = etSteps.text.toString().trim(),
                 imageUrl = pendingImageUrl,
-                authorId = userId,
-                authorName = userName,
-                timestamp = System.currentTimeMillis()
+                authorId = existing?.authorId ?: userId,
+                authorName = existing?.authorName ?: userName,
+                timestamp = existing?.timestamp ?: System.currentTimeMillis()
             )
 
             if (recipe.recipeId != null) {
                 db.collection("recipes").document(recipe.recipeId!!).set(recipe)
-                    .addOnSuccessListener { dialog.dismiss() }
+                    .addOnSuccessListener { 
+                        Toast.makeText(context, "Receta actualizada", Toast.LENGTH_SHORT).show()
+                        dialog.dismiss() 
+                    }
             } else {
                 addRecipe(recipe)
                 dialog.dismiss()
