@@ -1,91 +1,110 @@
 # Contexto del Proyecto: Diario Kevin & Ali (Diario Alikevin)
 
-Este documento proporciona una visión detallada de la arquitectura, tecnologías y funcionalidades del proyecto Android "Diario", diseñado como un espacio compartido para parejas.
-
-## 1. Visión General
-**Diario** es una aplicación Android que permite a una pareja compartir mensajes (cartas), fotos (álbumes), eventos de calendario y recetas. Incluye elementos de gamificación como una mascota virtual compartida que reacciona a la interacción de los usuarios.
-
-## 2. Stack Tecnológico
-- **Lenguajes**: Kotlin (preferido para UI nueva) y Java (lógica heredada).
-- **UI Framework**: Jetpack Compose (migración en curso) y XML (Legacy).
-- **Backend**: 
-    - **Firebase Auth**: Gestión de usuarios y sesiones.
-    - **Cloud Firestore**: Base de datos en tiempo real con persistencia offline.
-    - **Firebase Cloud Messaging (FCM)**: Notificaciones push (implementado con la API v1 mediante Google Auth).
-- **Media**:
-    - **Cloudinary**: Hosting de imágenes (subida firmada desde el cliente).
-    - **Coil / Glide**: Carga y caché de imágenes.
-    - **UCrop**: Recorte y edición básica de imágenes.
-- **Otros**:
-    - **WorkManager**: Para comprobaciones de actualización en segundo plano.
-    - **OkHttp**: Peticiones de red (GitHub API para actualizaciones, FCM).
-    - **GitHub API**: Sistema de auto-actualización personalizado.
-
-## 3. Arquitectura y Estructura
-El proyecto sigue una estructura de Android estándar, pero se encuentra en una fase de transición hacia Compose.
-
-### Paquetes Principales (`calendario.kevshupp.diariokevinali`)
-- `MainActivity.java`: El punto de entrada central. Maneja la navegación, inicialización de Firebase y actúa como contenedor de Fragments y vistas de Compose.
-- `DiarioApp.java`: Clase Application. Configura Firebase, Cloudinary, WorkManager y la caché de Coil.
-- `compose/`: Contiene todos los componentes de UI modernos en Jetpack Compose.
-    - `MessageFeedCompose.kt`: Pantalla principal del feed de mensajes.
-    - `MessageEditorCompose.kt`: Editor de "cartas" con soporte para fotos.
-    - `CalendarCompose.kt`, `AlbumCompose.kt`, `RecipeCompose.kt`, etc.
-- `managers/` (Lógica delegada):
-    - `AlbumManager.kt`: Lógica de subida y edición de fotos del álbum.
-    - `RecipeManager.kt`: Gestión de recetas.
-    - `UpdateManager.kt`: Lógica para buscar e instalar actualizaciones desde GitHub.
-- `models/`:
-    - `Message.kt`: Representa mensajes, cartas y álbumes.
-    - `Pet.kt`: Estado de la mascota (Felicidad, Nivel, Nombre).
-    - `Recipe.kt`, `User.kt`, `CalendarEvent.kt`.
-
-## 4. Funcionalidades Clave
-
-### A. Feed de Mensajes y Cartas
-- Los usuarios envían mensajes rápidos o "cartas" (título + contenido + imagen).
-- Se muestran en un feed cronológico inverso en Compose.
-- Soporte para "Likes" y filtrado por fecha.
-- Notificaciones automáticas al enviar contenido.
-
-### B. Mascota Virtual ("Thor")
-- Una mascota compartida que aparece en el feed.
-- Su felicidad disminuye con el tiempo (decay de 24h) y aumenta con la interacción (enviar mensajes).
-- El estado emocional (Feliz/Triste) se refleja en su apariencia en el feed.
-
-### C. Álbum de Fotos
-- Permite subir fotos individuales o múltiples.
-- Las fotos se almacenan en Cloudinary.
-- El feed de álbumes es una vista filtrada de mensajes con tipo `ALBUM`.
-
-### D. Calendario de Eventos
-- Registro de fechas importantes compartidas.
-- Persistencia en Firestore bajo la colección `calendar_events`.
-
-### E. Sistema de Recetas
-- Sección dedicada para guardar recetas favoritas de la pareja.
-
-### F. Actualizaciones Automáticas
-- La app consulta un repositorio de GitHub para verificar nuevas versiones.
-- Descarga e instala el APK automáticamente si hay una actualización disponible.
-
-## 5. Diseño y Estética
-- **Tema**: "Pixel Art" / Retro.
-- **Fuentes**: Uso intensivo de tipografía tipo Pixel (ej. `ic_back_pixel`).
-- **Colores**: Paleta vibrante pero cohesiva, con soporte para temas claros y oscuros ("Pixel Claro" / "Pixel Oscuro").
-- **UI Inmersiva**: La app oculta las barras de sistema para una experiencia a pantalla completa.
-
-## 6. Configuración de Firebase / Firestore
-- **Colección `messages`**: Documentos con `partnerId`, `authorId`, `timestamp`, `content`, `imageUrls`.
-- **Colección `pets`**: Un documento por `partnerId` que guarda el estado de la mascota.
-- **Colección `users`**: Información de perfil (`profileImageUrl`, `name`).
-- **Colección `calendar_events`**: Eventos vinculados por `partnerId`.
-
-## 7. Flujo de Trabajo para Cambios
-1. **UI**: Priorizar el uso de componentes en `compose/`. Si se modifica algo en el feed, editar `MessageFeedCompose.kt`.
-2. **Imágenes**: Usar `MediaManager` de Cloudinary para subidas.
-3. **Navegación**: La lógica principal de cambio de pantallas está en `MainActivity.java` mediante el método `showFragment`.
-4. **Contexto de Sesión**: Los IDs de usuario y pareja se manejan vía `SharedPreferences` en `DiarioPrefs`.
+Este documento proporciona una guía completa y detallada de la arquitectura, stack tecnológico, sistema de gamificación y directrices del proyecto Android **Diario**, diseñado como un espacio privado, interactivo y gamificado para parejas.
 
 ---
-*Nota: Este archivo debe mantenerse actualizado ante cambios estructurales significativos para guiar correctamente a la IA en futuras iteraciones.*
+
+## 1. Visión General & Propósito
+**Diario** es una aplicación móvil diseñada exclusivamente para parejas. Permite registrar cartas o mensajes, compartir fotos (álbumes), agendar eventos en un calendario común y guardar recetas culinarias. Integra un fuerte componente de gamificación a través de **Thor**, una mascota virtual en formato pixel-art que reacciona a las interacciones diarias de los usuarios y progresa a través de niveles y accesorios coleccionables.
+
+---
+
+## 2. Stack Tecnológico
+* **Lenguajes:** 
+  * [Kotlin](https://kotlinlang.org/) (100% de la interfaz moderna y lógica delegada).
+  * [Java](https://oracle.com/java/) (infraestructura e inicializadores heredados).
+* **UI Framework:** [Jetpack Compose](https://developer.android.com/compose) (arquitectura declarativa moderna para las vistas) y vistas nativas XML en desuso (Legacy).
+* **Base de Datos & Backend:**
+  * **Firebase Auth:** Autenticación segura de sesiones.
+  * **Cloud Firestore:** Sincronización en tiempo real y persistencia sin conexión a internet.
+  * **Firebase Cloud Messaging (FCM):** Notificaciones push utilizando la API v1 mediante autenticación OAuth2 de Google.
+* **Gestión de Archivos Multimedia (Imágenes):**
+  * **Cloudinary:** Hosting cloud para imágenes con subida firmada directamente desde el cliente.
+  * **Coil / Glide:** Carga de imágenes en memoria con caché inteligente.
+  * **UCrop:** Biblioteca nativa para recortar y optimizar imágenes antes de subirlas.
+* **Actualizaciones Automáticas:**
+  * Integración con la **GitHub API** en [UpdateManager.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/UpdateManager.kt) para verificar versiones y descargar automáticamente nuevas entregas APK firmadas.
+
+---
+
+## 3. Arquitectura y Estructura del Proyecto
+
+El código está estructurado bajo las directrices modernas de Android, delegando responsabilidades específicas:
+
+### 📂 Clases de Infraestructura y Configuración
+* [DiarioApp.java](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/DiarioApp.java): Inicialización global de Firebase, Cloudinary, WorkManager y Coil.
+* [MainActivity.java](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainActivity.java): Contenedor e integrador principal. Configura la navegación de Fragments, inicializa los oyentes en tiempo real y maneja las pasarelas entre Java y Jetpack Compose.
+
+### 📂 Vistas Jetpack Compose (`calendario.kevshupp.diariokevinali.compose`)
+* [MessageFeedCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt): Pantalla principal. Renderiza la tarjeta interactiva de **Thor** y el feed de cartas paginado.
+* [MessageEditorCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageEditorCompose.kt): Editor pixel-art para redactar nuevas cartas, con carga multimedia y previsualización.
+* [RecipeCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/RecipeCompose.kt) & [RecipeDetailCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/RecipeDetailCompose.kt): Pantallas de visualización e inserción de recetas de cocina.
+* [AlbumCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/AlbumCompose.kt): Vista tipo grilla de todas las cartas marcadas como imágenes de álbum.
+* [CalendarCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/CalendarCompose.kt): Calendario de eventos compartidos.
+
+### 📂 Modelos de Datos (`calendario.kevshupp.diariokevinali`)
+* [Pet.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/Pet.kt): Modelo de datos de **Thor** (Felicidad, Nivel, XP, Racha, Accesorios).
+* [Message.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/Message.kt): Representación de mensajes y posts.
+
+---
+
+## 4. El Sistema de Gamificación de "Thor"
+
+El motor de fidelización gira en torno a la mascota virtual de la pareja:
+
+```mermaid
+graph TD
+    User([Interacciones de Usuario]) -->|Enviar Mensajes / Abrir App| XP[+10 XP]
+    User -->|Interacción Manual| LP[+5 Puntos de Amor]
+    XP -->|Cada 100 XP| LevelUp[Subir de Nivel +50 Puntos de Amor]
+    LP -->|Comprar Accesorios| Shop[Tienda de Thor]
+    Shop -->|Desbloquear| Equip[Equipar Accesorio]
+    Time([Transcurso del Tiempo]) -->|Cada 24 horas| Decay[-20% Felicidad]
+```
+
+### A. Sistema de Progresión y Puntos
+* **Interacciones:** Cada carta enviada o interacción con Thor otorga **+10 XP** y **+5 Puntos de Amor**.
+* **Racha Diaria:** Mantener la interacción consecutiva incrementa el multiplicador de racha, otorgando un bono de `Racha * 2` Puntos de Amor adicionales por día.
+* **Subida de Nivel:** Al acumular **100 XP**, Thor sube de nivel (`level++`), la EXP se reinicia y se premia a los usuarios con un bono de **+50 Puntos de Amor**.
+
+### B. Tienda de Accesorios (Shop UI)
+Desde el diálogo de Thor, los usuarios gastan Puntos de Amor para desbloquear y equipar 8 accesorios pixel-art. Las imágenes finales están generadas a la medida y con transparencia completa para superponerse perfectamente sobre el cuerpo del gato:
+* **Collar Cascabel 🔔** (Coste: 10 Puntos)
+* **Bigote Retro 🥸** (Coste: 30 Puntos)
+* **Globo Corazón 🎈** (Coste: 60 Puntos)
+* **Lazo Rosa 🎀** (Coste: 80 Puntos)
+* **Gorrito Pixel 🎩** (Coste: 100 Puntos)
+* **Pañuelo Pirata 🏴‍☠️** (Coste: 120 Puntos)
+* **Lentes Cool 🕶️** (Coste: 150 Puntos)
+* **Corona Real 👑** (Coste: 500 Puntos)
+
+### C. Algoritmo de Decay y Temporizador en Tiempo Real
+* **Desgaste de Felicidad:** Si la pareja no interactúa en un periodo de 24 horas, la felicidad de Thor disminuye en un **20%**. 
+* **Prevención de Bucle Recursivo:** El sistema matemático en [MainActivity.java](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainActivity.java) compensa el timestamp de la última interacción (`lastInteraction`) sumando bloques exactos de 24 horas por cada decaimiento aplicado. Esto previene llamadas en cascada infinitas del Snapshot Listener de Firebase.
+* **Temporizador en Tiempo Real:** Implementado con una corrutina y `LaunchedEffect` en [MessageFeedCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt), calcula y muestra una cuenta regresiva dinámica en formato `"Próxima baja en: hh:mm"` / `"mm:ss ⏳"` que avisa cuándo ocurrirá el próximo decremento, o muestra un dulce aviso `"¡Dale amor! ❤️"` si Thor ha alcanzado el 0% de felicidad.
+
+---
+
+## 5. Paginación de Cartas
+Para evitar el colapso del rendimiento al leer grandes volúmenes de cartas en Firestore, el feed principal implementa una **paginación local progresiva**:
+* La lista se carga inicialmente en bloques compactos de **5 cartas**.
+* Al final de la lista, un botón retro pixel-art con el texto **"Mostrar más cartas ✉"** permite expandir la vista en incrementos de 5 en 5 de forma instantánea.
+* Esto mantiene la aplicación veloz, fluida y con un consumo de batería y datos óptimo.
+
+---
+
+## 6. Estética Visual y Tematización Inmersiva
+El diseño rinde homenaje al arte retro de 8 bits y 16 bits:
+* **Tipografía:** vt323 (pixel art font) importada en los estilos.
+* **Componentes Inmersivos:** Rectángulos puros, bordes marcados de 2dp-3dp de grosor y colores de alto contraste que simulan consolas retro.
+* **Tematización Dinámica:** Soporte total en Jetpack Compose para tres esquemas estéticos que cambian la paleta de colores de toda la interfaz:
+  1. **Pixel Claro:** Fondo crema suave con bordes color chocolate.
+  2. **Pixel Oscuro:** Fondos en grises y negros profundos con acentos neón y rosas pixelados.
+  3. **Pixel Monocromático:** Estilo minimalista puro en estricto blanco y negro.
+
+---
+
+## 7. Directrices para Futuros Desarrollos y Cambios
+1. **Modificaciones de UI:** Todo diseño visual del feed principal debe realizarse en [MessageFeedCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt) respetando la consistencia de los tres temas de pixel-art (`theme`).
+2. **Ciclos de Base de Datos:** Cualquier nueva estadística de la mascota debe mapearse como propiedad en [Pet.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/Pet.kt) y registrarse en el serializador de Firestore.
+3. **Control de Versiones y Despliegues:** Cada cambio a producción debe incrementar las propiedades `versionCode` y `versionName` en el archivo [app/build.gradle.kts](file:///home/kevshupp/Escritorio/Diario_alikevin/app/build.gradle.kts), subir los commits a la rama `master`, y compilar el APK de producción firmado mediante `./gradlew assembleRelease` para finalmente publicarlo utilizando la CLI `gh` como un release oficial en GitHub.
