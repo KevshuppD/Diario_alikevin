@@ -608,14 +608,33 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         color = if (isDark) Color.LightGray else Color.DarkGray
                     )
                     
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     
                     // Barra de felicidad
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("😊", fontSize = 12.sp, modifier = Modifier.padding(end = 4.dp))
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Felicidad 😊",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                color = if (isDark) Color.LightGray else Color.DarkGray
+                            )
+                            Text(
+                                text = "${pet.happiness}%",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color.Black
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
                         Box(
                             modifier = Modifier
-                                .weight(1f)
+                                .fillMaxWidth()
                                 .height(8.dp)
                                 .border(1.dp, borderColor)
                                 .background(Color.Gray.copy(alpha = 0.3f))
@@ -629,15 +648,34 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Barra de Experiencia
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("✨", fontSize = 12.sp, modifier = Modifier.padding(end = 4.dp))
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Experiencia ✨",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                color = if (isDark) Color.LightGray else Color.DarkGray
+                            )
+                            Text(
+                                text = "${pet.experience}/100 XP",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color.Black
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
                         Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(6.dp)
+                                .fillMaxWidth()
+                                .height(8.dp)
                                 .border(1.dp, borderColor.copy(alpha = 0.5f))
                                 .background(Color.Gray.copy(alpha = 0.2f))
                         ) {
@@ -832,10 +870,17 @@ fun PetMenuDialog(
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
                             InfoStat("Nivel", pet.level.toString(), contentColor)
                             InfoStat("Racha", "${pet.streakDays}d", accentColor)
                             InfoStat("Amor", pet.lovePoints.toString(), Color(0xFFFF4081))
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                            InfoStat("Felicidad", "${pet.happiness}%", Color(0xFF4CAF50))
+                            InfoStat("EXP", "${pet.experience}/100", Color(0xFF2196F3))
                         }
                         
                         Spacer(modifier = Modifier.weight(1f))

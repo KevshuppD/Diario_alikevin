@@ -682,8 +682,13 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             int newHappiness = Math.max(0, p.getHappiness() - decay);
             String newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
             
+            // Ajustar el lastInteraction para evitar bucle infinito recursivo en Firestore
+            long newLastInteraction = p.getLastInteraction() + (hours / 24) * (24 * 60 * 60 * 1000L);
+            
             db.collection("pets").document(currentCoupleId)
-                .update("happiness", newHappiness, "status", newStatus);
+                .update("happiness", newHappiness, 
+                        "status", newStatus,
+                        "lastInteraction", newLastInteraction);
         }
     }
 
