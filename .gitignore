@@ -1,22 +1,43 @@
+# Gradle files
+.gradle/
+build/
+app/build/
+**/build/
+
+# IDE files
+.idea/
 *.iml
-.gradle
-**/build
-/local.properties
+.kotlin/
+*.ipr
+*.iws
+
+# Sensitive and Local files
+local.properties
 **/local.properties
-app/src/main/assets/service-account.json
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+diario_keystore.jks
+*.jks
+*.keystore
+*google-services.json
+
+# System files
 .DS_Store
+Thumbs.db
+
+# Large binaries or specific project noise
+app/Antigravity-x64/
+app/Antigravity.tar.gz
+*.tar.gz
+*.zip
+*.apk
+
+# Python / Virtual Envs
+venv/
+*.py
+__pycache__/
+
+# Captures and logs
 /captures
 .externalNativeBuild
 .cxx
-local.properties
-.kotlin/
-venv/
-*.py
-.idea/
+
 
