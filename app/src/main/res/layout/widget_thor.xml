@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_parchment_pixel"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:gravity="center_vertical">
+
+    <!-- Avatar de Thor -->
+    <FrameLayout
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:background="#1A4A2511"
+        android:padding="4dp">
+        
+        <ImageView
+            android:id="@+id/widget_pet_avatar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_thor_base_trans"
+            android:scaleType="fitCenter" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="12dp"
+        android:orientation="vertical">
+
+        <!-- Nombre y Nivel -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/widget_pet_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Thor"
+                android:textColor="#4A2511"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:ellipsize="end"
+                android:singleLine="true"/>
+
+            <TextView
+                android:id="@+id/widget_pet_level"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="#4A2511"
+                android:textColor="#FFFFFF"
+                android:text="LVL 1"
+                android:textSize="12sp"
+                android:paddingHorizontal="4dp"
+                android:paddingVertical="1dp"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <!-- Estado -->
+        <TextView
+            android:id="@+id/widget_pet_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Estado: FELIZ"
+            android:textColor="#8B4513"
+            android:textSize="12sp"
+            android:textStyle="bold"/>
+
+        <!-- Felicidad -->
+        <TextView
+            android:id="@+id/widget_pet_happiness"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Felicidad: 100% 😊"
+            android:textColor="#1A5D1A"
+            android:textSize="12sp"
+            android:textStyle="bold"/>
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -38,9 +38,7 @@ fun MessageEditorDialog(
 ) {
     var title by remember { mutableStateOf(initialMessage?.title ?: "") }
     var contentValue by remember { 
-        val initialText = if (initialMessage?.content != null) {
-            android.text.Html.fromHtml(initialMessage.content, android.text.Html.FROM_HTML_MODE_COMPACT).toString().trim()
-        } else ""
+        val initialText = initialMessage?.content ?: ""
         mutableStateOf(TextFieldValue(initialText))
     }
     var imageUrl by remember { mutableStateOf(initialMessage?.imageUrl ?: currentSelectedImageUrl) }

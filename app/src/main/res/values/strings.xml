@@ -2,4 +2,5 @@
     <string name="app_name">Diario KevinAli</string>
     <string name="widget_small_desc">Muestra el último mensaje recibido.</string>
     <string name="widget_large_desc">Muestra el último mensaje y los próximos planes.</string>
+    <string name="widget_thor_description">Muestra el estado, nivel y felicidad de tu mascota Thor en tiempo real.</string>
 </resources>

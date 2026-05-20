@@ -73,9 +73,11 @@ class ProfileFragment : Fragment() {
                             val db = FirebaseFirestore.getInstance()
                             val updates = mutableMapOf<String, Any>()
                             updates["userName"] = newName
+                            updates["userId"] = userId!!
+                            if (partnerId != null) updates["coupleId"] = partnerId!!
                             if (newImage != null) updates["profileImageUrl"] = newImage
                             
-                            db.collection("users").document(userId!!).update(updates)
+                            db.collection("users").document(userId!!).set(updates, com.google.firebase.firestore.SetOptions.merge())
                                 .addOnSuccessListener {
                                     val prefs = act?.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
                                     prefs?.edit()?.putString("userName", newName)?.apply()

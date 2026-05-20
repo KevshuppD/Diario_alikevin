@@ -150,10 +150,14 @@ public class MessageEditor {
             ((TextView) v.findViewById(R.id.tvViewAuthor)).setTextColor(Color.WHITE);
             ((TextView) v.findViewById(R.id.tvViewTimestamp)).setTextColor(Color.WHITE);
             ((TextView) v.findViewById(R.id.tvViewContent)).setTextColor(Color.WHITE);
+            TextView tvTitle = v.findViewById(R.id.tvViewTitle);
+            if (tvTitle != null) tvTitle.setTextColor(Color.WHITE);
             btnClose.setTextColor(Color.WHITE);
             btnClose.setBackgroundColor(Color.parseColor("#1A1A2E"));
         } else {
             v.setBackgroundColor(Color.parseColor("#F5F5F5"));
+            TextView tvTitle = v.findViewById(R.id.tvViewTitle);
+            if (tvTitle != null) tvTitle.setTextColor(Color.parseColor("#4A2511"));
             btnClose.setTextColor(Color.WHITE);
             btnClose.setBackgroundColor(Color.parseColor("#5D2E7A"));
         }
@@ -161,6 +165,14 @@ public class MessageEditor {
         TextView tvAuthor = v.findViewById(R.id.tvViewAuthor);
         TextView tvTimestamp = v.findViewById(R.id.tvViewTimestamp);
         tvAuthor.setText("De: " + msg.getAuthorName());
+        
+        TextView tvTitle = v.findViewById(R.id.tvViewTitle);
+        if (msg.getTitle() != null && !msg.getTitle().trim().isEmpty()) {
+            tvTitle.setVisibility(View.VISIBLE);
+            tvTitle.setText(msg.getTitle());
+        } else {
+            tvTitle.setVisibility(View.GONE);
+        }
         
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault());
         tvTimestamp.setText(sdf.format(new java.util.Date(msg.getTimestamp())));

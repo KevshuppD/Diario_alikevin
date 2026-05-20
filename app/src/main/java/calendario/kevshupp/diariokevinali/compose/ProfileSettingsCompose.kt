@@ -42,22 +42,53 @@ fun ProfileScreen(
     val pinkColor = Color(0xFFFF80AB)
     val borderColor = if (isDark) Color(0xFFE0E0E0) else Color(0xFF4A2511)
 
-    var partnerName by remember { mutableStateOf("Buscando...") }
+    var partnerName by remember { mutableStateOf("Cargando...") }
     var partnerImageUrl by remember { mutableStateOf<String?>(null) }
+    var isSearchingPartner by remember { mutableStateOf(true) }
 
     LaunchedEffect(coupleId) {
-        if (coupleId != null) {
+        if (!coupleId.isNullOrEmpty()) {
+            isSearchingPartner = true
+            android.util.Log.d("ProfileScreen", "Buscando pareja con coupleId: $coupleId y mi UID: $currentUserId")
             val db = FirebaseFirestore.getInstance()
             db.collection("users")
                 .whereEqualTo("coupleId", coupleId)
-                .addSnapshotListener { snapshot, _ ->
-                    snapshot?.documents?.forEach { doc ->
-                        if (doc.id != currentUserId) {
-                            partnerName = doc.getString("userName") ?: "Pareja"
+                .addSnapshotListener { snapshot, error ->
+                    isSearchingPartner = false
+                    if (error != null) {
+                        android.util.Log.e("ProfileScreen", "Error en consulta: ${error.message}")
+                        partnerName = "Error de conexión"
+                        return@addSnapshotListener
+                    }
+                    
+                    if (snapshot == null || snapshot.isEmpty) {
+                        android.util.Log.d("ProfileScreen", "No se encontraron usuarios con ese coupleId")
+                        partnerName = "Pareja no conectada"
+                        return@addSnapshotListener
+                    }
+
+                    android.util.Log.d("ProfileScreen", "Usuarios encontrados: ${snapshot.size()}")
+                    var found = false
+                    snapshot.documents.forEach { doc ->
+                        val docUserId = doc.getString("userId") ?: doc.id
+                        val docName = doc.getString("userName")
+                        val docCoupleId = doc.getString("coupleId")
+                        android.util.Log.d("ProfileScreen", "Doc: ${doc.id}, userId: $docUserId, name: $docName, coupleId: $docCoupleId")
+                        if (docUserId != currentUserId) {
+                            partnerName = docName ?: "Pareja"
                             partnerImageUrl = doc.getString("profileImageUrl")
+                            android.util.Log.d("ProfileScreen", "Pareja encontrada y asignada: $partnerName")
+                            found = true
                         }
                     }
+                    if (!found) {
+                        partnerName = "Pareja no conectada"
+                    }
                 }
+        } else {
+            isSearchingPartner = false
+            android.util.Log.e("ProfileScreen", "coupleId es nulo o vacío")
+            partnerName = "Error: Sin vínculo"
         }
     }
 
@@ -167,13 +198,17 @@ fun ProfileScreen(
                 )
             } else {
                 Box(modifier = Modifier.fillMaxSize().background(Color.Gray), contentAlignment = Alignment.Center) {
-                    Text("?", fontSize = 30.sp)
+                    if (isSearchingPartner) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = pinkColor)
+                    } else {
+                        Text("?", fontSize = 30.sp)
+                    }
                 }
             }
         }
 
         Text(
-            text = if (partnerImageUrl != null) partnerName else "Cargando pareja...",
+            text = partnerName,
             fontFamily = Vt323,
             fontSize = 24.sp,
             color = pinkColor,
@@ -353,17 +388,6 @@ fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = onTestNotification,
-            modifier = Modifier.fillMaxWidth().height(54.dp),
-            shape = RectangleShape,
-            colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF1976D2) else Color(0xFF2196F3))
-        ) {
-            Text("PROBAR NOTIFICACIÓN", fontFamily = Vt323, fontSize = 22.sp)
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         Button(
             onClick = onCheckUpdates,

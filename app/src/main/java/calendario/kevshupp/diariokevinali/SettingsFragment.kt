@@ -62,7 +62,11 @@ class SettingsFragment : Fragment() {
                         onCheckUpdates = {
                             act?.getUpdateManager()?.checkForUpdates(object : UpdateManager.UpdateCallback {
                                 override fun onUpdateAvailable(url: String) { act.showUpdateDialog(url) }
-                                override fun onNoUpdate() {}
+                                override fun onNoUpdate() {
+                                    act?.runOnUiThread {
+                                        android.widget.Toast.makeText(requireContext(), "No hay actualizaciones disponibles", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                                 override fun onDownloadProgress(progress: Int) {}
                                 override fun onDownloadComplete() {}
                             })

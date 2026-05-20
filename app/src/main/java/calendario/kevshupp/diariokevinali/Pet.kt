@@ -11,12 +11,15 @@ data class Pet(
     var streakDays: Int = 0,
     var lastInteractionDate: String? = null, // Formato yyyy-MM-dd
     var equippedAccessory: String? = null,
-    var unlockedAccessories: List<String> = mutableListOf()
+    var unlockedAccessories: List<String> = mutableListOf(),
+    var isSleeping: Boolean = false,
+    var hunger: Int = 0
 ) {
     companion object {
         const val STATUS_HAPPY = "FELIZ"
         const val STATUS_SAD = "TRISTE"
         const val STATUS_HUNGRY = "HAMBRIENTO"
+        const val STATUS_SLEEPING = "DURMIENDO"
         const val STATUS_EVOLVING = "EVOLUCIONANDO"
         
         // IDs de accesorios disponibles

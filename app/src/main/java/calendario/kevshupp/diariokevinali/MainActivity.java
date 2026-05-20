@@ -134,6 +134,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     public RecipeManager recipeManager;
     private AlbumManager albumManager;
     private MutableState<Boolean> isUploadingState = SnapshotStateKt.mutableStateOf(false, SnapshotStateKt.neverEqualPolicy());
+    private MutableState<String> overlayMessageState = SnapshotStateKt.mutableStateOf("Cargando...", SnapshotStateKt.neverEqualPolicy());
 
     // Launchers modernos para resultados de actividades
     private final androidx.activity.result.ActivityResultLauncher<Intent> pickImageLauncher = registerForActivityResult(
@@ -181,6 +182,8 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     private ListenerRegistration firestoreListener, calendarListener, userListener, petListener;
     private Calendar selectedFilterDate = null;
 
+    private final java.text.SimpleDateFormat dayFormat = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+
     private final MutableState<Pet> petState = androidx.compose.runtime.SnapshotStateKt.mutableStateOf(new Pet(), androidx.compose.runtime.SnapshotStateKt.neverEqualPolicy());
 
     private ConnectivityManager connectivityManager;
@@ -209,6 +212,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
 
         setContentView(R.layout.activity_main);
         db = FirebaseFirestore.getInstance();
+        ensureUserInFirestore();
         
         updateManager = new UpdateManager(this);
         messageEditor = new MessageEditor(this, currentCoupleId, currentUserId, currentUserName, currentUserImageUri);
@@ -306,12 +310,15 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 .setTitle("Actualización disponible")
                 .setMessage("Una nueva versión está disponible en GitHub. ¿Deseas descargarla?")
                 .setPositiveButton("Descargar", (d, w) -> {
-                    downloadProgressContainer.setVisibility(View.VISIBLE);
+                    overlayMessageState.setValue("Descargando actualización...");
+                    isUploadingState.setValue(true);
                     updateManager.downloadUpdate(url, new UpdateManager.UpdateCallback() {
                         @Override public void onUpdateAvailable(String u) {}
                         @Override public void onNoUpdate() {}
-                        @Override public void onDownloadProgress(int p) { runOnUiThread(() -> downloadProgressBar.setProgress(p)); }
-                        @Override public void onDownloadComplete() { runOnUiThread(() -> { downloadProgressContainer.setVisibility(View.GONE); updateManager.installApk(); }); }
+                        @Override public void onDownloadProgress(int p) { 
+                            runOnUiThread(() -> overlayMessageState.setValue("Descargando actualización: " + p + "%")); 
+                        }
+                        @Override public void onDownloadComplete() { runOnUiThread(() -> { isUploadingState.setValue(false); updateManager.installApk(); }); }
                     });
                 })
                 .setNegativeButton("Cancelar", null)
@@ -474,8 +481,18 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             },
             msg -> { db.collection("messages").document(msg.getMessageId()).delete(); return kotlin.Unit.INSTANCE; },
             msg -> {
-                msg.setLiked(!msg.isLiked());
-                db.collection("messages").document(msg.getMessageId()).update("liked", msg.isLiked());
+                boolean newLiked = !msg.isLiked();
+                msg.setLiked(newLiked);
+                db.collection("messages").document(msg.getMessageId()).update("liked", newLiked);
+                if (newLiked) {
+                    String letterTitle = msg.getTitle();
+                    if (letterTitle == null || letterTitle.trim().isEmpty()) {
+                        letterTitle = "una carta";
+                    }
+                    String notifTitle = "¡A " + currentUserName + " le encantó! ❤️";
+                    String notifBody = "Le dio me gusta a tu carta: \"" + letterTitle + "\"";
+                    sendNotificationV1(notifTitle, notifBody, msg.getImageUrl());
+                }
                 // Forzar actualización del estado local
                 messagesState.setValue(new ArrayList<>(messagesState.getValue()));
                 return kotlin.Unit.INSTANCE;
@@ -536,6 +553,97 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             },
             accessoryId -> {
                 db.collection("pets").document(currentCoupleId).update("equippedAccessory", accessoryId);
+                return kotlin.Unit.INSTANCE;
+            },
+            (foodId, cost, happinessGain) -> {
+                Pet p = petState.getValue();
+                if (p != null) {
+                    if (p.getLovePoints() >= cost) {
+                        int currentHappiness = p.getHappiness();
+                        int newHappiness = Math.min(100, currentHappiness + happinessGain);
+                        String newStatus = p.getStatus();
+                        if (newHappiness > 40 && Pet.STATUS_SAD.equals(newStatus)) {
+                            newStatus = Pet.STATUS_HAPPY;
+                        }
+                        db.collection("pets").document(currentCoupleId)
+                            .update("lovePoints", p.getLovePoints() - cost,
+                                    "happiness", newHappiness,
+                                    "status", newStatus,
+                                    "hunger", 0,
+                                    "lastInteraction", System.currentTimeMillis());
+                        Toast.makeText(MainActivity.this, "¡Le has dado de comer a Thor! 💖 +" + happinessGain + "% Felicidad", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "No tienes suficientes puntos de amor ❤️", Toast.LENGTH_SHORT).show();
+                    }
+                }
+                return kotlin.Unit.INSTANCE;
+            },
+            (points, exp) -> {
+                Pet p = petState.getValue();
+                if (p != null) {
+                    int newExp = p.getExperience() + exp;
+                    int newLevel = p.getLevel();
+                    int newLovePoints = p.getLovePoints() + points;
+                    int newHappiness = Math.min(100, p.getHappiness() + 15);
+                    String newStatus = p.getStatus();
+                    if (newHappiness > 40 && Pet.STATUS_SAD.equals(newStatus)) {
+                        newStatus = Pet.STATUS_HAPPY;
+                    }
+                    
+                    boolean leveledUp = false;
+                    if (newExp >= 100) {
+                        newLevel++;
+                        newExp -= 100;
+                        newLovePoints += 50; // Bonus por nivel
+                        leveledUp = true;
+                    }
+                    
+                    final boolean showLevelUpToast = leveledUp;
+                    final int finalLevel = newLevel;
+                    db.collection("pets").document(currentCoupleId)
+                        .update("lovePoints", newLovePoints,
+                                "experience", newExp,
+                                "level", newLevel,
+                                "happiness", newHappiness,
+                                "status", newStatus,
+                                "hunger", 0,
+                                "lastInteraction", System.currentTimeMillis())
+                        .addOnSuccessListener(aVoid -> {
+                            Toast.makeText(MainActivity.this, "¡Premio reclamado! +15 ❤️, +15 EXP y +15% Felicidad 🥰", Toast.LENGTH_SHORT).show();
+                            if (showLevelUpToast) {
+                                Toast.makeText(MainActivity.this, "¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉", Toast.LENGTH_LONG).show();
+                            }
+                        })
+                        .addOnFailureListener(err -> {
+                            Log.e("Minigame", "Error al actualizar recompensa: " + err.getMessage());
+                        });
+                }
+                return kotlin.Unit.INSTANCE;
+            },
+            () -> {
+                Pet p = petState.getValue();
+                if (p != null) {
+                    boolean targetSleepState = !p.isSleeping();
+                    int newHappiness = p.getHappiness();
+                    String newStatus = p.getStatus();
+                    
+                    if (targetSleepState) {
+                        newStatus = Pet.STATUS_SLEEPING;
+                        db.collection("pets").document(currentCoupleId)
+                            .update("isSleeping", true, "status", newStatus)
+                            .addOnSuccessListener(aVoid -> {
+                                Toast.makeText(MainActivity.this, "¡Thor se ha ido a dormir! 🌙 Shhh...", Toast.LENGTH_SHORT).show();
+                            });
+                    } else {
+                        newHappiness = Math.min(100, newHappiness + 20);
+                        newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
+                        db.collection("pets").document(currentCoupleId)
+                            .update("isSleeping", false, "status", newStatus, "happiness", newHappiness, "lastInteraction", System.currentTimeMillis())
+                            .addOnSuccessListener(aVoid -> {
+                                Toast.makeText(MainActivity.this, "¡Thor ha despertado muy alegre! ☀️ +20% Felicidad", Toast.LENGTH_SHORT).show();
+                            });
+                    }
+                }
                 return kotlin.Unit.INSTANCE;
             },
             () -> { pickImage(PICK_IMAGE_CARTA); return kotlin.Unit.INSTANCE; }
@@ -640,6 +748,25 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         });
     }
 
+    private void ensureUserInFirestore() {
+        if (currentUserId == null) return;
+        
+        java.util.Map<String, Object> userUpdates = new java.util.HashMap<>();
+        userUpdates.put("userId", currentUserId);
+        userUpdates.put("coupleId", currentCoupleId);
+        if (currentUserName != null && !currentUserName.isEmpty()) {
+            userUpdates.put("userName", currentUserName);
+        }
+        if (currentUserImageUri != null && !currentUserImageUri.isEmpty()) {
+            userUpdates.put("profileImageUrl", currentUserImageUri);
+        }
+
+        db.collection("users").document(currentUserId)
+                .set(userUpdates, com.google.firebase.firestore.SetOptions.merge())
+                .addOnSuccessListener(aVoid -> Log.d("MainActivity", "Usuario sincronizado con Firestore"))
+                .addOnFailureListener(e -> Log.e("MainActivity", "Error sincronizando usuario", e));
+    }
+
     private void setupFirebaseMessaging() {
         String topicName = "diario_" + currentCoupleId.toLowerCase()
                 .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
@@ -654,6 +781,20 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 });
     }
 
+    private void savePetDataToWidgetPrefs(Pet p) {
+        android.content.SharedPreferences prefs = getSharedPreferences("thor_widget_prefs", MODE_PRIVATE);
+        prefs.edit()
+            .putString("pet_name", p.getName())
+            .putInt("pet_level", p.getLevel())
+            .putInt("pet_happiness", p.getHappiness())
+            .putString("pet_status", p.getStatus())
+            .putString("pet_accessory", p.getEquippedAccessory() != null ? p.getEquippedAccessory() : "none")
+            .putBoolean("pet_sleeping", p.isSleeping())
+            .putInt("pet_hunger", p.getHunger())
+            .apply();
+        ThorWidgetProvider.triggerUpdate(this);
+    }
+
     private void listenPet() {
         if (petListener != null) petListener.remove();
         petListener = db.collection("pets").document(currentCoupleId).addSnapshotListener((snapshot, e) -> {
@@ -662,6 +803,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 if (p != null) {
                     petState.setValue(p);
                     checkPetDecay(p);
+                    savePetDataToWidgetPrefs(p);
                 }
             } else {
                 // Crear mascota inicial si no existe
@@ -676,19 +818,39 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         long diff = now - p.getLastInteraction();
         long hours = diff / (1000 * 60 * 60);
         
-        if (hours >= 24 && p.getHappiness() > 0) {
-            // Cada 24h baja un 20%
-            int decay = (int)(hours / 24) * 20;
-            int newHappiness = Math.max(0, p.getHappiness() - decay);
-            String newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
-            
-            // Ajustar el lastInteraction para evitar bucle infinito recursivo en Firestore
-            long newLastInteraction = p.getLastInteraction() + (hours / 24) * (24 * 60 * 60 * 1000L);
-            
+        // Calcular hambre: aumenta en 4 por hora sin interactuar
+        int newHunger = Math.min(100, (int) (hours * 4));
+        
+        int newHappiness = p.getHappiness();
+        long lastInteractionCompensated = p.getLastInteraction();
+        
+        if (hours >= 24) {
+            long daysToDecay = hours / 24;
+            int decay = (int)daysToDecay * 20;
+            newHappiness = Math.max(0, p.getHappiness() - decay);
+            // Compensamos el timestamp sumando los bloques de 24h procesados
+            lastInteractionCompensated += (daysToDecay * 24L * 60L * 60L * 1000L);
+        }
+        
+        String newStatus = p.getStatus();
+        if (p.isSleeping()) {
+            newStatus = Pet.STATUS_SLEEPING;
+        } else if (newHunger >= 70) {
+            newStatus = Pet.STATUS_HUNGRY;
+        } else {
+            newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
+        }
+        
+        boolean hasChanged = newHappiness != p.getHappiness() 
+                || newHunger != p.getHunger() 
+                || !newStatus.equals(p.getStatus());
+                
+        if (hasChanged) {
             db.collection("pets").document(currentCoupleId)
                 .update("happiness", newHappiness, 
+                        "hunger", newHunger,
                         "status", newStatus,
-                        "lastInteraction", newLastInteraction);
+                        "lastInteraction", lastInteractionCompensated);
         }
     }
 
@@ -697,7 +859,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         if (p == null) return;
         
         long now = System.currentTimeMillis();
-        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new java.util.Date(now));
+        String today = dayFormat.format(new java.util.Date(now));
         
         int newHappiness = Math.min(100, p.getHappiness() + 10);
         int newLovePoints = p.getLovePoints() + 5; // +5 puntos por interacción
@@ -711,7 +873,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 // Verificar si ayer hubo interacción
                 Calendar yesterday = Calendar.getInstance();
                 yesterday.add(Calendar.DAY_OF_YEAR, -1);
-                String yesterdayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(yesterday.getTime());
+                String yesterdayStr = dayFormat.format(yesterday.getTime());
                 
                 if (p.getLastInteractionDate().equals(yesterdayStr)) {
                     newStreak++;
@@ -740,7 +902,8 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     "streakDays", newStreak,
                     "lastInteractionDate", today,
                     "lastInteraction", now,
-                    "status", Pet.STATUS_HAPPY);
+                    "hunger", 0,
+                    "status", p.isSleeping() ? Pet.STATUS_SLEEPING : Pet.STATUS_HAPPY);
     }
     private void checkAndRequestPermissions() {
         List<String> permissions = new ArrayList<>();
@@ -800,7 +963,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         previewContainer.setVisibility(View.GONE);
     }
 
-    public void sendNotificationV1(String messageText, String imageUrl) {
+    public void sendNotificationV1(String title, String messageText, String imageUrl) {
         new Thread(() -> {
             try {
                 // El archivo service-account.json debe estar en app/src/main/assets/
@@ -825,7 +988,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 JSONObject notification = new JSONObject();
                 JSONObject data = new JSONObject();
 
-                notification.put("title", "Nuevo mensaje de " + currentUserName);
+                notification.put("title", title != null ? title : "Nuevo mensaje de " + currentUserName);
                 notification.put("body", messageText != null && !messageText.isEmpty() ? messageText : "Te han enviado una foto 📸");
                 
                 data.put("authorId", currentUserId);
@@ -870,6 +1033,11 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             }
         }).start();
     }
+
+    public void sendNotificationV1(String messageText, String imageUrl) {
+        sendNotificationV1("Nuevo mensaje de " + currentUserName, messageText, imageUrl);
+    }
+
     // Simplificado para no romper compatibilidad con llamadas existentes
     public void sendNotificationV1(String messageText) { sendNotificationV1(messageText, null); }
 
@@ -1251,13 +1419,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             boolean uploading = pendingUploads > 0 && completedUploads < pendingUploads;
             isUploadingState.setValue(uploading);
             if (uploading) {
-                downloadProgressContainer.setVisibility(View.VISIBLE);
-                ((TextView) downloadProgressContainer.getChildAt(0)).setText("Subiendo imágenes (" + completedUploads + "/" + pendingUploads + ")...");
-                downloadProgressBar.setIndeterminate(false);
-                downloadProgressBar.setMax(pendingUploads);
-                downloadProgressBar.setProgress(completedUploads);
-            } else {
-                downloadProgressContainer.setVisibility(View.GONE);
+                overlayMessageState.setValue("Subiendo imágenes (" + completedUploads + "/" + pendingUploads + ")...");
             }
         });
     }
@@ -1325,7 +1487,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     private void setupOverlays() {
         ComposeView overlayCompose = findViewById(R.id.overlayCompose);
         if (overlayCompose != null) {
-            calendario.kevshupp.diariokevinali.compose.SharedComposeKt.setOverlayContent(overlayCompose, isUploadingState);
+            calendario.kevshupp.diariokevinali.compose.SharedComposeKt.setOverlayContent(overlayCompose, isUploadingState, overlayMessageState);
         }
     }
 

@@ -38,8 +38,10 @@ import coil.compose.AsyncImage
 import java.text.SimpleDateFormat
 import java.util.*
 
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 fun setFeedContent(
     composeView: ComposeView,
@@ -58,6 +60,9 @@ fun setFeedContent(
     onUpdatePetName: (newName: String) -> Unit,
     onBuyAccessory: (accessoryId: String, cost: Int) -> Unit,
     onEquipAccessory: (accessoryId: String) -> Unit,
+    onFeedPet: (foodId: String, cost: Int, happinessGain: Int) -> Unit,
+    onRewardPet: (points: Int, exp: Int) -> Unit,
+    onToggleSleep: () -> Unit,
     onPickImage: () -> Unit
 ) {
     composeView.setContent {
@@ -75,7 +80,10 @@ fun setFeedContent(
                 onLikeClick = onLikeClick,
                 onUpdatePetName = onUpdatePetName,
                 onBuyAccessory = onBuyAccessory,
-                onEquipAccessory = onEquipAccessory
+                onEquipAccessory = onEquipAccessory,
+                onFeedPet = onFeedPet,
+                onRewardPet = onRewardPet,
+                onToggleSleep = onToggleSleep
             )
 
             if (showEditorState.value) {
@@ -113,7 +121,10 @@ fun MessageFeedScreen(
     onLikeClick: (Message) -> Unit,
     onUpdatePetName: (String) -> Unit,
     onBuyAccessory: (String, Int) -> Unit,
-    onEquipAccessory: (String) -> Unit
+    onEquipAccessory: (String) -> Unit,
+    onFeedPet: (String, Int, Int) -> Unit,
+    onRewardPet: (Int, Int) -> Unit,
+    onToggleSleep: () -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
     var selectedMessageForMenu by remember { mutableStateOf<Message?>(null) }
@@ -130,7 +141,10 @@ fun MessageFeedScreen(
                 showPetDialog = false
             },
             onBuyAccessory = onBuyAccessory,
-            onEquipAccessory = onEquipAccessory
+            onEquipAccessory = onEquipAccessory,
+            onFeedPet = onFeedPet,
+            onRewardPet = onRewardPet,
+            onToggleSleep = onToggleSleep
         )
     }
 
@@ -371,6 +385,17 @@ fun MessageCard(
                 }
             }
 
+            if (!message.title.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = message.title!!,
+                    fontFamily = Vt323,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Contenido (Procesar HTML para eliminar etiquetas y códigos raros)
@@ -478,6 +503,40 @@ fun MessageCard(
 }
 
 @Composable
+fun rememberTimeUntilDecay(lastInteraction: Long, happiness: Int): String {
+    if (happiness <= 0) return "¡Dale amor! ❤️"
+    
+    var remainingTime by remember(lastInteraction) { mutableStateOf("") }
+    
+    LaunchedEffect(lastInteraction) {
+        while (true) {
+            val now = System.currentTimeMillis()
+            val diff = now - lastInteraction
+            val period = 24 * 60 * 60 * 1000L
+            val nextDecayTime = lastInteraction + ((diff / period) + 1) * period
+            val timeLeft = nextDecayTime - now
+            
+            if (timeLeft <= 0) {
+                remainingTime = "Baja inminente... ⏳"
+            } else {
+                val hours = timeLeft / (1000 * 60 * 60)
+                val minutes = (timeLeft % (1000 * 60 * 60)) / (1000 * 60)
+                val seconds = (timeLeft % (1000 * 60)) / 1000
+                remainingTime = if (hours > 0) {
+                    "Próxima baja en: ${hours}h ${minutes}m"
+                } else if (minutes > 0) {
+                    "Próxima baja en: ${minutes}m ${seconds}s"
+                } else {
+                    "Próxima baja en: ${seconds}s ⏳"
+                }
+            }
+            kotlinx.coroutines.delay(1000L)
+        }
+    }
+    return remainingTime
+}
+
+@Composable
 fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
@@ -545,7 +604,7 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                     modifier = Modifier
                         .size(80.dp)
                         .border(2.dp, borderColor)
-                        .background(Color.White.copy(alpha = 0.1f))
+                        .background(if (pet.isSleeping) Color(0xFF0F0F3D) else Color.White.copy(alpha = 0.1f))
                         .clickable { isClicked = true }
                         .padding(4.dp)
                 ) {
@@ -565,8 +624,31 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                     Image(
                         painter = painterResource(id = thorImageRes), 
                         contentDescription = null,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = breathingScale * clickScale,
+                                scaleY = breathingScale * clickScale,
+                                translationY = bobbingOffset,
+                                rotationZ = wiggleRotation
+                            )
                     )
+
+                    if (pet.isSleeping) {
+                        Text(
+                            text = "💤",
+                            fontFamily = Vt323,
+                            fontSize = 12.sp,
+                            modifier = Modifier.align(Alignment.TopEnd).padding(2.dp)
+                        )
+                    } else if (pet.status == Pet.STATUS_HUNGRY) {
+                        Text(
+                            text = "🍖",
+                            fontFamily = Vt323,
+                            fontSize = 12.sp,
+                            modifier = Modifier.align(Alignment.TopStart).padding(2.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -631,6 +713,16 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                                 color = if (isDark) Color.White else Color.Black
                             )
                         }
+                        
+                        val timeUntilDecay = rememberTimeUntilDecay(pet.lastInteraction, pet.happiness)
+                        Text(
+                            text = timeUntilDecay,
+                            fontFamily = Vt323,
+                            fontSize = 12.sp,
+                            color = if (pet.happiness <= 0) Color(0xFFFF4081) else if (isDark) Color.LightGray.copy(alpha = 0.7f) else Color.DarkGray.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                        
                         Spacer(modifier = Modifier.height(2.dp))
                         Box(
                             modifier = Modifier
@@ -671,7 +763,6 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                                 color = if (isDark) Color.White else Color.Black
                             )
                         }
-                        Spacer(modifier = Modifier.height(2.dp))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -684,6 +775,46 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                                     .fillMaxWidth(pet.experience / 100f)
                                     .fillMaxHeight()
                                     .background(Color(0xFF2196F3))
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Barra de Hambre
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Hambre 🍖",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                color = if (isDark) Color.LightGray else Color.DarkGray
+                            )
+                            Text(
+                                text = "${pet.hunger}%",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color.Black
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .border(1.dp, borderColor.copy(alpha = 0.5f))
+                                .background(Color.Gray.copy(alpha = 0.2f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(pet.hunger / 100f)
+                                    .fillMaxHeight()
+                                    .background(if (pet.hunger >= 70) Color(0xFFF44336) else Color(0xFFFF9800))
                             )
                         }
                     }
@@ -751,10 +882,15 @@ fun PetMenuDialog(
     onDismiss: () -> Unit,
     onUpdateName: (String) -> Unit,
     onBuyAccessory: (String, Int) -> Unit,
-    onEquipAccessory: (String) -> Unit
+    onEquipAccessory: (String) -> Unit,
+    onFeedPet: (String, Int, Int) -> Unit,
+    onRewardPet: (Int, Int) -> Unit,
+    onToggleSleep: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var newName by remember { mutableStateOf(pet.name) }
+    var showMemoryGame by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     
     val bgColor = if (isDark) Color(0xFF1A1A1A) else Color(0xFFF3E5AB)
     val contentColor = if (isDark) Color.White else Color(0xFF4A2511)
@@ -798,20 +934,23 @@ fun PetMenuDialog(
         finishedListener = { dIsClicked = false }
     )
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.75f)
+                .fillMaxSize()
                 .border(3.dp, borderColor),
             color = bgColor,
             shape = RectangleShape
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                // Header con 3 pestañas: INFO, TIENDA, GUÍA
+                // Header con 4 pestañas: INFO, ROPA, COMIDA, GUÍA
                 Row(modifier = Modifier.fillMaxWidth()) {
                     TabItem("INFO", selectedTab == 0, isDark, borderColor) { selectedTab = 0 }
-                    TabItem("TIENDA", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
+                    TabItem("ROPA 👑", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
+                    TabItem("COMIDA 🐟", selectedTab == 3, isDark, borderColor) { selectedTab = 3 }
                     TabItem("GUÍA 📖", selectedTab == 2, isDark, borderColor) { selectedTab = 2 }
                 }
 
@@ -820,14 +959,16 @@ fun PetMenuDialog(
                 if (selectedTab == 0) {
                     // Pestaña de Información
                     Column(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(200.dp)
                                 .border(2.dp, borderColor)
-                                .background(Color.White.copy(alpha = 0.05f))
+                                .background(if (pet.isSleeping) Color(0xFF0F0F3D) else Color.White.copy(alpha = 0.05f))
                                 .clickable { dIsClicked = true }
                                 .padding(8.dp)
                         ) {
@@ -848,8 +989,25 @@ fun PetMenuDialog(
                                 painter = painterResource(id = dThorImageRes),
                                 contentDescription = null,
                                 contentScale = ContentScale.Fit,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer(
+                                        scaleX = dBreathingScale * dClickScale,
+                                        scaleY = dBreathingScale * dClickScale,
+                                        translationY = dBobbingOffset,
+                                        rotationZ = dWiggleRotation
+                                    )
                             )
+
+                            if (pet.isSleeping) {
+                                Text(
+                                    text = "Zzz...",
+                                    fontFamily = Vt323,
+                                    fontSize = 24.sp,
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                                )
+                            }
                         }
                         
                         Spacer(modifier = Modifier.height(16.dp))
@@ -883,15 +1041,69 @@ fun PetMenuDialog(
                             InfoStat("EXP", "${pet.experience}/100", Color(0xFF2196F3))
                         }
                         
-                        Spacer(modifier = Modifier.weight(1f))
+                        Spacer(modifier = Modifier.height(12.dp))
                         
-                        Button(
-                            onClick = { onUpdateName(newName) },
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                            InfoStat("Hambre 🍖", "${pet.hunger}%", Color(0xFFFF9800))
+                            InfoStat("Sueño 💤", if (pet.isSleeping) "Dormido" else "Despierto", Color(0xFF9C27B0))
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        val timeUntilDecayDialog = rememberTimeUntilDecay(pet.lastInteraction, pet.happiness)
+                        Text(
+                            text = timeUntilDecayDialog,
+                            fontFamily = Vt323,
+                            fontSize = 15.sp,
+                            color = if (pet.happiness <= 0) Color(0xFFFF4081) else contentColor.copy(alpha = 0.8f)
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = borderColor),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { onUpdateName(newName) },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = borderColor),
+                                shape = RectangleShape
+                            ) {
+                                Text("Guardar Nombre", fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
+                            }
+                            
+                            Button(
+                                onClick = { 
+                                    if (pet.isSleeping) {
+                                        android.widget.Toast.makeText(context, "¡Thor está durmiendo profundamente! 💤 Despiértalo primero para jugar.", android.widget.Toast.LENGTH_LONG).show()
+                                    } else if (pet.status == Pet.STATUS_HUNGRY) {
+                                        android.widget.Toast.makeText(context, "¡Thor tiene demasiada hambre! 🍖 Aliméntalo en la pestaña COMIDA para jugar.", android.widget.Toast.LENGTH_LONG).show()
+                                    } else {
+                                        showMemoryGame = true 
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (pet.isSleeping || pet.status == Pet.STATUS_HUNGRY) Color.Gray else Color(0xFF4CAF50)
+                                ),
+                                shape = RectangleShape
+                            ) {
+                                Text("🎮 JUGAR", fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val sleepButtonColor = if (pet.isSleeping) Color(0xFFFFA000) else Color(0xFF673AB7)
+                        val sleepButtonText = if (pet.isSleeping) "☀️ Despertar" else "🌙 Poner a dormir"
+                        Button(
+                            onClick = { onToggleSleep() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = sleepButtonColor),
                             shape = RectangleShape
                         ) {
-                            Text("Guardar Cambios", fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
+                            Text(sleepButtonText, fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
                         }
                     }
                 } else if (selectedTab == 1) {
@@ -936,6 +1148,55 @@ fun PetMenuDialog(
                             }
                         }
                     }
+                } else if (selectedTab == 3) {
+                    // Pestaña de Tienda de Alimentos / Comida
+                    val foods = listOf(
+                        Triple("cookie", "Galleta Pescado 🐟", Pair(5, 15)),
+                        Triple("milk", "Leche Tibia 🥛", Pair(10, 30)),
+                        Triple("catnip", "Catnip Relajante 🌿", Pair(15, 50)),
+                        Triple("feast", "Banquete Gourmet 🍣", Pair(25, 80))
+                    )
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Puntos disponibles: ${pet.lovePoints} ❤️",
+                            fontFamily = Vt323,
+                            color = accentColor,
+                            fontSize = 20.sp,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        Text(
+                            "Alimenta a ${pet.name} para subir su felicidad instantáneamente:",
+                            fontFamily = Vt323,
+                            color = contentColor,
+                            fontSize = 18.sp,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            items(foods) { (id, name, pair) ->
+                                val (cost, gain) = pair
+                                FoodRow(
+                                    name = name,
+                                    cost = cost,
+                                    gain = gain,
+                                    isDark = isDark,
+                                    borderColor = borderColor,
+                                    onFeed = {
+                                        if (pet.isSleeping) {
+                                            android.widget.Toast.makeText(context, "¡Thor está durmiendo! 💤 No puede comer ahora.", android.widget.Toast.LENGTH_LONG).show()
+                                        } else {
+                                            onFeedPet(id, cost, gain)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
                 } else {
                     // Pestaña de Guía explicativa para la salud y puntos de amor
                     val scrollState = rememberScrollState()
@@ -962,7 +1223,7 @@ fun PetMenuDialog(
                             Column(modifier = Modifier.padding(10.dp)) {
                                 Text("😊 FELICIDAD", fontFamily = Vt323, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text("• Cada carta enviada le da +10% de felicidad.\n• Si no envías nada en 24h, su felicidad cae un 20% al día.\n• Si su felicidad baja de 40%, se pondrá triste 😢.", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
+                                Text("• Cada carta enviada le da +10% de felicidad.\n• Si no envías nada en 24h, su felicidad cae un 20% al día.\n• ¡Visita la sección COMIDA 🐟 para restaurar felicidad al instante!\n• Si su felicidad baja de 40%, se pondrá triste 😢.", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
                             }
                         }
 
@@ -988,7 +1249,7 @@ fun PetMenuDialog(
                             Column(modifier = Modifier.padding(10.dp)) {
                                 Text("👑 ACCESORIOS Y TIENDA", fontFamily = Vt323, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text("• Canjea tus puntos en la TIENDA por accesorios.\n• Los accesorios equipados se superpondrán a tu mascota en tiempo real. ¡Haz que Thor luzca fabuloso!", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
+                                Text("• Canjea tus puntos en la ROPA por accesorios.\n• Los accesorios equipados se superpondrán a tu mascota en tiempo real. ¡Haz que Thor luzca fabuloso!", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
                             }
                         }
                     }
@@ -1002,6 +1263,14 @@ fun PetMenuDialog(
                 }
             }
         }
+    }
+
+    if (showMemoryGame) {
+        MemoryGameDialog(
+            isDark = isDark,
+            onDismiss = { showMemoryGame = false },
+            onReward = onRewardPet
+        )
     }
 }
 
@@ -1079,6 +1348,274 @@ fun AccessoryRow(
                 fontFamily = Vt323,
                 fontSize = 14.sp
             )
+        }
+    }
+}
+
+@Composable
+fun FoodRow(
+    name: String,
+    cost: Int,
+    gain: Int,
+    isDark: Boolean,
+    borderColor: Color,
+    onFeed: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, borderColor.copy(alpha = 0.3f))
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column {
+            Text(name, fontFamily = Vt323, fontSize = 18.sp, color = if (isDark) Color.White else Color.Black)
+            Text("${cost} ❤️ (Felicidad +${gain}%)", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF4081))
+        }
+
+        Button(
+            onClick = onFeed,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
+            shape = RectangleShape,
+            modifier = Modifier.height(36.dp)
+        ) {
+            Text(
+                text = "ALIMENTAR",
+                fontFamily = Vt323,
+                fontSize = 14.sp,
+                color = Color.White
+            )
+        }
+    }
+}
+
+data class MemoryCard(
+    val id: Int,
+    val value: String,
+    var isFlipped: Boolean = false,
+    var isMatched: Boolean = false
+)
+
+@Composable
+fun MemoryGameDialog(
+    isDark: Boolean,
+    onDismiss: () -> Unit,
+    onReward: (points: Int, exp: Int) -> Unit
+) {
+    val bgColor = if (isDark) Color(0xFF1A1A1A) else Color(0xFFF3E5AB)
+    val contentColor = if (isDark) Color.White else Color(0xFF4A2511)
+    val borderColor = if (isDark) Color(0xFF91465F) else Color(0xFF4A2511)
+    
+    val emojis = listOf("🐈", "🐟", "❤️", "🥛", "🎈", "👑", "🌿", "🍣")
+    val cardsList = remember {
+        val list = (emojis + emojis).mapIndexed { index, emoji ->
+            MemoryCard(id = index, value = emoji)
+        }
+        mutableStateListOf(*list.shuffled().toTypedArray())
+    }
+
+    var selectedIndices = remember { mutableStateListOf<Int>() }
+    var moves by remember { mutableStateOf(0) }
+    var isWaiting by remember { mutableStateOf(false) }
+    var showWinDialog by remember { mutableStateOf(false) }
+    
+    val coroutineScope = rememberCoroutineScope()
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+                .border(3.dp, borderColor),
+            color = bgColor,
+            shape = RectangleShape
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "🎮 RETRO MEMORY 🎮",
+                    fontFamily = Vt323,
+                    fontSize = 24.sp,
+                    color = contentColor,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Text(
+                    text = "Movimientos: $moves",
+                    fontFamily = Vt323,
+                    fontSize = 18.sp,
+                    color = contentColor.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    for (row in 0 until 4) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            for (col in 0 until 4) {
+                                val cardIndex = row * 4 + col
+                                val card = cardsList[cardIndex]
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .aspectRatio(1f)
+                                        .border(2.dp, borderColor)
+                                        .background(
+                                            if (card.isMatched || card.isFlipped || selectedIndices.contains(cardIndex)) {
+                                                if (isDark) Color(0xFF2E2E2E) else Color(0xFFFFFDD0)
+                                            } else {
+                                                borderColor.copy(alpha = 0.8f)
+                                            }
+                                        )
+                                        .clickable {
+                                            if (isWaiting || card.isMatched || card.isFlipped || selectedIndices.contains(cardIndex) || selectedIndices.size >= 2) {
+                                                return@clickable
+                                            }
+
+                                            selectedIndices.add(cardIndex)
+                                            
+                                            if (selectedIndices.size == 2) {
+                                                moves++
+                                                val firstIndex = selectedIndices[0]
+                                                val secondIndex = selectedIndices[1]
+                                                
+                                                if (cardsList[firstIndex].value == cardsList[secondIndex].value) {
+                                                    cardsList[firstIndex] = cardsList[firstIndex].copy(isMatched = true)
+                                                    cardsList[secondIndex] = cardsList[secondIndex].copy(isMatched = true)
+                                                    selectedIndices.clear()
+                                                    
+                                                    if (cardsList.all { it.isMatched }) {
+                                                        showWinDialog = true
+                                                    }
+                                                } else {
+                                                    isWaiting = true
+                                                    coroutineScope.launch {
+                                                        kotlinx.coroutines.delay(1000)
+                                                        selectedIndices.clear()
+                                                        isWaiting = false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (card.isMatched || card.isFlipped || selectedIndices.contains(cardIndex)) {
+                                        Text(card.value, fontSize = 24.sp)
+                                    } else {
+                                        Text("❓", fontFamily = Vt323, fontSize = 22.sp, color = Color.White)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            cardsList.clear()
+                            val list = (emojis + emojis).mapIndexed { index, emoji ->
+                                MemoryCard(id = index, value = emoji)
+                            }
+                            cardsList.addAll(list.shuffled())
+                            selectedIndices.clear()
+                            moves = 0
+                            showWinDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
+                        shape = RectangleShape,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Reiniciar 🔄", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                    }
+
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = borderColor),
+                        shape = RectangleShape,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cerrar ❌", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showWinDialog) {
+        Dialog(onDismissRequest = {}) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .border(4.dp, Color(0xFF4CAF50)),
+                color = bgColor,
+                shape = RectangleShape
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "¡VICTORIA! 🎉",
+                        fontFamily = Vt323,
+                        fontSize = 28.sp,
+                        color = Color(0xFF4CAF50),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Text(
+                        "Has resuelto el juego de memoria de Thor en $moves movimientos.",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        color = contentColor,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    Text(
+                        "🏆 RECOMPENSA:",
+                        fontFamily = Vt323,
+                        fontSize = 20.sp,
+                        color = Color(0xFFFF9800),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "+15 Puntos de Amor ❤️\n+15 EXP ✨",
+                        fontFamily = Vt323,
+                        fontSize = 20.sp,
+                        color = contentColor,
+                        modifier = Modifier.padding(bottom = 20.dp)
+                    )
+
+                    Button(
+                        onClick = {
+                            onReward(15, 15)
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("RECLAMAR 🏆", fontFamily = Vt323, fontSize = 20.sp, color = Color.White)
+                    }
+                }
+            }
         }
     }
 }
