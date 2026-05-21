@@ -101,7 +101,7 @@ class AlbumFragment : Fragment() {
 
                 AlbumScreen(
                     moments = moments,
-                    isDark = isDark,
+                    theme = theme,
                     onAddMoment = {
                         albumManager?.showAddMomentDialog(object : AlbumManager.AlbumCallback {
                             override fun onPickImage() {

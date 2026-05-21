@@ -83,6 +83,35 @@ Desde el diálogo de Thor, los usuarios gastan Puntos de Amor para desbloquear y
 * **Prevención de Bucle Recursivo:** El sistema matemático en [MainActivity.java](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainActivity.java) compensa el timestamp de la última interacción (`lastInteraction`) sumando bloques exactos de 24 horas por cada decaimiento aplicado. Esto previene llamadas en cascada infinitas del Snapshot Listener de Firebase.
 * **Temporizador en Tiempo Real:** Implementado con una corrutina y `LaunchedEffect` en [MessageFeedCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt), calcula y muestra una cuenta regresiva dinámica en formato `"Próxima baja en: hh:mm"` / `"mm:ss ⏳"` que avisa cuándo ocurrirá el próximo decremento, o muestra un dulce aviso `"¡Dale amor! ❤️"` si Thor ha alcanzado el 0% de felicidad.
 
+### D. Guía de Creación e Integración de Nuevos Accesorios / Ropa
+Para añadir nuevos accesorios (como el *Plátano Nano* o las *Calcetas y Botitas*), se debe seguir un protocolo estructurado de 5 pasos para garantizar la integridad visual e interactiva:
+
+1. **Generación del Asset Visual (AI + Transparencia Flood-Fill):**
+   * **Imagen de Thor Vestido:** Generar la imagen del gato utilizando el diseño base [ic_thor_base_trans.png](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/res/drawable/ic_thor_base_trans.png) sobre un fondo blanco sólido (`#FFFFFF`) con el prompt deseado (ej. suéter, calcetas, sombrero).
+   * **Icono de Tienda:** Generar una miniatura del accesorio individual (`ic_acc_<nombre>_raw.png`) sobre fondo blanco.
+   * **Procesamiento de Transparencia:** Ejecutar un script de Python con algoritmo *Flood Fill* (partiendo de las 4 esquinas de la imagen) para remover el fondo blanco sin afectar las partes blancas del cuerpo de Thor, guardando los resultados PNG transparentes finales como `ic_thor_<nombre>.png` y `ic_acc_<nombre>.png` en `app/src/main/res/drawable/`.
+2. **Definición de Constantes:**
+   * Registrar la nueva constante en el companion object de [Pet.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/Pet.kt):
+     ```kotlin
+     const val ACC_SOCKS = "socks"
+     ```
+3. **Mapeo de Recursos en Compose:**
+   * Añadir el recurso de imagen correspondiente en los bloques `when (pet.equippedAccessory)` ubicados en [MessageFeedCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt) (tanto en el renderizador principal de Thor como en el diálogo de información):
+     ```kotlin
+     Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
+     ```
+4. **Registro en el Listado de la Tienda:**
+   * Agregar la tupla descriptiva a la lista `items` en la pestaña de tienda dentro de [MessageFeedCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt) definiendo el ID, nombre para mostrar y precio en puntos de amor:
+     ```kotlin
+     Triple(Pet.ACC_SOCKS, "Calcetas y Botitas 🧦🥾", 15)
+     ```
+5. **Enlace en el Widget de Pantalla de Inicio:**
+   * Mapear el nuevo accesorio en [ThorWidgetProvider.java](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/ThorWidgetProvider.java) para mantener paridad visual fuera de la app:
+     ```java
+     } else if ("socks".equals(accessory)) {
+         thorImageRes = R.drawable.ic_thor_socks;
+     ```
+
 ---
 
 ## 5. Paginación de Cartas

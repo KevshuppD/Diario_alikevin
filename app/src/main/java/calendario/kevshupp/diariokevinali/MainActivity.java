@@ -522,7 +522,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     .addOnSuccessListener(aVoid -> {
                         updatePetOnInteraction();
                         if (editingMessageState.getValue() == null) {
-                            sendNotificationV1(title != null && !title.isEmpty() ? title : "Nueva carta enviada", imageUrl);
+                            String notifTitle = "Nuevo mensaje de " + currentUserName + " 💌";
+                            String notifBody = (title != null && !title.isEmpty()) ? "«" + title + "»: " + content : content;
+                            sendNotificationV1(notifTitle, notifBody, imageUrl);
                             Toast.makeText(MainActivity.this, "Carta enviada ❤️", Toast.LENGTH_SHORT).show();
                         } else {
                             Toast.makeText(MainActivity.this, "Carta actualizada ✨", Toast.LENGTH_SHORT).show();
@@ -712,6 +714,24 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
 
     @Override
     protected void onDestroy() {
+        // Desvincular oyentes de Firestore para evitar pérdidas de memoria y consumo de red innecesario
+        if (firestoreListener != null) {
+            firestoreListener.remove();
+            firestoreListener = null;
+        }
+        if (userListener != null) {
+            userListener.remove();
+            userListener = null;
+        }
+        if (petListener != null) {
+            petListener.remove();
+            petListener = null;
+        }
+        if (calendarListener != null) {
+            calendarListener.remove();
+            calendarListener = null;
+        }
+
         if (connectivityManager != null && networkCallback != null) {
             connectivityManager.unregisterNetworkCallback(networkCallback);
             networkCallback = null;
@@ -818,8 +838,8 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         long diff = now - p.getLastInteraction();
         long hours = diff / (1000 * 60 * 60);
         
-        // Calcular hambre: aumenta en 4 por hora sin interactuar
-        int newHunger = Math.min(100, (int) (hours * 4));
+        // Calcular hambre: aumenta en 4 por hora sin interactuar (evita decrementos por compensación de tiempo)
+        int newHunger = Math.max(p.getHunger(), Math.min(100, (int) (hours * 4)));
         
         int newHappiness = p.getHappiness();
         long lastInteractionCompensated = p.getLastInteraction();
@@ -1311,7 +1331,18 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         mainLayout.setBackgroundColor(bg); 
         toolbar.setBackgroundColor(tb); 
         bottomActionsBar.setBackgroundColor(tb);
-        inputContainer.setBackgroundColor(inputBg);
+        
+        // Cargar el contenedor pixelado 3D y colorear su interior dinámicamente según el tema
+        android.graphics.drawable.Drawable containerBg = getDrawable(R.drawable.bg_input_container_pixel);
+        if (containerBg instanceof android.graphics.drawable.LayerDrawable) {
+            android.graphics.drawable.LayerDrawable ld = (android.graphics.drawable.LayerDrawable) containerBg;
+            android.graphics.drawable.GradientDrawable inner = (android.graphics.drawable.GradientDrawable) ld.findDrawableByLayerId(R.id.inner_solid);
+            if (inner != null) {
+                inner.setColor(inputBg);
+            }
+        }
+        inputContainer.setBackground(containerBg);
+        
         previewContainer.setBackgroundColor(inputBg);
         navBarPadding.setBackgroundColor(inputBg);
         
@@ -1325,10 +1356,21 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         btnHome.setColorFilter(c);
         btnSettings.setColorFilter(c);
 
-        btnExpand.setColorFilter(theme.equals("Pixel Oscuro") ? Color.WHITE : Color.parseColor("#4A2511")); 
-        btnSend.setColorFilter(theme.equals("Pixel Oscuro") ? Color.WHITE : Color.parseColor("#4A2511"));
+        // Aplicar fondos de botones 3D retro con cambio de estado táctil y sus respectivos filtros de color
+        if (theme.equals("Pixel Oscuro")) {
+            btnExpand.setBackgroundResource(R.drawable.bg_btn_pixel_small_dark);
+            btnSend.setBackgroundResource(R.drawable.bg_btn_pixel_small_dark);
+            btnExpand.setColorFilter(Color.WHITE);
+            btnSend.setColorFilter(Color.WHITE);
+            etMessage.setBackgroundResource(R.drawable.bg_message_pixel_dark);
+        } else {
+            btnExpand.setBackgroundResource(R.drawable.bg_btn_pixel_small);
+            btnSend.setBackgroundResource(R.drawable.bg_btn_pixel_small);
+            btnExpand.setColorFilter(Color.parseColor("#4A2511"));
+            btnSend.setColorFilter(Color.parseColor("#4A2511"));
+            etMessage.setBackgroundResource(R.drawable.bg_message_pixel);
+        }
 
-        etMessage.setBackgroundColor(etBg); 
         etMessage.setTextColor(etText);
         etMessage.setHintTextColor(etHint);
     }
@@ -1476,7 +1518,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 android.util.Log.d("Firestore", "Mensaje guardado con éxito: " + m.getMessageId());
                 updatePetOnInteraction();
                 Toast.makeText(MainActivity.this, "¡Carta enviada!", Toast.LENGTH_SHORT).show();
-                sendNotificationV1("¡Carta nueva! 💌", m.getContent());
+                sendNotificationV1("¡Carta nueva! 💌", m.getContent(), m.getImageUrl());
             })
             .addOnFailureListener(e -> {
                 android.util.Log.e("Firestore", "Error al guardar mensaje", e);

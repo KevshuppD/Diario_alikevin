@@ -45,6 +45,10 @@ public class ThorWidgetProvider extends AppWidgetProvider {
             thorImageRes = R.drawable.ic_thor_glasses;
         } else if ("crown".equals(accessory)) {
             thorImageRes = R.drawable.ic_thor_crown;
+        } else if ("banana".equals(accessory)) {
+            thorImageRes = R.drawable.ic_thor_banana;
+        } else if ("socks".equals(accessory)) {
+            thorImageRes = R.drawable.ic_thor_socks;
         } else {
             thorImageRes = R.drawable.ic_thor_base_trans;
         }

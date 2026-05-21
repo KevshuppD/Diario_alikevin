@@ -32,5 +32,7 @@ data class Pet(
         const val ACC_MUSTACHE = "mustache"
         const val ACC_BALLOON = "balloon"
         const val ACC_BANDANA = "bandana"
+        const val ACC_BANANA = "banana"
+        const val ACC_SOCKS = "socks"
     }
 }

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Pressed state: flat/pressed look -->
+    <item android:state_pressed="true">
+        <layer-list>
+            <!-- Border -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="#121212" />
+                </shape>
+            </item>
+            <!-- Interior content shifted down/right -->
+            <item android:top="2dp" android:left="2dp" android:bottom="2dp" android:right="2dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="#1A1A2E" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    
+    <!-- Default state: Raised 3D tactile button -->
+    <item>
+        <layer-list>
+            <!-- 3D Shadow -->
+            <item android:top="2dp" android:left="2dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="#080808" />
+                </shape>
+            </item>
+            <!-- Border -->
+            <item android:bottom="2dp" android:right="2dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="#1A1A1A" />
+                </shape>
+            </item>
+            <!-- Top/Left Highlight -->
+            <item android:bottom="4dp" android:right="4dp" android:top="1dp" android:left="1dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="#4A4A6A" />
+                </shape>
+            </item>
+            <!-- Interior -->
+            <item android:bottom="4dp" android:right="4dp" android:top="2dp" android:left="2dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="#2C2C2C" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>

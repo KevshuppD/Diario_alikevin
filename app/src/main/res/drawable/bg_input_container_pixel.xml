@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 3D Shadow -->
+    <item android:top="3dp" android:left="3dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#1E0C02" />
+        </shape>
+    </item>
+    <!-- Dark Border -->
+    <item android:bottom="3dp" android:right="3dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#4A2511" />
+        </shape>
+    </item>
+    <!-- Content background with custom dynamic color -->
+    <item android:bottom="5dp" android:right="5dp" android:top="2dp" android:left="2dp">
+        <shape android:id="@+id/inner_solid" android:shape="rectangle">
+            <solid android:color="#91465F" />
+        </shape>
+    </item>
+</layer-list>

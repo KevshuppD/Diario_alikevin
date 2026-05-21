@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,7 +24,15 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -618,6 +627,8 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         Pet.ACC_BANDANA -> R.drawable.ic_thor_bandana
                         Pet.ACC_GLASSES -> R.drawable.ic_thor_glasses
                         Pet.ACC_CROWN -> R.drawable.ic_thor_crown
+                        Pet.ACC_BANANA -> R.drawable.ic_thor_banana
+                        Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
                         else -> R.drawable.ic_thor_base_trans
                     }
                     
@@ -889,7 +900,9 @@ fun PetMenuDialog(
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var newName by remember { mutableStateOf(pet.name) }
+    var showGameSelector by remember { mutableStateOf(false) }
     var showMemoryGame by remember { mutableStateOf(false) }
+    var showSnakeGame by remember { mutableStateOf(false) }
     val context = LocalContext.current
     
     val bgColor = if (isDark) Color(0xFF1A1A1A) else Color(0xFFF3E5AB)
@@ -946,6 +959,41 @@ fun PetMenuDialog(
             shape = RectangleShape
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
+                // Encabezado principal estilo Retro con botón Cerrar [X] pegajoso y responsivo
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "👾 MASCOTA VIRTUAL: ${pet.name.uppercase()} 👾",
+                        fontFamily = Vt323,
+                        fontSize = 20.sp,
+                        color = contentColor,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    // Botón pixel-art de cerrado rápido [X]
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .background(Color(0xFFE53935), shape = RectangleShape)
+                            .border(2.dp, borderColor)
+                            .clickable { onDismiss() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "X",
+                            fontFamily = Vt323,
+                            fontSize = 16.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
                 // Header con 4 pestañas: INFO, ROPA, COMIDA, GUÍA
                 Row(modifier = Modifier.fillMaxWidth()) {
                     TabItem("INFO", selectedTab == 0, isDark, borderColor) { selectedTab = 0 }
@@ -982,6 +1030,8 @@ fun PetMenuDialog(
                                 Pet.ACC_BANDANA -> R.drawable.ic_thor_bandana
                                 Pet.ACC_GLASSES -> R.drawable.ic_thor_glasses
                                 Pet.ACC_CROWN -> R.drawable.ic_thor_crown
+                                Pet.ACC_BANANA -> R.drawable.ic_thor_banana
+                                Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
                                 else -> R.drawable.ic_thor_base_trans
                             }
 
@@ -1080,7 +1130,7 @@ fun PetMenuDialog(
                                     } else if (pet.status == Pet.STATUS_HUNGRY) {
                                         android.widget.Toast.makeText(context, "¡Thor tiene demasiada hambre! 🍖 Aliméntalo en la pestaña COMIDA para jugar.", android.widget.Toast.LENGTH_LONG).show()
                                     } else {
-                                        showMemoryGame = true 
+                                        showGameSelector = true 
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
@@ -1110,12 +1160,14 @@ fun PetMenuDialog(
                     // Pestaña de Tienda / Accesorios
                     val items = listOf(
                         Triple(Pet.ACC_COLLAR, "Collar Cascabel 🔔", 10),
+                        Triple(Pet.ACC_SOCKS, "Calcetas y Botitas 🧦🥾", 15),
                         Triple(Pet.ACC_MUSTACHE, "Bigote Retro 🥸", 30),
                         Triple(Pet.ACC_BALLOON, "Globo Corazón 🎈", 60),
                         Triple(Pet.ACC_BOW, "Lazo Rosa 🎀", 80),
                         Triple(Pet.ACC_HAT, "Gorrito Pixel 🎩", 100),
                         Triple(Pet.ACC_BANDANA, "Pañuelo Pirata 🏴‍☠️", 120),
                         Triple(Pet.ACC_GLASSES, "Lentes Cool 🕶️", 150),
+                        Triple(Pet.ACC_BANANA, "Plátano Nano 🍌", 200),
                         Triple(Pet.ACC_CROWN, "Corona Real 👑", 500)
                     )
 
@@ -1167,7 +1219,7 @@ fun PetMenuDialog(
                         )
 
                         Text(
-                            "Alimenta a ${pet.name} para subir su felicidad instantáneamente:",
+                            "Alimenta a ${pet.name} para subir su felicidad e hidratación:",
                             fontFamily = Vt323,
                             color = contentColor,
                             fontSize = 18.sp,
@@ -1214,6 +1266,32 @@ fun PetMenuDialog(
                             fontWeight = FontWeight.Bold
                         )
 
+                        // Card Hambre y Estado Tamagotchi
+                        Card(
+                            modifier = Modifier.fillMaxWidth().border(1.dp, borderColor.copy(alpha = 0.3f)),
+                            colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.3f)),
+                            shape = RectangleShape
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text("🍖 HAMBRE Y NUTRICIÓN", fontFamily = Vt323, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("• El nivel de hambre disminuye gradualmente un 10% cada 6 horas.\n• Si el nivel de hambre cae por debajo del 30%, ¡Thor tendrá demasiada hambre y entrará en estado hambriento! 😢\n• Bloqueo de Minijuegos: No podrás jugar con él si tiene hambre.\n• Compra galletas de pescado 🐟, leche 🥛 o banquetes 🍣 en la pestaña COMIDA para alimentarlo y subir su felicidad.", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
+                            }
+                        }
+
+                        // Card Sueño y Descanso
+                        Card(
+                            modifier = Modifier.fillMaxWidth().border(1.dp, borderColor.copy(alpha = 0.3f)),
+                            colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.3f)),
+                            shape = RectangleShape
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text("💤 SUEÑO Y DESCANSO", fontFamily = Vt323, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("• Usa el botón [Poner a dormir 🌙] para apagar la luz de su cuarto y dejarlo descansar.\n• Mientras duerme, Thor soñará plácidamente y no podrá realizar actividades.\n• Restricciones: No puedes alimentarlo ni jugar minijuegos con él mientras esté dormido.\n• ¡Asegúrate de despertarlo [☀️ Despertar] cuando estés listo para interactuar con él!", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
+                            }
+                        }
+
                         // Card Felicidad
                         Card(
                             modifier = Modifier.fillMaxWidth().border(1.dp, borderColor.copy(alpha = 0.3f)),
@@ -1259,16 +1337,39 @@ fun PetMenuDialog(
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp)
                 ) {
-                    Text("Cerrar", fontFamily = Vt323, color = contentColor, fontSize = 18.sp)
+                    Text("Cerrar Menú", fontFamily = Vt323, color = contentColor, fontSize = 18.sp)
                 }
             }
         }
+    }
+
+    if (showGameSelector) {
+        MinigamesSelectorDialog(
+            isDark = isDark,
+            onDismiss = { showGameSelector = false },
+            onPlayMemory = {
+                showGameSelector = false
+                showMemoryGame = true
+            },
+            onPlaySnake = {
+                showGameSelector = false
+                showSnakeGame = true
+            }
+        )
     }
 
     if (showMemoryGame) {
         MemoryGameDialog(
             isDark = isDark,
             onDismiss = { showMemoryGame = false },
+            onReward = onRewardPet
+        )
+    }
+
+    if (showSnakeGame) {
+        SnakeGameDialog(
+            isDark = isDark,
+            onDismiss = { showSnakeGame = false },
             onReward = onRewardPet
         )
     }
@@ -1392,7 +1493,7 @@ fun FoodRow(
 
 data class MemoryCard(
     val id: Int,
-    val value: String,
+    val value: Int, // Cambiado a Int para almacenar identificadores de recursos Drawable
     var isFlipped: Boolean = false,
     var isMatched: Boolean = false
 )
@@ -1407,10 +1508,21 @@ fun MemoryGameDialog(
     val contentColor = if (isDark) Color.White else Color(0xFF4A2511)
     val borderColor = if (isDark) Color(0xFF91465F) else Color(0xFF4A2511)
     
-    val emojis = listOf("🐈", "🐟", "❤️", "🥛", "🎈", "👑", "🌿", "🍣")
+    // Lista de drawables pixel-art reales de la ropa/accesorios de Thor
+    val images = listOf(
+        R.drawable.ic_acc_balloon,
+        R.drawable.ic_acc_banana,
+        R.drawable.ic_acc_bandana,
+        R.drawable.ic_acc_bow,
+        R.drawable.ic_acc_crown,
+        R.drawable.ic_acc_glasses,
+        R.drawable.ic_acc_hat,
+        R.drawable.ic_acc_socks
+    )
+
     val cardsList = remember {
-        val list = (emojis + emojis).mapIndexed { index, emoji ->
-            MemoryCard(id = index, value = emoji)
+        val list = (images + images).mapIndexed { index, imgId ->
+            MemoryCard(id = index, value = imgId)
         }
         mutableStateListOf(*list.shuffled().toTypedArray())
     }
@@ -1510,9 +1622,18 @@ fun MemoryGameDialog(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (card.isMatched || card.isFlipped || selectedIndices.contains(cardIndex)) {
-                                        Text(card.value, fontSize = 24.sp)
+                                        Image(
+                                            painter = painterResource(id = card.value),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(38.dp)
+                                        )
                                     } else {
-                                        Text("❓", fontFamily = Vt323, fontSize = 22.sp, color = Color.White)
+                                        Image(
+                                            painter = painterResource(id = R.drawable.ic_heart_pixel),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(24.dp),
+                                            colorFilter = ColorFilter.tint(Color.White.copy(alpha = 0.6f))
+                                        )
                                     }
                                 }
                             }
@@ -1529,8 +1650,8 @@ fun MemoryGameDialog(
                     Button(
                         onClick = {
                             cardsList.clear()
-                            val list = (emojis + emojis).mapIndexed { index, emoji ->
-                                MemoryCard(id = index, value = emoji)
+                            val list = (images + images).mapIndexed { index, imgId ->
+                                MemoryCard(id = index, value = imgId)
                             }
                             cardsList.addAll(list.shuffled())
                             selectedIndices.clear()
@@ -1613,6 +1734,690 @@ fun MemoryGameDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("RECLAMAR 🏆", fontFamily = Vt323, fontSize = 20.sp, color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MinigamesSelectorDialog(
+    isDark: Boolean,
+    onDismiss: () -> Unit,
+    onPlayMemory: () -> Unit,
+    onPlaySnake: () -> Unit
+) {
+    val bgColor = if (isDark) Color(0xFF1A1A1A) else Color(0xFFF3E5AB)
+    val contentColor = if (isDark) Color.White else Color(0xFF4A2511)
+    val borderColor = if (isDark) Color(0xFF91465F) else Color(0xFF4A2511)
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+                .border(3.dp, borderColor),
+            color = bgColor,
+            shape = RectangleShape
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "🎮 SELECCIONAR JUEGO 🎮",
+                    fontFamily = Vt323,
+                    fontSize = 24.sp,
+                    color = contentColor,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // Botón Retro Memory
+                Button(
+                    onClick = onPlayMemory,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .border(2.dp, borderColor),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
+                    shape = RectangleShape
+                ) {
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_heart_pixel),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(horizontalAlignment = Alignment.Start) {
+                            Text("🧠 RETRO MEMORY", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                            Text("¡Encuentra ropa pixel-art de Thor!", fontFamily = Vt323, fontSize = 14.sp, color = contentColor.copy(alpha = 0.7f))
+                        }
+                    }
+                }
+
+                // Botón Retro Snake
+                Button(
+                    onClick = onPlaySnake,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                        .border(2.dp, borderColor),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
+                    shape = RectangleShape
+                ) {
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_recipe_pixel),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(horizontalAlignment = Alignment.Start) {
+                            Text("🐍 LA SERPIENTE", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                            Text("¡Come manzanas y haz crecer tu cuerpo!", fontFamily = Vt323, fontSize = 14.sp, color = contentColor.copy(alpha = 0.7f))
+                        }
+                    }
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = borderColor),
+                    shape = RectangleShape,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cerrar ❌", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PixelArrowButton(
+    arrow: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isDark: Boolean,
+    borderColor: Color
+) {
+    val buttonBg = if (isDark) Color(0xFF3E3E3E) else Color(0xFFFFFDD0)
+    val shadowColor = if (isDark) Color(0xFF1E1E1E) else Color(0xFFD7CCC8)
+    val textColor = if (isDark) Color.White else Color(0xFF4A2511)
+
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val translationOffset = if (isPressed) 3.dp else 0.dp
+    val shadowOffset = if (isPressed) 0.dp else 3.dp
+
+    Box(
+        modifier = modifier
+            .size(54.dp, 44.dp)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .drawBehind {
+                if (shadowOffset > 0.dp) {
+                    drawRect(
+                        color = shadowColor,
+                        topLeft = androidx.compose.ui.geometry.Offset(shadowOffset.toPx(), shadowOffset.toPx()),
+                        size = androidx.compose.ui.geometry.Size(size.width, size.height)
+                    )
+                }
+            }
+            .offset(x = translationOffset, y = translationOffset)
+            .background(buttonBg)
+            .border(2.dp, borderColor),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = arrow,
+            fontFamily = Vt323,
+            fontSize = 24.sp,
+            color = textColor,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+fun SnakeGameDialog(
+    isDark: Boolean,
+    onDismiss: () -> Unit,
+    onReward: (points: Int, exp: Int) -> Unit
+) {
+    val gridRows = 12
+    val gridCols = 12
+
+    // Estados de Juego
+    var snake by remember { mutableStateOf(listOf(6 to 6, 6 to 7)) }
+    var direction by remember { mutableStateOf(0 to -1) } // Dirección inicial: ARRIBA
+    var food by remember { mutableStateOf(3 to 3) }
+    var score by remember { mutableStateOf(0) }
+    var isPlaying by remember { mutableStateOf(true) }
+    var isGameOver by remember { mutableStateOf(false) }
+
+    // Cargar los bitmaps pixel-art generados
+    val appleBitmap = ImageBitmap.imageResource(id = R.drawable.ic_game_apple)
+    val snakeHeadBitmap = ImageBitmap.imageResource(id = R.drawable.ic_game_snake_head)
+
+    // Generar comida en un lugar vacío
+    fun spawnFood() {
+        var newFood: Pair<Int, Int>
+        do {
+            newFood = (0 until gridCols).random() to (0 until gridRows).random()
+        } while (snake.contains(newFood))
+        food = newFood
+    }
+
+    // Bucle del juego
+    LaunchedEffect(isPlaying, isGameOver) {
+        while (isPlaying && !isGameOver) {
+            val speed = (220 - (score * 6)).coerceAtLeast(100)
+            kotlinx.coroutines.delay(speed.toLong())
+            
+            val head = snake.first()
+            val newHead = (head.first + direction.first) to (head.second + direction.second)
+            
+            // Colisión con paredes
+            if (newHead.first < 0 || newHead.first >= gridCols || newHead.second < 0 || newHead.second >= gridRows) {
+                isGameOver = true
+                break
+            }
+            
+            // Colisión consigo misma
+            if (snake.contains(newHead)) {
+                isGameOver = true
+                break
+            }
+            
+            val newSnake = mutableListOf(newHead)
+            if (newHead == food) {
+                score++
+                newSnake.addAll(snake)
+                spawnFood()
+            } else {
+                newSnake.addAll(snake.dropLast(1))
+            }
+            snake = newSnake
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .width(320.dp)
+                .wrapContentHeight()
+                .padding(8.dp),
+            color = Color.Transparent
+        ) {
+            // Carcasa de la Consola GameBoy Clásica (Gris Retro)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFC5C6C0), shape = RoundedCornerShape(16.dp))
+                    .border(4.dp, Color(0xFF8E8F88), shape = RoundedCornerShape(16.dp))
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 1. Marco de la pantalla (Plástico gris oscuro)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF3F403F), shape = RoundedCornerShape(8.dp))
+                        .border(3.dp, Color(0xFF1E1E1E), shape = RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Líneas decorativas superiores y texto de pantalla
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Luz de batería (LED rojo)
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(if (isPlaying && !isGameOver) Color(0xFFFF1744) else Color(0xFF3E1E1E), shape = CircleShape)
+                                    .border(1.dp, Color.Black, shape = CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                "POWER",
+                                fontFamily = Vt323,
+                                color = Color(0xFFC5C6C0),
+                                fontSize = 9.sp
+                            )
+                        }
+                        
+                        // Líneas de color azul y rosa Gameboy
+                        Box(
+                            modifier = Modifier
+                                .width(70.dp)
+                                .height(3.dp)
+                                .background(Color(0xFF8B1E3F))
+                        )
+
+                        Text(
+                            "THOR-MATRIX SCREEN",
+                            fontFamily = Vt323,
+                            color = Color(0xFFC5C6C0),
+                            fontSize = 10.sp
+                        )
+                    }
+
+                    // 2. La Pantalla LCD Verde (Con HUD integrado)
+                    Column(
+                        modifier = Modifier
+                            .size(230.dp)
+                            .background(Color(0xFF9BBC0F))
+                            .border(2.dp, Color(0xFF0F380F))
+                    ) {
+                        // HUD Superior de Pantalla
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(22.dp)
+                                .background(Color(0xFF0F380F))
+                                .padding(horizontal = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "THOR SNAKE",
+                                fontFamily = Vt323,
+                                fontSize = 12.sp,
+                                color = Color(0xFF9BBC0F),
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "SCORE:${score.toString().padStart(3, '0')}",
+                                fontFamily = Vt323,
+                                fontSize = 12.sp,
+                                color = Color(0xFF9BBC0F),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // Lienzo de Dibujo del Juego
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isGameOver) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color(0xFF0F380F).copy(alpha = 0.9f))
+                                ) {
+                                    Text(
+                                        text = "GAME OVER!",
+                                        fontFamily = Vt323,
+                                        fontSize = 24.sp,
+                                        color = Color(0xFF9BBC0F),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    val pts = score * 2
+                                    val xp = score * 5
+                                    Text(
+                                        text = "+$pts LOVE  +$xp XP",
+                                        fontFamily = Vt323,
+                                        fontSize = 16.sp,
+                                        color = Color(0xFF9BBC0F)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "PULSA [A] REINICIAR",
+                                        fontFamily = Vt323,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF9BBC0F).copy(alpha = 0.8f)
+                                    )
+                                }
+                            } else {
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val cellW = size.width / gridCols
+                                    val cellH = size.height / gridRows
+
+                                    // Dibujar matriz de puntos sutil en el fondo
+                                    val dotColor = Color(0xFF8BAC0F).copy(alpha = 0.3f)
+                                    for (i in 0 until gridCols) {
+                                        for (j in 0 until gridRows) {
+                                            drawRect(
+                                                color = dotColor,
+                                                topLeft = androidx.compose.ui.geometry.Offset(i * cellW + 1.dp.toPx(), j * cellH + 1.dp.toPx()),
+                                                size = androidx.compose.ui.geometry.Size(2.dp.toPx(), 2.dp.toPx())
+                                            )
+                                        }
+                                    }
+
+                                    // Dibujar la manzana pixel-art generada con tinte LCD monocromático
+                                    drawImage(
+                                        image = appleBitmap,
+                                        dstOffset = androidx.compose.ui.unit.IntOffset(
+                                            x = (food.first * cellW + 1.dp.toPx()).toInt(),
+                                            y = (food.second * cellH + 1.dp.toPx()).toInt()
+                                        ),
+                                        dstSize = androidx.compose.ui.unit.IntSize(
+                                            width = (cellW - 2.dp.toPx()).toInt(),
+                                            height = (cellH - 2.dp.toPx()).toInt()
+                                        ),
+                                        colorFilter = ColorFilter.tint(Color(0xFF0F380F))
+                                    )
+
+                                    // Dibujar la serpiente con diseño procedimental retro 8-bits coherente
+                                    snake.forEachIndexed { idx, body ->
+                                        val isHead = idx == 0
+                                        val segX = body.first * cellW
+                                        val segY = body.second * cellH
+                                        
+                                        if (isHead) {
+                                            // 1. Cabeza de Serpiente Procedimental retro
+                                            drawRect(
+                                                color = Color(0xFF0F380F),
+                                                topLeft = androidx.compose.ui.geometry.Offset(segX + 1.dp.toPx(), segY + 1.dp.toPx()),
+                                                size = androidx.compose.ui.geometry.Size(cellW - 2.dp.toPx(), cellH - 2.dp.toPx())
+                                            )
+                                            
+                                            // Ojitos pixelados que siguen la dirección de movimiento de forma adorable
+                                            val eyeSize = 3.dp.toPx()
+                                            val eyeOffset = 4.dp.toPx()
+                                            val eye1: androidx.compose.ui.geometry.Offset
+                                            val eye2: androidx.compose.ui.geometry.Offset
+
+                                            when (direction) {
+                                                0 to -1 -> { // ARRIBA
+                                                    eye1 = androidx.compose.ui.geometry.Offset(segX + eyeOffset, segY + eyeOffset)
+                                                    eye2 = androidx.compose.ui.geometry.Offset(segX + cellW - eyeOffset - eyeSize, segY + eyeOffset)
+                                                }
+                                                0 to 1 -> { // ABAJO
+                                                    eye1 = androidx.compose.ui.geometry.Offset(segX + eyeOffset, segY + cellH - eyeOffset - eyeSize)
+                                                    eye2 = androidx.compose.ui.geometry.Offset(segX + cellW - eyeOffset - eyeSize, segY + cellH - eyeOffset - eyeSize)
+                                                }
+                                                -1 to 0 -> { // IZQUIERDA
+                                                    eye1 = androidx.compose.ui.geometry.Offset(segX + eyeOffset, segY + eyeOffset)
+                                                    eye2 = androidx.compose.ui.geometry.Offset(segX + eyeOffset, segY + cellH - eyeOffset - eyeSize)
+                                                }
+                                                else -> { // DERECHA
+                                                    eye1 = androidx.compose.ui.geometry.Offset(segX + cellW - eyeOffset - eyeSize, segY + eyeOffset)
+                                                    eye2 = androidx.compose.ui.geometry.Offset(segX + cellW - eyeOffset - eyeSize, segY + cellH - eyeOffset - eyeSize)
+                                                }
+                                            }
+
+                                            // Los ojos son "píxeles transparentes apagados" (Color del fondo LCD)
+                                            drawRect(color = Color(0xFF9BBC0F), topLeft = eye1, size = androidx.compose.ui.geometry.Size(eyeSize, eyeSize))
+                                            drawRect(color = Color(0xFF9BBC0F), topLeft = eye2, size = androidx.compose.ui.geometry.Size(eyeSize, eyeSize))
+                                        } else {
+                                            // 2. Segmentos del Cuerpo: cuentas circulares 8-bit conectadas
+                                            drawRoundRect(
+                                                color = Color(0xFF306230),
+                                                topLeft = androidx.compose.ui.geometry.Offset(segX + 2.dp.toPx(), segY + 2.dp.toPx()),
+                                                size = androidx.compose.ui.geometry.Size(cellW - 4.dp.toPx(), cellH - 4.dp.toPx()),
+                                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                                            )
+                                            drawRoundRect(
+                                                color = Color(0xFF0F380F),
+                                                topLeft = androidx.compose.ui.geometry.Offset(segX + 4.dp.toPx(), segY + 4.dp.toPx()),
+                                                size = androidx.compose.ui.geometry.Size(cellW - 8.dp.toPx(), cellH - 8.dp.toPx()),
+                                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Marca de la consola impreso en el plástico
+                Text(
+                    "THOR POCKET™",
+                    fontFamily = Vt323,
+                    color = Color(0xFF2C2D2F),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.Start).padding(start = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 3. Controles Físicos (D-PAD cruz contiguous a la izquierda, botones A/B a la derecha)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // D-PAD CONTIGUO DE PLÁSTICO (Diseño clásico de cruz unificada)
+                    Box(
+                        modifier = Modifier.size(110.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Cuerpo Vertical de la Cruz
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp, 100.dp)
+                                .background(Color(0xFF2E2D2D), shape = RoundedCornerShape(4.dp))
+                                .border(1.5.dp, Color.Black, shape = RoundedCornerShape(4.dp))
+                        )
+                        // Cuerpo Horizontal de la Cruz
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp, 34.dp)
+                                .background(Color(0xFF2E2D2D), shape = RoundedCornerShape(4.dp))
+                                .border(1.5.dp, Color.Black, shape = RoundedCornerShape(4.dp))
+                        )
+                        // Centro unificador
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .background(Color(0xFF252424))
+                        )
+
+                        // Zonas Clickables sobre la Cruz
+                        // Botón Arriba
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .align(Alignment.TopCenter)
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                    if (direction != (0 to 1)) direction = 0 to -1
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("▲", color = Color(0xFF8E8F88), fontSize = 12.sp)
+                        }
+
+                        // Botón Abajo
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .align(Alignment.BottomCenter)
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                    if (direction != (0 to -1)) direction = 0 to 1
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("▼", color = Color(0xFF8E8F88), fontSize = 12.sp)
+                        }
+
+                        // Botón Izquierda
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .align(Alignment.CenterStart)
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                    if (direction != (1 to 0)) direction = -1 to 0
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("◀", color = Color(0xFF8E8F88), fontSize = 12.sp)
+                        }
+
+                        // Botón Derecha
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .align(Alignment.CenterEnd)
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                    if (direction != (-1 to 0)) direction = 1 to 0
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("▶", color = Color(0xFF8E8F88), fontSize = 12.sp)
+                        }
+                    }
+
+                    // Botones de Acción Redondos (B / A)
+                    Row(
+                        modifier = Modifier.padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Botón B (Pausar)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(Color(0xFF8B1E3F), shape = CircleShape)
+                                    .border(2.dp, Color.Black, shape = CircleShape)
+                                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                        isPlaying = !isPlaying
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("B", color = Color.White, fontFamily = Vt323, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isPlaying) "PAUSA" else "PLAY",
+                                fontFamily = Vt323,
+                                fontSize = 9.sp,
+                                color = Color(0xFF3F403F),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // Botón A (Reiniciar)
+                        Column(
+                            modifier = Modifier.padding(bottom = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(Color(0xFF8B1E3F), shape = CircleShape)
+                                    .border(2.dp, Color.Black, shape = CircleShape)
+                                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                        if (isGameOver) {
+                                            snake = listOf(6 to 6, 6 to 7)
+                                            direction = 0 to -1
+                                            score = 0
+                                            isGameOver = false
+                                            isPlaying = true
+                                            spawnFood()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("A", color = Color.White, fontFamily = Vt323, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "START",
+                                fontFamily = Vt323,
+                                fontSize = 9.sp,
+                                color = Color(0xFF3F403F),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // 4. Botones de goma SELECT y START en diagonal al fondo
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Botón SELECT (Salir del juego)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp, 10.dp)
+                                .graphicsLayer(rotationZ = -25f)
+                                .background(Color(0xFF6B6A68), shape = RoundedCornerShape(3.dp))
+                                .border(1.dp, Color.Black, shape = RoundedCornerShape(3.dp))
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                    onDismiss()
+                                }
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "SALIR",
+                            fontFamily = Vt323,
+                            fontSize = 10.sp,
+                            color = Color(0xFF3F403F),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Botón START (Guardar Recompensa)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp, 10.dp)
+                                .graphicsLayer(rotationZ = -25f)
+                                .background(Color(0xFF6B6A68), shape = RoundedCornerShape(3.dp))
+                                .border(1.dp, Color.Black, shape = RoundedCornerShape(3.dp))
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                    val rewardedPts = score * 2
+                                    val rewardedXp = score * 5
+                                    if (score > 0) {
+                                        onReward(rewardedPts, rewardedXp)
+                                    }
+                                    onDismiss()
+                                }
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "GUARDAR",
+                            fontFamily = Vt323,
+                            fontSize = 10.sp,
+                            color = Color(0xFF3F403F),
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
