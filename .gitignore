@@ -40,4 +40,7 @@ __pycache__/
 .externalNativeBuild
 .cxx
 
+# Firebase Service Account
+app/src/main/assets/service-account.json
+
 

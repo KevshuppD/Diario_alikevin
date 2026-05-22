@@ -68,7 +68,7 @@ class ProfileFragment : Fragment() {
                     coupleId = partnerId,
                     currentUserId = userId ?: "",
                     onPickImage = { act?.pickImage(1) },
-                    onSaveProfile = { newName, newImage ->
+                    onSaveProfile = { newName, newImage, anniversaryDate ->
                         if (userId != null) {
                             val db = FirebaseFirestore.getInstance()
                             val updates = mutableMapOf<String, Any>()
@@ -76,12 +76,14 @@ class ProfileFragment : Fragment() {
                             updates["userId"] = userId!!
                             if (partnerId != null) updates["coupleId"] = partnerId!!
                             if (newImage != null) updates["profileImageUrl"] = newImage
+                            if (anniversaryDate != null) updates["anniversaryDate"] = anniversaryDate
                             
                             db.collection("users").document(userId!!).set(updates, com.google.firebase.firestore.SetOptions.merge())
                                 .addOnSuccessListener {
                                     val prefs = act?.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
                                     prefs?.edit()?.putString("userName", newName)?.apply()
                                     if (newImage != null) prefs?.edit()?.putString("userImage", newImage)?.apply()
+                                    if (anniversaryDate != null) prefs?.edit()?.putLong("anniversaryDate", anniversaryDate)?.apply()
                                     
                                     currentUserName = newName
                                     act?.runOnUiThread {

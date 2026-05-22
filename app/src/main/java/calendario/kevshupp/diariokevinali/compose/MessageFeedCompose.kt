@@ -904,11 +904,26 @@ fun PetMenuDialog(
     var showMemoryGame by remember { mutableStateOf(false) }
     var showSnakeGame by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     val bgColor = if (isDark) Color(0xFF1A1A1A) else Color(0xFFF3E5AB)
     val contentColor = if (isDark) Color.White else Color(0xFF4A2511)
     val borderColor = if (isDark) Color(0xFF91465F) else Color(0xFF4A2511)
     val accentColor = Color(0xFFFF4081)
+
+    // Estados de animación interactiva de la habitación
+    var isPlayingBall by remember { mutableStateOf(false) }
+    var isWashing by remember { mutableStateOf(false) }
+    var foodAnimationType by remember { mutableStateOf<String?>(null) }
+    var showLoveHeart by remember { mutableStateOf(false) }
+    
+    val ballY = remember { Animatable(0f) }
+    val ballX = remember { Animatable(80f) }
+    val bubbleOffsetY = remember { Animatable(200f) }
+    val heartY = remember { Animatable(0f) }
+    val heartAlpha = remember { Animatable(0f) }
+    val foodY = remember { Animatable(0f) }
+    val foodAlpha = remember { Animatable(0f) }
 
     // Infinite transitions for Dialog mascot animation
     val dialogInfiniteTransition = rememberInfiniteTransition(label = "petDialogTransition")
@@ -1012,55 +1027,328 @@ fun PetMenuDialog(
                             .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // 🏡 LA HABITACIÓN DE THOR (INTERACTIVA 2D TAMAGOTCHI)
                         Box(
                             modifier = Modifier
-                                .size(200.dp)
-                                .border(2.dp, borderColor)
-                                .background(if (pet.isSleeping) Color(0xFF0F0F3D) else Color.White.copy(alpha = 0.05f))
-                                .clickable { dIsClicked = true }
-                                .padding(8.dp)
+                                .fillMaxWidth(0.95f)
+                                .height(230.dp)
+                                .border(3.dp, borderColor)
+                                .background(
+                                    if (pet.isSleeping) Color(0xFF0F0F3D)
+                                    else Color(0xFF8D6E63)
+                                )
+                                .clickable {
+                                    scope.launch {
+                                        showLoveHeart = true
+                                        heartY.snapTo(20f)
+                                        heartAlpha.snapTo(1f)
+                                        dIsClicked = true
+                                        onRewardPet(1, 0)
+                                        
+                                        launch {
+                                            heartY.animateTo(-90f, animationSpec = tween(1200, easing = EaseOutQuad))
+                                        }
+                                        launch {
+                                            heartAlpha.animateTo(0f, animationSpec = tween(1200, easing = EaseOutQuad))
+                                        }
+                                    }
+                                }
                         ) {
-                            // Imagen de la mascota con el accesorio ya integrado
-                            val dThorImageRes = when (pet.equippedAccessory) {
-                                Pet.ACC_COLLAR -> R.drawable.ic_thor_collar
-                                Pet.ACC_MUSTACHE -> R.drawable.ic_thor_mustache
-                                Pet.ACC_BALLOON -> R.drawable.ic_thor_balloon
-                                Pet.ACC_BOW -> R.drawable.ic_thor_bow
-                                Pet.ACC_HAT -> R.drawable.ic_thor_hat
-                                Pet.ACC_BANDANA -> R.drawable.ic_thor_bandana
-                                Pet.ACC_GLASSES -> R.drawable.ic_thor_glasses
-                                Pet.ACC_CROWN -> R.drawable.ic_thor_crown
-                                Pet.ACC_BANANA -> R.drawable.ic_thor_banana
-                                Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
-                                else -> R.drawable.ic_thor_base_trans
+                            // 1. Suelo de madera retro
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(60.dp)
+                                    .align(Alignment.BottomCenter)
+                                    .background(
+                                        if (pet.isSleeping) Color(0xFF3E2723).copy(alpha = 0.5f)
+                                        else Color(0xFF5D4037)
+                                    )
+                                    .border(width = 2.dp, color = borderColor)
+                            ) {
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val step = size.width / 5
+                                    for (i in 1..4) {
+                                        drawLine(
+                                            color = borderColor.copy(alpha = 0.25f),
+                                            start = Offset(i * step, 0f),
+                                            end = Offset(i * step, size.height),
+                                            strokeWidth = 3f
+                                        )
+                                    }
+                                }
                             }
 
-                            Image(
-                                painter = painterResource(id = dThorImageRes),
-                                contentDescription = null,
-                                contentScale = ContentScale.Fit,
+                            // 2. Ventana Pixel Art (Día / Noche)
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer(
-                                        scaleX = dBreathingScale * dClickScale,
-                                        scaleY = dBreathingScale * dClickScale,
-                                        translationY = dBobbingOffset,
-                                        rotationZ = dWiggleRotation
+                                    .size(70.dp)
+                                    .align(Alignment.TopCenter)
+                                    .offset(y = 20.dp)
+                                    .border(3.dp, borderColor)
+                                    .background(
+                                        if (pet.isSleeping) Color(0xFF070B19)
+                                        else Color(0xFF81D4FA)
                                     )
-                            )
+                            ) {
+                                if (pet.isSleeping) {
+                                    Text("🌙", fontSize = 16.sp, modifier = Modifier.align(Alignment.Center).offset(x = (-8).dp, y = (-8).dp))
+                                    Text("⭐", fontSize = 8.sp, modifier = Modifier.align(Alignment.TopEnd).offset(x = (-4).dp, y = 4.dp))
+                                    Text("⭐", fontSize = 8.sp, modifier = Modifier.align(Alignment.BottomStart).offset(x = 8.dp, y = (-4).dp))
+                                } else {
+                                    Text("☀️", fontSize = 22.sp, modifier = Modifier.align(Alignment.TopStart).offset(x = 4.dp, y = 4.dp))
+                                    Text("☁️", fontSize = 16.sp, modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-4).dp, y = (-4).dp))
+                                }
+                            }
 
-                            if (pet.isSleeping) {
+                            // 3. Estante de madera (Bottom Right)
+                            Column(
+                                modifier = Modifier
+                                    .width(60.dp)
+                                    .align(Alignment.BottomEnd)
+                                    .offset(x = (-15).dp, y = (-25).dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("🍌", fontSize = 20.sp)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .background(Color(0xFF3E2723))
+                                        .border(1.dp, borderColor)
+                                )
+                            }
+
+                            // Imagen de la mascota con estados de imagen pixel-art reales
+                            val dThorImageRes = when {
+                                isWashing -> R.drawable.ic_thor_bath
+                                isPlayingBall -> R.drawable.ic_thor_play
+                                pet.isSleeping -> R.drawable.ic_thor_sleep
+                                else -> when (pet.equippedAccessory) {
+                                    Pet.ACC_COLLAR -> R.drawable.ic_thor_collar
+                                    Pet.ACC_MUSTACHE -> R.drawable.ic_thor_mustache
+                                    Pet.ACC_BALLOON -> R.drawable.ic_thor_balloon
+                                    Pet.ACC_BOW -> R.drawable.ic_thor_bow
+                                    Pet.ACC_HAT -> R.drawable.ic_thor_hat
+                                    Pet.ACC_BANDANA -> R.drawable.ic_thor_bandana
+                                    Pet.ACC_GLASSES -> R.drawable.ic_thor_glasses
+                                    Pet.ACC_CROWN -> R.drawable.ic_thor_crown
+                                    Pet.ACC_BANANA -> R.drawable.ic_thor_banana
+                                    Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
+                                    else -> R.drawable.ic_thor_base_trans
+                                }
+                            }
+
+                            // 4. Mascot Render con tamaño y alineación responsiva al estado
+                            val thorSize = when {
+                                pet.isSleeping -> 145.dp
+                                isWashing -> 140.dp
+                                isPlayingBall -> 125.dp
+                                else -> 115.dp
+                            }
+                            val thorOffsetY = when {
+                                pet.isSleeping -> (-10).dp
+                                isWashing -> (-5).dp
+                                isPlayingBall -> (-10).dp
+                                else -> (-15).dp
+                            }
+                            val thorOffsetX = when {
+                                pet.isSleeping -> (-5).dp
+                                else -> 0.dp
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(thorSize)
+                                    .align(Alignment.BottomCenter)
+                                    .offset(x = thorOffsetX, y = thorOffsetY)
+                            ) {
+                                Image(
+                                    painter = painterResource(id = dThorImageRes),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer(
+                                            scaleX = if (pet.isSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale,
+                                            scaleY = if (pet.isSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale,
+                                            translationY = if (pet.isSleeping || isWashing) 0f else dBobbingOffset,
+                                            rotationZ = if (pet.isSleeping || isWashing) 0f else dWiggleRotation
+                                        )
+                                )
+
+                                if (pet.isSleeping) {
+                                    val zzzInfinite = rememberInfiniteTransition(label = "zzz")
+                                    val zzzOffset by zzzInfinite.animateFloat(
+                                        initialValue = 0f,
+                                        targetValue = -30f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(1500, easing = EaseOutQuad),
+                                            repeatMode = RepeatMode.Restart
+                                        ),
+                                        label = "zzz"
+                                    )
+                                    val zzzAlpha by zzzInfinite.animateFloat(
+                                        initialValue = 1f,
+                                        targetValue = 0f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(1500, easing = EaseOutQuad),
+                                            repeatMode = RepeatMode.Restart
+                                        ),
+                                        label = "zzzAlpha"
+                                    )
+                                    Text(
+                                        text = "Zzz...",
+                                        fontFamily = Vt323,
+                                        fontSize = 20.sp,
+                                        color = Color.White.copy(alpha = zzzAlpha),
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .offset(y = zzzOffset.dp, x = 10.dp)
+                                    )
+                                }
+                            }
+
+                            // 5. Corazón flotante
+                            if (showLoveHeart) {
                                 Text(
-                                    text = "Zzz...",
-                                    fontFamily = Vt323,
-                                    fontSize = 24.sp,
-                                    color = Color.White.copy(alpha = 0.7f),
-                                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                                    text = "❤️",
+                                    fontSize = 26.sp,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .offset(y = heartY.value.dp)
+                                        .graphicsLayer(alpha = heartAlpha.value)
+                                )
+                            }
+
+                            // 6. Pelota rebotando (Imagen Pixel Art de Pelota de Juguete real)
+                            if (isPlayingBall) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_toy_ball),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(35.dp)
+                                        .offset(x = ballX.value.dp, y = ballY.value.dp)
+                                )
+                            }
+
+                            // 8. Burbujas de Baño
+                            if (isWashing) {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    val bubbles = listOf("🫧", "🫧", "🫧", "🫧")
+                                    bubbles.forEachIndexed { idx, bubble ->
+                                        val offsetFactor = idx * 45
+                                        Text(
+                                            text = bubble,
+                                            fontSize = 22.sp,
+                                            modifier = Modifier
+                                                .align(Alignment.BottomStart)
+                                                .offset(x = (20 + offsetFactor).dp, y = (bubbleOffsetY.value - (idx * 20)).dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // 9. Comida cayendo
+                            if (foodAnimationType != null) {
+                                val foodEmoji = when (foodAnimationType) {
+                                    "cookie" -> "🐟"
+                                    "milk" -> "🥛"
+                                    "catnip" -> "🌿"
+                                    "feast" -> "🍣"
+                                    else -> "🍖"
+                                }
+                                Text(
+                                    text = foodEmoji,
+                                    fontSize = 32.sp,
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .offset(y = foodY.value.dp)
+                                        .graphicsLayer(alpha = foodAlpha.value)
                                 )
                             }
                         }
                         
-                        Spacer(modifier = Modifier.height(16.dp))
+                        // 🎮 PANEL DE MINI ACTIVIDADES INTERACTIVAS 3D
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(0.95f)
+                                .padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Botón Lanzar Pelota 3D
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .clickable {
+                                        if (pet.isSleeping) {
+                                            android.widget.Toast.makeText(context, "💤 ¡Thor está durmiendo profundamente!", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            scope.launch {
+                                                isPlayingBall = true
+                                                ballY.snapTo(-60f)
+                                                ballX.snapTo(80f)
+                                                ballY.animateTo(80f, animationSpec = tween(500, easing = EaseInQuad))
+                                                dIsClicked = true
+                                                onRewardPet(2, 0)
+                                                
+                                                ballY.animateTo(10f, animationSpec = tween(400, easing = EaseOutQuad))
+                                                ballX.animateTo(130f, animationSpec = tween(400, easing = EaseOutQuad))
+                                                ballY.animateTo(80f, animationSpec = tween(400, easing = EaseInQuad))
+                                                isPlayingBall = false
+                                            }
+                                        }
+                                    }
+                            ) {
+                                Box(modifier = Modifier.fillMaxWidth().height(38.dp).offset(y = 4.dp).background(borderColor))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(38.dp)
+                                        .border(2.dp, borderColor)
+                                        .background(Color(0xFFE2725B)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("⚾ PELOTA", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                                }
+                            }
+
+                            // Botón Bañar 3D
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .clickable {
+                                        if (pet.isSleeping) {
+                                            android.widget.Toast.makeText(context, "💤 ¡Thor está durmiendo!", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            scope.launch {
+                                                isWashing = true
+                                                bubbleOffsetY.snapTo(120f)
+                                                onRewardPet(0, 3)
+                                                dIsClicked = true
+                                                bubbleOffsetY.animateTo(-60f, animationSpec = tween(1800, easing = LinearEasing))
+                                                isWashing = false
+                                            }
+                                        }
+                                    }
+                            ) {
+                                Box(modifier = Modifier.fillMaxWidth().height(38.dp).offset(y = 4.dp).background(borderColor))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(38.dp)
+                                        .border(2.dp, borderColor)
+                                        .background(Color(0xFF0EA5E9)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("🧼 BAÑAR", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
                         
                         Text("Nombre de tu compañero:", fontFamily = Vt323, color = contentColor, fontSize = 18.sp)
                         OutlinedTextField(
@@ -1242,7 +1530,19 @@ fun PetMenuDialog(
                                         if (pet.isSleeping) {
                                             android.widget.Toast.makeText(context, "¡Thor está durmiendo! 💤 No puede comer ahora.", android.widget.Toast.LENGTH_LONG).show()
                                         } else {
-                                            onFeedPet(id, cost, gain)
+                                            scope.launch {
+                                                foodAnimationType = id
+                                                foodY.snapTo(-30f)
+                                                foodAlpha.snapTo(1f)
+                                                selectedTab = 0
+                                                
+                                                foodY.animateTo(85f, animationSpec = tween(900, easing = EaseInQuad))
+                                                dIsClicked = true
+                                                foodAlpha.animateTo(0f, animationSpec = tween(300))
+                                                foodAnimationType = null
+                                                
+                                                onFeedPet(id, cost, gain)
+                                            }
                                         }
                                     }
                                 )

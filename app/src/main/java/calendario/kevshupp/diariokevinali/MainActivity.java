@@ -992,6 +992,11 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     is = getAssets().open("service-account.json");
                 } catch (IOException e) {
                     Log.e("FCM_V1", "ERROR: No se encontró service-account.json en assets. Las notificaciones no se enviarán.");
+                    runOnUiThread(() -> {
+                        if (BuildConfig.DEBUG) {
+                            Toast.makeText(MainActivity.this, "⚠️ FCM: Falta service-account.json en assets", Toast.LENGTH_LONG).show();
+                        }
+                    });
                     return;
                 }
 
@@ -1042,14 +1047,27 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 if (response.body() != null) {
                     responseBody = response.body().string();
                 }
+                final int code = response.code();
+                final String finalResp = responseBody;
                 if (response.isSuccessful()) {
                     Log.d("FCM_V1", "Notificación enviada con éxito");
                 } else {
-                    Log.e("FCM_V1", "Error al enviar notificación: " + response.code() + " - " + responseBody);
+                    Log.e("FCM_V1", "Error al enviar notificación: " + code + " - " + finalResp);
+                    runOnUiThread(() -> {
+                        if (BuildConfig.DEBUG) {
+                            Toast.makeText(MainActivity.this, "⚠️ FCM Error: " + code, Toast.LENGTH_LONG).show();
+                        }
+                    });
                 }
                 response.close();
             } catch (Exception e) {
                 Log.e("FCM_V1", "Error crítico enviando FCM: " + e.getMessage(), e); 
+                final String errorMsg = e.getMessage();
+                runOnUiThread(() -> {
+                    if (BuildConfig.DEBUG) {
+                        Toast.makeText(MainActivity.this, "🚨 FCM Exception: " + errorMsg, Toast.LENGTH_LONG).show();
+                    }
+                });
             }
         }).start();
     }

@@ -120,7 +120,7 @@ class RecipeFragment : Fragment() {
 
                 RecipeListScreen(
                     recipes = recipes,
-                    isDarkTheme = isDark,
+                    theme = theme,
                     onRecipeClick = { recipe -> selectedRecipe = recipe },
                     onAddRecipeClick = { activityRef?.openAddRecipeDialog() }
                 )

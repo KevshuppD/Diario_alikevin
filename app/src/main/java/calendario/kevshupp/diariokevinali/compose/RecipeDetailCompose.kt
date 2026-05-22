@@ -2,6 +2,7 @@ package calendario.kevshupp.diariokevinali.compose
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,13 +32,12 @@ fun RecipeDetailDialog(
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val backgroundColor = if (isDark) Color(0xFF2D2D2D) else Color(0xFFF5E6BE)
+    val backgroundColor = if (isDark) Color(0xFF1E1E1E) else Color(0xFFF5E6BE)
     val textColor = if (isDark) Color.White else Color(0xFF4A2511)
-    val secondaryTextColor = if (isDark) Color.LightGray else Color(0xFF8B4513)
-    val accentColor = Color(0xFFFF80AB) // Rosa pixelado
-    val sectionTitleColor = if (isDark) Color(0xFFFF80AB) else Color(0xFF5D2E7A)
-    val boxBackground = if (isDark) Color(0xFF1A1A2E) else Color(0xFFFFFFFF).copy(alpha = 0.5f)
-    val borderColor = if (isDark) Color(0xFFE0E0E0) else Color(0xFF4A2511)
+    val secondaryTextColor = if (isDark) Color(0xFFFF4081) else Color(0xFF8B4513)
+    val sectionTitleColor = if (isDark) Color(0xFFFF4081) else Color(0xFFE2725B)
+    val boxBackground = if (isDark) Color(0xFF282828) else Color(0xFFFFFBEA)
+    val borderColor = if (isDark) Color(0xFF91465F) else Color(0xFF4A2511)
 
     val isAuthor = currentUserId == recipe.authorId
 
@@ -57,9 +57,36 @@ fun RecipeDetailDialog(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
+                    .padding(18.dp)
             ) {
-                // Título
+                // Fila Superior con Botón Cerrar Rápido
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Receta de Amor 📖",
+                        fontFamily = Vt323,
+                        fontSize = 20.sp,
+                        color = secondaryTextColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "✕",
+                        fontFamily = Vt323,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = borderColor,
+                        modifier = Modifier
+                            .clickable { onDismiss() }
+                            .padding(4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Título de la Receta
                 Text(
                     text = recipe.title ?: "Sin título",
                     fontFamily = Vt323,
@@ -70,23 +97,23 @@ fun RecipeDetailDialog(
                 )
 
                 Text(
-                    text = "Por: ${recipe.authorName ?: "Anónimo"}",
+                    text = "Creada por: ${recipe.authorName ?: "Anónimo"}",
                     fontFamily = Vt323,
                     fontSize = 20.sp,
                     color = secondaryTextColor,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 2.dp)
                 )
 
-                // Imagen si existe
+                // Imagen de la comida
                 if (!recipe.imageUrl.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp)
-                            .border(2.dp, borderColor)
+                            .height(220.dp)
+                            .border(3.dp, borderColor)
                             .background(boxBackground)
-                            .padding(4.dp)
+                            .padding(3.dp)
                     ) {
                         AsyncImage(
                             model = recipe.imageUrl.optimizeCloudinary(1000),
@@ -98,97 +125,161 @@ fun RecipeDetailDialog(
                 }
 
                 // Ingredientes
-                SectionHeader("Ingredientes", sectionTitleColor)
+                SectionHeader("✨ Ingredientes ✨", sectionTitleColor)
                 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
-                        .border(2.dp, borderColor)
-                        .background(boxBackground)
-                        .padding(12.dp)
                 ) {
-                    Text(
-                        text = recipe.ingredients ?: "No especificados",
-                        fontFamily = Vt323,
-                        fontSize = 20.sp,
-                        color = textColor,
-                        lineHeight = 24.sp
+                    // Sombra 3D
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .offset(x = 4.dp, y = 4.dp)
+                            .background(borderColor)
                     )
+                    // Caja de Texto
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(2.dp, borderColor)
+                            .background(boxBackground)
+                            .padding(14.dp)
+                    ) {
+                        Text(
+                            text = recipe.ingredients ?: "No especificados",
+                            fontFamily = Vt323,
+                            fontSize = 20.sp,
+                            color = textColor,
+                            lineHeight = 24.sp
+                        )
+                    }
                 }
 
-                // Pasos
-                SectionHeader("Pasos de Preparación", sectionTitleColor)
+                // Pasos de Preparación
+                SectionHeader("👨‍🍳 Pasos de Preparación 👨‍🍳", sectionTitleColor)
                 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
-                        .border(2.dp, borderColor)
-                        .background(boxBackground)
-                        .padding(12.dp)
                 ) {
-                    Text(
-                        text = recipe.steps ?: "No especificados",
-                        fontFamily = Vt323,
-                        fontSize = 20.sp,
-                        color = textColor,
-                        lineHeight = 24.sp
+                    // Sombra 3D
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .offset(x = 4.dp, y = 4.dp)
+                            .background(borderColor)
                     )
+                    // Caja de Texto
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(2.dp, borderColor)
+                            .background(boxBackground)
+                            .padding(14.dp)
+                    ) {
+                        Text(
+                            text = recipe.steps ?: "No especificados",
+                            fontFamily = Vt323,
+                            fontSize = 20.sp,
+                            color = textColor,
+                            lineHeight = 24.sp
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
-                // Botones de acción (solo si es autor)
+                // Fila de Botones 3D de Acción
                 if (isAuthor) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Button(
-                            onClick = onEdit,
+                        // Botón Editar 3D
+                        val editBtnBg = if (isDark) Color(0xFF00796B) else Color(0xFF00897B)
+                        Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(54.dp),
-                            shape = RectangleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isDark) Color(0xFF00796B) else Color(0xFF00897B),
-                                contentColor = Color.White
-                            )
+                                .height(54.dp)
+                                .clickable { onEdit() }
                         ) {
-                            Text("Editar", fontFamily = Vt323, fontSize = 22.sp)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .offset(y = 6.dp)
+                                    .background(borderColor)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .border(2.dp, borderColor)
+                                    .background(editBtnBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("EDITAR", fontFamily = Vt323, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
                         }
 
-                        Button(
-                            onClick = onDelete,
+                        // Botón Eliminar 3D
+                        Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(54.dp),
-                            shape = RectangleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFD32F2F),
-                                contentColor = Color.White
-                            )
+                                .height(54.dp)
+                                .clickable { onDelete() }
                         ) {
-                            Text("Eliminar", fontFamily = Vt323, fontSize = 22.sp)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .offset(y = 6.dp)
+                                    .background(borderColor)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .border(2.dp, borderColor)
+                                    .background(Color(0xFFD32F2F)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("ELIMINAR", fontFamily = Vt323, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Botón Cerrar (siempre visible)
-                Button(
-                    onClick = onDismiss,
+                // Botón Cerrar 3D (siempre visible)
+                val closeBtnBg = if (isDark) Color(0xFF4A148C) else Color(0xFF5D2E7A)
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RectangleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isDark) Color(0xFF4A148C) else Color(0xFF5D2E7A),
-                        contentColor = Color.White
-                    )
+                        .height(58.dp)
+                        .clickable { onDismiss() }
                 ) {
-                    Text("Cerrar", fontFamily = Vt323, fontSize = 22.sp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .offset(y = 6.dp)
+                            .background(borderColor)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .border(3.dp, borderColor)
+                            .background(closeBtnBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("CERRAR DETALLE", fontFamily = Vt323, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 }
             }
         }
@@ -200,12 +291,12 @@ private fun SectionHeader(text: String, color: Color) {
     Text(
         text = text,
         fontFamily = Vt323,
-        fontSize = 26.sp,
+        fontSize = 24.sp,
         fontWeight = FontWeight.Bold,
         color = color,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 20.dp),
+            .padding(top = 22.dp, bottom = 4.dp),
         textAlign = TextAlign.Center
     )
 }
