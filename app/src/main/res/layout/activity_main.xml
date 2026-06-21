@@ -84,6 +84,15 @@
                 android:orientation="horizontal">
 
                 <ImageButton
+                    android:id="@+id/btnSettings"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Configuración"
+                    android:src="@drawable/ic_settings_pixel"
+                    app:tint="@android:color/white" />
+
+                <ImageButton
                     android:id="@+id/btnMenuMore"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
@@ -355,19 +364,19 @@
             android:orientation="vertical">
 
             <ImageButton
-                android:id="@+id/btnSettings"
+                android:id="@+id/btnMisc"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Configuración"
-                android:src="@drawable/ic_settings_pixel"
+                android:contentDescription="Misceláneo"
+                android:src="@drawable/ic_misc_pixel"
                 app:tint="@android:color/white" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/vt323"
-                android:text="Config."
+                android:text="Misc."
                 android:textColor="@android:color/white"
                 android:textSize="14sp" />
         </LinearLayout>

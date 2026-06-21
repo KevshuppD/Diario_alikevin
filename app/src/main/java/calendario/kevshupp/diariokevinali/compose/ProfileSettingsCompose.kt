@@ -45,11 +45,7 @@ fun ProfileScreen(
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
 
-    val backgroundColor = when {
-        isDark -> Color(0xFF1E1E1E)
-        isMono -> Color.White
-        else -> Color(0xFFF5E6BE)
-    }
+    val backgroundColor = getAppBackgroundColor(theme)
 
     val textColor = when {
         isDark -> Color.White
@@ -639,6 +635,8 @@ fun calculateTimeTogether(anniversaryMillis: Long): String {
 @Composable
 fun SettingsScreen(
     currentTheme: String,
+    useCustomBg: Boolean,
+    onBgPreferenceChange: (Boolean) -> Unit,
     versionName: String,
     onThemeChange: (String) -> Unit,
     onCheckUpdates: () -> Unit,
@@ -655,12 +653,10 @@ fun SettingsScreen(
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val isMono = currentTheme == "Pixel Monocromático"
+    var showBgChoiceDialog by remember { mutableStateOf(false) }
+    var selectedColorHex by remember { mutableStateOf("") }
     
-    val backgroundColor = when {
-        isDark -> Color(0xFF1E1E1E)
-        isMono -> Color.White
-        else -> Color(0xFFF5E6BE)
-    }
+    val backgroundColor = getAppBackgroundColor(currentTheme)
     
     val textColor = when {
         isDark -> Color.White
@@ -735,7 +731,12 @@ fun SettingsScreen(
                         .size(35.dp)
                         .background(Color(android.graphics.Color.parseColor(colorHex)), CircleShape)
                         .border(2.dp, borderColor, CircleShape)
-                        .clickable { onColorSelect(colorHex) }
+                        .clickable {
+                            if (!isMono) {
+                                selectedColorHex = colorHex
+                                showBgChoiceDialog = true
+                            }
+                        }
                 )
             }
         }
@@ -866,5 +867,119 @@ fun SettingsScreen(
             fontSize = 18.sp,
             color = textColor.copy(alpha = 0.8f)
         )
+
+        // Diálogo pixel-art para escoger si aplicar el color de barras también al fondo
+        if (showBgChoiceDialog) {
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { showBgChoiceDialog = false },
+                properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .border(3.dp, borderColor),
+                    color = backgroundColor,
+                    shape = RectangleShape
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Personalizar Fondo 🎨",
+                            fontFamily = Vt323,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "¿Quieres aplicar este color también al fondo de la aplicación?",
+                            fontFamily = Vt323,
+                            fontSize = 18.sp,
+                            color = textColor,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            // Opción 1: Solo Barras
+                            val btnBg1 = if (isDark) Color(0xFF2E2D2D) else Color(0xFFE5D5B5)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .clickable {
+                                        onBgPreferenceChange(false)
+                                        onColorSelect(selectedColorHex)
+                                        showBgChoiceDialog = false
+                                    }
+                            ) {
+                                Box(modifier = Modifier.fillMaxWidth().height(42.dp).offset(y = 6.dp).background(borderColor))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(42.dp)
+                                        .border(2.dp, borderColor)
+                                        .background(btnBg1),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("Solo en barras", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+                                }
+                            }
+
+                            // Opción 2: Barras y Fondo
+                            val btnBg2 = Color(android.graphics.Color.parseColor(selectedColorHex))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .clickable {
+                                        onBgPreferenceChange(true)
+                                        onColorSelect(selectedColorHex)
+                                        showBgChoiceDialog = false
+                                    }
+                            ) {
+                                Box(modifier = Modifier.fillMaxWidth().height(42.dp).offset(y = 6.dp).background(borderColor))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(42.dp)
+                                        .border(2.dp, borderColor)
+                                        .background(btnBg2),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("En barras y fondo", fontFamily = Vt323, fontSize = 18.sp, color = Color.White)
+                                }
+                            }
+
+                            // Cancelar
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .clickable { showBgChoiceDialog = false }
+                            ) {
+                                Box(modifier = Modifier.fillMaxWidth().height(42.dp).offset(y = 6.dp).background(borderColor))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(42.dp)
+                                        .border(2.dp, borderColor)
+                                        .background(Color(0xFFD32F2F)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("Cancelar", fontFamily = Vt323, fontSize = 18.sp, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

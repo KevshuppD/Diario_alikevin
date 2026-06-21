@@ -114,7 +114,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     private MutableState<String> currentSelectedImageUrlState = SnapshotStateKt.mutableStateOf(null, SnapshotStateKt.neverEqualPolicy());
     private List<Message> messages;
     private EditText etMessage;
-    private ImageButton btnSend, btnExpand, btnMenuMore, btnRecipes, btnCalendar, btnAlbum, btnProfile, btnHome, btnSettings;
+    private ImageButton btnSend, btnExpand, btnMenuMore, btnRecipes, btnCalendar, btnAlbum, btnProfile, btnHome, btnSettings, btnMisc;
     private View inputContainer, inputArea, bottomActionsBar;
     private View previewContainer;
     private FrameLayout fragmentContainer;
@@ -226,6 +226,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         btnCalendar.setOnClickListener(v -> showFragment(CalendarFragment.newInstance(currentCoupleId, currentUserId, currentTheme)));
         btnProfile.setOnClickListener(v -> showFragment(ProfileFragment.newInstance(currentUserId, currentCoupleId, currentTheme)));
         btnSettings.setOnClickListener(v -> showFragment(SettingsFragment.newInstance(currentUserId, currentCoupleId, currentTheme)));
+        btnMisc.setOnClickListener(v -> showFragment(MiscFragment.newInstance(currentTheme)));
         setupDynamicMargins();
         setupOfflineStatusListener();
         
@@ -256,6 +257,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             composeFeed.setVisibility(View.VISIBLE);
             inputArea.setVisibility(View.VISIBLE);
             btnMenuMore.setVisibility(View.VISIBLE); // Mostrar filtro en cartas
+            btnSettings.setVisibility(View.VISIBLE); // Mostrar configuración en cartas
         });
 
         applyTheme(prefs.getString("theme", "Pixel Claro"));
@@ -269,6 +271,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     composeFeed.setVisibility(View.VISIBLE);
                     inputArea.setVisibility(View.VISIBLE);
                     btnMenuMore.setVisibility(View.VISIBLE);
+                    btnSettings.setVisibility(View.VISIBLE);
                     fragmentContainer.setVisibility(View.GONE);
                 } else {
                     setEnabled(false);
@@ -341,6 +344,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         btnProfile = findViewById(R.id.btnProfile);
         btnHome = findViewById(R.id.btnHome);
         btnSettings = findViewById(R.id.btnSettings);
+        btnMisc = findViewById(R.id.btnMisc);
         inputArea = findViewById(R.id.inputArea);
         inputContainer = findViewById(R.id.inputContainer);
         bottomActionsBar = findViewById(R.id.bottomActionsBar);
@@ -368,6 +372,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
 
     private void showFragment(androidx.fragment.app.Fragment fragment) {
         btnMenuMore.setVisibility(View.GONE); // Ocultar filtro fuera de cartas
+        btnSettings.setVisibility(View.GONE); // Ocultar botón configuración
         composeFeed.setVisibility(View.GONE);
         inputArea.setVisibility(View.GONE);
         fragmentContainer.setVisibility(View.VISIBLE);
@@ -1299,14 +1304,20 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         recipeManager.setTheme(theme);
         messageEditor.setTheme(theme);
         int bg, tb, inputBg, etBg, etText, etHint;
+        SharedPreferences prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE);
+        boolean useCustomBg = prefs.getBoolean("useCustomBg", false);
         if (theme.equals("Pixel Oscuro")) {
-            bg = Color.parseColor("#0D0D2B"); // Azul medianoche profundo
             // Usar el color pasado directamente, o cargar de SharedPreferences si no se proporciona
             String finalDarkColor = darkColor;
             if (finalDarkColor == null) {
-                finalDarkColor = getSharedPreferences("DiarioPrefs", MODE_PRIVATE).getString("darkColor", "#7C3AED");
+                finalDarkColor = prefs.getString("darkColor", "#7C3AED");
             }
             tb = Color.parseColor(finalDarkColor);
+            if (useCustomBg) {
+                bg = getDarkColorVariant(tb);
+            } else {
+                bg = Color.parseColor("#0D0D2B"); // Azul medianoche profundo por defecto
+            }
 
             // Lógica refinada para el fondo del área de entrada basado en el color de barra en modo oscuro
             switch (finalDarkColor.toUpperCase()) {
@@ -1323,12 +1334,16 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             etText = Color.WHITE;
             etHint = Color.parseColor("#AAAAAA");
         } else {
-            bg = Color.parseColor("#F5F5F5");
             String actualLightColor = lightColor;
             if (actualLightColor == null) {
-                actualLightColor = getSharedPreferences("DiarioPrefs", MODE_PRIVATE).getString("lightColor", "#4A148C");
+                actualLightColor = prefs.getString("lightColor", "#4A148C");
             }
             tb = Color.parseColor(actualLightColor); 
+            if (useCustomBg) {
+                bg = getPastelColor(tb);
+            } else {
+                bg = Color.parseColor("#F5E6BE"); // Crema suave / Stardew Valley
+            }
             inputBg = Color.parseColor("#6A1B9A"); 
             
             // Lógica refinada para el fondo del área de entrada basado en el color de barra
@@ -1373,6 +1388,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         btnProfile.setColorFilter(c);
         btnHome.setColorFilter(c);
         btnSettings.setColorFilter(c);
+        btnMisc.setColorFilter(c);
 
         // Aplicar fondos de botones 3D retro con cambio de estado táctil y sus respectivos filtros de color
         if (theme.equals("Pixel Oscuro")) {
@@ -1566,5 +1582,21 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 Toast.makeText(this, "Por favor, permite alarmas exactas para los recordatorios", Toast.LENGTH_LONG).show();
             }
         }
+    }
+
+    private int getPastelColor(int color) {
+        float[] hsv = new float[3];
+        Color.colorToHSV(color, hsv);
+        hsv[1] = 0.12f; // Low saturation for pastel
+        hsv[2] = 0.98f; // High brightness
+        return Color.HSVToColor(hsv);
+    }
+
+    private int getDarkColorVariant(int color) {
+        float[] hsv = new float[3];
+        Color.colorToHSV(color, hsv);
+        hsv[1] = 0.6f;  // Moderate saturation
+        hsv[2] = 0.10f; // Very low brightness (almost black/midnight)
+        return Color.HSVToColor(hsv);
     }
 }

@@ -65,11 +65,7 @@ fun AlbumScreen(
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
 
-    val backgroundColor = when {
-        isDark -> Color(0xFF0D0D2B)
-        isMono -> Color.White
-        else -> Color(0xFFF5E6BE)
-    }
+    val backgroundColor = getAppBackgroundColor(theme)
     val textColor = when {
         isDark -> Color.White
         isMono -> Color.Black

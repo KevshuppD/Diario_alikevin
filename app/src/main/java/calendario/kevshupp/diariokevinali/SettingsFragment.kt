@@ -39,6 +39,9 @@ class SettingsFragment : Fragment() {
                 
                 // Usar remember para que Compose mantenga el estado correctamente
                 var currentTheme by remember { mutableStateOf(theme) }
+                var useCustomBg by remember {
+                    mutableStateOf(prefs?.getBoolean("useCustomBg", false) ?: false)
+                }
                 var currentCacheLimit by remember { 
                     mutableStateOf(prefs?.getLong("cacheSizeLimit", 100L) ?: 100L) 
                 }
@@ -52,12 +55,22 @@ class SettingsFragment : Fragment() {
                 androidx.compose.material3.MaterialTheme {
                     SettingsScreen(
                         currentTheme = currentTheme,
+                        useCustomBg = useCustomBg,
+                        onBgPreferenceChange = { newVal ->
+                            useCustomBg = newVal
+                            prefs?.edit()?.putBoolean("useCustomBg", newVal)?.apply()
+                            val lightCol = prefs?.getString("lightColor", "#4A148C")
+                            val darkCol = prefs?.getString("darkColor", "#7C3AED")
+                            act?.applyTheme(currentTheme, lightCol, darkCol)
+                        },
                         versionName = BuildConfig.VERSION_NAME,
                         onThemeChange = { newTheme ->
                             currentTheme = newTheme
                             theme = newTheme // Actualizar la propiedad del fragmento también
                             prefs?.edit()?.putString("theme", newTheme)?.apply()
-                            act?.applyTheme(newTheme)
+                            val lightCol = prefs?.getString("lightColor", "#4A148C")
+                            val darkCol = prefs?.getString("darkColor", "#7C3AED")
+                            act?.applyTheme(newTheme, lightCol, darkCol)
                         },
                         onCheckUpdates = {
                             act?.getUpdateManager()?.checkForUpdates(object : UpdateManager.UpdateCallback {

@@ -27,7 +27,7 @@ val CalendarVt323 = FontFamily(Font(R.font.vt323_regular))
 
 @Composable
 fun CalendarScreen(
-    isDark: Boolean,
+    theme: String,
     events: List<CalendarEvent>,
     selectedTimestamp: Long,
     onDateSelected: (Long) -> Unit,
@@ -35,7 +35,8 @@ fun CalendarScreen(
     onEditEvent: (CalendarEvent) -> Unit,
     onDeleteEvent: (CalendarEvent) -> Unit
 ) {
-    val backgroundColor = if (isDark) Color(0xFF0D1E14) else Color(0xFFFBF2E3)
+    val isDark = theme == "Pixel Oscuro"
+    val backgroundColor = getAppBackgroundColor(theme)
     val textColor = if (isDark) Color(0xFFEEF3EA) else Color(0xFF111111)
     val cardColor = if (isDark) Color(0xFF1E3B26) else Color(0xFFF4E9D2)
     val borderColor = if (isDark) Color(0xFFEEF3EA) else Color(0xFF111111)

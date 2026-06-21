@@ -38,11 +38,7 @@ fun RecipeListScreen(
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
 
-    val backgroundColor = when {
-        isDark -> Color(0xFF1E1E1E)
-        isMono -> Color.White
-        else -> Color(0xFFF5E6BE)
-    }
+    val backgroundColor = getAppBackgroundColor(theme)
 
     val titleColor = when {
         isDark -> Color.White

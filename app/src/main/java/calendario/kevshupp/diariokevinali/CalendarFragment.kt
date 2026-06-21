@@ -54,7 +54,7 @@ class CalendarFragment : Fragment() {
                 val dateState = _selectedDate.collectAsState()
                 
                 CalendarScreen(
-                    isDark = theme == "Pixel Oscuro",
+                    theme = theme ?: "Pixel Claro",
                     events = eventsState.value,
                     selectedTimestamp = normalizeDate(dateState.value),
                     onDateSelected = { _selectedDate.value = it },

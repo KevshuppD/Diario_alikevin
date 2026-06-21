@@ -51,6 +51,10 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.viewinterop.AndroidView
+import android.widget.TextView
+import androidx.core.content.res.ResourcesCompat
+import androidx.compose.ui.graphics.toArgb
 
 fun setFeedContent(
     composeView: ComposeView,
@@ -417,19 +421,33 @@ fun MessageCard(
                 } else message.content ?: ""
             }
 
-            val displayContent = if (isAlbum) {
-                "📸 Momento: $cleanContent"
+            if (isAlbum) {
+                Text(
+                    text = "📸 Momento: $cleanContent",
+                    fontFamily = Vt323,
+                    fontSize = 20.sp,
+                    color = contentColor,
+                    lineHeight = 22.sp
+                )
             } else {
-                cleanContent
+                AndroidView(
+                    factory = { ctx ->
+                        TextView(ctx).apply {
+                            val typeface = ResourcesCompat.getFont(ctx, R.font.vt323)
+                            setTypeface(typeface)
+                            textSize = 20f
+                            setTextColor(contentColor.toArgb())
+                        }
+                    },
+                    update = { textView ->
+                        textView.text = android.text.Html.fromHtml(
+                            message.content ?: "",
+                            android.text.Html.FROM_HTML_MODE_LEGACY
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
-
-            Text(
-                text = displayContent,
-                fontFamily = Vt323,
-                fontSize = 20.sp,
-                color = contentColor,
-                lineHeight = 22.sp
-            )
 
             // Imagen o Galería
             if (isAlbum && !message.imageUrls.isNullOrEmpty()) {
