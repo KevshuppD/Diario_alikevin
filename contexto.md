@@ -136,4 +136,16 @@ El diseño rinde homenaje al arte retro de 8 bits y 16 bits:
 ## 7. Directrices para Futuros Desarrollos y Cambios
 1. **Modificaciones de UI:** Todo diseño visual del feed principal debe realizarse en [MessageFeedCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt) respetando la consistencia de los tres temas de pixel-art (`theme`).
 2. **Ciclos de Base de Datos:** Cualquier nueva estadística de la mascota debe mapearse como propiedad en [Pet.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/Pet.kt) y registrarse en el serializador de Firestore.
-3. **Control de Versiones y Despliegues:** Cada cambio a producción debe incrementar las propiedades `versionCode` y `versionName` en el archivo [app/build.gradle.kts](file:///home/kevshupp/Escritorio/Diario_alikevin/app/build.gradle.kts), subir los commits a la rama `master`, y compilar el APK de producción firmado mediante `./gradlew assembleRelease` para finalmente publicarlo utilizando la CLI `gh` como un release oficial en GitHub.
+3. **Control de Versiones y Despliegues (CI/CD Automatizado):**
+   Cada cambio que deba publicarse a producción debe seguir este proceso de despliegue automatizado mediante **GitHub Actions**:
+   * **Paso 1 (Versionado):** Incrementar las propiedades `versionCode` y `versionName` en el archivo [app/build.gradle.kts](file:///home/kevshupp/Escritorio/Diario_alikevin/app/build.gradle.kts).
+   * **Paso 2 (Confirmación de Cambios):** Hacer commit y push de todos los cambios de código a la rama `master`.
+   * **Paso 3 (Disparador de Compilación):** Crear y empujar una etiqueta de versión que comience con `v` (ejemplo: `v1.4.5`):
+     ```bash
+     git tag v1.4.5
+     git push origin v1.4.5
+     ```
+   * **Paso 4 (Ejecución en GitHub Actions):** El empuje de la etiqueta activará automáticamente el workflow en la nube definido en `.github/workflows/android.yml`.
+     * El pipeline decodifica de forma segura las credenciales Base64 guardadas en los secretos de GitHub (`DIARIO_KEYSTORE_BASE64` y `GOOGLE_SERVICES_JSON_BASE64`), limpiando automáticamente posibles saltos de línea con `tr -d '\r\n '`.
+     * Compila la aplicación, firma el APK de lanzamiento (Release APK), crea un lanzamiento oficial en GitHub con el nombre de la versión y adjunta el archivo `app-release.apk` firmado listo para descargar.
+
