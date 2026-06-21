@@ -149,3 +149,10 @@ El diseño rinde homenaje al arte retro de 8 bits y 16 bits:
      * El pipeline decodifica de forma segura las credenciales Base64 guardadas en los secretos de GitHub (`DIARIO_KEYSTORE_BASE64` y `GOOGLE_SERVICES_JSON_BASE64`), limpiando automáticamente posibles saltos de línea con `tr -d '\r\n '`.
      * Compila la aplicación, firma el APK de lanzamiento (Release APK), crea un lanzamiento oficial en GitHub con el nombre de la versión y adjunta el archivo `app-release.apk` firmado listo para descargar.
 
+---
+
+## 8. Conexión Inalámbrica de Pruebas (ADB sobre Wi-Fi)
+Para conectar inalámbricamente el entorno de desarrollo al celular del usuario durante las pruebas locales (ya sea para instalar la versión Debug o Release), se debe ejecutar el siguiente comando que autodetecta y conecta el dispositivo por red local utilizando mDNS (Avahi):
+```bash
+adb connect $(avahi-browse -rtp _adb-tls-connect._tcp -t 2>/dev/null | grep ^= | cut -d';' -f8,9 --output-delimiter=: | head -n1)
+```
