@@ -1289,6 +1289,11 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         d.show();
     }
 
+    private boolean isColorLight(int color) {
+        double luminance = (0.2126 * Color.red(color) + 0.7152 * Color.green(color) + 0.0722 * Color.blue(color)) / 255.0;
+        return luminance > 0.5;
+    }
+
     public void applyTheme(String theme) {
         applyTheme(theme, null, null);
     }
@@ -1348,12 +1353,12 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             
             // Lógica refinada para el fondo del área de entrada basado en el color de barra
             switch (actualLightColor.toUpperCase()) {
-                case "#0D47A1": inputBg = Color.parseColor("#1976D2"); break; // Azul
-                case "#1B5E20": inputBg = Color.parseColor("#388E3C"); break; // Verde
-                case "#C2185B": inputBg = Color.parseColor("#D81B60"); break; // Rosa
-                case "#E65100": inputBg = Color.parseColor("#FB8C00"); break; // Naranja
-                case "#006064": inputBg = Color.parseColor("#00838F"); break; // Cyan/Teal
-                case "#3E2723": inputBg = Color.parseColor("#5D4037"); break; // Marrón
+                case "#0EA5E9": inputBg = Color.parseColor("#1976D2"); break; // Azul
+                case "#10B981": inputBg = Color.parseColor("#388E3C"); break; // Verde
+                case "#EC4899": inputBg = Color.parseColor("#D81B60"); break; // Rosa
+                case "#F97316": inputBg = Color.parseColor("#FB8C00"); break; // Naranja
+                case "#06B6D4": inputBg = Color.parseColor("#00838F"); break; // Cyan/Teal
+                case "#92400E": inputBg = Color.parseColor("#5D4037"); break; // Marrón
                 default: inputBg = Color.parseColor("#6A1B9A"); break; // Morado original
             }
             
@@ -1377,9 +1382,19 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         inputContainer.setBackground(containerBg);
         
         previewContainer.setBackgroundColor(inputBg);
-        navBarPadding.setBackgroundColor(inputBg);
+        navBarPadding.setBackgroundColor(tb); // Que coincida con la barra inferior
         
-        Window w = getWindow(); w.setStatusBarColor(tb); w.setNavigationBarColor(inputBg);
+        Window w = getWindow();
+        w.setStatusBarColor(tb);
+        w.setNavigationBarColor(tb); // Que coincida con la barra inferior
+        
+        // Ajustar íconos de la barra de estado y de navegación dinámicamente según la claridad del color
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(w, w.getDecorView());
+        if (controller != null) {
+            boolean isLight = isColorLight(tb);
+            controller.setAppearanceLightStatusBars(isLight);
+            controller.setAppearanceLightNavigationBars(isLight);
+        }
         int c = Color.WHITE;
         btnMenuMore.setColorFilter(c);
         btnRecipes.setColorFilter(c);
