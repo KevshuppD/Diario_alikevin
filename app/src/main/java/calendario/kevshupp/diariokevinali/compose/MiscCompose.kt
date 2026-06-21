@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.Text
@@ -249,6 +250,26 @@ fun SpiritsChecklistView(
     }
 
     val spiritsList = remember { (1..41).map { String.format("%02d", it) } }
+    val spiritNames = remember {
+        listOf(
+            // Fila 1
+            "Espíritu de Agua", "Espíritu de Agua Dorado", "Espíritu de Agua Gomita", "Espíritu de Agua Galaxia",
+            "Espíritu Dormilón", "Espíritu Dormilón Dorado", "Espíritu Dormilón Gomita", "Espíritu Dormilón Galaxia",
+            // Fila 2
+            "Espíritu de Tierra", "Espíritu de Tierra Dorado", "Espíritu de Tierra Gomita", "Espíritu de Tierra Galaxia",
+            "TheBurntPeanut (Espíritu del Cacahuete)",
+            "Espíritu Demoníaco", "Espíritu Demoníaco Dorado", "Espíritu Demoníaco Gomita", "Espíritu Demoníaco Galaxia",
+            // Fila 3
+            "Espíritu de Fuego", "Espíritu de Fuego Dorado", "Espíritu de Fuego Gomita", "Espíritu de Fuego Galaxia",
+            "Espíritu Punk", "Espíritu Punk Dorado", "Espíritu Punk Gomita", "Espíritu Punk Galaxia",
+            // Fila 4
+            "Espíritu Pato", "Espíritu Pato Dorado", "Espíritu Pato Gomita", "Espíritu Pato Galaxia",
+            "Espíritu Rey", "Espíritu Rey Dorado", "Espíritu Rey Gomita", "Espíritu Rey Galaxia",
+            // Fila 5
+            "Espíritu Fantasma", "Espíritu Fantasma Dorado", "Espíritu Fantasma Gomita", "Espíritu Fantasma Galaxia",
+            "Espíritu del Punto Cero", "Espíritu del Punto Cero Dorado", "Espíritu del Punto Cero Gomita", "Espíritu del Punto Cero Galaxia"
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -366,7 +387,7 @@ fun SpiritsChecklistView(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
-            items(spiritsList) { spiritId ->
+            itemsIndexed(spiritsList) { index, spiritId ->
                 val hasKevin = kevinList.contains(spiritId)
                 val hasAli = aliList.contains(spiritId)
                 
@@ -401,8 +422,9 @@ fun SpiritsChecklistView(
                     Spacer(modifier = Modifier.width(12.dp))
 
                     // Title
+                    val spiritName = spiritNames.getOrElse(index) { "Espíritu #$spiritId" }
                     Text(
-                        text = "Espíritu #$spiritId",
+                        text = spiritName,
                         fontFamily = Vt323,
                         fontSize = 18.sp,
                         color = textColor,
