@@ -18,6 +18,7 @@ diario_keystore.jks
 *.jks
 *.keystore
 *google-services.json
+*base64.txt
 
 # System files
 .DS_Store
