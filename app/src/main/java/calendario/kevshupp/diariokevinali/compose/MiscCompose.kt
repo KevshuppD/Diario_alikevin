@@ -113,13 +113,13 @@ fun MiscGridView(
             )
         }
 
-        // 4x4 Grid Layout
+        // 2x2 Grid Layout
         LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
+            columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(4.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // First item: active Fortnite Spirits Checklist button
             item {
@@ -129,7 +129,7 @@ fun MiscGridView(
                         .border(3.dp, borderColor)
                         .background(cardBg)
                         .clickable { onSelectSpirits() }
-                        .padding(6.dp),
+                        .padding(12.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -139,24 +139,24 @@ fun MiscGridView(
                         Image(
                             painter = painterResource(id = spiritIconId),
                             contentDescription = "Espíritus Fortnite",
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(64.dp)
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Espíritus",
                             fontFamily = Vt323,
-                            fontSize = 12.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = textColor,
                             textAlign = TextAlign.Center,
-                            lineHeight = 13.sp
+                            lineHeight = 22.sp
                         )
                     }
                 }
             }
 
-            // Other 15 slots: placeholders for future activities (locked)
-            items(15) { index ->
+            // Other 3 slots: placeholders for future activities (locked)
+            items(3) { index ->
                 Box(
                     modifier = Modifier
                         .aspectRatio(1f)
@@ -165,7 +165,7 @@ fun MiscGridView(
                             color = borderColor.copy(alpha = 0.4f)
                         )
                         .background(cardBg.copy(alpha = 0.5f))
-                        .padding(6.dp),
+                        .padding(12.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -174,14 +174,14 @@ fun MiscGridView(
                     ) {
                         Text(
                             text = "🔒",
-                            fontSize = 18.sp,
+                            fontSize = 32.sp,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Bloqueado",
                             fontFamily = Vt323,
-                            fontSize = 11.sp,
+                            fontSize = 16.sp,
                             color = textColor.copy(alpha = 0.5f),
                             textAlign = TextAlign.Center
                         )
@@ -404,10 +404,10 @@ fun SpiritsChecklistView(
                         .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Spirit Thumbnail Container
+                    // Spirit Thumbnail Container (Larger)
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(72.dp)
                             .border(1.dp, borderColor.copy(alpha = 0.5f))
                             .background(if (isDark) Color(0xFF121212) else Color(0xFFFFFDF5)),
                         contentAlignment = Alignment.Center
@@ -415,7 +415,7 @@ fun SpiritsChecklistView(
                         Image(
                             painter = painterResource(id = spiritResId),
                             contentDescription = "Espíritu $spiritId",
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(64.dp)
                         )
                     }
 
