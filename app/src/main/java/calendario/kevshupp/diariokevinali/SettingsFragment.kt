@@ -59,8 +59,8 @@ class SettingsFragment : Fragment() {
                         onBgPreferenceChange = { newVal ->
                             useCustomBg = newVal
                             prefs?.edit()?.putBoolean("useCustomBg", newVal)?.apply()
-                            val lightCol = prefs?.getString("lightColor", "#4A148C")
-                            val darkCol = prefs?.getString("darkColor", "#7C3AED")
+                            val lightCol = prefs?.getString("lightColor", "#D1C4E9")
+                            val darkCol = prefs?.getString("darkColor", "#4A148C")
                             act?.applyTheme(currentTheme, lightCol, darkCol)
                         },
                         versionName = BuildConfig.VERSION_NAME,
@@ -68,8 +68,8 @@ class SettingsFragment : Fragment() {
                             currentTheme = newTheme
                             theme = newTheme // Actualizar la propiedad del fragmento también
                             prefs?.edit()?.putString("theme", newTheme)?.apply()
-                            val lightCol = prefs?.getString("lightColor", "#4A148C")
-                            val darkCol = prefs?.getString("darkColor", "#7C3AED")
+                            val lightCol = prefs?.getString("lightColor", "#D1C4E9")
+                            val darkCol = prefs?.getString("darkColor", "#4A148C")
                             act?.applyTheme(newTheme, lightCol, darkCol)
                         },
                         onCheckUpdates = {

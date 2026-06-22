@@ -123,9 +123,12 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     private View navBarPadding;
     private LinearLayout downloadProgressContainer;
     private ProgressBar downloadProgressBar;
+    private View toolbarBorder, bottomActionsBarBorder;
+    private TextView tvTabHome, tvTabCalendar, tvTabAlbum, tvTabRecipes, tvTabProfile, tvTabMisc;
     private String selectedImageUrl = null;
 
     private String currentTheme = "Pixel Claro";
+    private int activeTabId = R.id.btnHome;
     private String currentCoupleId = "vínculo_único_123", currentUserId, currentUserName, currentUserImageUri;
     private int currentCropType = -1;
 
@@ -221,12 +224,29 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         recipeManager.setTheme(currentTheme);
 
         initViews();
+        applyTheme(prefs.getString("theme", "Pixel Claro"));
+        updateTabSelection(R.id.btnHome);
 
-        btnRecipes.setOnClickListener(v -> showFragment(RecipeFragment.newInstance(currentCoupleId, currentTheme)));
-        btnCalendar.setOnClickListener(v -> showFragment(CalendarFragment.newInstance(currentCoupleId, currentUserId, currentTheme)));
-        btnProfile.setOnClickListener(v -> showFragment(ProfileFragment.newInstance(currentUserId, currentCoupleId, currentTheme)));
-        btnSettings.setOnClickListener(v -> showFragment(SettingsFragment.newInstance(currentUserId, currentCoupleId, currentTheme)));
-        btnMisc.setOnClickListener(v -> showFragment(MiscFragment.newInstance(currentTheme)));
+        btnRecipes.setOnClickListener(v -> {
+            updateTabSelection(R.id.btnRecipes);
+            showFragment(RecipeFragment.newInstance(currentCoupleId, currentTheme));
+        });
+        btnCalendar.setOnClickListener(v -> {
+            updateTabSelection(R.id.btnCalendar);
+            showFragment(CalendarFragment.newInstance(currentCoupleId, currentUserId, currentTheme));
+        });
+        btnProfile.setOnClickListener(v -> {
+            updateTabSelection(R.id.btnProfile);
+            showFragment(ProfileFragment.newInstance(currentUserId, currentCoupleId, currentTheme));
+        });
+        btnSettings.setOnClickListener(v -> {
+            updateTabSelection(0); // Quitar resalte de las pestañas inferiores
+            showFragment(SettingsFragment.newInstance(currentUserId, currentCoupleId, currentTheme));
+        });
+        btnMisc.setOnClickListener(v -> {
+            updateTabSelection(R.id.btnMisc);
+            showFragment(MiscFragment.newInstance(currentTheme));
+        });
         setupDynamicMargins();
         setupOfflineStatusListener();
         
@@ -251,16 +271,18 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         });
 
         
-        btnAlbum.setOnClickListener(v -> showFragment(AlbumFragment.newInstance(currentCoupleId, currentUserId, currentUserName, currentUserImageUri, currentTheme)));
+        btnAlbum.setOnClickListener(v -> {
+            updateTabSelection(R.id.btnAlbum);
+            showFragment(AlbumFragment.newInstance(currentCoupleId, currentUserId, currentUserName, currentUserImageUri, currentTheme));
+        });
         btnHome.setOnClickListener(v -> {
+            updateTabSelection(R.id.btnHome);
             fragmentContainer.setVisibility(View.GONE);
             composeFeed.setVisibility(View.VISIBLE);
             inputArea.setVisibility(View.VISIBLE);
             btnMenuMore.setVisibility(View.VISIBLE); // Mostrar filtro en cartas
             btnSettings.setVisibility(View.VISIBLE); // Mostrar configuración en cartas
         });
-
-        applyTheme(prefs.getString("theme", "Pixel Claro"));
 
         // Manejo moderno del botón Atrás
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
@@ -273,6 +295,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     btnMenuMore.setVisibility(View.VISIBLE);
                     btnSettings.setVisibility(View.VISIBLE);
                     fragmentContainer.setVisibility(View.GONE);
+                    updateTabSelection(R.id.btnHome);
                 } else {
                     setEnabled(false);
                     MainActivity.this.getOnBackPressedDispatcher().onBackPressed();
@@ -355,6 +378,14 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         navBarPadding = findViewById(R.id.navBarPadding);
         downloadProgressContainer = findViewById(R.id.downloadProgressContainer);
         downloadProgressBar = findViewById(R.id.downloadProgressBar);
+        toolbarBorder = findViewById(R.id.toolbarBorder);
+        bottomActionsBarBorder = findViewById(R.id.bottomActionsBarBorder);
+        tvTabHome = findViewById(R.id.tvTabHome);
+        tvTabCalendar = findViewById(R.id.tvTabCalendar);
+        tvTabAlbum = findViewById(R.id.tvTabAlbum);
+        tvTabRecipes = findViewById(R.id.tvTabRecipes);
+        tvTabProfile = findViewById(R.id.tvTabProfile);
+        tvTabMisc = findViewById(R.id.tvTabMisc);
     }
 
     private void showOverflowMenu(View v) {
@@ -1294,6 +1325,45 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         return luminance > 0.5;
     }
 
+    public void updateTabSelection(int activeTabId) {
+        this.activeTabId = activeTabId;
+        boolean isDark = "Pixel Oscuro".equals(currentTheme);
+        int activeColor;
+        int inactiveColor;
+
+        if (isDark) {
+            activeColor = Color.parseColor("#FFEB3B");
+            inactiveColor = Color.argb(160, 255, 255, 255);
+        } else {
+            activeColor = Color.parseColor("#4A2511");
+            inactiveColor = Color.argb(140, 74, 37, 17);
+        }
+
+        // Home Tab
+        btnHome.setColorFilter(activeTabId == R.id.btnHome ? activeColor : inactiveColor);
+        tvTabHome.setTextColor(activeTabId == R.id.btnHome ? activeColor : inactiveColor);
+
+        // Calendar Tab
+        btnCalendar.setColorFilter(activeTabId == R.id.btnCalendar ? activeColor : inactiveColor);
+        tvTabCalendar.setTextColor(activeTabId == R.id.btnCalendar ? activeColor : inactiveColor);
+
+        // Album Tab
+        btnAlbum.setColorFilter(activeTabId == R.id.btnAlbum ? activeColor : inactiveColor);
+        tvTabAlbum.setTextColor(activeTabId == R.id.btnAlbum ? activeColor : inactiveColor);
+
+        // Recipes Tab
+        btnRecipes.setColorFilter(activeTabId == R.id.btnRecipes ? activeColor : inactiveColor);
+        tvTabRecipes.setTextColor(activeTabId == R.id.btnRecipes ? activeColor : inactiveColor);
+
+        // Profile Tab
+        btnProfile.setColorFilter(activeTabId == R.id.btnProfile ? activeColor : inactiveColor);
+        tvTabProfile.setTextColor(activeTabId == R.id.btnProfile ? activeColor : inactiveColor);
+
+        // Misc Tab
+        btnMisc.setColorFilter(activeTabId == R.id.btnMisc ? activeColor : inactiveColor);
+        tvTabMisc.setTextColor(activeTabId == R.id.btnMisc ? activeColor : inactiveColor);
+    }
+
     public void applyTheme(String theme) {
         applyTheme(theme, null, null);
     }
@@ -1315,7 +1385,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             // Usar el color pasado directamente, o cargar de SharedPreferences si no se proporciona
             String finalDarkColor = darkColor;
             if (finalDarkColor == null) {
-                finalDarkColor = prefs.getString("darkColor", "#7C3AED");
+                finalDarkColor = prefs.getString("darkColor", "#4A148C");
             }
             tb = Color.parseColor(finalDarkColor);
             if (useCustomBg) {
@@ -1326,12 +1396,12 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
 
             // Lógica refinada para el fondo del área de entrada basado en el color de barra en modo oscuro
             switch (finalDarkColor.toUpperCase()) {
-                case "#0EA5E9": inputBg = Color.parseColor("#0284C7"); break; // Azul
-                case "#10B981": inputBg = Color.parseColor("#059669"); break; // Verde
-                case "#EC4899": inputBg = Color.parseColor("#DB2777"); break; // Rosa
-                case "#F97316": inputBg = Color.parseColor("#EA580C"); break; // Naranja
-                case "#06B6D4": inputBg = Color.parseColor("#0891B2"); break; // Cyan
-                case "#92400E": inputBg = Color.parseColor("#78350F"); break; // Marrón
+                case "#0D47A1": inputBg = Color.parseColor("#1976D2"); break; // Azul oscuro
+                case "#1B5E20": inputBg = Color.parseColor("#388E3C"); break; // Verde oscuro
+                case "#C2185B": inputBg = Color.parseColor("#D81B60"); break; // Rosa oscuro
+                case "#E65100": inputBg = Color.parseColor("#FB8C00"); break; // Naranja oscuro
+                case "#006064": inputBg = Color.parseColor("#00838F"); break; // Cyan oscuro
+                case "#3E2723": inputBg = Color.parseColor("#5D4037"); break; // Marrón oscuro
                 default: inputBg = Color.parseColor("#6B21A8"); break; // Púrpura oscuro
             }
 
@@ -1341,7 +1411,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         } else {
             String actualLightColor = lightColor;
             if (actualLightColor == null) {
-                actualLightColor = prefs.getString("lightColor", "#4A148C");
+                actualLightColor = prefs.getString("lightColor", "#D1C4E9");
             }
             tb = Color.parseColor(actualLightColor); 
             if (useCustomBg) {
@@ -1349,17 +1419,17 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             } else {
                 bg = Color.parseColor("#F5E6BE"); // Crema suave / Stardew Valley
             }
-            inputBg = Color.parseColor("#6A1B9A"); 
+            inputBg = Color.parseColor("#B39DDB"); 
             
             // Lógica refinada para el fondo del área de entrada basado en el color de barra
             switch (actualLightColor.toUpperCase()) {
-                case "#0EA5E9": inputBg = Color.parseColor("#1976D2"); break; // Azul
-                case "#10B981": inputBg = Color.parseColor("#388E3C"); break; // Verde
-                case "#EC4899": inputBg = Color.parseColor("#D81B60"); break; // Rosa
-                case "#F97316": inputBg = Color.parseColor("#FB8C00"); break; // Naranja
-                case "#06B6D4": inputBg = Color.parseColor("#00838F"); break; // Cyan/Teal
-                case "#92400E": inputBg = Color.parseColor("#5D4037"); break; // Marrón
-                default: inputBg = Color.parseColor("#6A1B9A"); break; // Morado original
+                case "#B3E5FC": inputBg = Color.parseColor("#81D4FA"); break; // Azul pastel
+                case "#C8E6C9": inputBg = Color.parseColor("#A5D6A7"); break; // Verde pastel
+                case "#F8BBD0": inputBg = Color.parseColor("#F48FB1"); break; // Rosa pastel
+                case "#FFE0B2": inputBg = Color.parseColor("#FFCC80"); break; // Naranja pastel
+                case "#B2EBF2": inputBg = Color.parseColor("#80DEEA"); break; // Cyan pastel
+                case "#D7CCC8": inputBg = Color.parseColor("#BCAAA4"); break; // Marrón pastel
+                default: inputBg = Color.parseColor("#B39DDB"); break; // Púrpura pastel
             }
             
             etBg = Color.parseColor("#FFFFFF"); 
@@ -1395,15 +1465,20 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             controller.setAppearanceLightStatusBars(isLight);
             controller.setAppearanceLightNavigationBars(isLight);
         }
-        int c = Color.WHITE;
-        btnMenuMore.setColorFilter(c);
-        btnRecipes.setColorFilter(c);
-        btnCalendar.setColorFilter(c);
-        btnAlbum.setColorFilter(c);
-        btnProfile.setColorFilter(c);
-        btnHome.setColorFilter(c);
-        btnSettings.setColorFilter(c);
-        btnMisc.setColorFilter(c);
+        
+        // Colorear los bordes pixelados superior e inferior
+        int borderColorVal = theme.equals("Pixel Oscuro") ? Color.parseColor("#91465F") : Color.parseColor("#4A2511");
+        if (toolbarBorder != null) toolbarBorder.setBackgroundColor(borderColorVal);
+        if (bottomActionsBarBorder != null) bottomActionsBarBorder.setBackgroundColor(borderColorVal);
+
+        int toolbarContentColor = theme.equals("Pixel Oscuro") ? Color.WHITE : Color.parseColor("#4A2511");
+        tvToolbarTitle.setTextColor(toolbarContentColor);
+        ivToolbarHeart.setColorFilter(toolbarContentColor);
+        btnMenuMore.setColorFilter(toolbarContentColor);
+        btnSettings.setColorFilter(toolbarContentColor);
+        
+        // Llamar a updateTabSelection para aplicar los filtros correctos de pestaña activa/inactiva
+        updateTabSelection(activeTabId);
 
         // Aplicar fondos de botones 3D retro con cambio de estado táctil y sus respectivos filtros de color
         if (theme.equals("Pixel Oscuro")) {

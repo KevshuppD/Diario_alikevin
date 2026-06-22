@@ -653,9 +653,6 @@ fun SettingsScreen(
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val isMono = currentTheme == "Pixel Monocromático"
-    var showBgChoiceDialog by remember { mutableStateOf(false) }
-    var selectedColorHex by remember { mutableStateOf("") }
-    
     val backgroundColor = getAppBackgroundColor(currentTheme)
     
     val textColor = when {
@@ -724,7 +721,11 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            val colors = listOf("#7C3AED", "#0EA5E9", "#10B981", "#EC4899", "#F97316", "#06B6D4", "#92400E")
+            val colors = if (isDark) {
+                listOf("#4A148C", "#0D47A1", "#1B5E20", "#C2185B", "#E65100", "#006064", "#3E2723")
+            } else {
+                listOf("#D1C4E9", "#B3E5FC", "#C8E6C9", "#F8BBD0", "#FFE0B2", "#B2EBF2", "#D7CCC8")
+            }
             colors.forEach { colorHex ->
                 Box(
                     modifier = Modifier
@@ -733,12 +734,46 @@ fun SettingsScreen(
                         .border(2.dp, borderColor, CircleShape)
                         .clickable {
                             if (!isMono) {
-                                selectedColorHex = colorHex
-                                showBgChoiceDialog = true
+                                onColorSelect(colorHex)
                             }
                         }
                 )
             }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onBgPreferenceChange(!useCustomBg) }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .border(2.dp, borderColor)
+                    .background(if (useCustomBg) Color(0xFF81C784) else Color(0x22000000)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (useCustomBg) {
+                    Text(
+                        text = "✓",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "Aplicar color también al fondo",
+                fontFamily = Vt323,
+                fontSize = 18.sp,
+                color = textColor
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -868,118 +903,6 @@ fun SettingsScreen(
             color = textColor.copy(alpha = 0.8f)
         )
 
-        // Diálogo pixel-art para escoger si aplicar el color de barras también al fondo
-        if (showBgChoiceDialog) {
-            androidx.compose.ui.window.Dialog(
-                onDismissRequest = { showBgChoiceDialog = false },
-                properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-            ) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth(0.85f)
-                        .border(3.dp, borderColor),
-                    color = backgroundColor,
-                    shape = RectangleShape
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Personalizar Fondo 🎨",
-                            fontFamily = Vt323,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "¿Quieres aplicar este color también al fondo de la aplicación?",
-                            fontFamily = Vt323,
-                            fontSize = 18.sp,
-                            color = textColor,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
-                        
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            // Opción 1: Solo Barras
-                            val btnBg1 = if (isDark) Color(0xFF2E2D2D) else Color(0xFFE5D5B5)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                                    .clickable {
-                                        onBgPreferenceChange(false)
-                                        onColorSelect(selectedColorHex)
-                                        showBgChoiceDialog = false
-                                    }
-                            ) {
-                                Box(modifier = Modifier.fillMaxWidth().height(42.dp).offset(y = 6.dp).background(borderColor))
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(42.dp)
-                                        .border(2.dp, borderColor)
-                                        .background(btnBg1),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("Solo en barras", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
-                                }
-                            }
-
-                            // Opción 2: Barras y Fondo
-                            val btnBg2 = Color(android.graphics.Color.parseColor(selectedColorHex))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                                    .clickable {
-                                        onBgPreferenceChange(true)
-                                        onColorSelect(selectedColorHex)
-                                        showBgChoiceDialog = false
-                                    }
-                            ) {
-                                Box(modifier = Modifier.fillMaxWidth().height(42.dp).offset(y = 6.dp).background(borderColor))
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(42.dp)
-                                        .border(2.dp, borderColor)
-                                        .background(btnBg2),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("En barras y fondo", fontFamily = Vt323, fontSize = 18.sp, color = Color.White)
-                                }
-                            }
-
-                            // Cancelar
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                                    .clickable { showBgChoiceDialog = false }
-                            ) {
-                                Box(modifier = Modifier.fillMaxWidth().height(42.dp).offset(y = 6.dp).background(borderColor))
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(42.dp)
-                                        .border(2.dp, borderColor)
-                                        .background(Color(0xFFD32F2F)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("Cancelar", fontFamily = Vt323, fontSize = 18.sp, color = Color.White)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // Diálogo choice eliminado
     }
 }

@@ -436,10 +436,10 @@ fun MessageCard(
                             val typeface = ResourcesCompat.getFont(ctx, R.font.vt323)
                             setTypeface(typeface)
                             textSize = 20f
-                            setTextColor(contentColor.toArgb())
                         }
                     },
                     update = { textView ->
+                        textView.setTextColor(contentColor.toArgb())
                         textView.text = android.text.Html.fromHtml(
                             message.content ?: "",
                             android.text.Html.FROM_HTML_MODE_LEGACY

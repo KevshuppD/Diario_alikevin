@@ -48,7 +48,7 @@
             android:layout_width="match_parent"
             android:layout_height="40dp"
             android:background="#5D2E7A"
-            android:elevation="4dp">
+            android:elevation="0dp">
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -104,6 +104,13 @@
             </LinearLayout>
 
         </com.google.android.material.appbar.MaterialToolbar>
+
+        <!-- Borde pixelado inferior -->
+        <View
+            android:id="@+id/toolbarBorder"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:background="#4A2511" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Área de entrada flotante tipo tarjeta retro pixel art -->
@@ -204,7 +211,7 @@
         android:layout_height="0dp"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/appBarLayout"
-        app:layout_constraintBottom_toTopOf="@id/bottomActionsBar"
+        app:layout_constraintBottom_toTopOf="@id/bottomActionsBarBorder"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
@@ -214,9 +221,19 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintTop_toBottomOf="@id/inputArea"
-        app:layout_constraintBottom_toTopOf="@+id/bottomActionsBar"
+        app:layout_constraintBottom_toTopOf="@+id/bottomActionsBarBorder"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Borde pixelado superior de la barra inferior -->
+    <View
+        android:id="@+id/bottomActionsBarBorder"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:background="#4A2511"
+        app:layout_constraintBottom_toTopOf="@id/bottomActionsBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Barra inferior fija de acciones -->
     <LinearLayout
@@ -248,6 +265,7 @@
                 app:tint="@android:color/white" />
 
             <TextView
+                android:id="@+id/tvTabHome"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/vt323"
@@ -273,6 +291,7 @@
                 app:tint="@android:color/white" />
 
             <TextView
+                android:id="@+id/tvTabCalendar"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/vt323"
@@ -298,6 +317,7 @@
                 app:tint="@android:color/white" />
 
             <TextView
+                android:id="@+id/tvTabAlbum"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/vt323"
@@ -323,6 +343,7 @@
                 app:tint="@android:color/white" />
 
             <TextView
+                android:id="@+id/tvTabRecipes"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/vt323"
@@ -348,6 +369,7 @@
                 app:tint="@android:color/white" />
 
             <TextView
+                android:id="@+id/tvTabProfile"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/vt323"
@@ -373,6 +395,7 @@
                 app:tint="@android:color/white" />
 
             <TextView
+                android:id="@+id/tvTabMisc"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/vt323"

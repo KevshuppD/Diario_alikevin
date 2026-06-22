@@ -91,7 +91,7 @@ fun getAppBackgroundColor(theme: String): Color {
         isMono -> Color.White
         isDark -> {
             if (useCustomBg) {
-                val darkColorStr = prefs.getString("darkColor", "#7C3AED") ?: "#7C3AED"
+                val darkColorStr = prefs.getString("darkColor", "#4A148C") ?: "#4A148C"
                 try {
                     val baseColor = Color(android.graphics.Color.parseColor(darkColorStr))
                     baseColor.toDarkVariant()
@@ -104,7 +104,7 @@ fun getAppBackgroundColor(theme: String): Color {
         }
         else -> {
             if (useCustomBg) {
-                val lightColorStr = prefs.getString("lightColor", "#4A148C") ?: "#4A148C"
+                val lightColorStr = prefs.getString("lightColor", "#D1C4E9") ?: "#D1C4E9"
                 try {
                     val baseColor = Color(android.graphics.Color.parseColor(lightColorStr))
                     baseColor.toPastelVariant()
