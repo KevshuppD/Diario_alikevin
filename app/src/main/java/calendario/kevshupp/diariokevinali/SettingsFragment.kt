@@ -4,10 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.Fragment
 import calendario.kevshupp.diariokevinali.compose.SettingsScreen
@@ -50,6 +47,94 @@ class SettingsFragment : Fragment() {
                 }
                 var currentAppointmentLeadTime by remember {
                     mutableStateOf(prefs?.getLong("appointmentLeadTime", 60L) ?: 60L)
+                }
+
+                // Estados de sincronización con Google Drive
+                var googleAccountEmail by remember {
+                    mutableStateOf(prefs?.getString("syncGoogleAccountEmail", null))
+                }
+                var selectedFolderUri by remember {
+                    mutableStateOf(prefs?.getString("syncLocalFolderUri", null))
+                }
+                var syncIntervalMinutes by remember {
+                    mutableStateOf(prefs?.getLong("syncIntervalMinutes", 0L) ?: 0L)
+                }
+                var wifiOnly by remember {
+                    mutableStateOf(prefs?.getBoolean("syncWifiOnly", true) ?: true)
+                }
+                var chargingOnly by remember {
+                    mutableStateOf(prefs?.getBoolean("syncChargingOnly", false) ?: false)
+                }
+                var isSyncing by remember { mutableStateOf(false) }
+                var syncProgress by remember { mutableStateOf(-1) }
+                var syncStatus by remember { mutableStateOf("") }
+
+                // Escuchar cambios de SharedPreferences para actualizar Compose en tiempo real
+                DisposableEffect(prefs) {
+                    val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+                        when (key) {
+                            "syncGoogleAccountEmail" -> googleAccountEmail = p.getString(key, null)
+                            "syncLocalFolderUri" -> selectedFolderUri = p.getString(key, null)
+                            "syncIntervalMinutes" -> syncIntervalMinutes = p.getLong(key, 0L)
+                            "syncWifiOnly" -> wifiOnly = p.getBoolean(key, true)
+                            "syncChargingOnly" -> chargingOnly = p.getBoolean(key, false)
+                        }
+                    }
+                    prefs?.registerOnSharedPreferenceChangeListener(listener)
+                    onDispose {
+                        prefs?.unregisterOnSharedPreferenceChangeListener(listener)
+                    }
+                }
+
+                // Observar el estado de WorkManager para saber si se está sincronizando actualmente
+                val workInfos = act?.let {
+                    androidx.work.WorkManager.getInstance(it)
+                        .getWorkInfosForUniqueWorkLiveData(SyncScheduler.UNIQUE_ONETIME_WORK_NAME)
+                }
+                val periodicWorkInfos = act?.let {
+                    androidx.work.WorkManager.getInstance(it)
+                        .getWorkInfosForUniqueWorkLiveData("SyncDrivePeriodicWork")
+                }
+
+                LaunchedEffect(workInfos, periodicWorkInfos) {
+                    workInfos?.observe(viewLifecycleOwner) { infos ->
+                        val runningInfo = infos?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
+                        if (runningInfo != null) {
+                            isSyncing = true
+                            syncProgress = runningInfo.progress.getInt("progress", -1)
+                            syncStatus = runningInfo.progress.getString("status") ?: "Sincronizando..."
+                        } else {
+                            val periodicRunningInfo = periodicWorkInfos?.value?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
+                            if (periodicRunningInfo != null) {
+                                isSyncing = true
+                                syncProgress = periodicRunningInfo.progress.getInt("progress", -1)
+                                syncStatus = periodicRunningInfo.progress.getString("status") ?: "Sincronizando..."
+                            } else {
+                                isSyncing = false
+                                syncProgress = -1
+                                syncStatus = ""
+                            }
+                        }
+                    }
+                    periodicWorkInfos?.observe(viewLifecycleOwner) { infos ->
+                        val runningInfo = infos?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
+                        if (runningInfo != null) {
+                            isSyncing = true
+                            syncProgress = runningInfo.progress.getInt("progress", -1)
+                            syncStatus = runningInfo.progress.getString("status") ?: "Sincronizando..."
+                        } else {
+                            val oneTimeRunningInfo = workInfos?.value?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
+                            if (oneTimeRunningInfo != null) {
+                                isSyncing = true
+                                syncProgress = oneTimeRunningInfo.progress.getInt("progress", -1)
+                                syncStatus = oneTimeRunningInfo.progress.getString("status") ?: "Sincronizando..."
+                            } else {
+                                isSyncing = false
+                                syncProgress = -1
+                                syncStatus = ""
+                            }
+                        }
+                    }
                 }
 
                 androidx.compose.material3.MaterialTheme {
@@ -100,7 +185,6 @@ class SettingsFragment : Fragment() {
                         onCacheLimitChange = { newLimit ->
                             currentCacheLimit = newLimit
                             prefs?.edit()?.putLong("cacheSizeLimit", newLimit)?.apply()
-                            // Nota: El cambio de caché de Coil se aplicará la próxima vez que se inicie la app
                         },
                         onTestNotification = {
                             act?.testLocalNotification()
@@ -115,9 +199,68 @@ class SettingsFragment : Fragment() {
                         onAppointmentLeadTimeChange = { newLeadTime ->
                             currentAppointmentLeadTime = newLeadTime
                             prefs?.edit()?.putLong("appointmentLeadTime", newLeadTime)?.apply()
-                            // Notificar a MainActivity para que reprograme las alarmas si es necesario
                             act?.rescheduleAllCalendarReminders()
-                        }
+                        },
+                        googleAccountEmail = googleAccountEmail,
+                        selectedFolderUri = selectedFolderUri,
+                        syncIntervalMinutes = syncIntervalMinutes,
+                        wifiOnly = wifiOnly,
+                        chargingOnly = chargingOnly,
+                        onLinkGoogleDrive = {
+                            act?.linkGoogleDriveAccount()
+                        },
+                        onUnlinkGoogleDrive = {
+                            prefs?.edit()?.apply {
+                                remove("syncGoogleAccountEmail")
+                                remove("syncLocalFolderUri")
+                                remove("syncIntervalMinutes")
+                                remove("syncWifiOnly")
+                                remove("syncChargingOnly")
+                                apply()
+                            }
+                            googleAccountEmail = null
+                            selectedFolderUri = null
+                            SyncScheduler.cancelSync(requireContext())
+                            android.widget.Toast.makeText(requireContext(), "Cuenta de Google desvinculada", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        onSelectLocalFolder = {
+                            act?.selectLocalFolder()
+                        },
+                        onIntervalChange = { newMins ->
+                            prefs?.edit()?.putLong("syncIntervalMinutes", newMins)?.apply()
+                            syncIntervalMinutes = newMins
+                            SyncScheduler.scheduleSync(requireContext(), newMins, wifiOnly, chargingOnly)
+                        },
+                        onWifiOnlyChange = { newWifi ->
+                            prefs?.edit()?.putBoolean("syncWifiOnly", newWifi)?.apply()
+                            wifiOnly = newWifi
+                            SyncScheduler.scheduleSync(requireContext(), syncIntervalMinutes, newWifi, chargingOnly)
+                        },
+                        onChargingOnlyChange = { newCharge ->
+                            prefs?.edit()?.putBoolean("syncChargingOnly", newCharge)?.apply()
+                            chargingOnly = newCharge
+                            SyncScheduler.scheduleSync(requireContext(), syncIntervalMinutes, wifiOnly, newCharge)
+                        },
+                        onSyncNow = {
+                            if (selectedFolderUri.isNullOrEmpty()) {
+                                android.widget.Toast.makeText(
+                                    requireContext(),
+                                    "Por favor, selecciona primero la carpeta local para sincronizar.",
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                                act?.selectLocalFolder()
+                            } else {
+                                SyncScheduler.runNow(requireContext())
+                                android.widget.Toast.makeText(requireContext(), "Sincronización iniciada...", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onStopSync = {
+                            SyncScheduler.stopAllRunningSyncs(requireContext())
+                            android.widget.Toast.makeText(requireContext(), "Sincronización detenida.", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        isSyncing = isSyncing,
+                        syncProgress = syncProgress,
+                        syncStatus = syncStatus
                     )
                 }
             }

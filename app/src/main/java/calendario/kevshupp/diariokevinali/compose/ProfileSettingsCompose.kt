@@ -649,7 +649,23 @@ fun SettingsScreen(
     updateInterval: Long,
     onUpdateIntervalChange: (Long) -> Unit,
     appointmentLeadTime: Long,
-    onAppointmentLeadTimeChange: (Long) -> Unit
+    onAppointmentLeadTimeChange: (Long) -> Unit,
+    googleAccountEmail: String?,
+    selectedFolderUri: String?,
+    syncIntervalMinutes: Long,
+    wifiOnly: Boolean,
+    chargingOnly: Boolean,
+    onLinkGoogleDrive: () -> Unit,
+    onUnlinkGoogleDrive: () -> Unit,
+    onSelectLocalFolder: () -> Unit,
+    onIntervalChange: (Long) -> Unit,
+    onWifiOnlyChange: (Boolean) -> Unit,
+    onChargingOnlyChange: (Boolean) -> Unit,
+    onSyncNow: () -> Unit,
+    onStopSync: () -> Unit,
+    isSyncing: Boolean,
+    syncProgress: Int = -1,
+    syncStatus: String = ""
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val isMono = currentTheme == "Pixel Monocromático"
@@ -835,6 +851,28 @@ fun SettingsScreen(
                 Text("1d", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SettingsSyncCompose(
+            currentTheme = currentTheme,
+            googleAccountEmail = googleAccountEmail,
+            selectedFolderUri = selectedFolderUri,
+            syncIntervalMinutes = syncIntervalMinutes,
+            wifiOnly = wifiOnly,
+            chargingOnly = chargingOnly,
+            onLinkGoogleDrive = onLinkGoogleDrive,
+            onUnlinkGoogleDrive = onUnlinkGoogleDrive,
+            onSelectLocalFolder = onSelectLocalFolder,
+            onIntervalChange = onIntervalChange,
+            onWifiOnlyChange = onWifiOnlyChange,
+            onChargingOnlyChange = onChargingOnlyChange,
+            onSyncNow = onSyncNow,
+            onStopSync = onStopSync,
+            isSyncing = isSyncing,
+            syncProgress = syncProgress,
+            syncStatus = syncStatus
+        )
 
         Spacer(modifier = Modifier.height(32.dp))
 

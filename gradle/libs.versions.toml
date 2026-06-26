@@ -19,6 +19,10 @@ composeBom = "2024.10.01"
 activityCompose = "1.9.3"
 lifecycleRuntimeCompose = "2.8.6"
 work = "2.9.1"
+playServicesAuth = "21.2.0"
+googleApiDrive = "v3-rev20230822-2.0.0"
+googleApiClient = "2.2.0"
+googleHttpClientGson = "1.44.1"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -47,6 +51,10 @@ ucrop = { group = "com.github.yalantis", name = "ucrop", version.ref = "ucrop" }
 google-auth = { group = "com.google.auth", name = "google-auth-library-oauth2-http", version.ref = "googleAuth" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+google-api-services-drive = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "googleApiDrive" }
+google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClient" }
+google-http-client-gson = { group = "com.google.http-client", name = "google-http-client-gson", version.ref = "googleHttpClientGson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

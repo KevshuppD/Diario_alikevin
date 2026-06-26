@@ -76,7 +76,10 @@ fun setFeedContent(
     onFeedPet: (foodId: String, cost: Int, happinessGain: Int) -> Unit,
     onRewardPet: (points: Int, exp: Int) -> Unit,
     onToggleSleep: () -> Unit,
-    onPickImage: () -> Unit
+    onPickImage: () -> Unit,
+    onBathPet: () -> Unit,
+    onPlayBallPet: (points: Int, happinessGain: Int) -> Unit,
+    onPlayMinigame: (gameType: String, points: Int, exp: Int) -> Unit
 ) {
     composeView.setContent {
         val isDark = themeState.value == "Pixel Oscuro"
@@ -96,7 +99,10 @@ fun setFeedContent(
                 onEquipAccessory = onEquipAccessory,
                 onFeedPet = onFeedPet,
                 onRewardPet = onRewardPet,
-                onToggleSleep = onToggleSleep
+                onToggleSleep = onToggleSleep,
+                onBathPet = onBathPet,
+                onPlayBallPet = onPlayBallPet,
+                onPlayMinigame = onPlayMinigame
             )
 
             if (showEditorState.value) {
@@ -137,7 +143,10 @@ fun MessageFeedScreen(
     onEquipAccessory: (String) -> Unit,
     onFeedPet: (String, Int, Int) -> Unit,
     onRewardPet: (Int, Int) -> Unit,
-    onToggleSleep: () -> Unit
+    onToggleSleep: () -> Unit,
+    onBathPet: () -> Unit,
+    onPlayBallPet: (Int, Int) -> Unit,
+    onPlayMinigame: (String, Int, Int) -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
     var selectedMessageForMenu by remember { mutableStateOf<Message?>(null) }
@@ -157,7 +166,10 @@ fun MessageFeedScreen(
             onEquipAccessory = onEquipAccessory,
             onFeedPet = onFeedPet,
             onRewardPet = onRewardPet,
-            onToggleSleep = onToggleSleep
+            onToggleSleep = onToggleSleep,
+            onBathPet = onBathPet,
+            onPlayBallPet = onPlayBallPet,
+            onPlayMinigame = onPlayMinigame
         )
     }
 
@@ -847,6 +859,46 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Barra de Limpieza
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Limpieza 🧼",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                color = if (isDark) Color.LightGray else Color.DarkGray
+                            )
+                            Text(
+                                text = "${pet.cleanliness}%",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color.Black
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .border(1.dp, borderColor.copy(alpha = 0.5f))
+                                .background(Color.Gray.copy(alpha = 0.2f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(pet.cleanliness / 100f)
+                                    .fillMaxHeight()
+                                    .background(if (pet.cleanliness < 30) Color(0xFFF44336) else Color(0xFF0EA5E9))
+                            )
+                        }
+                    }
                 }
             }
 
@@ -914,13 +966,20 @@ fun PetMenuDialog(
     onEquipAccessory: (String) -> Unit,
     onFeedPet: (String, Int, Int) -> Unit,
     onRewardPet: (Int, Int) -> Unit,
-    onToggleSleep: () -> Unit
+    onToggleSleep: () -> Unit,
+    onBathPet: () -> Unit,
+    onPlayBallPet: (Int, Int) -> Unit,
+    onPlayMinigame: (String, Int, Int) -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var newName by remember { mutableStateOf(pet.name) }
     var showGameSelector by remember { mutableStateOf(false) }
     var showMemoryGame by remember { mutableStateOf(false) }
     var showSnakeGame by remember { mutableStateOf(false) }
+    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date()) }
+    val playedBallToday = pet.lastBallDate == today
+    val playedMemoryToday = pet.lastMemoryDate == today
+    val playedSnakeToday = pet.lastSnakeDate == today
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
@@ -1302,6 +1361,8 @@ fun PetMenuDialog(
                                     .clickable {
                                         if (pet.isSleeping) {
                                             android.widget.Toast.makeText(context, "💤 ¡Thor está durmiendo profundamente!", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else if (playedBallToday) {
+                                            android.widget.Toast.makeText(context, "¡Ya jugaste con la pelota hoy! ⚾", android.widget.Toast.LENGTH_SHORT).show()
                                         } else {
                                             scope.launch {
                                                 isPlayingBall = true
@@ -1309,7 +1370,7 @@ fun PetMenuDialog(
                                                 ballX.snapTo(80f)
                                                 ballY.animateTo(80f, animationSpec = tween(500, easing = EaseInQuad))
                                                 dIsClicked = true
-                                                onRewardPet(2, 0)
+                                                onPlayBallPet(10, 20)
                                                 
                                                 ballY.animateTo(10f, animationSpec = tween(400, easing = EaseOutQuad))
                                                 ballX.animateTo(130f, animationSpec = tween(400, easing = EaseOutQuad))
@@ -1325,10 +1386,10 @@ fun PetMenuDialog(
                                         .fillMaxWidth()
                                         .height(38.dp)
                                         .border(2.dp, borderColor)
-                                        .background(Color(0xFFE2725B)),
+                                        .background(if (playedBallToday) Color.Gray else Color(0xFFE2725B)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("⚾ PELOTA", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                                    Text(if (playedBallToday) "⚾ PELOTA (1/1)" else "⚾ PELOTA", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
                                 }
                             }
 
@@ -1344,7 +1405,7 @@ fun PetMenuDialog(
                                             scope.launch {
                                                 isWashing = true
                                                 bubbleOffsetY.snapTo(120f)
-                                                onRewardPet(0, 3)
+                                                onBathPet()
                                                 dIsClicked = true
                                                 bubbleOffsetY.animateTo(-60f, animationSpec = tween(1800, easing = LinearEasing))
                                                 isWashing = false
@@ -1401,6 +1462,12 @@ fun PetMenuDialog(
                         
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
                             InfoStat("Hambre 🍖", "${pet.hunger}%", Color(0xFFFF9800))
+                            InfoStat("Limpieza 🧼", "${pet.cleanliness}%", Color(0xFF0EA5E9))
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
                             InfoStat("Sueño 💤", if (pet.isSleeping) "Dormido" else "Despierto", Color(0xFF9C27B0))
                         }
                         
@@ -1664,14 +1731,24 @@ fun PetMenuDialog(
     if (showGameSelector) {
         MinigamesSelectorDialog(
             isDark = isDark,
+            playedMemoryToday = playedMemoryToday,
+            playedSnakeToday = playedSnakeToday,
             onDismiss = { showGameSelector = false },
             onPlayMemory = {
-                showGameSelector = false
-                showMemoryGame = true
+                if (playedMemoryToday) {
+                    android.widget.Toast.makeText(context, "¡Ya jugaste a Retro Memory hoy! 🧠", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    showGameSelector = false
+                    showMemoryGame = true
+                }
             },
             onPlaySnake = {
-                showGameSelector = false
-                showSnakeGame = true
+                if (playedSnakeToday) {
+                    android.widget.Toast.makeText(context, "¡Ya jugaste a La Serpiente hoy! 🐍", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    showGameSelector = false
+                    showSnakeGame = true
+                }
             }
         )
     }
@@ -1680,7 +1757,7 @@ fun PetMenuDialog(
         MemoryGameDialog(
             isDark = isDark,
             onDismiss = { showMemoryGame = false },
-            onReward = onRewardPet
+            onReward = { pts, exp -> onPlayMinigame("memory", pts, exp) }
         )
     }
 
@@ -1688,7 +1765,7 @@ fun PetMenuDialog(
         SnakeGameDialog(
             isDark = isDark,
             onDismiss = { showSnakeGame = false },
-            onReward = onRewardPet
+            onReward = { pts, exp -> onPlayMinigame("snake", pts, exp) }
         )
     }
 }
@@ -2062,6 +2139,8 @@ fun MemoryGameDialog(
 @Composable
 fun MinigamesSelectorDialog(
     isDark: Boolean,
+    playedMemoryToday: Boolean,
+    playedSnakeToday: Boolean,
     onDismiss: () -> Unit,
     onPlayMemory: () -> Unit,
     onPlaySnake: () -> Unit
@@ -2099,7 +2178,7 @@ fun MinigamesSelectorDialog(
                         .fillMaxWidth()
                         .padding(bottom = 12.dp)
                         .border(2.dp, borderColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (playedMemoryToday) Color.Gray else if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
                     shape = RectangleShape
                 ) {
                     Row(
@@ -2113,8 +2192,8 @@ fun MinigamesSelectorDialog(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(horizontalAlignment = Alignment.Start) {
-                            Text("🧠 RETRO MEMORY", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
-                            Text("¡Encuentra ropa pixel-art de Thor!", fontFamily = Vt323, fontSize = 14.sp, color = contentColor.copy(alpha = 0.7f))
+                            Text(if (playedMemoryToday) "🧠 RETRO MEMORY (1/1)" else "🧠 RETRO MEMORY", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                            Text(if (playedMemoryToday) "Completado por hoy. Vuelve mañana." else "¡Encuentra ropa pixel-art de Thor!", fontFamily = Vt323, fontSize = 14.sp, color = contentColor.copy(alpha = 0.7f))
                         }
                     }
                 }
@@ -2126,7 +2205,7 @@ fun MinigamesSelectorDialog(
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
                         .border(2.dp, borderColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (playedSnakeToday) Color.Gray else if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
                     shape = RectangleShape
                 ) {
                     Row(
@@ -2140,8 +2219,8 @@ fun MinigamesSelectorDialog(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(horizontalAlignment = Alignment.Start) {
-                            Text("🐍 LA SERPIENTE", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
-                            Text("¡Come manzanas y haz crecer tu cuerpo!", fontFamily = Vt323, fontSize = 14.sp, color = contentColor.copy(alpha = 0.7f))
+                            Text(if (playedSnakeToday) "🐍 LA SERPIENTE (1/1)" else "🐍 LA SERPIENTE", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                            Text(if (playedSnakeToday) "Completado por hoy. Vuelve mañana." else "¡Come manzanas y haz crecer tu cuerpo!", fontFamily = Vt323, fontSize = 14.sp, color = contentColor.copy(alpha = 0.7f))
                         }
                     }
                 }

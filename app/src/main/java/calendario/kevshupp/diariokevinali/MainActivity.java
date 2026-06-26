@@ -180,6 +180,56 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             }
     );
 
+    private final androidx.activity.result.ActivityResultLauncher<Intent> googleSignInLauncher = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                Log.d("MainActivity", "Resultado de Google Sign-In recibido. ResultCode: " + result.getResultCode());
+                if (result.getData() != null) {
+                    com.google.android.gms.tasks.Task<com.google.android.gms.auth.api.signin.GoogleSignInAccount> task = 
+                        com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.getData());
+                    try {
+                        com.google.android.gms.auth.api.signin.GoogleSignInAccount account = task.getResult(com.google.android.gms.common.api.ApiException.class);
+                        if (account != null && result.getResultCode() == RESULT_OK) {
+                            String email = account.getEmail();
+                            SharedPreferences prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE);
+                            prefs.edit().putString("syncGoogleAccountEmail", email).apply();
+                            Toast.makeText(this, "Vinculado con " + email, Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(this, "Vinculación no completada (ResultCode: " + result.getResultCode() + ")", Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (com.google.android.gms.common.api.ApiException e) {
+                        Log.e("MainActivity", "Error al iniciar sesión de Google. Status Code: " + e.getStatusCode() + ", msg: " + e.getMessage());
+                        Toast.makeText(this, "Error de vinculación (Código: " + e.getStatusCode() + "). Revisa tu configuración SHA-1 en Google Cloud/Firebase.", Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    Toast.makeText(this, "Vinculación cancelada. ResultCode: " + result.getResultCode(), Toast.LENGTH_LONG).show();
+                }
+            }
+    );
+
+    private final androidx.activity.result.ActivityResultLauncher<Intent> localFolderLauncher = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Uri uri = result.getData().getData();
+                    if (uri != null) {
+                        try {
+                            int takeFlags = result.getData().getFlags() 
+                                    & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                            getContentResolver().takePersistableUriPermission(uri, takeFlags);
+                            
+                            SharedPreferences prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE);
+                            prefs.edit().putString("syncLocalFolderUri", uri.toString()).apply();
+                            Toast.makeText(this, "Carpeta vinculada correctamente", Toast.LENGTH_SHORT).show();
+                        } catch (SecurityException e) {
+                            Log.e("MainActivity", "Error al persistir permisos: " + e.getMessage());
+                            Toast.makeText(this, "Error al guardar carpeta: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+            }
+    );
+
     private androidx.fragment.app.Fragment fragment;
     private FirebaseFirestore db;
     private ListenerRegistration firestoreListener, calendarListener, userListener, petListener;
@@ -684,7 +734,152 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 }
                 return kotlin.Unit.INSTANCE;
             },
-            () -> { pickImage(PICK_IMAGE_CARTA); return kotlin.Unit.INSTANCE; }
+            () -> { pickImage(PICK_IMAGE_CARTA); return kotlin.Unit.INSTANCE; },
+            // onBathPet
+            () -> {
+                Pet p = petState.getValue();
+                if (p != null) {
+                    if (p.isSleeping()) {
+                        Toast.makeText(MainActivity.this, "💤 ¡Thor está durmiendo!", Toast.LENGTH_SHORT).show();
+                        return kotlin.Unit.INSTANCE;
+                    }
+                    int newHappiness = Math.min(100, p.getHappiness() + 10);
+                    int newExp = p.getExperience() + 3;
+                    int newLevel = p.getLevel();
+                    int newLovePoints = p.getLovePoints();
+                    boolean leveledUp = false;
+                    if (newExp >= 100) {
+                        newLevel++;
+                        newExp -= 100;
+                        newLovePoints += 50;
+                        leveledUp = true;
+                    }
+                    String newStatus = p.getStatus();
+                    if (newHappiness > 40 && Pet.STATUS_SAD.equals(newStatus)) {
+                        newStatus = Pet.STATUS_HAPPY;
+                    }
+                    final boolean showLevelUpToast = leveledUp;
+                    final int finalLevel = newLevel;
+                    long now = System.currentTimeMillis();
+                    String today = dayFormat.format(new java.util.Date(now));
+                    db.collection("pets").document(currentCoupleId)
+                        .update("cleanliness", 100,
+                                "happiness", newHappiness,
+                                "experience", newExp,
+                                "level", newLevel,
+                                "lovePoints", newLovePoints,
+                                "status", newStatus,
+                                "lastBathDate", today,
+                                "lastInteraction", now)
+                        .addOnSuccessListener(aVoid -> {
+                            Toast.makeText(MainActivity.this, "¡Thor ha quedado súper limpio! 🫧🚿", Toast.LENGTH_SHORT).show();
+                            if (showLevelUpToast) {
+                                Toast.makeText(MainActivity.this, "¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉", Toast.LENGTH_LONG).show();
+                            }
+                        });
+                }
+                return kotlin.Unit.INSTANCE;
+            },
+            // onPlayBallPet
+            (points, happinessGain) -> {
+                Pet p = petState.getValue();
+                if (p != null) {
+                    long now = System.currentTimeMillis();
+                    String today = dayFormat.format(new java.util.Date(now));
+                    if (today.equals(p.getLastBallDate())) {
+                        Toast.makeText(MainActivity.this, "¡Ya jugaste con la pelota hoy! ⚾", Toast.LENGTH_SHORT).show();
+                        return kotlin.Unit.INSTANCE;
+                    }
+                    int newHappiness = Math.min(100, p.getHappiness() + happinessGain);
+                    int newLovePoints = p.getLovePoints() + points;
+                    int newExp = p.getExperience() + 10;
+                    int newLevel = p.getLevel();
+                    boolean leveledUp = false;
+                    if (newExp >= 100) {
+                        newLevel++;
+                        newExp -= 100;
+                        newLovePoints += 50;
+                        leveledUp = true;
+                    }
+                    String newStatus = p.getStatus();
+                    if (newHappiness > 40 && Pet.STATUS_SAD.equals(newStatus)) {
+                        newStatus = Pet.STATUS_HAPPY;
+                    }
+                    final boolean showLevelUpToast = leveledUp;
+                    final int finalLevel = newLevel;
+                    db.collection("pets").document(currentCoupleId)
+                        .update("happiness", newHappiness,
+                                "lovePoints", newLovePoints,
+                                "experience", newExp,
+                                "level", newLevel,
+                                "status", newStatus,
+                                "lastBallDate", today,
+                                "lastInteraction", now)
+                        .addOnSuccessListener(aVoid -> {
+                            Toast.makeText(MainActivity.this, "¡Jugaste a la pelota con Thor! ⚾", Toast.LENGTH_SHORT).show();
+                            if (showLevelUpToast) {
+                                Toast.makeText(MainActivity.this, "¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉", Toast.LENGTH_LONG).show();
+                            }
+                        });
+                }
+                return kotlin.Unit.INSTANCE;
+            },
+            // onPlayMinigame
+            (gameType, points, exp) -> {
+                Pet p = petState.getValue();
+                if (p != null) {
+                    long now = System.currentTimeMillis();
+                    String today = dayFormat.format(new java.util.Date(now));
+                    String updateDateField = "memory".equals(gameType) ? "lastMemoryDate" : "lastSnakeDate";
+                    
+                    if ("memory".equals(gameType) && today.equals(p.getLastMemoryDate())) {
+                        Toast.makeText(MainActivity.this, "¡Ya jugaste a Retro Memory hoy! 🧠", Toast.LENGTH_SHORT).show();
+                        return kotlin.Unit.INSTANCE;
+                    }
+                    if ("snake".equals(gameType) && today.equals(p.getLastSnakeDate())) {
+                        Toast.makeText(MainActivity.this, "¡Ya jugaste a La Serpiente hoy! 🐍", Toast.LENGTH_SHORT).show();
+                        return kotlin.Unit.INSTANCE;
+                    }
+                    
+                    int newExp = p.getExperience() + exp;
+                    int newLevel = p.getLevel();
+                    int newLovePoints = p.getLovePoints() + points;
+                    int newHappiness = Math.min(100, p.getHappiness() + 15);
+                    String newStatus = p.getStatus();
+                    if (newHappiness > 40 && Pet.STATUS_SAD.equals(newStatus)) {
+                        newStatus = Pet.STATUS_HAPPY;
+                    }
+                    boolean leveledUp = false;
+                    if (newExp >= 100) {
+                        newLevel++;
+                        newExp -= 100;
+                        newLovePoints += 50;
+                        leveledUp = true;
+                    }
+                    final boolean showLevelUpToast = leveledUp;
+                    final int finalLevel = newLevel;
+                    
+                    db.collection("pets").document(currentCoupleId)
+                        .update("lovePoints", newLovePoints,
+                                "experience", newExp,
+                                "level", newLevel,
+                                "happiness", newHappiness,
+                                "status", newStatus,
+                                "hunger", 0,
+                                updateDateField, today,
+                                "lastInteraction", now)
+                        .addOnSuccessListener(aVoid -> {
+                            Toast.makeText(MainActivity.this, "¡Premio reclamado! +" + points + " ❤️ y +" + exp + " EXP 🥰", Toast.LENGTH_SHORT).show();
+                            if (showLevelUpToast) {
+                                Toast.makeText(MainActivity.this, "¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉", Toast.LENGTH_LONG).show();
+                            }
+                        })
+                        .addOnFailureListener(err -> {
+                            Log.e("Minigame", "Error al actualizar recompensa: " + err.getMessage());
+                        });
+                }
+                return kotlin.Unit.INSTANCE;
+            }
         );
     }
 
@@ -847,6 +1042,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             .putString("pet_accessory", p.getEquippedAccessory() != null ? p.getEquippedAccessory() : "none")
             .putBoolean("pet_sleeping", p.isSleeping())
             .putInt("pet_hunger", p.getHunger())
+            .putInt("pet_cleanliness", p.getCleanliness())
             .apply();
         ThorWidgetProvider.triggerUpdate(this);
     }
@@ -877,6 +1073,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         // Calcular hambre: aumenta en 4 por hora sin interactuar (evita decrementos por compensación de tiempo)
         int newHunger = Math.max(p.getHunger(), Math.min(100, (int) (hours * 4)));
         
+        // Calcular limpieza: disminuye en 3 por hora sin interactuar
+        int newCleanliness = Math.max(0, p.getCleanliness() - (int) (hours * 3));
+        
         int newHappiness = p.getHappiness();
         long lastInteractionCompensated = p.getLastInteraction();
         
@@ -899,12 +1098,14 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         
         boolean hasChanged = newHappiness != p.getHappiness() 
                 || newHunger != p.getHunger() 
+                || newCleanliness != p.getCleanliness()
                 || !newStatus.equals(p.getStatus());
                 
         if (hasChanged) {
             db.collection("pets").document(currentCoupleId)
                 .update("happiness", newHappiness, 
                         "hunger", newHunger,
+                        "cleanliness", newCleanliness,
                         "status", newStatus,
                         "lastInteraction", lastInteractionCompensated);
         }
@@ -1688,5 +1889,28 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         hsv[1] = 0.6f;  // Moderate saturation
         hsv[2] = 0.10f; // Very low brightness (almost black/midnight)
         return Color.HSVToColor(hsv);
+    }
+
+    public void linkGoogleDriveAccount() {
+        com.google.android.gms.auth.api.signin.GoogleSignInOptions gso = 
+            new com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail()
+                .requestScopes(new com.google.android.gms.common.api.Scope(com.google.api.services.drive.DriveScopes.DRIVE_FILE))
+                .build();
+        com.google.android.gms.auth.api.signin.GoogleSignInClient client = 
+            com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(this, gso);
+        
+        // Desconectar sesión previa para forzar selector de cuenta si es necesario
+        client.signOut().addOnCompleteListener(task -> {
+            googleSignInLauncher.launch(client.getSignInIntent());
+        });
+    }
+
+    public void selectLocalFolder() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        localFolderLauncher.launch(intent);
     }
 }

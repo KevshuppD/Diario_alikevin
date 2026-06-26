@@ -13,7 +13,12 @@ data class Pet(
     var equippedAccessory: String? = null,
     var unlockedAccessories: List<String> = mutableListOf(),
     var isSleeping: Boolean = false,
-    var hunger: Int = 0
+    var hunger: Int = 0,
+    var cleanliness: Int = 100,
+    var lastBallDate: String? = null,
+    var lastSnakeDate: String? = null,
+    var lastMemoryDate: String? = null,
+    var lastBathDate: String? = null
 ) {
     companion object {
         const val STATUS_HAPPY = "FELIZ"
