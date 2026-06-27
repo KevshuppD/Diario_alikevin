@@ -145,7 +145,7 @@ fun SettingsSyncCompose(
             }
 
             // FASE 3: Ajustes de Sincronización
-            Divider(color = borderColor.copy(alpha = 0.3f), thickness = 2.dp, modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 2.dp, modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
                 text = "Frecuencia de Sincronización:",
