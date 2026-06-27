@@ -1,5 +1,7 @@
 package calendario.kevshupp.diariokevinali
 
+import com.google.firebase.firestore.PropertyName
+
 data class Pet(
     var happiness: Int = 100,
     var level: Int = 1,
@@ -12,6 +14,8 @@ data class Pet(
     var lastInteractionDate: String? = null, // Formato yyyy-MM-dd
     var equippedAccessory: String? = null,
     var unlockedAccessories: List<String> = mutableListOf(),
+    @get:PropertyName("isSleeping")
+    @set:PropertyName("isSleeping")
     var isSleeping: Boolean = false,
     var hunger: Int = 0,
     var cleanliness: Int = 100,

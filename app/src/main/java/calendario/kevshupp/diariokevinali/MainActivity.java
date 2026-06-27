@@ -274,7 +274,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                             "status", Pet.STATUS_SLEEPING,
                             "dndTriggeredByUserId", currentUserId)
                     .addOnSuccessListener(aVoid -> {
-                        Toast.makeText(MainActivity.this, "Thor se durmió porque activaste No Molestar 🌙", Toast.LENGTH_SHORT).show();
+                        showStyledPixelToast("Thor se durmió porque activaste No Molestar 🌙");
                     });
             }
         } else {
@@ -288,7 +288,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                             "lastInteraction", System.currentTimeMillis(),
                             "dndTriggeredByUserId", null)
                     .addOnSuccessListener(aVoid -> {
-                        Toast.makeText(MainActivity.this, "¡Thor despertó al desactivar No Molestar! ☀️", Toast.LENGTH_SHORT).show();
+                        showStyledPixelToast("¡Thor despertó al desactivar No Molestar! ☀️");
                     });
             }
         }
@@ -886,7 +886,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                     "lastDecayUpdate", nextDecayUpdate,
                                     "dndTriggeredByUserId", null)
                             .addOnSuccessListener(aVoid -> {
-                                Toast.makeText(MainActivity.this, "¡Thor se ha ido a dormir! 🌙 Shhh...", Toast.LENGTH_SHORT).show();
+                                showStyledPixelToast("¡Thor se ha ido a dormir! 🌙 Shhh...");
                             });
                     } else {
                         newHappiness = Math.min(100, newHappiness + 20);
@@ -902,7 +902,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                     "lastDecayUpdate", nextDecayUpdate,
                                     "dndTriggeredByUserId", null)
                             .addOnSuccessListener(aVoid -> {
-                                Toast.makeText(MainActivity.this, "¡Thor ha despertado muy alegre! ☀️ +20% Felicidad", Toast.LENGTH_SHORT).show();
+                                showStyledPixelToast("¡Thor ha despertado muy alegre! ☀️ +20% Felicidad");
                             });
                     }
                 }
@@ -2061,6 +2061,71 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     }
 
     public String getCurrentTheme() { return currentTheme; }
+
+    public void showStyledPixelToast(String message) {
+        runOnUiThread(() -> {
+            try {
+                if (isFinishing() || isDestroyed()) return;
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                LinearLayout layout = new LinearLayout(MainActivity.this);
+                layout.setOrientation(LinearLayout.VERTICAL);
+                
+                float density = getResources().getDisplayMetrics().density;
+                int paddingHorizontal = (int) (24 * density);
+                int paddingVertical = (int) (16 * density);
+                layout.setPadding(paddingHorizontal, paddingVertical, paddingHorizontal, paddingVertical);
+                
+                TextView textView = new TextView(MainActivity.this);
+                textView.setText(message);
+                textView.setTextSize(18);
+                textView.setGravity(android.view.Gravity.CENTER);
+                
+                try {
+                    textView.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(MainActivity.this, R.font.vt323));
+                } catch (Exception e) {
+                    // Ignorar
+                }
+                
+                layout.addView(textView);
+                
+                boolean isDark = "Pixel Oscuro".equals(currentTheme);
+                if (isDark) {
+                    layout.setBackgroundResource(R.drawable.bg_parchment_pixel_dark);
+                    textView.setTextColor(Color.WHITE);
+                } else {
+                    layout.setBackgroundResource(R.drawable.bg_parchment_pixel);
+                    textView.setTextColor(Color.parseColor("#4A2511")); // chocolate
+                }
+                
+                builder.setView(layout);
+                AlertDialog dialog = builder.create();
+                
+                if (dialog.getWindow() != null) {
+                    dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+                    dialog.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+                    
+                    android.view.WindowManager.LayoutParams wlp = dialog.getWindow().getAttributes();
+                    wlp.gravity = android.view.Gravity.BOTTOM;
+                    wlp.y = (int) (100 * density);
+                    dialog.getWindow().setAttributes(wlp);
+                }
+                
+                dialog.show();
+                
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    try {
+                        if (!isFinishing() && !isDestroyed() && dialog.isShowing()) {
+                            dialog.dismiss();
+                        }
+                    } catch (Exception e) {
+                        // Ignorar
+                    }
+                }, 2500);
+            } catch (Exception e) {
+                Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
     public UpdateManager getUpdateManager() { return updateManager; }
     public ProgressBar getDownloadProgressBar() { return downloadProgressBar; }
     public View getDownloadProgressContainer() { return downloadProgressContainer; }

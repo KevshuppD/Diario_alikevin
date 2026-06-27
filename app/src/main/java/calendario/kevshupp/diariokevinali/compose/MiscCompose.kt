@@ -95,7 +95,7 @@ fun MiscGridView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "◀",
+                text = "<",
                 fontFamily = Vt323,
                 fontSize = 24.sp,
                 color = textColor,
@@ -105,7 +105,7 @@ fun MiscGridView(
             )
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                text = "MISCELÁNEO 🌟",
+                text = "MISCELÁNEO",
                 fontFamily = Vt323,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
@@ -249,6 +249,31 @@ fun SpiritsChecklistView(
             .set(mapOf(targetUserKey to newList), SetOptions.merge())
     }
 
+    var showAllList by remember { mutableStateOf(false) }
+    var expandedCategories by remember { mutableStateOf(emptySet<String>()) }
+
+    val categories = remember {
+        listOf(
+            SpiritCategory("Espíritu de Agua", (1..4).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu Dormilón", (5..8).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu de Tierra", (9..12).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu del Cacahuete", listOf("13")),
+            SpiritCategory("Espíritu Demoníaco", (14..17).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu de Fuego", (18..21).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu Punk", (22..25).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu Pato", (26..29).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu Rey", (30..33).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu Fantasma", (34..37).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu del Punto Cero", (38..41).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu de Aura", (42..45).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu de la Fundación", (46..49).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu de la Parca", (50..53).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu Futbolero", (54..57).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu Jefe", (58..61).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu Pescado", (62..65).map { String.format("%02d", it) })
+        )
+    }
+
     val spiritsList = remember { (1..65).map { String.format("%02d", it) } }
     val spiritNames = remember {
         listOf(
@@ -294,7 +319,7 @@ fun SpiritsChecklistView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "◀",
+                text = "<",
                 fontFamily = Vt323,
                 fontSize = 24.sp,
                 color = textColor,
@@ -304,11 +329,21 @@ fun SpiritsChecklistView(
             )
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                text = "COLECCIÓN ESPÍRITUS 👻",
+                text = "COLECCIÓN ESPÍRITUS",
                 fontFamily = Vt323,
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
-                color = textColor
+                color = textColor,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = if (showAllList) "[GRUPOS]" else "[LISTA]",
+                fontFamily = Vt323,
+                fontSize = 18.sp,
+                color = textColor,
+                modifier = Modifier
+                    .clickable { showAllList = !showAllList }
+                    .padding(8.dp)
             )
         }
 
@@ -327,7 +362,7 @@ fun SpiritsChecklistView(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "Kevin 🙋‍♂️",
+                            text = "Kevin",
                             fontFamily = Vt323,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
@@ -352,7 +387,7 @@ fun SpiritsChecklistView(
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "Ali 🙋‍♀️",
+                            text = "Ali",
                             fontFamily = Vt323,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
@@ -371,10 +406,10 @@ fun SpiritsChecklistView(
 
                 // Cute Leaderboard message
                 val leaderMsg = when {
-                    kevinList.size > aliList.size -> "¡Kevin va a la cabeza! 🏆"
-                    aliList.size > kevinList.size -> "¡Ali va a la cabeza! 🏆"
-                    kevinList.size > 0 -> "¡Están empatados! 🤜🤛"
-                    else -> "¡Empiecen su colección! 💕"
+                    kevinList.size > aliList.size -> "¡Kevin va a la cabeza!"
+                    aliList.size > kevinList.size -> "¡Ali va a la cabeza!"
+                    kevinList.size > 0 -> "¡Están empatados!"
+                    else -> "¡Empiecen su colección!"
                 }
 
                 Text(
@@ -396,88 +431,76 @@ fun SpiritsChecklistView(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
-            itemsIndexed(spiritsList) { index, spiritId ->
-                val hasKevin = kevinList.contains(spiritId)
-                val hasAli = aliList.contains(spiritId)
-                
-                val spiritResId = remember(spiritId, context) {
-                    val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
-                    if (id != 0) id else android.R.drawable.ic_menu_gallery
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(2.dp, borderColor)
-                        .background(cardBg)
-                        .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Spirit Thumbnail Container (Larger)
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .border(1.dp, borderColor.copy(alpha = 0.5f))
-                            .background(if (isDark) Color(0xFF121212) else Color(0xFFFFFDF5)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            painter = painterResource(id = spiritResId),
-                            contentDescription = "Espíritu $spiritId",
-                            modifier = Modifier.size(64.dp)
-                        )
+            if (showAllList) {
+                itemsIndexed(spiritsList) { index, spiritId ->
+                    val hasKevin = kevinList.contains(spiritId)
+                    val hasAli = aliList.contains(spiritId)
+                    val spiritResId = remember(spiritId, context) {
+                        val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
+                        if (id != 0) id else android.R.drawable.ic_menu_gallery
                     }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    // Title
-                    val spiritName = spiritNames.getOrElse(index) { "Espíritu #$spiritId" }
-                    Text(
-                        text = spiritName,
-                        fontFamily = Vt323,
-                        fontSize = 18.sp,
-                        color = textColor,
-                        modifier = Modifier.weight(1f)
+                    SpiritRow(
+                        spiritId = spiritId,
+                        spiritResId = spiritResId,
+                        spiritName = spiritNames.getOrElse(index) { "Espíritu #$spiritId" },
+                        hasKevin = hasKevin,
+                        hasAli = hasAli,
+                        isKevin = isKevin,
+                        isDark = isDark,
+                        borderColor = borderColor,
+                        textColor = textColor,
+                        cardBg = cardBg,
+                        onToggleCheck = onToggleCheck
                     )
-
-                    // Kevin's Checkbox & Label
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 6.dp)
-                    ) {
-                        Text(
-                            text = "K",
-                            fontFamily = Vt323,
-                            fontSize = 12.sp,
-                            color = textColor.copy(alpha = 0.7f)
-                        )
-                        RetroCheckbox(
-                            checked = hasKevin,
-                            enabled = isKevin,
+                }
+            } else {
+                categories.forEach { category ->
+                    val isExpanded = expandedCategories.contains(category.name)
+                    val categoryKevinCount = category.spiritIds.count { kevinList.contains(it) }
+                    val categoryAliCount = category.spiritIds.count { aliList.contains(it) }
+                    
+                    item(key = category.name) {
+                        CategoryHeader(
+                            category = category,
+                            isExpanded = isExpanded,
                             borderColor = borderColor,
-                            onCheckedChange = { onToggleCheck(spiritId, hasKevin, "kevin_list") }
+                            cardBg = cardBg,
+                            textColor = textColor,
+                            kevinCount = categoryKevinCount,
+                            aliCount = categoryAliCount,
+                            onClick = {
+                                expandedCategories = if (isExpanded) {
+                                    expandedCategories - category.name
+                                } else {
+                                    expandedCategories + category.name
+                                }
+                            }
                         )
                     }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Ali's Checkbox & Label
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 6.dp)
-                    ) {
-                        Text(
-                            text = "A",
-                            fontFamily = Vt323,
-                            fontSize = 12.sp,
-                            color = textColor.copy(alpha = 0.7f)
-                        )
-                        RetroCheckbox(
-                            checked = hasAli,
-                            enabled = !isKevin, // enabled if current user is not Kevin (meaning they are Ali)
-                            borderColor = borderColor,
-                            onCheckedChange = { onToggleCheck(spiritId, hasAli, "ali_list") }
-                        )
+                    
+                    if (isExpanded) {
+                        items(category.spiritIds, key = { "spirit_$it" }) { spiritId ->
+                            val index = spiritId.toInt() - 1
+                            val hasKevin = kevinList.contains(spiritId)
+                            val hasAli = aliList.contains(spiritId)
+                            val spiritResId = remember(spiritId, context) {
+                                val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
+                                if (id != 0) id else android.R.drawable.ic_menu_gallery
+                            }
+                            SpiritRow(
+                                spiritId = spiritId,
+                                spiritResId = spiritResId,
+                                spiritName = spiritNames.getOrElse(index) { "Espíritu #$spiritId" },
+                                hasKevin = hasKevin,
+                                hasAli = hasAli,
+                                isKevin = isKevin,
+                                isDark = isDark,
+                                borderColor = borderColor,
+                                textColor = textColor,
+                                cardBg = cardBg,
+                                onToggleCheck = onToggleCheck
+                            )
+                        }
                     }
                 }
             }
@@ -508,6 +531,145 @@ fun RetroCheckbox(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
+            )
+        }
+    }
+}
+
+data class SpiritCategory(
+    val name: String,
+    val spiritIds: List<String>
+)
+
+@Composable
+fun CategoryHeader(
+    category: SpiritCategory,
+    isExpanded: Boolean,
+    borderColor: Color,
+    cardBg: Color,
+    textColor: Color,
+    kevinCount: Int,
+    aliCount: Int,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(2.dp, borderColor)
+            .background(cardBg)
+            .clickable { onClick() }
+            .padding(12.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = if (isExpanded) "v" else ">",
+                fontFamily = Vt323,
+                fontSize = 18.sp,
+                color = textColor,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+            Text(
+                text = category.name,
+                fontFamily = Vt323,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "K: $kevinCount/${category.spiritIds.size} | A: $aliCount/${category.spiritIds.size}",
+                fontFamily = Vt323,
+                fontSize = 16.sp,
+                color = textColor.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
+@Composable
+fun SpiritRow(
+    spiritId: String,
+    spiritResId: Int,
+    spiritName: String,
+    hasKevin: Boolean,
+    hasAli: Boolean,
+    isKevin: Boolean,
+    isDark: Boolean,
+    borderColor: Color,
+    textColor: Color,
+    cardBg: Color,
+    onToggleCheck: (String, Boolean, String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(2.dp, borderColor)
+            .background(cardBg)
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .border(1.dp, borderColor.copy(alpha = 0.5f))
+                .background(if (isDark) Color(0xFF121212) else Color(0xFFFFFDF5)),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(id = spiritResId),
+                contentDescription = "Espíritu $spiritId",
+                modifier = Modifier.size(64.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text(
+            text = spiritName,
+            fontFamily = Vt323,
+            fontSize = 18.sp,
+            color = textColor,
+            modifier = Modifier.weight(1f)
+        )
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 6.dp)
+        ) {
+            Text(
+                text = "K",
+                fontFamily = Vt323,
+                fontSize = 12.sp,
+                color = textColor.copy(alpha = 0.7f)
+            )
+            RetroCheckbox(
+                checked = hasKevin,
+                enabled = isKevin,
+                borderColor = borderColor,
+                onCheckedChange = { onToggleCheck(spiritId, hasKevin, "kevin_list") }
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 6.dp)
+        ) {
+            Text(
+                text = "A",
+                fontFamily = Vt323,
+                fontSize = 12.sp,
+                color = textColor.copy(alpha = 0.7f)
+            )
+            RetroCheckbox(
+                checked = hasAli,
+                enabled = !isKevin,
+                borderColor = borderColor,
+                onCheckedChange = { onToggleCheck(spiritId, hasAli, "ali_list") }
             )
         }
     }

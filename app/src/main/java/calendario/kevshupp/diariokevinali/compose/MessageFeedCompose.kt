@@ -1111,12 +1111,11 @@ fun PetMenuDialog(
                     }
                 }
 
-                // Header con 5 pestañas: INFO, ESTILO, COMIDA, GUÍA, AJUSTES
+                // Header con 4 pestañas: INFO, ESTILO, COMIDA, AJUSTES
                 Row(modifier = Modifier.fillMaxWidth()) {
                     TabItem("INFO", selectedTab == 0, isDark, borderColor) { selectedTab = 0 }
                     TabItem("ESTILO 👑", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
                     TabItem("COMIDA 🐟", selectedTab == 3, isDark, borderColor) { selectedTab = 3 }
-                    TabItem("GUÍA 📖", selectedTab == 2, isDark, borderColor) { selectedTab = 2 }
                     TabItem("⚙️", selectedTab == 4, isDark, borderColor) { selectedTab = 4 }
                 }
 
@@ -1344,6 +1343,7 @@ fun PetMenuDialog(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp)
+                                    .graphicsLayer(alpha = if (pet.isSleeping) 0.5f else 1.0f)
                                     .clickable {
                                         if (pet.isSleeping) {
                                             android.widget.Toast.makeText(context, "💤 ¡Thor está durmiendo profundamente!", android.widget.Toast.LENGTH_SHORT).show()
@@ -1396,7 +1396,7 @@ fun PetMenuDialog(
                                         .fillMaxWidth()
                                         .height(38.dp)
                                         .border(2.dp, borderColor)
-                                        .background(if (playedBallToday) Color.Gray else Color(0xFFE2725B)),
+                                        .background(if (pet.isSleeping) Color.Gray else if (playedBallToday) Color.Gray else Color(0xFFE2725B)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(if (playedBallToday) "⚾ PELOTA (1/1)" else "⚾ PELOTA", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
@@ -1408,6 +1408,7 @@ fun PetMenuDialog(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp)
+                                    .graphicsLayer(alpha = if (pet.isSleeping) 0.5f else 1.0f)
                                     .clickable {
                                         if (pet.isSleeping) {
                                             android.widget.Toast.makeText(context, "💤 ¡Thor está durmiendo!", android.widget.Toast.LENGTH_SHORT).show()
@@ -1431,7 +1432,7 @@ fun PetMenuDialog(
                                         .fillMaxWidth()
                                         .height(38.dp)
                                         .border(2.dp, borderColor)
-                                        .background(if (pet.cleanliness >= 80) Color.Gray else Color(0xFF0EA5E9)),
+                                        .background(if (pet.isSleeping) Color.Gray else if (pet.cleanliness >= 80) Color.Gray else Color(0xFF0EA5E9)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("🧼 BAÑAR", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
@@ -1787,6 +1788,15 @@ fun PetMenuDialog(
                             .verticalScroll(scrollState),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        Button(
+                            onClick = { selectedTab = 4 },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = borderColor),
+                            shape = RectangleShape
+                        ) {
+                            Text("← Volver a Ajustes", fontFamily = Vt323, color = Color.White, fontSize = 16.sp)
+                        }
+
                         Text(
                             "¿Cómo cuidar a ${pet.name}? 🐾",
                             fontFamily = Vt323,
@@ -1981,15 +1991,30 @@ fun PetMenuDialog(
                                 Text("Forzar Sincronización ☁️", fontFamily = Vt323, color = Color.White, fontSize = 16.sp)
                             }
                         }
+
+                        HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
+
+                        // 4. GUÍA
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "Guía de Cuidado de Mascota:",
+                                fontFamily = Vt323,
+                                color = contentColor,
+                                fontSize = 18.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Button(
+                                onClick = { selectedTab = 2 },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = borderColor),
+                                shape = RectangleShape
+                            ) {
+                                Text("📖 Ver Guía de Cuidado", fontFamily = Vt323, color = Color.White, fontSize = 16.sp)
+                            }
+                        }
                     }
                 }
                 
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp)
-                ) {
-                    Text("Cerrar Menú", fontFamily = Vt323, color = contentColor, fontSize = 18.sp)
-                }
             }
         }
     }
