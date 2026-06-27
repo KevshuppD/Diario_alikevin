@@ -1,5 +1,6 @@
 package calendario.kevshupp.diariokevinali
 
+import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
 
 data class Pet(
@@ -14,9 +15,6 @@ data class Pet(
     var lastInteractionDate: String? = null, // Formato yyyy-MM-dd
     var equippedAccessory: String? = null,
     var unlockedAccessories: List<String> = mutableListOf(),
-    @get:PropertyName("isSleeping")
-    @set:PropertyName("isSleeping")
-    var isSleeping: Boolean = false,
     var hunger: Int = 0,
     var cleanliness: Int = 100,
     var lastBallDate: String? = null,
@@ -29,12 +27,25 @@ data class Pet(
     var unlockedBackgrounds: List<String> = listOf("default"),
     var equippedBackground: String = "default"
 ) {
+    @get:Exclude
+    var isSleepingSetFromNewField: Boolean = false
+
+    @get:PropertyName("isSleeping")
+    @set:PropertyName("isSleeping")
+    var isSleeping: Boolean = false
+        set(value) {
+            field = value
+            isSleepingSetFromNewField = true
+        }
+
     @get:PropertyName("sleeping")
     @set:PropertyName("sleeping")
     var sleepingFallback: Boolean
         get() = isSleeping
         set(value) {
-            isSleeping = value
+            if (!isSleepingSetFromNewField) {
+                isSleeping = value
+            }
         }
 
     companion object {
