@@ -1666,6 +1666,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     is = getAssets().open("service-account.json");
                 } catch (IOException e) {
                     Log.e("FCM_V1", "ERROR: No se encontró service-account.json en assets. Las notificaciones no se enviarán.");
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "🚨 ERROR: No se encontró service-account.json en assets.", Toast.LENGTH_LONG).show();
+                    });
                     return;
                 }
 
@@ -1724,9 +1727,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 } else {
                     Log.e("FCM_V1", "Error al enviar notificación: " + code + " - " + finalResp);
                     runOnUiThread(() -> {
-                        if (BuildConfig.DEBUG) {
-                            Toast.makeText(MainActivity.this, "⚠️ FCM Error: " + code, Toast.LENGTH_LONG).show();
-                        }
+                        Toast.makeText(MainActivity.this, "⚠️ FCM Error: " + code + " - " + finalResp, Toast.LENGTH_LONG).show();
                     });
                 }
                 response.close();
@@ -1734,9 +1735,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 Log.e("FCM_V1", "Error crítico enviando FCM: " + e.getMessage(), e); 
                 final String errorMsg = e.getMessage();
                 runOnUiThread(() -> {
-                    if (BuildConfig.DEBUG) {
-                        Toast.makeText(MainActivity.this, "🚨 FCM Exception: " + errorMsg, Toast.LENGTH_LONG).show();
-                    }
+                    Toast.makeText(MainActivity.this, "🚨 FCM Exception: " + errorMsg, Toast.LENGTH_LONG).show();
                 });
             }
         }).start();
