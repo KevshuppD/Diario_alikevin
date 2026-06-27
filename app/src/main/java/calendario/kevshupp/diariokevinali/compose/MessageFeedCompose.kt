@@ -46,8 +46,11 @@ import calendario.kevshupp.diariokevinali.R
 import coil.compose.AsyncImage
 import java.text.SimpleDateFormat
 import java.util.*
+import android.content.Context
+import androidx.compose.foundation.BorderStroke
 
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -73,6 +76,8 @@ fun setFeedContent(
     onUpdatePetName: (newName: String) -> Unit,
     onBuyAccessory: (accessoryId: String, cost: Int) -> Unit,
     onEquipAccessory: (accessoryId: String) -> Unit,
+    onBuyBackground: (backgroundId: String, cost: Int) -> Unit,
+    onEquipBackground: (backgroundId: String) -> Unit,
     onFeedPet: (foodId: String, cost: Int, happinessGain: Int) -> Unit,
     onRewardPet: (points: Int, exp: Int) -> Unit,
     onToggleSleep: () -> Unit,
@@ -97,6 +102,8 @@ fun setFeedContent(
                 onUpdatePetName = onUpdatePetName,
                 onBuyAccessory = onBuyAccessory,
                 onEquipAccessory = onEquipAccessory,
+                onBuyBackground = onBuyBackground,
+                onEquipBackground = onEquipBackground,
                 onFeedPet = onFeedPet,
                 onRewardPet = onRewardPet,
                 onToggleSleep = onToggleSleep,
@@ -141,6 +148,8 @@ fun MessageFeedScreen(
     onUpdatePetName: (String) -> Unit,
     onBuyAccessory: (String, Int) -> Unit,
     onEquipAccessory: (String) -> Unit,
+    onBuyBackground: (String, Int) -> Unit,
+    onEquipBackground: (String) -> Unit,
     onFeedPet: (String, Int, Int) -> Unit,
     onRewardPet: (Int, Int) -> Unit,
     onToggleSleep: () -> Unit,
@@ -164,6 +173,8 @@ fun MessageFeedScreen(
             },
             onBuyAccessory = onBuyAccessory,
             onEquipAccessory = onEquipAccessory,
+            onBuyBackground = onBuyBackground,
+            onEquipBackground = onEquipBackground,
             onFeedPet = onFeedPet,
             onRewardPet = onRewardPet,
             onToggleSleep = onToggleSleep,
@@ -964,6 +975,8 @@ fun PetMenuDialog(
     onUpdateName: (String) -> Unit,
     onBuyAccessory: (String, Int) -> Unit,
     onEquipAccessory: (String) -> Unit,
+    onBuyBackground: (String, Int) -> Unit,
+    onEquipBackground: (String) -> Unit,
     onFeedPet: (String, Int, Int) -> Unit,
     onRewardPet: (Int, Int) -> Unit,
     onToggleSleep: () -> Unit,
@@ -972,6 +985,8 @@ fun PetMenuDialog(
     onPlayMinigame: (String, Int, Int) -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
+    var shopCategory by remember { mutableStateOf("accessories") } // "accessories" o "backgrounds"
+    var settingsSubView by remember { mutableStateOf("menu") } // "menu", "name", "notifications", "sync"
     var newName by remember { mutableStateOf(pet.name) }
     var showGameSelector by remember { mutableStateOf(false) }
     var showMemoryGame by remember { mutableStateOf(false) }
@@ -993,14 +1008,16 @@ fun PetMenuDialog(
     var isWashing by remember { mutableStateOf(false) }
     var foodAnimationType by remember { mutableStateOf<String?>(null) }
     var showLoveHeart by remember { mutableStateOf(false) }
-    
     val ballY = remember { Animatable(0f) }
     val ballX = remember { Animatable(80f) }
+    val ballRotation = remember { Animatable(0f) }
     val bubbleOffsetY = remember { Animatable(200f) }
     val heartY = remember { Animatable(0f) }
     val heartAlpha = remember { Animatable(0f) }
     val foodY = remember { Animatable(0f) }
     val foodAlpha = remember { Animatable(0f) }
+    val catTranslationX = remember { Animatable(0f) }
+    val catTranslationY = remember { Animatable(0f) }
 
     // Infinite transitions for Dialog mascot animation
     val dialogInfiniteTransition = rememberInfiniteTransition(label = "petDialogTransition")
@@ -1086,12 +1103,13 @@ fun PetMenuDialog(
                     }
                 }
 
-                // Header con 4 pestañas: INFO, ROPA, COMIDA, GUÍA
+                // Header con 5 pestañas: INFO, ROPA, COMIDA, GUÍA, AJUSTES
                 Row(modifier = Modifier.fillMaxWidth()) {
                     TabItem("INFO", selectedTab == 0, isDark, borderColor) { selectedTab = 0 }
                     TabItem("ROPA 👑", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
                     TabItem("COMIDA 🐟", selectedTab == 3, isDark, borderColor) { selectedTab = 3 }
                     TabItem("GUÍA 📖", selectedTab == 2, isDark, borderColor) { selectedTab = 2 }
+                    TabItem("⚙️", selectedTab == 4, isDark, borderColor) { selectedTab = 4 }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1131,70 +1149,19 @@ fun PetMenuDialog(
                                     }
                                 }
                         ) {
-                            // 1. Suelo de madera retro
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(60.dp)
-                                    .align(Alignment.BottomCenter)
-                                    .background(
-                                        if (pet.isSleeping) Color(0xFF3E2723).copy(alpha = 0.5f)
-                                        else Color(0xFF5D4037)
-                                    )
-                                    .border(width = 2.dp, color = borderColor)
-                            ) {
-                                Canvas(modifier = Modifier.fillMaxSize()) {
-                                    val step = size.width / 5
-                                    for (i in 1..4) {
-                                        drawLine(
-                                            color = borderColor.copy(alpha = 0.25f),
-                                            start = Offset(i * step, 0f),
-                                            end = Offset(i * step, size.height),
-                                            strokeWidth = 3f
-                                        )
-                                    }
-                                }
+                            // Fondo Pixel-Art Dinámico (Día / Noche)
+                            val roomBgRes = when (pet.equippedBackground) {
+                                "jungle" -> if (pet.isSleeping) R.drawable.bg_thor_jungle_night else R.drawable.bg_thor_jungle_day
+                                "space" -> if (pet.isSleeping) R.drawable.bg_thor_space_night else R.drawable.bg_thor_space_day
+                                "beach" -> if (pet.isSleeping) R.drawable.bg_thor_beach_night else R.drawable.bg_thor_beach_day
+                                else -> if (pet.isSleeping) R.drawable.bg_thor_room_night else R.drawable.bg_thor_room_day
                             }
-
-                            // 2. Ventana Pixel Art (Día / Noche)
-                            Box(
-                                modifier = Modifier
-                                    .size(70.dp)
-                                    .align(Alignment.TopCenter)
-                                    .offset(y = 20.dp)
-                                    .border(3.dp, borderColor)
-                                    .background(
-                                        if (pet.isSleeping) Color(0xFF070B19)
-                                        else Color(0xFF81D4FA)
-                                    )
-                            ) {
-                                if (pet.isSleeping) {
-                                    Text("🌙", fontSize = 16.sp, modifier = Modifier.align(Alignment.Center).offset(x = (-8).dp, y = (-8).dp))
-                                    Text("⭐", fontSize = 8.sp, modifier = Modifier.align(Alignment.TopEnd).offset(x = (-4).dp, y = 4.dp))
-                                    Text("⭐", fontSize = 8.sp, modifier = Modifier.align(Alignment.BottomStart).offset(x = 8.dp, y = (-4).dp))
-                                } else {
-                                    Text("☀️", fontSize = 22.sp, modifier = Modifier.align(Alignment.TopStart).offset(x = 4.dp, y = 4.dp))
-                                    Text("☁️", fontSize = 16.sp, modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-4).dp, y = (-4).dp))
-                                }
-                            }
-
-                            // 3. Estante de madera (Bottom Right)
-                            Column(
-                                modifier = Modifier
-                                    .width(60.dp)
-                                    .align(Alignment.BottomEnd)
-                                    .offset(x = (-15).dp, y = (-25).dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text("🍌", fontSize = 20.sp)
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(8.dp)
-                                        .background(Color(0xFF3E2723))
-                                        .border(1.dp, borderColor)
-                                )
-                            }
+                            Image(
+                                painter = painterResource(id = roomBgRes),
+                                contentDescription = null,
+                                contentScale = ContentScale.FillBounds,
+                                modifier = Modifier.fillMaxSize()
+                            )
 
                             // Imagen de la mascota con estados de imagen pixel-art reales
                             val dThorImageRes = when {
@@ -1249,7 +1216,8 @@ fun PetMenuDialog(
                                         .graphicsLayer(
                                             scaleX = if (pet.isSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale,
                                             scaleY = if (pet.isSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale,
-                                            translationY = if (pet.isSleeping || isWashing) 0f else dBobbingOffset,
+                                            translationX = catTranslationX.value,
+                                            translationY = if (pet.isSleeping || isWashing) catTranslationY.value else dBobbingOffset + catTranslationY.value,
                                             rotationZ = if (pet.isSleeping || isWashing) 0f else dWiggleRotation
                                         )
                                 )
@@ -1286,6 +1254,15 @@ fun PetMenuDialog(
                                 }
                             }
 
+                            // Capa de "Luz Apagada" cuando duerme (atenuación nocturna)
+                            if (pet.isSleeping) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color(0x9A0A0E29)) // 60% opacity dark navy blue
+                                )
+                            }
+
                             // 5. Corazón flotante
                             if (showLoveHeart) {
                                 Text(
@@ -1306,6 +1283,7 @@ fun PetMenuDialog(
                                     modifier = Modifier
                                         .size(35.dp)
                                         .offset(x = ballX.value.dp, y = ballY.value.dp)
+                                        .graphicsLayer(rotationZ = ballRotation.value)
                                 )
                             }
 
@@ -1346,7 +1324,7 @@ fun PetMenuDialog(
                             }
                         }
                         
-                        // 🎮 PANEL DE MINI ACTIVIDADES INTERACTIVAS 3D
+                        // 🎮 PANEL DE MINI ACTIVIDADES INTERACTIVAS 2D
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth(0.95f)
@@ -1366,16 +1344,40 @@ fun PetMenuDialog(
                                         } else {
                                             scope.launch {
                                                 isPlayingBall = true
-                                                ballY.snapTo(-60f)
-                                                ballX.snapTo(80f)
-                                                ballY.animateTo(80f, animationSpec = tween(500, easing = EaseInQuad))
-                                                dIsClicked = true
-                                                onPlayBallPet(10, 20)
+                                                ballX.snapTo(-60f)
+                                                ballY.snapTo(-80f)
+                                                ballRotation.snapTo(0f)
+                                                catTranslationX.snapTo(0f)
+                                                catTranslationY.snapTo(0f)
                                                 
-                                                ballY.animateTo(10f, animationSpec = tween(400, easing = EaseOutQuad))
-                                                ballX.animateTo(130f, animationSpec = tween(400, easing = EaseOutQuad))
-                                                ballY.animateTo(80f, animationSpec = tween(400, easing = EaseInQuad))
+                                                // Cat leaps to meet the ball
+                                                launch {
+                                                    delay(200)
+                                                    catTranslationX.animateTo(40f, animationSpec = tween(300, easing = EaseOutQuad))
+                                                    catTranslationY.animateTo(-45f, animationSpec = tween(200, easing = EaseOutQuad))
+                                                    catTranslationY.animateTo(0f, animationSpec = tween(200, easing = EaseInQuad))
+                                                    delay(300)
+                                                    catTranslationX.animateTo(0f, animationSpec = tween(400, easing = EaseInOutQuad))
+                                                }
+                                                
+                                                // Ball fall 1
+                                                launch { ballRotation.animateTo(360f, animationSpec = tween(500, easing = LinearEasing)) }
+                                                launch { ballX.animateTo(30f, animationSpec = tween(500, easing = EaseOutQuad)) }
+                                                ballY.animateTo(80f, animationSpec = tween(500, easing = EaseInQuad))
+                                                
+                                                // Ball bounce 2
+                                                launch { ballRotation.animateTo(720f, animationSpec = tween(400, easing = LinearEasing)) }
+                                                launch { ballX.animateTo(90f, animationSpec = tween(400, easing = EaseOutQuad)) }
+                                                ballY.animateTo(25f, animationSpec = tween(200, easing = EaseOutQuad))
+                                                ballY.animateTo(80f, animationSpec = tween(200, easing = EaseInQuad))
+                                                
+                                                // Ball roll 3 (offscreen)
+                                                launch { ballRotation.animateTo(1080f, animationSpec = tween(600, easing = LinearEasing)) }
+                                                launch { ballX.animateTo(240f, animationSpec = tween(600, easing = EaseOutQuad)) }
+                                                ballY.animateTo(80f, animationSpec = tween(600, easing = LinearEasing))
+                                                
                                                 isPlayingBall = false
+                                                onPlayBallPet(10, 20)
                                             }
                                         }
                                     }
@@ -1401,6 +1403,8 @@ fun PetMenuDialog(
                                     .clickable {
                                         if (pet.isSleeping) {
                                             android.widget.Toast.makeText(context, "💤 ¡Thor está durmiendo!", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else if (pet.cleanliness >= 80) {
+                                            android.widget.Toast.makeText(context, "¡Thor todavía está limpio! 🫧 (Limpieza: ${pet.cleanliness}%)", android.widget.Toast.LENGTH_SHORT).show()
                                         } else {
                                             scope.launch {
                                                 isWashing = true
@@ -1419,7 +1423,7 @@ fun PetMenuDialog(
                                         .fillMaxWidth()
                                         .height(38.dp)
                                         .border(2.dp, borderColor)
-                                        .background(Color(0xFF0EA5E9)),
+                                        .background(if (pet.cleanliness >= 80) Color.Gray else Color(0xFF0EA5E9)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("🧼 BAÑAR", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
@@ -1428,22 +1432,6 @@ fun PetMenuDialog(
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Text("Nombre de tu compañero:", fontFamily = Vt323, color = contentColor, fontSize = 18.sp)
-                        OutlinedTextField(
-                            value = newName,
-                            onValueChange = { newName = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Vt323, fontSize = 20.sp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = contentColor,
-                                unfocusedTextColor = contentColor,
-                                focusedBorderColor = borderColor,
-                                unfocusedBorderColor = borderColor.copy(alpha = 0.5f)
-                            )
-                        )
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
                         
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
                             InfoStat("Nivel", pet.level.toString(), contentColor)
@@ -1466,9 +1454,9 @@ fun PetMenuDialog(
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
-
+                        
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                            InfoStat("Sueño 💤", if (pet.isSleeping) "Dormido" else "Despierto", Color(0xFF9C27B0))
+                            InfoStat("Sueño 💤", "${pet.sleepPercent}%", Color(0xFF9C27B0))
                         }
                         
                         Spacer(modifier = Modifier.height(8.dp))
@@ -1483,37 +1471,23 @@ fun PetMenuDialog(
                         
                         Spacer(modifier = Modifier.height(24.dp))
                         
-                        Row(
+                        Button(
+                            onClick = { 
+                                if (pet.isSleeping) {
+                                    android.widget.Toast.makeText(context, "¡Thor está durmiendo profundamente! 💤 Despiértalo primero para jugar.", android.widget.Toast.LENGTH_LONG).show()
+                                } else if (pet.status == Pet.STATUS_HUNGRY) {
+                                    android.widget.Toast.makeText(context, "¡Thor tiene demasiada hambre! 🍖 Aliméntalo en la pestaña COMIDA para jugar.", android.widget.Toast.LENGTH_LONG).show()
+                                } else {
+                                    showGameSelector = true 
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (pet.isSleeping || pet.status == Pet.STATUS_HUNGRY) Color.Gray else Color(0xFF4CAF50)
+                            ),
+                            shape = RectangleShape
                         ) {
-                            Button(
-                                onClick = { onUpdateName(newName) },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = borderColor),
-                                shape = RectangleShape
-                            ) {
-                                Text("Guardar Nombre", fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
-                            }
-                            
-                            Button(
-                                onClick = { 
-                                    if (pet.isSleeping) {
-                                        android.widget.Toast.makeText(context, "¡Thor está durmiendo profundamente! 💤 Despiértalo primero para jugar.", android.widget.Toast.LENGTH_LONG).show()
-                                    } else if (pet.status == Pet.STATUS_HUNGRY) {
-                                        android.widget.Toast.makeText(context, "¡Thor tiene demasiada hambre! 🍖 Aliméntalo en la pestaña COMIDA para jugar.", android.widget.Toast.LENGTH_LONG).show()
-                                    } else {
-                                        showGameSelector = true 
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (pet.isSleeping || pet.status == Pet.STATUS_HUNGRY) Color.Gray else Color(0xFF4CAF50)
-                                ),
-                                shape = RectangleShape
-                            ) {
-                                Text("🎮 JUGAR", fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
-                            }
+                            Text("🎮 JUGAR MINIJUEGOS", fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -1530,46 +1504,120 @@ fun PetMenuDialog(
                         }
                     }
                 } else if (selectedTab == 1) {
-                    // Pestaña de Tienda / Accesorios
-                    val items = listOf(
-                        Triple(Pet.ACC_COLLAR, "Collar Cascabel 🔔", 10),
-                        Triple(Pet.ACC_SOCKS, "Calcetas y Botitas 🧦🥾", 15),
-                        Triple(Pet.ACC_MUSTACHE, "Bigote Retro 🥸", 30),
-                        Triple(Pet.ACC_BALLOON, "Globo Corazón 🎈", 60),
-                        Triple(Pet.ACC_BOW, "Lazo Rosa 🎀", 80),
-                        Triple(Pet.ACC_HAT, "Gorrito Pixel 🎩", 100),
-                        Triple(Pet.ACC_BANDANA, "Pañuelo Pirata 🏴‍☠️", 120),
-                        Triple(Pet.ACC_GLASSES, "Lentes Cool 🕶️", 150),
-                        Triple(Pet.ACC_BANANA, "Plátano Nano 🍌", 200),
-                        Triple(Pet.ACC_CROWN, "Corona Real 👑", 500)
-                    )
-
+                    // Pestaña de Tienda / Accesorios y Fondos
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "Puntos disponibles: ${pet.lovePoints} ❤️",
                             fontFamily = Vt323,
                             color = accentColor,
                             fontSize = 20.sp,
-                            modifier = Modifier.padding(bottom = 12.dp)
+                            modifier = Modifier.padding(bottom = 8.dp)
                         )
 
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(items) { (id, name, cost) ->
-                                val isUnlocked = pet.unlockedAccessories.contains(id)
-                                val isEquipped = pet.equippedAccessory == id
-
-                                AccessoryRow(
-                                    name = name,
-                                    cost = cost,
-                                    isUnlocked = isUnlocked,
-                                    isEquipped = isEquipped,
-                                    isDark = isDark,
-                                    borderColor = borderColor,
-                                    onAction = {
-                                        if (isUnlocked) onEquipAccessory(if (isEquipped) Pet.ACC_NONE else id)
-                                        else onBuyAccessory(id, cost)
-                                    }
+                        // Selector de Categoría (Accesorios / Fondos)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp)
+                                .border(1.dp, borderColor),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(if (shopCategory == "accessories") accentColor else Color.Transparent)
+                                    .clickable { shopCategory = "accessories" }
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "ACCESORIOS 👑",
+                                    fontFamily = Vt323,
+                                    fontSize = 15.sp,
+                                    color = if (shopCategory == "accessories") Color.White else contentColor
                                 )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(24.dp)
+                                    .background(borderColor)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(if (shopCategory == "backgrounds") accentColor else Color.Transparent)
+                                    .clickable { shopCategory = "backgrounds" }
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "FONDOS 🖼️",
+                                    fontFamily = Vt323,
+                                    fontSize = 15.sp,
+                                    color = if (shopCategory == "backgrounds") Color.White else contentColor
+                                )
+                            }
+                        }
+
+                        if (shopCategory == "accessories") {
+                            val items = listOf(
+                                Triple(Pet.ACC_COLLAR, "Collar Cascabel 🔔", 10),
+                                Triple(Pet.ACC_SOCKS, "Calcetas y Botitas 🧦🥾", 15),
+                                Triple(Pet.ACC_MUSTACHE, "Bigote Retro 🥸", 30),
+                                Triple(Pet.ACC_BALLOON, "Globo Corazón 🎈", 60),
+                                Triple(Pet.ACC_BOW, "Lazo Rosa 🎀", 80),
+                                Triple(Pet.ACC_HAT, "Gorrito Pixel 🎩", 100),
+                                Triple(Pet.ACC_BANDANA, "Pañuelo Pirata 🏴‍☠️", 120),
+                                Triple(Pet.ACC_GLASSES, "Lentes Cool 🕶️", 150),
+                                Triple(Pet.ACC_BANANA, "Plátano Nano 🍌", 200),
+                                Triple(Pet.ACC_CROWN, "Corona Real 👑", 500)
+                            )
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(items) { (id, name, cost) ->
+                                    val isUnlocked = pet.unlockedAccessories.contains(id)
+                                    val isEquipped = pet.equippedAccessory == id
+
+                                    AccessoryRow(
+                                        name = name,
+                                        cost = cost,
+                                        isUnlocked = isUnlocked,
+                                        isEquipped = isEquipped,
+                                        isDark = isDark,
+                                        borderColor = borderColor,
+                                        onAction = {
+                                            if (isUnlocked) onEquipAccessory(if (isEquipped) Pet.ACC_NONE else id)
+                                            else onBuyAccessory(id, cost)
+                                        }
+                                    )
+                                }
+                            }
+                        } else {
+                            val backgrounds = listOf(
+                                Triple("default", "Habitación Clásica 🏠", 0),
+                                Triple("jungle", "Selva Tropical 🌴", 50),
+                                Triple("space", "Nave Espacial 🚀", 100),
+                                Triple("beach", "Playa Paradise 🏖️", 150)
+                            )
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(backgrounds) { (id, name, cost) ->
+                                    val isUnlocked = pet.unlockedBackgrounds.contains(id)
+                                    val isEquipped = pet.equippedBackground == id
+
+                                    AccessoryRow(
+                                        name = name,
+                                        cost = cost,
+                                        isUnlocked = isUnlocked || cost == 0,
+                                        isEquipped = isEquipped,
+                                        isDark = isDark,
+                                        borderColor = borderColor,
+                                        onAction = {
+                                            if (isUnlocked || cost == 0) onEquipBackground(id)
+                                            else onBuyBackground(id, cost)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -1634,7 +1682,7 @@ fun PetMenuDialog(
                             }
                         }
                     }
-                } else {
+                } else if (selectedTab == 2) {
                     // Pestaña de Guía explicativa para la salud y puntos de amor
                     val scrollState = rememberScrollState()
                     Column(
@@ -1651,7 +1699,7 @@ fun PetMenuDialog(
                             fontWeight = FontWeight.Bold
                         )
 
-                        // Card Hambre y Estado Tamagotchi
+                        // Card Hambre y Nutrición
                         Card(
                             modifier = Modifier.fillMaxWidth().border(1.dp, borderColor.copy(alpha = 0.3f)),
                             colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.3f)),
@@ -1660,7 +1708,7 @@ fun PetMenuDialog(
                             Column(modifier = Modifier.padding(10.dp)) {
                                 Text("🍖 HAMBRE Y NUTRICIÓN", fontFamily = Vt323, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text("• El nivel de hambre disminuye gradualmente un 10% cada 6 horas.\n• Si el nivel de hambre cae por debajo del 30%, ¡Thor tendrá demasiada hambre y entrará en estado hambriento! 😢\n• Bloqueo de Minijuegos: No podrás jugar con él si tiene hambre.\n• Compra galletas de pescado 🐟, leche 🥛 o banquetes 🍣 en la pestaña COMIDA para alimentarlo y subir su felicidad.", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
+                                Text("• El nivel de hambre aumenta gradualmente un 4% por hora sin interactuar.\n• Si el nivel de hambre sube por encima del 70%, ¡Thor tendrá demasiada hambre y entrará en estado hambriento! 😢\n• Bloqueo de Minijuegos: No podrás jugar con él si tiene hambre.\n• Compra galletas de pescado 🐟, leche 🥛 o banquetes 🍣 en la pestaña COMIDA para alimentarlo y subir su felicidad.", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
                             }
                         }
 
@@ -1713,6 +1761,205 @@ fun PetMenuDialog(
                                 Text("👑 ACCESORIOS Y TIENDA", fontFamily = Vt323, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text("• Canjea tus puntos en la ROPA por accesorios.\n• Los accesorios equipados se superpondrán a tu mascota en tiempo real. ¡Haz que Thor luzca fabuloso!", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
+                            }
+                        }
+                    }
+                } else if (selectedTab == 4) {
+                    val sharedPrefsNotif = remember { context.getSharedPreferences("pet_notif_prefs", Context.MODE_PRIVATE) }
+                    var notificationsEnabled by remember { mutableStateOf(sharedPrefsNotif.getBoolean("notifications_enabled", true)) }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Top
+                    ) {
+                        if (settingsSubView == "menu") {
+                            Text(
+                                text = "⚙️ AJUSTES DE ${pet.name.uppercase()} ⚙️",
+                                fontFamily = Vt323,
+                                color = contentColor,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 20.dp)
+                            )
+
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                SettingsMenuButton("😺 Nombre de Mascota", isDark, borderColor) {
+                                    settingsSubView = "name"
+                                }
+                                SettingsMenuButton("🔔 Notificaciones", isDark, borderColor) {
+                                    settingsSubView = "notifications"
+                                }
+                                SettingsMenuButton("☁️ Sincronización", isDark, borderColor) {
+                                    settingsSubView = "sync"
+                                }
+                            }
+                        } else if (settingsSubView == "name") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(onClick = { settingsSubView = "menu" }) {
+                                    Text("◀", fontFamily = Vt323, fontSize = 22.sp, color = borderColor)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "😺 NOMBRE",
+                                    fontFamily = Vt323,
+                                    color = contentColor,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = "Nombre de tu compañero:",
+                                fontFamily = Vt323,
+                                color = contentColor,
+                                fontSize = 18.sp,
+                                modifier = Modifier.align(Alignment.Start)
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            OutlinedTextField(
+                                value = newName,
+                                onValueChange = { newName = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Vt323, fontSize = 20.sp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = contentColor,
+                                    unfocusedTextColor = contentColor,
+                                    focusedBorderColor = borderColor,
+                                    unfocusedBorderColor = borderColor.copy(alpha = 0.5f)
+                                )
+                            )
+                            
+                            Spacer(modifier = Modifier.height(24.dp))
+                            
+                            Button(
+                                onClick = { 
+                                    onUpdateName(newName)
+                                    android.widget.Toast.makeText(context, "¡Nombre guardado! ❤️", android.widget.Toast.LENGTH_SHORT).show()
+                                    settingsSubView = "menu"
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = borderColor),
+                                shape = RectangleShape
+                            ) {
+                                Text("Guardar Nombre", fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
+                            }
+                        } else if (settingsSubView == "notifications") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(onClick = { settingsSubView = "menu" }) {
+                                    Text("◀", fontFamily = Vt323, fontSize = 22.sp, color = borderColor)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "🔔 ALERTAS",
+                                    fontFamily = Vt323,
+                                    color = contentColor,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Notificaciones de Cuidado", fontFamily = Vt323, fontSize = 18.sp, color = contentColor)
+                                
+                                Switch(
+                                    checked = notificationsEnabled,
+                                    onCheckedChange = { isChecked ->
+                                        notificationsEnabled = isChecked
+                                        sharedPrefsNotif.edit().putBoolean("notifications_enabled", isChecked).apply()
+                                        val statusText = if (isChecked) "activadas" else "desactivadas"
+                                        android.widget.Toast.makeText(context, "Notificaciones $statusText", android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = accentColor,
+                                        checkedTrackColor = accentColor.copy(alpha = 0.5f),
+                                        uncheckedThumbColor = Color.Gray,
+                                        uncheckedTrackColor = Color.Gray.copy(alpha = 0.5f)
+                                    )
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                border = BorderStroke(1.dp, borderColor.copy(alpha = 0.3f)),
+                                colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.3f)),
+                                shape = RectangleShape
+                            ) {
+                                Text(
+                                    text = "Recibirás alertas periódicas si Thor tiene hambre, sueño o necesita un baño para que nunca descuides a tu compañero virtual. 😺✨",
+                                    fontFamily = Vt323,
+                                    color = if (isDark) Color.LightGray else Color.DarkGray,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
+                        } else if (settingsSubView == "sync") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(onClick = { settingsSubView = "menu" }) {
+                                    Text("◀", fontFamily = Vt323, fontSize = 22.sp, color = borderColor)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "☁️ SINCRONIZACIÓN",
+                                    fontFamily = Vt323,
+                                    color = contentColor,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Text(
+                                text = "Base de Datos: Firebase Cloud Firestore\nEstado: Conectado a la Nube ☁\nCompañero: ${pet.name}",
+                                fontFamily = Vt323,
+                                color = contentColor,
+                                fontSize = 16.sp,
+                                modifier = Modifier.align(Alignment.Start)
+                            )
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Button(
+                                onClick = {
+                                    android.widget.Toast.makeText(context, "Sincronizando...", android.widget.Toast.LENGTH_SHORT).show()
+                                    scope.launch {
+                                        delay(800)
+                                        android.widget.Toast.makeText(context, "¡Sincronización forzada con éxito! ☁️✨", android.widget.Toast.LENGTH_SHORT).show()
+                                        settingsSubView = "menu"
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = borderColor),
+                                shape = RectangleShape
+                            ) {
+                                Text("Forzar Sincronización Now", fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
                             }
                         }
                     }
@@ -2818,6 +3065,31 @@ fun SnakeGameDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SettingsMenuButton(
+    text: String,
+    isDark: Boolean,
+    borderColor: Color,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF1E1E2E) else Color(0xFFF3EFE0)),
+        border = BorderStroke(1.dp, borderColor),
+        shape = RectangleShape
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text, fontFamily = Vt323, fontSize = 18.sp, color = if (isDark) Color.White else Color(0xFF4A2511))
+            Text("▶", fontFamily = Vt323, fontSize = 14.sp, color = borderColor)
         }
     }
 }

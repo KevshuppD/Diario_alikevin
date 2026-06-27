@@ -4,8 +4,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.ComposeView
+import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
 import calendario.kevshupp.diariokevinali.compose.SettingsScreen
 
@@ -68,6 +71,23 @@ class SettingsFragment : Fragment() {
                 var isSyncing by remember { mutableStateOf(false) }
                 var syncProgress by remember { mutableStateOf(-1) }
                 var syncStatus by remember { mutableStateOf("") }
+                var syncState by remember {
+                    mutableStateOf(prefs?.getString("syncState", "NO_SINCRONIZADO") ?: "NO_SINCRONIZADO")
+                }
+                var syncMaxRetries by remember {
+                    mutableStateOf(prefs?.getInt("syncMaxRetries", 3) ?: 3)
+                }
+                var syncLastError by remember {
+                    mutableStateOf(prefs?.getString("syncLastError", null))
+                }
+                var syncParallelLines by remember {
+                    mutableStateOf(prefs?.getInt("syncParallelLines", 3) ?: 3)
+                }
+                var localFilesCount by remember { mutableStateOf(0) }
+                var cloudFilesCount by remember { mutableStateOf(0) }
+                var activeSyncSlots by remember { mutableStateOf<List<Pair<String, Int>>>(emptyList()) }
+
+                val coupleId = prefs?.getString("coupleId", null)
 
                 // Escuchar cambios de SharedPreferences para actualizar Compose en tiempo real
                 DisposableEffect(prefs) {
@@ -78,11 +98,73 @@ class SettingsFragment : Fragment() {
                             "syncIntervalMinutes" -> syncIntervalMinutes = p.getLong(key, 0L)
                             "syncWifiOnly" -> wifiOnly = p.getBoolean(key, true)
                             "syncChargingOnly" -> chargingOnly = p.getBoolean(key, false)
+                            "syncState" -> syncState = p.getString(key, "NO_SINCRONIZADO") ?: "NO_SINCRONIZADO"
+                            "syncMaxRetries" -> syncMaxRetries = p.getInt(key, 3)
+                            "syncLastError" -> syncLastError = p.getString(key, null)
+                            "syncParallelLines" -> syncParallelLines = p.getInt(key, 3)
                         }
                     }
                     prefs?.registerOnSharedPreferenceChangeListener(listener)
                     onDispose {
                         prefs?.unregisterOnSharedPreferenceChangeListener(listener)
+                    }
+                }
+
+                // Escuchar en tiempo real contador de Firestore de la nube
+                DisposableEffect(coupleId) {
+                    if (coupleId.isNullOrEmpty()) {
+                        cloudFilesCount = 0
+                        onDispose {}
+                    } else {
+                        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        val listener = db.collection("pets").document(coupleId).collection("drive_sync_metadata")
+                            .addSnapshotListener { snapshot, error ->
+                                if (error != null) {
+                                    Log.e("SettingsFragment", "Error escuchando metadatos de Firestore: ${error.message}")
+                                    return@addSnapshotListener
+                                }
+                                if (snapshot != null) {
+                                    val count = snapshot.documents.count { doc ->
+                                        doc.getBoolean("eliminado") != true
+                                    }
+                                    cloudFilesCount = count
+                                }
+                            }
+                        onDispose {
+                            listener.remove()
+                        }
+                    }
+                }
+
+                // Calcular conteo local SAF reactivamente
+                LaunchedEffect(selectedFolderUri, isSyncing) {
+                    if (!selectedFolderUri.isNullOrEmpty()) {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                val context = requireContext()
+                                val uri = Uri.parse(selectedFolderUri)
+                                val documentId = android.provider.DocumentsContract.getTreeDocumentId(uri)
+                                val childrenUri = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(uri, documentId)
+                                val projection = arrayOf(android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE)
+                                
+                                var count = 0
+                                context.contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+                                    val mimeTypeIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE)
+                                    while (cursor.moveToNext()) {
+                                        val mimeType = if (mimeTypeIndex != -1) cursor.getString(mimeTypeIndex) ?: "" else ""
+                                        if (mimeType.startsWith("image/")) {
+                                            count++
+                                        }
+                                    }
+                                }
+                                localFilesCount = count
+                            } catch (e: Exception) {
+                                Log.e("SettingsFragment", "Error contando archivos locales via cursor: ${e.message}")
+                                localFilesCount = 0
+                            }
+                        }
+                    } else {
+                        localFilesCount = 0
                     }
                 }
 
@@ -96,23 +178,47 @@ class SettingsFragment : Fragment() {
                         .getWorkInfosForUniqueWorkLiveData("SyncDrivePeriodicWork")
                 }
 
-                LaunchedEffect(workInfos, periodicWorkInfos) {
+                LaunchedEffect(workInfos, periodicWorkInfos, syncParallelLines) {
                     workInfos?.observe(viewLifecycleOwner) { infos ->
                         val runningInfo = infos?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
                         if (runningInfo != null) {
                             isSyncing = true
                             syncProgress = runningInfo.progress.getInt("progress", -1)
                             syncStatus = runningInfo.progress.getString("status") ?: "Sincronizando..."
+                            
+                            val tempSlots = mutableListOf<Pair<String, Int>>()
+                            for (i in 0 until syncParallelLines) {
+                                val name = runningInfo.progress.getString("slot_${i}_name") ?: ""
+                                val prog = runningInfo.progress.getInt("slot_${i}_progress", -1)
+                                if (name.isNotEmpty()) {
+                                    tempSlots.add(Pair(name, prog))
+                                }
+                            }
+                            activeSyncSlots = tempSlots
                         } else {
                             val periodicRunningInfo = periodicWorkInfos?.value?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
                             if (periodicRunningInfo != null) {
                                 isSyncing = true
                                 syncProgress = periodicRunningInfo.progress.getInt("progress", -1)
                                 syncStatus = periodicRunningInfo.progress.getString("status") ?: "Sincronizando..."
+                                
+                                val tempSlots = mutableListOf<Pair<String, Int>>()
+                                for (i in 0 until syncParallelLines) {
+                                    val name = periodicRunningInfo.progress.getString("slot_${i}_name") ?: ""
+                                    val prog = periodicRunningInfo.progress.getInt("slot_${i}_progress", -1)
+                                    if (name.isNotEmpty()) {
+                                        tempSlots.add(Pair(name, prog))
+                                    }
+                                }
+                                activeSyncSlots = tempSlots
                             } else {
                                 isSyncing = false
                                 syncProgress = -1
                                 syncStatus = ""
+                                activeSyncSlots = emptyList()
+                                if (prefs?.getString("syncState", "") == "SINCRONIZANDO") {
+                                    prefs.edit().putString("syncState", "NO_SINCRONIZADO").apply()
+                                }
                             }
                         }
                     }
@@ -122,16 +228,40 @@ class SettingsFragment : Fragment() {
                             isSyncing = true
                             syncProgress = runningInfo.progress.getInt("progress", -1)
                             syncStatus = runningInfo.progress.getString("status") ?: "Sincronizando..."
+                            
+                            val tempSlots = mutableListOf<Pair<String, Int>>()
+                            for (i in 0 until syncParallelLines) {
+                                val name = runningInfo.progress.getString("slot_${i}_name") ?: ""
+                                val prog = runningInfo.progress.getInt("slot_${i}_progress", -1)
+                                if (name.isNotEmpty()) {
+                                    tempSlots.add(Pair(name, prog))
+                                }
+                            }
+                            activeSyncSlots = tempSlots
                         } else {
                             val oneTimeRunningInfo = workInfos?.value?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
                             if (oneTimeRunningInfo != null) {
                                 isSyncing = true
                                 syncProgress = oneTimeRunningInfo.progress.getInt("progress", -1)
                                 syncStatus = oneTimeRunningInfo.progress.getString("status") ?: "Sincronizando..."
+                                
+                                val tempSlots = mutableListOf<Pair<String, Int>>()
+                                for (i in 0 until syncParallelLines) {
+                                    val name = oneTimeRunningInfo.progress.getString("slot_${i}_name") ?: ""
+                                    val prog = oneTimeRunningInfo.progress.getInt("slot_${i}_progress", -1)
+                                    if (name.isNotEmpty()) {
+                                        tempSlots.add(Pair(name, prog))
+                                    }
+                                }
+                                activeSyncSlots = tempSlots
                             } else {
                                 isSyncing = false
                                 syncProgress = -1
                                 syncStatus = ""
+                                activeSyncSlots = emptyList()
+                                if (prefs?.getString("syncState", "") == "SINCRONIZANDO") {
+                                    prefs.edit().putString("syncState", "NO_SINCRONIZADO").apply()
+                                }
                             }
                         }
                     }
@@ -206,6 +336,17 @@ class SettingsFragment : Fragment() {
                         syncIntervalMinutes = syncIntervalMinutes,
                         wifiOnly = wifiOnly,
                         chargingOnly = chargingOnly,
+                        syncState = syncState,
+                        syncMaxRetries = syncMaxRetries,
+                        syncLastError = syncLastError,
+                        onMaxRetriesChange = { newRetries ->
+                            prefs?.edit()?.putInt("syncMaxRetries", newRetries)?.apply()
+                            syncMaxRetries = newRetries
+                        },
+                        onClearLastError = {
+                            prefs?.edit()?.remove("syncLastError")?.apply()
+                            syncLastError = null
+                        },
                         onLinkGoogleDrive = {
                             act?.linkGoogleDriveAccount()
                         },
@@ -216,6 +357,7 @@ class SettingsFragment : Fragment() {
                                 remove("syncIntervalMinutes")
                                 remove("syncWifiOnly")
                                 remove("syncChargingOnly")
+                                remove("syncState")
                                 apply()
                             }
                             googleAccountEmail = null
@@ -260,7 +402,15 @@ class SettingsFragment : Fragment() {
                         },
                         isSyncing = isSyncing,
                         syncProgress = syncProgress,
-                        syncStatus = syncStatus
+                        syncStatus = syncStatus,
+                        localFilesCount = localFilesCount,
+                        cloudFilesCount = cloudFilesCount,
+                        syncParallelLines = syncParallelLines,
+                        activeSyncSlots = activeSyncSlots,
+                        onParallelLinesChange = { newLines ->
+                            prefs?.edit()?.putInt("syncParallelLines", newLines)?.apply()
+                            syncParallelLines = newLines
+                        }
                     )
                 }
             }

@@ -18,7 +18,12 @@ data class Pet(
     var lastBallDate: String? = null,
     var lastSnakeDate: String? = null,
     var lastMemoryDate: String? = null,
-    var lastBathDate: String? = null
+    var lastBathDate: String? = null,
+    var lastDecayUpdate: Long = System.currentTimeMillis(),
+    var dndTriggeredByUserId: String? = null,
+    var sleepPercent: Int = 100,
+    var unlockedBackgrounds: List<String> = listOf("default"),
+    var equippedBackground: String = "default"
 ) {
     companion object {
         const val STATUS_HAPPY = "FELIZ"

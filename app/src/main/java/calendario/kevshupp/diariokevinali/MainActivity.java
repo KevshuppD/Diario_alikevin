@@ -5,6 +5,9 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
+import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -242,6 +245,55 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
 
+    private final BroadcastReceiver dndReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED.equals(intent.getAction())) {
+                syncDndStateWithPet();
+            }
+        }
+    };
+
+    private boolean isDoNotDisturbActive() {
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null) {
+            int filter = nm.getCurrentInterruptionFilter();
+            return filter != NotificationManager.INTERRUPTION_FILTER_ALL;
+        }
+        return false;
+    }
+
+    private void syncDndStateWithPet() {
+        Pet p = petState.getValue();
+        if (p == null || currentCoupleId == null) return;
+        boolean dndActive = isDoNotDisturbActive();
+        if (dndActive) {
+            if (!p.isSleeping()) {
+                db.collection("pets").document(currentCoupleId)
+                    .update("isSleeping", true,
+                            "status", Pet.STATUS_SLEEPING,
+                            "dndTriggeredByUserId", currentUserId)
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(MainActivity.this, "Thor se durmió porque activaste No Molestar 🌙", Toast.LENGTH_SHORT).show();
+                    });
+            }
+        } else {
+            if (p.isSleeping() && currentUserId.equals(p.getDndTriggeredByUserId())) {
+                int newHappiness = Math.min(100, p.getHappiness() + 20);
+                String newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
+                db.collection("pets").document(currentCoupleId)
+                    .update("isSleeping", false,
+                            "status", newStatus,
+                            "happiness", newHappiness,
+                            "lastInteraction", System.currentTimeMillis(),
+                            "dndTriggeredByUserId", null)
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(MainActivity.this, "¡Thor despertó al desactivar No Molestar! ☀️", Toast.LENGTH_SHORT).show();
+                    });
+            }
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -370,6 +422,12 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         listenCalendar();
         setupOverlays();
         checkNotificationPermission();
+        try {
+            registerReceiver(dndReceiver, new IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED));
+            syncDndStateWithPet();
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error registering dndReceiver: " + e.getMessage());
+        }
     }
 
     @Override
@@ -379,6 +437,11 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         if (calendarListener != null) { calendarListener.remove(); calendarListener = null; }
         if (userListener != null) { userListener.remove(); userListener = null; }
         if (petListener != null) { petListener.remove(); petListener = null; }
+        try {
+            unregisterReceiver(dndReceiver);
+        } catch (Exception e) {
+            // Ignore
+        }
     }
 
     public void showUpdateDialog(String url) {
@@ -539,7 +602,8 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         if (controller == null) return;
         controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-        controller.hide(WindowInsetsCompat.Type.systemBars());
+        // Mostrar barras de sistema en lugar de ocultarlas para evitar solapamiento en llamadas o notificaciones
+        controller.show(WindowInsetsCompat.Type.systemBars());
     }
 
     private void setupRecyclerView() {
@@ -643,10 +707,58 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 db.collection("pets").document(currentCoupleId).update("equippedAccessory", accessoryId);
                 return kotlin.Unit.INSTANCE;
             },
+            (backgroundId, cost) -> {
+                Pet p = petState.getValue();
+                if (p != null) {
+                    if (p.getLovePoints() >= cost) {
+                        List<String> unlocked = new ArrayList<>(p.getUnlockedBackgrounds());
+                        if (!unlocked.contains(backgroundId)) {
+                            unlocked.add(backgroundId);
+                        }
+                        db.collection("pets").document(currentCoupleId)
+                            .update("lovePoints", p.getLovePoints() - cost,
+                                    "unlockedBackgrounds", unlocked,
+                                    "equippedBackground", backgroundId)
+                            .addOnSuccessListener(aVoid -> {
+                                Toast.makeText(MainActivity.this, "¡Fondo comprado y equipado! 🖼️✨", Toast.LENGTH_SHORT).show();
+                            });
+                    } else {
+                        Toast.makeText(MainActivity.this, "No tienes suficientes puntos de amor ❤️", Toast.LENGTH_SHORT).show();
+                    }
+                }
+                return kotlin.Unit.INSTANCE;
+            },
+            backgroundId -> {
+                Pet p = petState.getValue();
+                if (p != null) {
+                    db.collection("pets").document(currentCoupleId)
+                        .update("equippedBackground", backgroundId)
+                        .addOnSuccessListener(aVoid -> {
+                            Toast.makeText(MainActivity.this, "¡Fondo equipado! 🖼️", Toast.LENGTH_SHORT).show();
+                        });
+                }
+                return kotlin.Unit.INSTANCE;
+            },
             (foodId, cost, happinessGain) -> {
                 Pet p = petState.getValue();
                 if (p != null) {
                     if (p.getLovePoints() >= cost) {
+                        long now = System.currentTimeMillis();
+                        long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
+                        long hoursToDecay = decayDiff / (1000 * 60 * 60);
+                        int decayedCleanliness = p.getCleanliness();
+                        int decayedSleepPercent = p.getSleepPercent();
+                        long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
+                        if (hoursToDecay >= 1) {
+                            decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
+                            if (p.isSleeping()) {
+                                decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
+                            } else {
+                                decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
+                            }
+                            nextDecayUpdate += hoursToDecay * 3600000L;
+                        }
+
                         int currentHappiness = p.getHappiness();
                         int newHappiness = Math.min(100, currentHappiness + happinessGain);
                         String newStatus = p.getStatus();
@@ -658,7 +770,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                     "happiness", newHappiness,
                                     "status", newStatus,
                                     "hunger", 0,
-                                    "lastInteraction", System.currentTimeMillis());
+                                    "cleanliness", decayedCleanliness,
+                                    "sleepPercent", decayedSleepPercent,
+                                    "lastInteraction", now,
+                                    "lastDecayUpdate", nextDecayUpdate);
                         Toast.makeText(MainActivity.this, "¡Le has dado de comer a Thor! 💖 +" + happinessGain + "% Felicidad", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(MainActivity.this, "No tienes suficientes puntos de amor ❤️", Toast.LENGTH_SHORT).show();
@@ -669,6 +784,22 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             (points, exp) -> {
                 Pet p = petState.getValue();
                 if (p != null) {
+                    long now = System.currentTimeMillis();
+                    long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
+                    long hoursToDecay = decayDiff / (1000 * 60 * 60);
+                    int decayedCleanliness = p.getCleanliness();
+                    int decayedSleepPercent = p.getSleepPercent();
+                    long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
+                    if (hoursToDecay >= 1) {
+                        decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
+                        if (p.isSleeping()) {
+                            decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
+                        } else {
+                            decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
+                        }
+                        nextDecayUpdate += hoursToDecay * 3600000L;
+                    }
+
                     int newExp = p.getExperience() + exp;
                     int newLevel = p.getLevel();
                     int newLovePoints = p.getLovePoints() + points;
@@ -695,7 +826,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                 "happiness", newHappiness,
                                 "status", newStatus,
                                 "hunger", 0,
-                                "lastInteraction", System.currentTimeMillis())
+                                "cleanliness", decayedCleanliness,
+                                "sleepPercent", decayedSleepPercent,
+                                "lastInteraction", now,
+                                "lastDecayUpdate", nextDecayUpdate)
                         .addOnSuccessListener(aVoid -> {
                             Toast.makeText(MainActivity.this, "¡Premio reclamado! +15 ❤️, +15 EXP y +15% Felicidad 🥰", Toast.LENGTH_SHORT).show();
                             if (showLevelUpToast) {
@@ -711,14 +845,46 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             () -> {
                 Pet p = petState.getValue();
                 if (p != null) {
+                    boolean dndActive = isDoNotDisturbActive();
                     boolean targetSleepState = !p.isSleeping();
+                    
+                    if (!targetSleepState && dndActive) {
+                        Toast.makeText(MainActivity.this, "No puedes despertar a Thor mientras el modo No Molestar esté activo en tu celular. 📵", Toast.LENGTH_LONG).show();
+                        return kotlin.Unit.INSTANCE;
+                    }
+
+                    long now = System.currentTimeMillis();
+                    long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
+                    long hoursToDecay = decayDiff / (1000 * 60 * 60);
+                    int decayedHunger = p.getHunger();
+                    int decayedCleanliness = p.getCleanliness();
+                    int decayedSleepPercent = p.getSleepPercent();
+                    long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
+                    if (hoursToDecay >= 1) {
+                        decayedHunger = Math.min(100, p.getHunger() + (int)(hoursToDecay * 4));
+                        decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
+                        if (p.isSleeping()) {
+                            decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
+                        } else {
+                            decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
+                        }
+                        nextDecayUpdate += hoursToDecay * 3600000L;
+                    }
+
                     int newHappiness = p.getHappiness();
                     String newStatus = p.getStatus();
                     
                     if (targetSleepState) {
                         newStatus = Pet.STATUS_SLEEPING;
                         db.collection("pets").document(currentCoupleId)
-                            .update("isSleeping", true, "status", newStatus)
+                            .update("isSleeping", true,
+                                    "status", newStatus,
+                                    "hunger", decayedHunger,
+                                    "cleanliness", decayedCleanliness,
+                                    "sleepPercent", decayedSleepPercent,
+                                    "lastInteraction", now,
+                                    "lastDecayUpdate", nextDecayUpdate,
+                                    "dndTriggeredByUserId", null)
                             .addOnSuccessListener(aVoid -> {
                                 Toast.makeText(MainActivity.this, "¡Thor se ha ido a dormir! 🌙 Shhh...", Toast.LENGTH_SHORT).show();
                             });
@@ -726,7 +892,15 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                         newHappiness = Math.min(100, newHappiness + 20);
                         newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
                         db.collection("pets").document(currentCoupleId)
-                            .update("isSleeping", false, "status", newStatus, "happiness", newHappiness, "lastInteraction", System.currentTimeMillis())
+                            .update("isSleeping", false,
+                                    "status", newStatus,
+                                    "happiness", newHappiness,
+                                    "hunger", decayedHunger,
+                                    "cleanliness", decayedCleanliness,
+                                    "sleepPercent", decayedSleepPercent,
+                                    "lastInteraction", now,
+                                    "lastDecayUpdate", nextDecayUpdate,
+                                    "dndTriggeredByUserId", null)
                             .addOnSuccessListener(aVoid -> {
                                 Toast.makeText(MainActivity.this, "¡Thor ha despertado muy alegre! ☀️ +20% Felicidad", Toast.LENGTH_SHORT).show();
                             });
@@ -743,6 +917,27 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                         Toast.makeText(MainActivity.this, "💤 ¡Thor está durmiendo!", Toast.LENGTH_SHORT).show();
                         return kotlin.Unit.INSTANCE;
                     }
+                    if (p.getCleanliness() >= 80) {
+                        Toast.makeText(MainActivity.this, "¡" + p.getName() + " todavía está limpio! 🫧 (Limpieza: " + p.getCleanliness() + "%)", Toast.LENGTH_SHORT).show();
+                        return kotlin.Unit.INSTANCE;
+                    }
+
+                    long now = System.currentTimeMillis();
+                    long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
+                    long hoursToDecay = decayDiff / (1000 * 60 * 60);
+                    int decayedHunger = p.getHunger();
+                    int decayedSleepPercent = p.getSleepPercent();
+                    long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
+                    if (hoursToDecay >= 1) {
+                        decayedHunger = Math.min(100, p.getHunger() + (int)(hoursToDecay * 4));
+                        if (p.isSleeping()) {
+                            decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
+                        } else {
+                            decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
+                        }
+                        nextDecayUpdate += hoursToDecay * 3600000L;
+                    }
+
                     int newHappiness = Math.min(100, p.getHappiness() + 10);
                     int newExp = p.getExperience() + 3;
                     int newLevel = p.getLevel();
@@ -760,7 +955,6 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     }
                     final boolean showLevelUpToast = leveledUp;
                     final int finalLevel = newLevel;
-                    long now = System.currentTimeMillis();
                     String today = dayFormat.format(new java.util.Date(now));
                     db.collection("pets").document(currentCoupleId)
                         .update("cleanliness", 100,
@@ -770,7 +964,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                 "lovePoints", newLovePoints,
                                 "status", newStatus,
                                 "lastBathDate", today,
-                                "lastInteraction", now)
+                                "hunger", decayedHunger,
+                                "sleepPercent", decayedSleepPercent,
+                                "lastInteraction", now,
+                                "lastDecayUpdate", nextDecayUpdate)
                         .addOnSuccessListener(aVoid -> {
                             Toast.makeText(MainActivity.this, "¡Thor ha quedado súper limpio! 🫧🚿", Toast.LENGTH_SHORT).show();
                             if (showLevelUpToast) {
@@ -790,6 +987,24 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                         Toast.makeText(MainActivity.this, "¡Ya jugaste con la pelota hoy! ⚾", Toast.LENGTH_SHORT).show();
                         return kotlin.Unit.INSTANCE;
                     }
+
+                    long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
+                    long hoursToDecay = decayDiff / (1000 * 60 * 60);
+                    int decayedHunger = p.getHunger();
+                    int decayedCleanliness = p.getCleanliness();
+                    int decayedSleepPercent = p.getSleepPercent();
+                    long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
+                    if (hoursToDecay >= 1) {
+                        decayedHunger = Math.min(100, p.getHunger() + (int)(hoursToDecay * 4));
+                        decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
+                        if (p.isSleeping()) {
+                            decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
+                        } else {
+                            decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
+                        }
+                        nextDecayUpdate += hoursToDecay * 3600000L;
+                    }
+
                     int newHappiness = Math.min(100, p.getHappiness() + happinessGain);
                     int newLovePoints = p.getLovePoints() + points;
                     int newExp = p.getExperience() + 10;
@@ -814,7 +1029,11 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                 "level", newLevel,
                                 "status", newStatus,
                                 "lastBallDate", today,
-                                "lastInteraction", now)
+                                "hunger", decayedHunger,
+                                "cleanliness", decayedCleanliness,
+                                "sleepPercent", decayedSleepPercent,
+                                "lastInteraction", now,
+                                "lastDecayUpdate", nextDecayUpdate)
                         .addOnSuccessListener(aVoid -> {
                             Toast.makeText(MainActivity.this, "¡Jugaste a la pelota con Thor! ⚾", Toast.LENGTH_SHORT).show();
                             if (showLevelUpToast) {
@@ -839,6 +1058,21 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     if ("snake".equals(gameType) && today.equals(p.getLastSnakeDate())) {
                         Toast.makeText(MainActivity.this, "¡Ya jugaste a La Serpiente hoy! 🐍", Toast.LENGTH_SHORT).show();
                         return kotlin.Unit.INSTANCE;
+                    }
+
+                    long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
+                    long hoursToDecay = decayDiff / (1000 * 60 * 60);
+                    int decayedCleanliness = p.getCleanliness();
+                    int decayedSleepPercent = p.getSleepPercent();
+                    long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
+                    if (hoursToDecay >= 1) {
+                        decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
+                        if (p.isSleeping()) {
+                            decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
+                        } else {
+                            decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
+                        }
+                        nextDecayUpdate += hoursToDecay * 3600000L;
                     }
                     
                     int newExp = p.getExperience() + exp;
@@ -866,8 +1100,11 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                 "happiness", newHappiness,
                                 "status", newStatus,
                                 "hunger", 0,
+                                "cleanliness", decayedCleanliness,
+                                "sleepPercent", decayedSleepPercent,
                                 updateDateField, today,
-                                "lastInteraction", now)
+                                "lastInteraction", now,
+                                "lastDecayUpdate", nextDecayUpdate)
                         .addOnSuccessListener(aVoid -> {
                             Toast.makeText(MainActivity.this, "¡Premio reclamado! +" + points + " ❤️ y +" + exp + " EXP 🥰", Toast.LENGTH_SHORT).show();
                             if (showLevelUpToast) {
@@ -1067,26 +1304,41 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
 
     private void checkPetDecay(Pet p) {
         long now = System.currentTimeMillis();
-        long diff = now - p.getLastInteraction();
-        long hours = diff / (1000 * 60 * 60);
         
-        // Calcular hambre: aumenta en 4 por hora sin interactuar (evita decrementos por compensación de tiempo)
-        int newHunger = Math.max(p.getHunger(), Math.min(100, (int) (hours * 4)));
+        // 1. Decaimiento de hambre, limpieza y sueño (basado en lastDecayUpdate)
+        long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
+        long hoursToDecay = decayDiff / (1000 * 60 * 60);
         
-        // Calcular limpieza: disminuye en 3 por hora sin interactuar
-        int newCleanliness = Math.max(0, p.getCleanliness() - (int) (hours * 3));
+        int newHunger = p.getHunger();
+        int newCleanliness = p.getCleanliness();
+        int newSleepPercent = p.getSleepPercent();
+        long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
+        
+        if (hoursToDecay >= 1) {
+            newHunger = Math.min(100, p.getHunger() + (int)(hoursToDecay * 4));
+            newCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
+            if (p.isSleeping()) {
+                newSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
+            } else {
+                newSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
+            }
+            nextDecayUpdate += hoursToDecay * 3600000L;
+        }
+        
+        // 2. Decaimiento de felicidad (basado en lastInteraction, 24 horas sin interactuar)
+        long happinessDiff = now - p.getLastInteraction();
+        long daysToDecayHappiness = happinessDiff / (1000L * 60L * 60L * 24L);
         
         int newHappiness = p.getHappiness();
         long lastInteractionCompensated = p.getLastInteraction();
         
-        if (hours >= 24) {
-            long daysToDecay = hours / 24;
-            int decay = (int)daysToDecay * 20;
+        if (daysToDecayHappiness >= 1) {
+            int decay = (int)daysToDecayHappiness * 20;
             newHappiness = Math.max(0, p.getHappiness() - decay);
-            // Compensamos el timestamp sumando los bloques de 24h procesados
-            lastInteractionCompensated += (daysToDecay * 24L * 60L * 60L * 1000L);
+            lastInteractionCompensated += daysToDecayHappiness * 24L * 60L * 60L * 1000L;
         }
         
+        // 3. Determinar estado
         String newStatus = p.getStatus();
         if (p.isSleeping()) {
             newStatus = Pet.STATUS_SLEEPING;
@@ -1099,15 +1351,19 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         boolean hasChanged = newHappiness != p.getHappiness() 
                 || newHunger != p.getHunger() 
                 || newCleanliness != p.getCleanliness()
-                || !newStatus.equals(p.getStatus());
+                || newSleepPercent != p.getSleepPercent()
+                || !newStatus.equals(p.getStatus())
+                || nextDecayUpdate != p.getLastDecayUpdate();
                 
         if (hasChanged) {
             db.collection("pets").document(currentCoupleId)
                 .update("happiness", newHappiness, 
                         "hunger", newHunger,
                         "cleanliness", newCleanliness,
+                        "sleepPercent", newSleepPercent,
                         "status", newStatus,
-                        "lastInteraction", lastInteractionCompensated);
+                        "lastInteraction", lastInteractionCompensated,
+                        "lastDecayUpdate", nextDecayUpdate);
         }
     }
 
@@ -1117,6 +1373,22 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         
         long now = System.currentTimeMillis();
         String today = dayFormat.format(new java.util.Date(now));
+        
+        // Primero, calculamos el decaimiento de limpieza y sueño acumulado antes de resetear
+        long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
+        long hoursToDecay = decayDiff / (1000 * 60 * 60);
+        int currentCleanliness = p.getCleanliness();
+        int currentSleepPercent = p.getSleepPercent();
+        long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
+        if (hoursToDecay >= 1) {
+            currentCleanliness = Math.max(0, currentCleanliness - (int)(hoursToDecay * 3));
+            if (p.isSleeping()) {
+                currentSleepPercent = Math.min(100, currentSleepPercent + (int)(hoursToDecay * 15));
+            } else {
+                currentSleepPercent = Math.max(0, currentSleepPercent - (int)(hoursToDecay * 5));
+            }
+            nextDecayUpdate += hoursToDecay * 3600000L;
+        }
         
         int newHappiness = Math.min(100, p.getHappiness() + 10);
         int newLovePoints = p.getLovePoints() + 5; // +5 puntos por interacción
@@ -1159,7 +1431,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     "streakDays", newStreak,
                     "lastInteractionDate", today,
                     "lastInteraction", now,
+                    "lastDecayUpdate", nextDecayUpdate,
                     "hunger", 0,
+                    "cleanliness", currentCleanliness,
+                    "sleepPercent", currentSleepPercent,
                     "status", p.isSleeping() ? Pet.STATUS_SLEEPING : Pet.STATUS_HAPPY);
     }
     private void checkAndRequestPermissions() {
@@ -1191,12 +1466,29 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     }
 
     private void handleUpdateIntent(Intent intent) {
-        if (intent != null && intent.hasExtra("update_url")) {
-            String url = intent.getStringExtra("update_url");
-            if (url != null) {
-                showUpdateDialog(url);
+        if (intent != null) {
+            if (intent.hasExtra("update_url")) {
+                String url = intent.getStringExtra("update_url");
+                if (url != null) {
+                    showUpdateDialog(url);
+                }
+            }
+            if (intent.hasExtra("sync_error_msg")) {
+                String errorMsg = intent.getStringExtra("sync_error_msg");
+                if (errorMsg != null && !errorMsg.isEmpty()) {
+                    showSyncErrorDialog(errorMsg);
+                    intent.removeExtra("sync_error_msg");
+                }
             }
         }
+    }
+
+    public void showSyncErrorDialog(String errorMsg) {
+        new AlertDialog.Builder(this)
+                .setTitle("⚠️ Error de Sincronización")
+                .setMessage("Ocurrió un error al sincronizar las fotos con Google Drive:\n\n" + errorMsg)
+                .setPositiveButton("Aceptar", null)
+                .show();
     }
 
     private void sendMessage() {

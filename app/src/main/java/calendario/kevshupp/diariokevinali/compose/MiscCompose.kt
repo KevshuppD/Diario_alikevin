@@ -249,7 +249,7 @@ fun SpiritsChecklistView(
             .set(mapOf(targetUserKey to newList), SetOptions.merge())
     }
 
-    val spiritsList = remember { (1..41).map { String.format("%02d", it) } }
+    val spiritsList = remember { (1..65).map { String.format("%02d", it) } }
     val spiritNames = remember {
         listOf(
             // Fila 1
@@ -267,7 +267,16 @@ fun SpiritsChecklistView(
             "Espíritu Rey", "Espíritu Rey Dorado", "Espíritu Rey Gomita", "Espíritu Rey Galaxia",
             // Fila 5
             "Espíritu Fantasma", "Espíritu Fantasma Dorado", "Espíritu Fantasma Gomita", "Espíritu Fantasma Galaxia",
-            "Espíritu del Punto Cero", "Espíritu del Punto Cero Dorado", "Espíritu del Punto Cero Gomita", "Espíritu del Punto Cero Galaxia"
+            "Espíritu del Punto Cero", "Espíritu del Punto Cero Dorado", "Espíritu del Punto Cero Gomita", "Espíritu del Punto Cero Galaxia",
+            // Fila 6 (Nuevos)
+            "Espíritu de Aura", "Espíritu de Aura Dorado", "Espíritu de Aura Galaxia", "Espíritu de Aura Gomita",
+            "Espíritu de la Fundación", "Espíritu de la Fundación Dorado", "Espíritu de la Fundación Galaxia", "Espíritu de la Fundación Gomita",
+            // Fila 7 (Nuevos)
+            "Espíritu de la Parca", "Espíritu de la Parca Dorado", "Espíritu de la Parca Galaxia", "Espíritu de la Parca Gomita",
+            "Espíritu Futbolero", "Espíritu Futbolero Dorado", "Espíritu Futbolero Galaxia", "Espíritu Futbolero Gomita",
+            // Fila 8 (Nuevos)
+            "Espíritu Jefe", "Espíritu Jefe Dorado", "Espíritu Jefe Galaxia", "Espíritu Jefe Gomita",
+            "Espíritu Pescado", "Espíritu Pescado Dorado", "Espíritu Pescado Galaxia", "Espíritu Pescado Gomita"
         )
     }
 

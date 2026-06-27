@@ -28,6 +28,11 @@ fun SettingsSyncCompose(
     syncIntervalMinutes: Long,
     wifiOnly: Boolean,
     chargingOnly: Boolean,
+    syncState: String,
+    syncMaxRetries: Int,
+    syncLastError: String?,
+    onMaxRetriesChange: (Int) -> Unit,
+    onClearLastError: () -> Unit,
     onLinkGoogleDrive: () -> Unit,
     onUnlinkGoogleDrive: () -> Unit,
     onSelectLocalFolder: () -> Unit,
@@ -38,7 +43,12 @@ fun SettingsSyncCompose(
     onStopSync: () -> Unit,
     isSyncing: Boolean,
     syncProgress: Int = -1,
-    syncStatus: String = ""
+    syncStatus: String = "",
+    localFilesCount: Int = 0,
+    cloudFilesCount: Int = 0,
+    syncParallelLines: Int = 3,
+    activeSyncSlots: List<Pair<String, Int>> = emptyList(),
+    onParallelLinesChange: (Int) -> Unit = {}
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val isMono = currentTheme == "Pixel Monocromático"
@@ -199,7 +209,170 @@ fun SettingsSyncCompose(
                 borderColor = borderColor
             )
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Reintentos Automáticos por Error:",
+                fontFamily = Vt323Sync,
+                fontSize = 16.sp,
+                color = textColor,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+
+            val retryOptions = listOf(0, 1, 2, 3, 5)
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                retryOptions.forEach { attempts ->
+                    val selected = syncMaxRetries == attempts
+                    val optBg = if (selected) borderColor else Color.Transparent
+                    val optText = if (selected) Color.White else textColor
+                    val label = if (attempts == 0) "Manual" else attempts.toString()
+
+                    Box(
+                        modifier = Modifier
+                            .border(2.dp, borderColor)
+                            .background(optBg)
+                            .clickable { onMaxRetriesChange(attempts) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            fontFamily = Vt323Sync,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = optText
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Líneas de Subida en Paralelo:",
+                fontFamily = Vt323Sync,
+                fontSize = 16.sp,
+                color = textColor,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+
+            val parallelOptions = listOf(1, 2, 3, 5)
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                parallelOptions.forEach { lines ->
+                    val selected = syncParallelLines == lines
+                    val optBg = if (selected) borderColor else Color.Transparent
+                    val optText = if (selected) Color.White else textColor
+
+                    Box(
+                        modifier = Modifier
+                            .border(2.dp, borderColor)
+                            .background(optBg)
+                            .clickable { onParallelLinesChange(lines) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = lines.toString(),
+                            fontFamily = Vt323Sync,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = optText
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Indicador de Estado de Sincronización
+            val effectiveSyncState = if (syncState == "SINCRONIZADO" && localFilesCount != cloudFilesCount) {
+                "NO_SINCRONIZADO"
+            } else {
+                syncState
+            }
+            val stateLabel = when (effectiveSyncState) {
+                "SINCRONIZADO" -> "ESTADO: SINCRONIZADO 🟢"
+                "SINCRONIZANDO" -> "ESTADO: SINCRONIZANDO... 🔄"
+                else -> "ESTADO: NO SINCRONIZADO 🔴"
+            }
+            val stateColor = when (effectiveSyncState) {
+                "SINCRONIZADO" -> if (isDark) Color(0xFF00E676) else Color(0xFF388E3C)
+                "SINCRONIZANDO" -> if (isDark) Color(0xFF29B6F6) else Color(0xFF1976D2)
+                else -> if (isDark) Color(0xFFFF5252) else Color(0xFFD32F2F)
+            }
+            
+            Text(
+                text = stateLabel,
+                fontFamily = Vt323Sync,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = stateColor,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+
+            Text(
+                text = "Archivos - Celular: $localFilesCount | Nube: $cloudFilesCount",
+                fontFamily = Vt323Sync,
+                fontSize = 16.sp,
+                color = textColor,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            if (!syncLastError.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(2.dp, if (isDark) Color(0xFFFF5252) else Color(0xFFD32F2F))
+                        .background(if (isDark) Color(0x33FF5252) else Color(0xFFFFF0F0))
+                        .padding(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "⚠️ ÚLTIMO ERROR REGISTRADO",
+                            fontFamily = Vt323Sync,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color(0xFFFF5252) else Color(0xFFD32F2F)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .border(1.dp, if (isDark) Color(0xFFFF5252) else Color(0xFFD32F2F))
+                                .clickable { onClearLastError() }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "LIMPIAR ✖",
+                                fontFamily = Vt323Sync,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color(0xFFFF5252) else Color(0xFFD32F2F)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = syncLastError,
+                        fontFamily = Vt323Sync,
+                        fontSize = 14.sp,
+                        color = textColor
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             if (isSyncing) {
                 Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
@@ -237,6 +410,58 @@ fun SettingsSyncCompose(
                             color = if (isDark) Color(0xFF00E676) else Color(0xFF388E3C),
                             trackColor = Color.Transparent
                         )
+                    }
+
+                    if (activeSyncSlots.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Líneas de subida/descarga activas:",
+                            fontFamily = Vt323Sync,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                        activeSyncSlots.forEach { (fileName, prog) ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .border(1.dp, borderColor.copy(alpha = 0.5f))
+                                    .padding(8.dp)
+                            ) {
+                                Text(
+                                    text = fileName,
+                                    fontFamily = Vt323Sync,
+                                    fontSize = 14.sp,
+                                    color = textColor,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    LinearProgressIndicator(
+                                        progress = { if (prog >= 0) prog / 100f else 0f },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(8.dp)
+                                            .border(1.dp, borderColor),
+                                        color = if (isDark) Color(0xFFFF4081) else Color(0xFFFF80AB),
+                                        trackColor = Color.Transparent
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = if (prog >= 0) "$prog%" else "...",
+                                        fontFamily = Vt323Sync,
+                                        fontSize = 12.sp,
+                                        color = textColor
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -655,6 +655,11 @@ fun SettingsScreen(
     syncIntervalMinutes: Long,
     wifiOnly: Boolean,
     chargingOnly: Boolean,
+    syncState: String,
+    syncMaxRetries: Int,
+    syncLastError: String?,
+    onMaxRetriesChange: (Int) -> Unit,
+    onClearLastError: () -> Unit,
     onLinkGoogleDrive: () -> Unit,
     onUnlinkGoogleDrive: () -> Unit,
     onSelectLocalFolder: () -> Unit,
@@ -665,7 +670,12 @@ fun SettingsScreen(
     onStopSync: () -> Unit,
     isSyncing: Boolean,
     syncProgress: Int = -1,
-    syncStatus: String = ""
+    syncStatus: String = "",
+    localFilesCount: Int = 0,
+    cloudFilesCount: Int = 0,
+    syncParallelLines: Int = 3,
+    activeSyncSlots: List<Pair<String, Int>> = emptyList(),
+    onParallelLinesChange: (Int) -> Unit = {}
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val isMono = currentTheme == "Pixel Monocromático"
@@ -683,6 +693,14 @@ fun SettingsScreen(
         else -> Color(0xFF4A2511)
     }
 
+    val btnBackground = when {
+        isDark -> Color(0xFF282828)
+        isMono -> Color.White
+        else -> Color(0xFFFFFBEA)
+    }
+
+    var appSettingsSubView by remember { mutableStateOf("menu") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -690,257 +708,359 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_back_pixel),
-                    contentDescription = "Volver",
-                    tint = textColor,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Text(
-                text = "Configuración",
-                fontFamily = Vt323,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = textColor,
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.width(48.dp)) 
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(text = "TEMA VISUAL", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
-        
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = currentTheme == "Pixel Claro", onClick = { onThemeChange("Pixel Claro") })
-            Text("Pixel Claro", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onThemeChange("Pixel Claro") })
-            Spacer(modifier = Modifier.width(20.dp))
-            RadioButton(selected = currentTheme == "Pixel Oscuro", onClick = { onThemeChange("Pixel Oscuro") })
-            Text("Pixel Oscuro", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onThemeChange("Pixel Oscuro") })
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = if (isDark) "COLOR DE BARRAS (OSCURO)" else "COLOR DE BARRAS (CLARO)",
-            fontFamily = Vt323, fontSize = 18.sp, color = textColor
-        )
-        
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            val colors = if (isDark) {
-                listOf("#4A148C", "#0D47A1", "#1B5E20", "#C2185B", "#E65100", "#006064", "#3E2723")
-            } else {
-                listOf("#D1C4E9", "#B3E5FC", "#C8E6C9", "#F8BBD0", "#FFE0B2", "#B2EBF2", "#D7CCC8")
-            }
-            colors.forEach { colorHex ->
-                Box(
-                    modifier = Modifier
-                        .size(35.dp)
-                        .background(Color(android.graphics.Color.parseColor(colorHex)), CircleShape)
-                        .border(2.dp, borderColor, CircleShape)
-                        .clickable {
-                            if (!isMono) {
-                                onColorSelect(colorHex)
-                            }
-                        }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onBgPreferenceChange(!useCustomBg) }
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .border(2.dp, borderColor)
-                    .background(if (useCustomBg) Color(0xFF81C784) else Color(0x22000000)),
-                contentAlignment = Alignment.Center
+        if (appSettingsSubView == "menu") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (useCustomBg) {
-                    Text(
-                        text = "✓",
-                        fontFamily = Vt323,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                IconButton(onClick = onBack) {
+                    Icon(
+                        painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_back_pixel),
+                        contentDescription = "Volver",
+                        tint = textColor,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
+                Text(
+                    text = "Configuración",
+                    fontFamily = Vt323,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.width(48.dp)) 
             }
-            Spacer(modifier = Modifier.width(12.dp))
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                GeneralSettingsMenuButton("🎨 Diseño y Tema", btnBackground, textColor, borderColor) {
+                    appSettingsSubView = "theme"
+                }
+                GeneralSettingsMenuButton("🔔 Alertas y Tiempos", btnBackground, textColor, borderColor) {
+                    appSettingsSubView = "alerts"
+                }
+                GeneralSettingsMenuButton("☁️ Sincronización (Google Drive)", btnBackground, textColor, borderColor) {
+                    appSettingsSubView = "sync"
+                }
+                GeneralSettingsMenuButton("💾 Almacenamiento", btnBackground, textColor, borderColor) {
+                    appSettingsSubView = "cache"
+                }
+                GeneralSettingsMenuButton("⚙️ Sistema", btnBackground, textColor, borderColor) {
+                    appSettingsSubView = "system"
+                }
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
             Text(
-                text = "Aplicar color también al fondo",
+                text = "Versión actual: $versionName",
+                modifier = Modifier.align(Alignment.CenterHorizontally),
                 fontFamily = Vt323,
                 fontSize = 18.sp,
-                color = textColor
+                color = textColor.copy(alpha = 0.8f)
             )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(text = "LÍMITE DE CACHÉ", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
-        
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = currentCacheLimit == 100L, onClick = { onCacheLimitChange(100L) })
-            Text("100MB", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onCacheLimitChange(100L) })
-            Spacer(modifier = Modifier.width(12.dp))
-            RadioButton(selected = currentCacheLimit == 500L, onClick = { onCacheLimitChange(500L) })
-            Text("500MB", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onCacheLimitChange(500L) })
-            Spacer(modifier = Modifier.width(12.dp))
-            RadioButton(selected = currentCacheLimit == 1024L, onClick = { onCacheLimitChange(1024L) })
-            Text("1GB", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onCacheLimitChange(1024L) })
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(text = "FRECUENCIA DE ACTUALIZACIÓN", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
-        Text(text = "(Mínimo 15 min por sistema Android)", fontFamily = Vt323, fontSize = 14.sp, color = textColor.copy(alpha = 0.6f))
-        
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RadioButton(selected = updateInterval == 15L, onClick = { onUpdateIntervalChange(15L) })
-                Text("15m", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+        } else {
+            val subTitleText = when (appSettingsSubView) {
+                "theme" -> "Diseño y Tema"
+                "alerts" -> "Alertas y Tiempos"
+                "sync" -> "Sincronización"
+                "cache" -> "Almacenamiento"
+                else -> "Sistema"
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RadioButton(selected = updateInterval == 60L, onClick = { onUpdateIntervalChange(60L) })
-                Text("1h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RadioButton(selected = updateInterval == 360L, onClick = { onUpdateIntervalChange(360L) })
-                Text("6h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RadioButton(selected = updateInterval == 720L, onClick = { onUpdateIntervalChange(720L) })
-                Text("12h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
-            }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(text = "AVISO DE CITAS (CALENDARIO)", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
-        
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RadioButton(selected = appointmentLeadTime == 15L, onClick = { onAppointmentLeadTimeChange(15L) })
-                Text("15m", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RadioButton(selected = appointmentLeadTime == 60L, onClick = { onAppointmentLeadTimeChange(60L) })
-                Text("1h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RadioButton(selected = appointmentLeadTime == 180L, onClick = { onAppointmentLeadTimeChange(180L) })
-                Text("3h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RadioButton(selected = appointmentLeadTime == 1440L, onClick = { onAppointmentLeadTimeChange(1440L) })
-                Text("1d", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        SettingsSyncCompose(
-            currentTheme = currentTheme,
-            googleAccountEmail = googleAccountEmail,
-            selectedFolderUri = selectedFolderUri,
-            syncIntervalMinutes = syncIntervalMinutes,
-            wifiOnly = wifiOnly,
-            chargingOnly = chargingOnly,
-            onLinkGoogleDrive = onLinkGoogleDrive,
-            onUnlinkGoogleDrive = onUnlinkGoogleDrive,
-            onSelectLocalFolder = onSelectLocalFolder,
-            onIntervalChange = onIntervalChange,
-            onWifiOnlyChange = onWifiOnlyChange,
-            onChargingOnlyChange = onChargingOnlyChange,
-            onSyncNow = onSyncNow,
-            onStopSync = onStopSync,
-            isSyncing = isSyncing,
-            syncProgress = syncProgress,
-            syncStatus = syncStatus
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Botón 3D Buscar Actualizaciones
-        val updatesBtnBg = if (isDark) Color(0xFF00796B) else Color(0xFF673AB7)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(60.dp)
-                .clickable { onCheckUpdates() }
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .offset(y = 6.dp)
-                    .background(borderColor)
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .border(3.dp, borderColor)
-                    .background(updatesBtnBg),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("🔄 BUSCAR ACTUALIZACIONES", fontFamily = Vt323, fontSize = 22.sp, color = Color.White)
+                IconButton(onClick = { appSettingsSubView = "menu" }) {
+                    Icon(
+                        painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_back_pixel),
+                        contentDescription = "Volver",
+                        tint = textColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Text(
+                    text = subTitleText,
+                    fontFamily = Vt323,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.width(48.dp)) 
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            when (appSettingsSubView) {
+                "theme" -> {
+                    Text(text = "TEMA VISUAL", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = currentTheme == "Pixel Claro", onClick = { onThemeChange("Pixel Claro") })
+                        Text("Pixel Claro", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onThemeChange("Pixel Claro") })
+                        Spacer(modifier = Modifier.width(20.dp))
+                        RadioButton(selected = currentTheme == "Pixel Oscuro", onClick = { onThemeChange("Pixel Oscuro") })
+                        Text("Pixel Oscuro", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onThemeChange("Pixel Oscuro") })
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Text(
+                        text = if (isDark) "COLOR DE BARRAS (OSCURO)" else "COLOR DE BARRAS (CLARO)",
+                        fontFamily = Vt323, fontSize = 18.sp, color = textColor
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        val colors = if (isDark) {
+                            listOf("#4A148C", "#0D47A1", "#1B5E20", "#C2185B", "#E65100", "#006064", "#3E2723")
+                        } else {
+                            listOf("#D1C4E9", "#B3E5FC", "#C8E6C9", "#F8BBD0", "#FFE0B2", "#B2EBF2", "#D7CCC8")
+                        }
+                        colors.forEach { colorHex ->
+                            Box(
+                                modifier = Modifier
+                                    .size(35.dp)
+                                    .background(Color(android.graphics.Color.parseColor(colorHex)), CircleShape)
+                                    .border(2.dp, borderColor, CircleShape)
+                                    .clickable {
+                                        if (!isMono) {
+                                            onColorSelect(colorHex)
+                                        }
+                                    }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onBgPreferenceChange(!useCustomBg) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .border(2.dp, borderColor)
+                                .background(if (useCustomBg) Color(0xFF81C784) else Color(0x22000000)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (useCustomBg) {
+                                Text(
+                                    text = "✓",
+                                    fontFamily = Vt323,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Aplicar color también al fondo",
+                            fontFamily = Vt323,
+                            fontSize = 18.sp,
+                            color = textColor
+                        )
+                    }
+                }
+                "alerts" -> {
+                    Text(text = "FRECUENCIA DE ACTUALIZACIÓN", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+                    Text(text = "(Mínimo 15 min por sistema Android)", fontFamily = Vt323, fontSize = 14.sp, color = textColor.copy(alpha = 0.6f))
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RadioButton(selected = updateInterval == 15L, onClick = { onUpdateIntervalChange(15L) })
+                            Text("15m", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RadioButton(selected = updateInterval == 60L, onClick = { onUpdateIntervalChange(60L) })
+                            Text("1h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RadioButton(selected = updateInterval == 360L, onClick = { onUpdateIntervalChange(360L) })
+                            Text("6h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RadioButton(selected = updateInterval == 720L, onClick = { onUpdateIntervalChange(720L) })
+                            Text("12h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(text = "AVISO DE CITAS (CALENDARIO)", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RadioButton(selected = appointmentLeadTime == 15L, onClick = { onAppointmentLeadTimeChange(15L) })
+                            Text("15m", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RadioButton(selected = appointmentLeadTime == 60L, onClick = { onAppointmentLeadTimeChange(60L) })
+                            Text("1h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RadioButton(selected = appointmentLeadTime == 180L, onClick = { onAppointmentLeadTimeChange(180L) })
+                            Text("3h", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RadioButton(selected = appointmentLeadTime == 1440L, onClick = { onAppointmentLeadTimeChange(1440L) })
+                            Text("1d", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                        }
+                    }
+                }
+                "sync" -> {
+                    SettingsSyncCompose(
+                        currentTheme = currentTheme,
+                        googleAccountEmail = googleAccountEmail,
+                        selectedFolderUri = selectedFolderUri,
+                        syncIntervalMinutes = syncIntervalMinutes,
+                        wifiOnly = wifiOnly,
+                        chargingOnly = chargingOnly,
+                        syncState = syncState,
+                        syncMaxRetries = syncMaxRetries,
+                        syncLastError = syncLastError,
+                        onMaxRetriesChange = onMaxRetriesChange,
+                        onClearLastError = onClearLastError,
+                        onLinkGoogleDrive = onLinkGoogleDrive,
+                        onUnlinkGoogleDrive = onUnlinkGoogleDrive,
+                        onSelectLocalFolder = onSelectLocalFolder,
+                        onIntervalChange = onIntervalChange,
+                        onWifiOnlyChange = onWifiOnlyChange,
+                        onChargingOnlyChange = onChargingOnlyChange,
+                        onSyncNow = onSyncNow,
+                        onStopSync = onStopSync,
+                        isSyncing = isSyncing,
+                        syncProgress = syncProgress,
+                        syncStatus = syncStatus,
+                        localFilesCount = localFilesCount,
+                        cloudFilesCount = cloudFilesCount,
+                        syncParallelLines = syncParallelLines,
+                        activeSyncSlots = activeSyncSlots,
+                        onParallelLinesChange = onParallelLinesChange
+                    )
+                }
+                "cache" -> {
+                    Text(text = "LÍMITE DE CACHÉ", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = currentCacheLimit == 100L, onClick = { onCacheLimitChange(100L) })
+                        Text("100MB", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onCacheLimitChange(100L) })
+                        Spacer(modifier = Modifier.width(12.dp))
+                        RadioButton(selected = currentCacheLimit == 500L, onClick = { onCacheLimitChange(500L) })
+                        Text("500MB", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onCacheLimitChange(500L) })
+                        Spacer(modifier = Modifier.width(12.dp))
+                        RadioButton(selected = currentCacheLimit == 1024L, onClick = { onCacheLimitChange(1024L) })
+                        Text("1GB", fontFamily = Vt323, fontSize = 20.sp, color = textColor, modifier = Modifier.clickable { onCacheLimitChange(1024L) })
+                    }
+                }
+                "system" -> {
+                    val updatesBtnBg = if (isDark) Color(0xFF00796B) else Color(0xFF673AB7)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .clickable { onCheckUpdates() }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .offset(y = 6.dp)
+                                .background(borderColor)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .border(3.dp, borderColor)
+                                .background(updatesBtnBg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🔄 BUSCAR ACTUALIZACIONES", fontFamily = Vt323, fontSize = 22.sp, color = Color.White)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .clickable { onLogout() }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .offset(y = 6.dp)
+                                .background(borderColor)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .border(3.dp, borderColor)
+                                .background(Color(0xFF795548)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🚪 CERRAR SESIÓN", fontFamily = Vt323, fontSize = 22.sp, color = Color.White)
+                        }
+                    }
+                }
             }
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Botón 3D Cerrar Sesión
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(60.dp)
-                .clickable { onLogout() }
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .offset(y = 6.dp)
-                    .background(borderColor)
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .border(3.dp, borderColor)
-                    .background(Color(0xFF795548)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("🚪 CERRAR SESIÓN", fontFamily = Vt323, fontSize = 22.sp, color = Color.White)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Versión actual: $versionName",
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            fontFamily = Vt323,
-            fontSize = 18.sp,
-            color = textColor.copy(alpha = 0.8f)
-        )
-
         // Diálogo choice eliminado
+    }
+}
+
+@Composable
+fun GeneralSettingsMenuButton(
+    text: String,
+    btnBackground: Color,
+    textColor: Color,
+    borderColor: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(55.dp)
+            .clickable { onClick() }
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .offset(y = 6.dp)
+                .background(borderColor)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .border(2.dp, borderColor)
+                .background(btnBackground)
+                .padding(horizontal = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text, fontFamily = Vt323, fontSize = 20.sp, color = textColor, fontWeight = FontWeight.Bold)
+            Text("▶", fontFamily = Vt323, fontSize = 16.sp, color = borderColor)
+        }
     }
 }

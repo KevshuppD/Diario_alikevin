@@ -60,13 +60,15 @@ object SyncScheduler {
     }
 
     fun stopAllRunningSyncs(context: Context) {
+        val prefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("syncCancelledByUser", true).apply()
+
         val workManager = WorkManager.getInstance(context)
         workManager.cancelUniqueWork(UNIQUE_ONETIME_WORK_NAME)
         
         // Cancelar el periódico actual, pero reagendarlo de inmediato para no perder la programación futura
         workManager.cancelUniqueWork(UNIQUE_PERIODIC_WORK_NAME)
         
-        val prefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
         val intervalMinutes = prefs.getLong("syncIntervalMinutes", 0L)
         val wifiOnly = prefs.getBoolean("syncWifiOnly", true)
         val chargingOnly = prefs.getBoolean("syncChargingOnly", false)

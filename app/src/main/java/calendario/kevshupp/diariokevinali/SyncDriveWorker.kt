@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.documentfile.provider.DocumentFile
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -63,11 +64,23 @@ class SyncDriveWorker(
             return Result.failure()
         }
 
+        val maxRetries = prefs.getInt("syncMaxRetries", 3)
+
         // Mostrar notificación e iniciar progreso sólo si está configurado correctamente
         showSyncNotification(-1, "Iniciando sincronización...", false)
         setProgress(workDataOf("progress" to -1, "status" to "Iniciando sincronización..."))
+        prefs.edit()
+            .putString("syncState", "SINCRONIZANDO")
+            .remove("syncLastError")
+            .apply()
 
         try {
+            try {
+                setForeground(getForegroundInfo())
+            } catch (e: Exception) {
+                Log.w(TAG, "No se pudo promover el trabajador a primer plano (Foreground): ${e.message}")
+            }
+
             // 2. Construir el cliente de Google Drive
             showSyncNotification(-1, "Conectando con Google Drive...", false)
             setProgress(workDataOf("progress" to -1, "status" to "Conectando con Google Drive..."))
@@ -86,13 +99,14 @@ class SyncDriveWorker(
                 .build()
 
             // 3. Buscar o crear la carpeta compartida en Drive
-            showSyncNotification(-1, "Verificando carpeta en Drive...", false)
-            setProgress(workDataOf("progress" to -1, "status" to "Verificando carpeta en Drive..."))
-            val folderId = getOrCreateDriveFolder(driveService)
+            var folderId = prefs.getString("syncDriveFolderId", null)
             if (folderId.isNullOrEmpty()) {
-                Log.e(TAG, "No se pudo obtener o crear la carpeta de Google Drive.")
-                showSyncNotification(100, "Error en carpeta de Drive", true, false)
-                return Result.failure()
+                showSyncNotification(-1, "Verificando carpeta en Drive...", false)
+                setProgress(workDataOf("progress" to -1, "status" to "Verificando carpeta en Drive..."))
+                folderId = runWithRetry(maxRetries) {
+                    getOrCreateDriveFolder(driveService) ?: throw java.io.IOException("No se pudo obtener o crear la carpeta de Google Drive.")
+                }
+                prefs.edit().putString("syncDriveFolderId", folderId).apply()
             }
 
             // 4. Cargar la carpeta local SAF y verificar si persisten los permisos
@@ -116,204 +130,378 @@ class SyncDriveWorker(
                 return Result.failure()
             }
 
-            // 5. Cargar metadatos desde Firestore
-            showSyncNotification(-1, "Cargando metadatos de sincronización...", false)
-            setProgress(workDataOf("progress" to -1, "status" to "Cargando metadatos de sincronización..."))
+            // 5. Cargar metadatos desde Firestore y listar locales EN PARALELO (Omitiendo listado de Drive por velocidad)
+            showSyncNotification(-1, "Consultando archivos locales y en la nube...", false)
+            setProgress(workDataOf("progress" to -1, "status" to "Consultando archivos locales y en la nube..."))
             val db = FirebaseFirestore.getInstance()
-            val metadataSnapshot = Tasks.await(
-                db.collection("pets").document(coupleId).collection("drive_sync_metadata").get()
-            )
-            
+
+            val (metadataSnapshot, localFiles) = coroutineScope {
+                val firestoreDeferred = async {
+                    runWithRetry(maxRetries) {
+                        Tasks.await(
+                            db.collection("pets").document(coupleId).collection("drive_sync_metadata").get()
+                        )
+                    }
+                }
+                val localFilesDeferred = async {
+                    listFilesFromTreeUri(applicationContext, localFolderUri)
+                }
+                Pair(firestoreDeferred.await(), localFilesDeferred.await())
+            }
+
             val dbMetadataList = metadataSnapshot.documents.mapNotNull { doc ->
                 val meta = doc.toObject(SyncMetadata::class.java)
                 if (meta != null) doc.id to meta else null
             }.toMap()
 
-            // 6. Obtener archivos de Google Drive
-            showSyncNotification(-1, "Consultando archivos en la nube...", false)
-            setProgress(workDataOf("progress" to -1, "status" to "Consultando archivos en la nube..."))
-            val driveFilesList = driveService.files().list()
-                .setQ("'$folderId' in parents and trashed = false")
-                .setFields("files(id, name, mimeType, md5Checksum, modifiedTime)")
-                .execute()
-            val driveFiles = driveFilesList.files ?: emptyList()
-            val driveFilesMap = driveFiles.associateBy { it.name }
+            val updatedDbMetadataMap = dbMetadataList.toMutableMap()
+            val localFilesMap = localFiles.associateBy { it.name }
 
-            val localFiles = localFolder.listFiles().filter { localFile ->
-                !localFile.isDirectory && localFile.name != null && (localFile.type ?: "").startsWith("image/")
+            // 5b. Detectar borrados locales y replicarlos en la nube (Drive + Firestore)
+            val deletedLocally = dbMetadataList.filter { (fileName, meta) ->
+                !meta.eliminado && !localFilesMap.containsKey(fileName)
             }
-            
-            val localFilesNames = localFiles.mapNotNull { it.name }.toSet()
-            val totalFiles = localFiles.size + driveFiles.filter { df -> (df.mimeType ?: "").startsWith("image/") }.size
-            val processedCount = AtomicInteger(0)
-
-            // 1. Determinar qué archivos locales necesitan subirse
-            val filesToUpload = mutableListOf<Triple<DocumentFile, String, SyncMetadata?>>()
-            for (localFile in localFiles) {
-                val fileName = localFile.name!!
-                val dbMeta = dbMetadataList[fileName]
-                val driveFile = driveFilesMap[fileName]
-                val localLastModified = localFile.lastModified()
-                
-                val localMd5 = if (dbMeta != null && dbMeta.fechaModificacion == localLastModified) {
-                    dbMeta.md5Checksum
-                } else {
-                    calculateMd5(localFile.uri) ?: ""
-                }
-
-                var needUpload = false
-                if (driveFile == null) {
-                    needUpload = true
-                } else if (dbMeta == null || dbMeta.md5Checksum != localMd5) {
-                    if (driveFile.md5Checksum != localMd5) {
-                        val driveModifiedTime = driveFile.modifiedTime?.value ?: 0L
-                        if (localLastModified > driveModifiedTime) {
-                            needUpload = true
+            if (deletedLocally.isNotEmpty()) {
+                Log.d(TAG, "Detectados ${deletedLocally.size} archivos borrados localmente. Procesando eliminación...")
+                coroutineScope {
+                    val jobs = deletedLocally.map { (fileName, meta) ->
+                        async {
+                            runWithRetry(maxRetries) {
+                                try {
+                                    driveService.files().delete(meta.idDrive).execute()
+                                    Log.d(TAG, "Borrado de Google Drive: $fileName")
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "No se pudo borrar de Drive: $fileName", e)
+                                }
+                                val updatedMeta = meta.copy(eliminado = true)
+                                Tasks.await(
+                                    db.collection("pets").document(coupleId)
+                                        .collection("drive_sync_metadata").document(fileName)
+                                        .set(updatedMeta)
+                                )
+                                synchronized(updatedDbMetadataMap) {
+                                    updatedDbMetadataMap[fileName] = updatedMeta
+                                }
+                            }
                         }
                     }
-                }
-
-                if (needUpload) {
-                    filesToUpload.add(Triple(localFile, localMd5, dbMeta))
+                    jobs.awaitAll()
                 }
             }
 
-            // 7. Procesar archivos locales en paralelo (máximo 3 concurrentes)
+            // 5c. Detectar borrados remotos y replicarlos localmente (Borrar del dispositivo)
+            val localFilesToDelete = localFiles.filter { localFile ->
+                val meta = updatedDbMetadataMap[localFile.name]
+                meta != null && meta.eliminado
+            }
+            if (localFilesToDelete.isNotEmpty()) {
+                Log.d(TAG, "Detectados ${localFilesToDelete.size} archivos eliminados remotamente. Borrando localmente...")
+                localFilesToDelete.forEach { localFile ->
+                    try {
+                        val singleFile = DocumentFile.fromSingleUri(applicationContext, localFile.uri)
+                        singleFile?.delete()
+                        Log.d(TAG, "Borrado local: ${localFile.name}")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error al borrar localmente ${localFile.name}: ${e.message}")
+                    }
+                }
+            }
+
+            // Re-filtrar los archivos locales después del borrado remoto (en memoria, sin llamar al sistema de archivos)
+            val finalLocalFiles = localFiles.filter { localFile ->
+                val isDeleted = localFilesToDelete.any { it.name == localFile.name }
+                !isDeleted && (updatedDbMetadataMap[localFile.name]?.eliminado != true)
+            }
+            val finalLocalFilesMap = finalLocalFiles.associateBy { it.name }
+
+            // Recalcular archivos totales (excluyendo borrados)
+            val activeCloudFilesCount = updatedDbMetadataMap.values.count { !it.eliminado }
+            val totalFiles = finalLocalFiles.size + activeCloudFilesCount
+            val processedCount = AtomicInteger(0)
+
+            // Configurar hilos paralelos y slots
+            val parallelLines = prefs.getInt("syncParallelLines", 3)
+            val slots = Array(parallelLines) { "" }
+            val slotProgress = IntArray(parallelLines) { 0 }
+
+            suspend fun updateSlot(slotIndex: Int, fileName: String, progress: Int, isGeneralOnly: Boolean = false) {
+                synchronized(slots) {
+                    if (!isGeneralOnly && slotIndex in 0 until parallelLines) {
+                        slots[slotIndex] = fileName
+                        slotProgress[slotIndex] = progress
+                    }
+                }
+                
+                val currentProcessed = processedCount.get()
+                val pct = if (totalFiles > 0) (currentProcessed * 100) / totalFiles else 0
+                val dataBuilder = androidx.work.Data.Builder()
+                    .putInt("progress", pct)
+                
+                var generalStatus = ""
+                synchronized(slots) {
+                    val activeSlots = mutableListOf<String>()
+                    for (i in 0 until parallelLines) {
+                        dataBuilder.putString("slot_${i}_name", slots[i])
+                        dataBuilder.putInt("slot_${i}_progress", slotProgress[i])
+                        if (slots[i].isNotEmpty()) {
+                            activeSlots.add(slots[i])
+                        }
+                    }
+                    generalStatus = if (activeSlots.isNotEmpty()) {
+                        if (activeSlots.size == 1) "Sincronizando: ${activeSlots[0]}" else "Sincronizando ${activeSlots.size} archivos..."
+                    } else {
+                        "Sincronizando..."
+                    }
+                }
+                dataBuilder.putString("status", generalStatus)
+                
+                try {
+                    setProgress(dataBuilder.build())
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error al actualizar progreso: ${e.message}")
+                }
+            }
+
+            // 6. Determinar qué archivos locales necesitan subirse (en paralelo)
+            val filesToUpload = coroutineScope {
+                finalLocalFiles.map { localFile ->
+                    async {
+                        val fileName = localFile.name
+                        val dbMeta = updatedDbMetadataMap[fileName]
+                        val localLastModified = localFile.lastModified
+                        
+                        val localMd5 = if (dbMeta != null && dbMeta.fechaModificacion == localLastModified) {
+                            dbMeta.md5Checksum
+                        } else {
+                            calculateMd5(localFile.uri) ?: ""
+                        }
+
+                        var needUpload = false
+                        if (dbMeta != null && dbMeta.eliminado) {
+                            // Si fue marcado como eliminado remotamente, no se sube
+                            needUpload = false
+                        } else if (dbMeta == null) {
+                            // Si no tiene metadatos en Firestore, se debe subir
+                            needUpload = true
+                        } else if (dbMeta.md5Checksum != localMd5) {
+                            // Si el checksum difiere y el archivo local es más reciente que los metadatos registrados
+                            if (localLastModified > dbMeta.fechaModificacion) {
+                                needUpload = true
+                            }
+                        }
+
+                        if (needUpload) {
+                            Triple(localFile, localMd5, dbMeta)
+                        } else {
+                            null
+                        }
+                    }
+                }.awaitAll().filterNotNull()
+            }
+
+            // 7. Procesar archivos locales en paralelo (según líneas configuradas)
             coroutineScope {
-                val uploadSemaphore = Semaphore(3)
+                val uploadSemaphore = Semaphore(parallelLines)
                 val uploadJobs = filesToUpload.map { (localFile, localMd5, dbMeta) ->
                     async {
                         uploadSemaphore.withPermit {
-                            val fileName = localFile.name!!
+                            val fileName = localFile.name
                             Log.d(TAG, "Subiendo en paralelo: $fileName")
                             
-                            val mime = localFile.type ?: "image/jpeg"
-                            val driveFileId = uploadToDrive(driveService, folderId, localFile, mime)
-                            if (driveFileId != null) {
-                                val newMeta = SyncMetadata(
-                                    idLocal = fileName,
-                                    idDrive = driveFileId,
-                                    nombreArchivo = fileName,
-                                    uriLocal = localFile.uri.toString(),
-                                    md5Checksum = localMd5,
-                                    fechaModificacion = localFile.lastModified(),
-                                    sincronizadoPor = userId
-                                )
+                            val slotIndex = synchronized(slots) {
+                                val idx = slots.indexOf("")
+                                if (idx != -1) {
+                                    slots[idx] = fileName
+                                    slotProgress[idx] = 0
+                                    idx
+                                } else {
+                                    0
+                                }
+                            }
+                            updateSlot(slotIndex, fileName, 10)
+                            
+                            val mime = localFile.mimeType
+                            val driveFileId = runWithRetry(maxRetries) {
+                                uploadToDrive(driveService, folderId, localFile.uri, fileName, mime) ?: throw java.io.IOException("No se pudo subir la foto a Drive")
+                            }
+                            updateSlot(slotIndex, fileName, 50)
+                            
+                            val newMeta = SyncMetadata(
+                                idLocal = fileName,
+                                idDrive = driveFileId,
+                                nombreArchivo = fileName,
+                                uriLocal = localFile.uri.toString(),
+                                md5Checksum = localMd5,
+                                fechaModificacion = localFile.lastModified,
+                                sincronizadoPor = userId,
+                                eliminado = false
+                            )
+                            runWithRetry(maxRetries) {
                                 Tasks.await(
                                     db.collection("pets").document(coupleId)
                                         .collection("drive_sync_metadata").document(fileName)
                                         .set(newMeta)
                                 )
                             }
+                            updateSlot(slotIndex, fileName, 100)
                             
-                            val currentProcessed = processedCount.incrementAndGet()
-                            val pct = if (totalFiles > 0) (currentProcessed * 100) / totalFiles else 0
-                            showSyncNotification(pct, "Subiendo: $fileName", false)
-                            setProgress(workDataOf("progress" to pct, "status" to "Subiendo: $fileName"))
+                            synchronized(slots) {
+                                slots[slotIndex] = ""
+                                slotProgress[slotIndex] = 0
+                            }
+                            
+                            processedCount.incrementAndGet()
+                            updateSlot(0, "", -1, isGeneralOnly = true)
                         }
                     }
                 }
                 
                 // Los archivos locales que no requirieron subirse se consideran procesados inmediatamente
-                val localNotUploadedCount = localFiles.size - filesToUpload.size
+                val localNotUploadedCount = finalLocalFiles.size - filesToUpload.size
                 processedCount.addAndGet(localNotUploadedCount)
+                updateSlot(0, "", -1, isGeneralOnly = true)
                 
                 uploadJobs.awaitAll()
             }
 
-            // 8. Procesar archivos de Drive -> Descargar nuevos localmente
-            val updatedMetadataSnapshot = Tasks.await(
-                db.collection("pets").document(coupleId).collection("drive_sync_metadata").get()
-            )
-            val updatedDbMetadataList = updatedMetadataSnapshot.documents.mapNotNull { doc ->
-                doc.toObject(SyncMetadata::class.java)
-            }
-            val updatedDbMetadataMap = updatedDbMetadataList.associateBy { it.nombreArchivo }
-
-            // Determinar qué archivos de Drive necesitan descargarse
-            val filesToDownload = mutableListOf<Triple<com.google.api.services.drive.model.File, String, SyncMetadata?>>()
-            for (df in driveFiles) {
-                val fileName = df.name ?: continue
-                val isImage = df.mimeType?.startsWith("image/") == true
-                if (!isImage) continue
-
-                val existsLocally = localFilesNames.contains(fileName)
-                val dbMeta = updatedDbMetadataMap[fileName]
+            // 8. Determinar qué archivos de Drive necesitan descargarse recorriendo la lista de Firestore
+            val filesToDownload = mutableListOf<Triple<String, String, SyncMetadata>>()
+            for (dbMeta in updatedDbMetadataMap.values) {
+                if (dbMeta.eliminado) continue
+                val fileName = dbMeta.nombreArchivo
+                val existsLocally = finalLocalFilesMap.containsKey(fileName)
 
                 var needDownload = false
                 if (!existsLocally) {
                     needDownload = true
-                } else if (dbMeta == null || dbMeta.md5Checksum != df.md5Checksum) {
-                    val localFile = localFiles.find { it.name == fileName }
-                    val localLastModified = localFile?.lastModified() ?: 0L
-                    val driveModifiedTime = df.modifiedTime?.value ?: 0L
-                    if (driveModifiedTime > localLastModified) {
-                        needDownload = true
+                } else {
+                    val localFile = finalLocalFilesMap[fileName]!!
+                    val localLastModified = localFile.lastModified
+                    // Si la fecha de modificación registrada es diferente, calculamos MD5 para verificar
+                    if (dbMeta.fechaModificacion != localLastModified) {
+                        val localMd5 = calculateMd5(localFile.uri) ?: ""
+                        if (dbMeta.md5Checksum != localMd5 && dbMeta.fechaModificacion > localLastModified) {
+                            needDownload = true
+                        }
                     }
                 }
 
                 if (needDownload) {
-                    filesToDownload.add(Triple(df, fileName, dbMeta))
+                    filesToDownload.add(Triple(dbMeta.idDrive, fileName, dbMeta))
                 }
             }
 
-            // Descargar archivos en paralelo (máximo 3 concurrentes)
+            // Descargar archivos en paralelo (según líneas configuradas)
             coroutineScope {
-                val downloadSemaphore = Semaphore(3)
-                val downloadJobs = filesToDownload.map { (df, fileName, dbMeta) ->
+                val downloadSemaphore = Semaphore(parallelLines)
+                val downloadJobs = filesToDownload.map { (driveFileId, fileName, dbMeta) ->
                     async {
                         downloadSemaphore.withPermit {
                             Log.d(TAG, "Descargando en paralelo: $fileName")
                             
-                            val downloadedUri = downloadFromDrive(driveService, df.id, localFolder, fileName, df.mimeType)
-                            if (downloadedUri != null) {
-                                val downloadedFile = localFolder.findFile(fileName)
-                                val newMd5 = df.md5Checksum ?: calculateMd5(downloadedUri) ?: ""
-                                val finalMeta = SyncMetadata(
-                                    idLocal = fileName,
-                                    idDrive = df.id,
-                                    nombreArchivo = fileName,
-                                    uriLocal = downloadedUri.toString(),
-                                    md5Checksum = newMd5,
-                                    fechaModificacion = downloadedFile?.lastModified() ?: df.modifiedTime?.value ?: System.currentTimeMillis(),
-                                    sincronizadoPor = userId
-                                )
-                                Tasks.await(
-                                    db.collection("pets").document(coupleId)
-                                        .collection("drive_sync_metadata").document(fileName)
-                                        .set(finalMeta)
-                                )
+                            val slotIndex = synchronized(slots) {
+                                val idx = slots.indexOf("")
+                                if (idx != -1) {
+                                    slots[idx] = fileName
+                                    slotProgress[idx] = 0
+                                    idx
+                                } else {
+                                    0
+                                }
                             }
+                            updateSlot(slotIndex, fileName, 10)
                             
-                            val currentProcessed = processedCount.incrementAndGet()
-                            val pct = if (totalFiles > 0) (currentProcessed * 100) / totalFiles else 0
-                            showSyncNotification(pct, "Descargando: $fileName", false)
-                            setProgress(workDataOf("progress" to pct, "status" to "Descargando: $fileName"))
-                        }
-                    }
-                }
+                            val ext = fileName.substringAfterLast('.', "").lowercase()
+                            val mimeType = when (ext) {
+                                "png" -> "image/png"
+                                "gif" -> "image/gif"
+                                "webp" -> "image/webp"
+                                else -> "image/jpeg"
+                            }
+
+                            val downloadedUri = runWithRetry(maxRetries) {
+                                downloadFromDrive(driveService, driveFileId, localFolder, fileName, mimeType) ?: throw java.io.IOException("No se pudo descargar la foto de Drive")
+                            }
+                            updateSlot(slotIndex, fileName, 50)
+                            
+                            val downloadedFile = localFolder.findFile(fileName)
+                            val finalMeta = SyncMetadata(
+                                idLocal = fileName,
+                                idDrive = driveFileId,
+                                nombreArchivo = fileName,
+                                uriLocal = downloadedUri.toString(),
+                                md5Checksum = dbMeta.md5Checksum,
+                                fechaModificacion = downloadedFile?.lastModified() ?: dbMeta.fechaModificacion,
+                                sincronizadoPor = userId,
+                                eliminado = false
+                            )
+                            runWithRetry(maxRetries) {
+                                Tasks.await(
+                                     db.collection("pets").document(coupleId)
+                                         .collection("drive_sync_metadata").document(fileName)
+                                         .set(finalMeta)
+                                 )
+                             }
+                             updateSlot(slotIndex, fileName, 100)
+                             
+                             synchronized(slots) {
+                                 slots[slotIndex] = ""
+                                 slotProgress[slotIndex] = 0
+                             }
+                             
+                             processedCount.incrementAndGet()
+                             updateSlot(0, "", -1, isGeneralOnly = true)
+                         }
+                     }
+                 }
                 
-                // Los archivos en la nube que no requirieron descargarse se consideran procesados inmediatamente
-                val cloudFilesCount = driveFiles.filter { df -> (df.mimeType ?: "").startsWith("image/") }.size
-                val cloudNotDownloadedCount = cloudFilesCount - filesToDownload.size
-                processedCount.addAndGet(cloudNotDownloadedCount)
-                
-                downloadJobs.awaitAll()
-            }
+                 // Los archivos en la nube que no requirieron descargarse se consideran procesados inmediatamente
+                 val activeCloudFilesCount = updatedDbMetadataMap.values.count { !it.eliminado }
+                 val cloudNotDownloadedCount = activeCloudFilesCount - filesToDownload.size
+                 processedCount.addAndGet(cloudNotDownloadedCount)
+                 updateSlot(0, "", -1, isGeneralOnly = true)
+                 
+                 downloadJobs.awaitAll()
+             }
 
             Log.d(TAG, "Sincronización con Google Drive completada exitosamente.")
+            prefs.edit()
+                .putString("syncState", "SINCRONIZADO")
+                .remove("syncLastError")
+                .apply()
             showSyncNotification(100, "Sincronización completada exitosamente", true, true)
             setProgress(workDataOf("progress" to 100, "status" to "Completada"))
             return Result.success()
 
         } catch (e: kotlinx.coroutines.CancellationException) {
-            Log.i(TAG, "Sincronización cancelada por el usuario o sistema.")
-            showSyncNotification(100, "Sincronización detenida", true, false)
+            val prefs = applicationContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+            prefs.edit().putString("syncState", "NO_SINCRONIZADO").apply()
+            val cancelledByUser = prefs.getBoolean("syncCancelledByUser", false)
+            Log.i(TAG, "Sincronización cancelada. ¿Por el usuario?: $cancelledByUser")
+            
+            if (cancelledByUser) {
+                prefs.edit().putBoolean("syncCancelledByUser", false).apply()
+                showSyncNotification(100, "Sincronización detenida", true, false)
+            } else {
+                val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.cancel(1001)
+            }
             throw e
         } catch (e: java.lang.Exception) {
-            Log.e(TAG, "Error en la sincronización con Google Drive: ${e.message}", e)
-            showSyncNotification(100, "Error en la sincronización", true, false)
-            setProgress(workDataOf("progress" to -1, "status" to "Error: ${e.message}"))
+            val errorMsg = e.message ?: e.toString()
+            Log.e(TAG, "Error en la sincronización con Google Drive: $errorMsg", e)
+            
+            val prefs = applicationContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+            if (errorMsg.contains("404") || errorMsg.contains("File not found") || errorMsg.contains("notFound")) {
+                prefs.edit().remove("syncDriveFolderId").apply()
+            }
+            prefs.edit()
+                .putString("syncState", "NO_SINCRONIZADO")
+                .putString("syncLastError", errorMsg)
+                .apply()
+
+            showSyncNotification(100, errorMsg, true, false)
+            setProgress(workDataOf("progress" to -1, "status" to "Error: $errorMsg"))
             return Result.failure()
         }
     }
@@ -330,15 +518,43 @@ class SyncDriveWorker(
         val notificationId = 1001
 
         if (isFinished) {
-            val title = if (isSuccess) "Sincronización completada" else "Sincronización fallida"
-            val text = if (isSuccess) "Las fotos están sincronizadas con Google Drive." else "Ocurrió un error al sincronizar."
+            val isCancelled = status == "Sincronización detenida"
+            val title = when {
+                isCancelled -> "Sincronización detenida"
+                isSuccess -> "Sincronización completada"
+                else -> "Sincronización fallida ⚠️"
+            }
+            val text = when {
+                isCancelled -> "El proceso de sincronización fue cancelado por el usuario."
+                isSuccess -> "Las fotos están sincronizadas con Google Drive."
+                else -> {
+                    val preview = if (status.length > 50) status.substring(0, 47) + "..." else status
+                    "Toca para ver: $preview"
+                }
+            }
             val icon = R.drawable.ic_settings_pixel
+            
+            val intent = android.content.Intent(applicationContext, MainActivity::class.java).apply {
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                if (!isSuccess && !isCancelled) {
+                    putExtra("sync_error_msg", status)
+                }
+            }
+            
+            val requestCode = if (isSuccess) 2001 else 2002
+            val pendingIntent = android.app.PendingIntent.getActivity(
+                applicationContext,
+                requestCode,
+                intent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
             
             val builder = NotificationCompat.Builder(applicationContext, channelId)
                 .setSmallIcon(icon)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .setOngoing(false)
             
@@ -384,13 +600,13 @@ class SyncDriveWorker(
         return folder.id
     }
 
-    private fun uploadToDrive(driveService: Drive, folderId: String, file: DocumentFile, mimeType: String): String? {
+    private fun uploadToDrive(driveService: Drive, folderId: String, fileUri: Uri, fileName: String, mimeType: String): String? {
         val fileMetadata = File().apply {
-            name = file.name
+            name = fileName
             parents = listOf(folderId)
         }
 
-        val inputStream = applicationContext.contentResolver.openInputStream(file.uri) ?: return null
+        val inputStream = applicationContext.contentResolver.openInputStream(fileUri) ?: return null
         val mediaContent = InputStreamContent(mimeType, inputStream)
 
         val createRequest = driveService.files().create(fileMetadata, mediaContent)
@@ -430,7 +646,7 @@ class SyncDriveWorker(
             val digest = MessageDigest.getInstance("MD5")
             val inputStream: InputStream? = applicationContext.contentResolver.openInputStream(uri)
             if (inputStream == null) return null
-            val buffer = ByteArray(8192)
+            val buffer = ByteArray(32768)
             var read: Int
             while (inputStream.read(buffer).also { read = it } > 0) {
                 digest.update(buffer, 0, read)
@@ -448,6 +664,120 @@ class SyncDriveWorker(
             null
         }
     }
+
+    private suspend fun <T> runWithRetry(maxRetries: Int, block: suspend () -> T): T {
+        var attempt = 0
+        while (true) {
+            try {
+                return block()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) {
+                    throw e
+                }
+                attempt++
+                if (attempt > maxRetries) {
+                    throw e
+                }
+                Log.w(TAG, "Operación falló (intento $attempt/$maxRetries). Reintentando en ${attempt * 1000}ms...", e)
+                kotlinx.coroutines.delay(1000L * attempt)
+            }
+        }
+    }
+
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        return createForegroundInfo(-1, "Iniciando sincronización...")
+    }
+
+    private fun createForegroundInfo(progress: Int, status: String): ForegroundInfo {
+        val channelId = "sync_channel"
+        val notificationId = 1001
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = NotificationChannel(channelId, "Sincronización de fotos", NotificationManager.IMPORTANCE_LOW)
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val intent = android.content.Intent(applicationContext, MainActivity::class.java).apply {
+            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = android.app.PendingIntent.getActivity(
+            applicationContext,
+            2001,
+            intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(applicationContext, channelId)
+            .setSmallIcon(R.drawable.ic_settings_pixel)
+            .setContentTitle("Sincronizando fotos...")
+            .setContentText(status)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
+
+        if (progress in 0..100) {
+            builder.setProgress(100, progress, false)
+        } else {
+            builder.setProgress(0, 0, true)
+        }
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(notificationId, builder.build(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            ForegroundInfo(notificationId, builder.build())
+        }
+    }
+
+    data class LocalFileMeta(
+        val name: String,
+        val uri: Uri,
+        val lastModified: Long,
+        val size: Long,
+        val mimeType: String
+    )
+
+    private fun listFilesFromTreeUri(context: Context, treeUri: Uri): List<LocalFileMeta> {
+        val fileList = mutableListOf<LocalFileMeta>()
+        val contentResolver = context.contentResolver
+        return try {
+            val documentId = android.provider.DocumentsContract.getTreeDocumentId(treeUri)
+            val childrenUri = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
+            
+            val projection = arrayOf(
+                android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                android.provider.DocumentsContract.Document.COLUMN_SIZE,
+                android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE
+            )
+            
+            contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                val docIdIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                val lastModifiedIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                val sizeIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_SIZE)
+                val mimeTypeIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE)
+                
+                while (cursor.moveToNext()) {
+                    val name = if (nameIndex != -1) cursor.getString(nameIndex) else null
+                    val docId = if (docIdIndex != -1) cursor.getString(docIdIndex) else null
+                    val mimeType = if (mimeTypeIndex != -1) cursor.getString(mimeTypeIndex) ?: "" else ""
+                    
+                    if (!name.isNullOrEmpty() && !docId.isNullOrEmpty() && mimeType.startsWith("image/")) {
+                        val lastModified = if (lastModifiedIndex != -1) cursor.getLong(lastModifiedIndex) else 0L
+                        val size = if (sizeIndex != -1) cursor.getLong(sizeIndex) else 0L
+                        val fileUri = android.provider.DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
+                        fileList.add(LocalFileMeta(name, fileUri, lastModified, size, mimeType))
+                    }
+                }
+            }
+            fileList
+        } catch (e: Exception) {
+            Log.e(TAG, "Error listing files from tree URI using cursor: ${e.message}", e)
+            emptyList()
+        }
+    }
 }
 
 // Modelo de datos para Firestore
@@ -458,5 +788,6 @@ data class SyncMetadata(
     var uriLocal: String = "",
     var md5Checksum: String = "",
     var fechaModificacion: Long = 0L,
-    var sincronizadoPor: String = ""
+    var sincronizadoPor: String = "",
+    var eliminado: Boolean = false
 )

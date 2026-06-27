@@ -96,6 +96,18 @@ public class DiarioApp extends Application implements ImageLoaderFactory {
                 .getLong("updateInterval", 720L); // 12h por defecto
         rescheduleUpdateCheck(this, interval);
         createNotificationChannel();
+        schedulePetCareCheck(this);
+    }
+
+    private void schedulePetCareCheck(Context context) {
+        androidx.work.PeriodicWorkRequest petCareRequest = new androidx.work.PeriodicWorkRequest.Builder(
+                PetCareWorker.class, 2, java.util.concurrent.TimeUnit.HOURS)
+                .build();
+        androidx.work.WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                "PetCareCheck",
+                androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                petCareRequest
+        );
     }
 
     private void createNotificationChannel() {

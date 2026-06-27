@@ -40,6 +40,7 @@ __pycache__/
 /captures
 .externalNativeBuild
 .cxx
+logcat_*.txt
 
 # Firebase Service Account
 app/src/main/assets/service-account.json
