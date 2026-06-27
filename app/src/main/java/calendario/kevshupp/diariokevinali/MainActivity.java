@@ -1232,6 +1232,57 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     currentUserImageUri = url;
                     getSharedPreferences("DiarioPrefs", MODE_PRIVATE).edit().putString("userImage", url).apply();
                 }
+
+                String themeVal = snapshot.getString("theme");
+                Boolean useCustomBgVal = snapshot.getBoolean("useCustomBg");
+                String lightColorVal = snapshot.getString("lightColor");
+                String darkColorVal = snapshot.getString("darkColor");
+                Long cacheSizeLimitVal = snapshot.getLong("cacheSizeLimit");
+                Long updateIntervalVal = snapshot.getLong("updateInterval");
+                Long appointmentLeadTimeVal = snapshot.getLong("appointmentLeadTime");
+
+                SharedPreferences prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE);
+                SharedPreferences.Editor editor = prefs.edit();
+                boolean changed = false;
+
+                if (themeVal != null && !themeVal.equals(prefs.getString("theme", ""))) {
+                    editor.putString("theme", themeVal);
+                    changed = true;
+                }
+                if (useCustomBgVal != null && useCustomBgVal != prefs.getBoolean("useCustomBg", false)) {
+                    editor.putBoolean("useCustomBg", useCustomBgVal);
+                    changed = true;
+                }
+                if (lightColorVal != null && !lightColorVal.equals(prefs.getString("lightColor", ""))) {
+                    editor.putString("lightColor", lightColorVal);
+                    changed = true;
+                }
+                if (darkColorVal != null && !darkColorVal.equals(prefs.getString("darkColor", ""))) {
+                    editor.putString("darkColor", darkColorVal);
+                    changed = true;
+                }
+                if (cacheSizeLimitVal != null && cacheSizeLimitVal != prefs.getLong("cacheSizeLimit", 100L)) {
+                    editor.putLong("cacheSizeLimit", cacheSizeLimitVal);
+                    changed = true;
+                }
+                if (updateIntervalVal != null && updateIntervalVal != prefs.getLong("updateInterval", 720L)) {
+                    editor.putLong("updateInterval", updateIntervalVal);
+                    changed = true;
+                }
+                if (appointmentLeadTimeVal != null && appointmentLeadTimeVal != prefs.getLong("appointmentLeadTime", 60L)) {
+                    editor.putLong("appointmentLeadTime", appointmentLeadTimeVal);
+                    changed = true;
+                }
+
+                if (changed) {
+                    editor.apply();
+                    runOnUiThread(() -> {
+                        String finalTheme = prefs.getString("theme", "Pixel Claro");
+                        String lc = prefs.getString("lightColor", "#D1C4E9");
+                        String dc = prefs.getString("darkColor", "#4A148C");
+                        applyTheme(finalTheme, lc, dc);
+                    });
+                }
             }
         });
     }
@@ -1249,9 +1300,18 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             userUpdates.put("profileImageUrl", currentUserImageUri);
         }
 
+        SharedPreferences prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE);
+        userUpdates.put("theme", prefs.getString("theme", "Pixel Claro"));
+        userUpdates.put("useCustomBg", prefs.getBoolean("useCustomBg", false));
+        userUpdates.put("lightColor", prefs.getString("lightColor", "#D1C4E9"));
+        userUpdates.put("darkColor", prefs.getString("darkColor", "#4A148C"));
+        userUpdates.put("cacheSizeLimit", prefs.getLong("cacheSizeLimit", 100L));
+        userUpdates.put("updateInterval", prefs.getLong("updateInterval", 720L));
+        userUpdates.put("appointmentLeadTime", prefs.getLong("appointmentLeadTime", 60L));
+
         db.collection("users").document(currentUserId)
                 .set(userUpdates, com.google.firebase.firestore.SetOptions.merge())
-                .addOnSuccessListener(aVoid -> Log.d("MainActivity", "Usuario sincronizado con Firestore"))
+                .addOnSuccessListener(aVoid -> Log.d("MainActivity", "Usuario y ajustes sincronizados con Firestore"))
                 .addOnFailureListener(e -> Log.e("MainActivity", "Error sincronizando usuario", e));
     }
 

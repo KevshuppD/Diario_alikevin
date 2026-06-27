@@ -986,6 +986,14 @@ fun PetMenuDialog(
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var shopCategory by remember { mutableStateOf("accessories") } // "accessories" o "backgrounds"
+    var previewAccessory by remember { mutableStateOf(pet.equippedAccessory) }
+    var previewBackground by remember { mutableStateOf(pet.equippedBackground) }
+
+    LaunchedEffect(pet.equippedAccessory, pet.equippedBackground) {
+        previewAccessory = pet.equippedAccessory
+        previewBackground = pet.equippedBackground
+    }
+
     var settingsSubView by remember { mutableStateOf("menu") } // "menu", "name", "notifications", "sync"
     var newName by remember { mutableStateOf(pet.name) }
     var showGameSelector by remember { mutableStateOf(false) }
@@ -1103,10 +1111,10 @@ fun PetMenuDialog(
                     }
                 }
 
-                // Header con 5 pestañas: INFO, ROPA, COMIDA, GUÍA, AJUSTES
+                // Header con 5 pestañas: INFO, ESTILO, COMIDA, GUÍA, AJUSTES
                 Row(modifier = Modifier.fillMaxWidth()) {
                     TabItem("INFO", selectedTab == 0, isDark, borderColor) { selectedTab = 0 }
-                    TabItem("ROPA 👑", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
+                    TabItem("ESTILO 👑", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
                     TabItem("COMIDA 🐟", selectedTab == 3, isDark, borderColor) { selectedTab = 3 }
                     TabItem("GUÍA 📖", selectedTab == 2, isDark, borderColor) { selectedTab = 2 }
                     TabItem("⚙️", selectedTab == 4, isDark, borderColor) { selectedTab = 4 }
@@ -1504,7 +1512,7 @@ fun PetMenuDialog(
                         }
                     }
                 } else if (selectedTab == 1) {
-                    // Pestaña de Tienda / Accesorios y Fondos
+                    // Pestaña de Tienda / Accesorios y Fondos (ESTILO)
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "Puntos disponibles: ${pet.lovePoints} ❤️",
@@ -1513,6 +1521,78 @@ fun PetMenuDialog(
                             fontSize = 20.sp,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
+
+                        // Vista de Previsualización en Tiempo Real en la Tienda
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(130.dp)
+                                .padding(bottom = 12.dp)
+                                .border(2.dp, borderColor)
+                        ) {
+                            // Fondo de previsualización
+                            val previewBgRes = when (previewBackground) {
+                                "jungle" -> if (pet.isSleeping) R.drawable.bg_thor_jungle_night else R.drawable.bg_thor_jungle_day
+                                "space" -> if (pet.isSleeping) R.drawable.bg_thor_space_night else R.drawable.bg_thor_space_day
+                                "beach" -> if (pet.isSleeping) R.drawable.bg_thor_beach_night else R.drawable.bg_thor_beach_day
+                                else -> if (pet.isSleeping) R.drawable.bg_thor_room_night else R.drawable.bg_thor_room_day
+                            }
+                            Image(
+                                painter = painterResource(id = previewBgRes),
+                                contentDescription = null,
+                                contentScale = ContentScale.FillBounds,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                            // Mascota de previsualización
+                            val previewMascotRes = when {
+                                pet.isSleeping -> R.drawable.ic_thor_sleep
+                                else -> when (previewAccessory) {
+                                    Pet.ACC_COLLAR -> R.drawable.ic_thor_collar
+                                    Pet.ACC_MUSTACHE -> R.drawable.ic_thor_mustache
+                                    Pet.ACC_BALLOON -> R.drawable.ic_thor_balloon
+                                    Pet.ACC_BOW -> R.drawable.ic_thor_bow
+                                    Pet.ACC_HAT -> R.drawable.ic_thor_hat
+                                    Pet.ACC_BANDANA -> R.drawable.ic_thor_bandana
+                                    Pet.ACC_GLASSES -> R.drawable.ic_thor_glasses
+                                    Pet.ACC_CROWN -> R.drawable.ic_thor_crown
+                                    Pet.ACC_BANANA -> R.drawable.ic_thor_banana
+                                    Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
+                                    else -> R.drawable.ic_thor_base_trans
+                                }
+                            }
+                            Image(
+                                painter = painterResource(id = previewMascotRes),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(90.dp)
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 8.dp)
+                            )
+
+                            if (pet.isSleeping) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color(0x9A0A0E29))
+                                )
+                            }
+
+                            // Etiqueta indicadora
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .background(accentColor)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "PREVISUALIZACIÓN",
+                                    fontFamily = Vt323,
+                                    fontSize = 12.sp,
+                                    color = Color.White
+                                )
+                            }
+                        }
 
                         // Selector de Categoría (Accesorios / Fondos)
                         Row(
@@ -1574,18 +1654,26 @@ fun PetMenuDialog(
                                 Triple(Pet.ACC_BANANA, "Plátano Nano 🍌", 200),
                                 Triple(Pet.ACC_CROWN, "Corona Real 👑", 500)
                             )
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 items(items) { (id, name, cost) ->
                                     val isUnlocked = pet.unlockedAccessories.contains(id)
                                     val isEquipped = pet.equippedAccessory == id
+                                    val isPreviewed = previewAccessory == id
 
                                     AccessoryRow(
                                         name = name,
                                         cost = cost,
                                         isUnlocked = isUnlocked,
                                         isEquipped = isEquipped,
+                                        isPreviewed = isPreviewed,
                                         isDark = isDark,
                                         borderColor = borderColor,
+                                        onPreview = {
+                                            previewAccessory = if (previewAccessory == id) Pet.ACC_NONE else id
+                                        },
                                         onAction = {
                                             if (isUnlocked) onEquipAccessory(if (isEquipped) Pet.ACC_NONE else id)
                                             else onBuyAccessory(id, cost)
@@ -1600,18 +1688,26 @@ fun PetMenuDialog(
                                 Triple("space", "Nave Espacial 🚀", 100),
                                 Triple("beach", "Playa Paradise 🏖️", 150)
                             )
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 items(backgrounds) { (id, name, cost) ->
                                     val isUnlocked = pet.unlockedBackgrounds.contains(id)
                                     val isEquipped = pet.equippedBackground == id
+                                    val isPreviewed = previewBackground == id
 
                                     AccessoryRow(
                                         name = name,
                                         cost = cost,
                                         isUnlocked = isUnlocked || cost == 0,
                                         isEquipped = isEquipped,
+                                        isPreviewed = isPreviewed,
                                         isDark = isDark,
                                         borderColor = borderColor,
+                                        onPreview = {
+                                            previewBackground = id
+                                        },
                                         onAction = {
                                             if (isUnlocked || cost == 0) onEquipBackground(id)
                                             else onBuyBackground(id, cost)
@@ -1771,195 +1867,118 @@ fun PetMenuDialog(
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .padding(16.dp),
+                            .padding(16.dp)
+                            .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Top
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        if (settingsSubView == "menu") {
-                            Text(
-                                text = "⚙️ AJUSTES DE ${pet.name.uppercase()} ⚙️",
-                                fontFamily = Vt323,
-                                color = contentColor,
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 20.dp)
-                            )
+                        Text(
+                            text = "⚙️ AJUSTES DE ${pet.name.uppercase()} ⚙️",
+                            fontFamily = Vt323,
+                            color = contentColor,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
 
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                SettingsMenuButton("😺 Nombre de Mascota", isDark, borderColor) {
-                                    settingsSubView = "name"
-                                }
-                                SettingsMenuButton("🔔 Notificaciones", isDark, borderColor) {
-                                    settingsSubView = "notifications"
-                                }
-                                SettingsMenuButton("☁️ Sincronización", isDark, borderColor) {
-                                    settingsSubView = "sync"
-                                }
-                            }
-                        } else if (settingsSubView == "name") {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                IconButton(onClick = { settingsSubView = "menu" }) {
-                                    Text("◀", fontFamily = Vt323, fontSize = 22.sp, color = borderColor)
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "😺 NOMBRE",
-                                    fontFamily = Vt323,
-                                    color = contentColor,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
+                        // 1. NOMBRE
+                        Column(modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 text = "Nombre de tu compañero:",
                                 fontFamily = Vt323,
                                 color = contentColor,
-                                fontSize = 18.sp,
-                                modifier = Modifier.align(Alignment.Start)
+                                fontSize = 18.sp
                             )
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            OutlinedTextField(
-                                value = newName,
-                                onValueChange = { newName = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Vt323, fontSize = 20.sp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = contentColor,
-                                    unfocusedTextColor = contentColor,
-                                    focusedBorderColor = borderColor,
-                                    unfocusedBorderColor = borderColor.copy(alpha = 0.5f)
-                                )
-                            )
-                            
-                            Spacer(modifier = Modifier.height(24.dp))
-                            
-                            Button(
-                                onClick = { 
-                                    onUpdateName(newName)
-                                    android.widget.Toast.makeText(context, "¡Nombre guardado! ❤️", android.widget.Toast.LENGTH_SHORT).show()
-                                    settingsSubView = "menu"
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = borderColor),
-                                shape = RectangleShape
-                            ) {
-                                Text("Guardar Nombre", fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
-                            }
-                        } else if (settingsSubView == "notifications") {
+                            Spacer(modifier = Modifier.height(4.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                IconButton(onClick = { settingsSubView = "menu" }) {
-                                    Text("◀", fontFamily = Vt323, fontSize = 22.sp, color = borderColor)
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "🔔 ALERTAS",
-                                    fontFamily = Vt323,
-                                    color = contentColor,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(24.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Notificaciones de Cuidado", fontFamily = Vt323, fontSize = 18.sp, color = contentColor)
-                                
-                                Switch(
-                                    checked = notificationsEnabled,
-                                    onCheckedChange = { isChecked ->
-                                        notificationsEnabled = isChecked
-                                        sharedPrefsNotif.edit().putBoolean("notifications_enabled", isChecked).apply()
-                                        val statusText = if (isChecked) "activadas" else "desactivadas"
-                                        android.widget.Toast.makeText(context, "Notificaciones $statusText", android.widget.Toast.LENGTH_SHORT).show()
-                                    },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = accentColor,
-                                        checkedTrackColor = accentColor.copy(alpha = 0.5f),
-                                        uncheckedThumbColor = Color.Gray,
-                                        uncheckedTrackColor = Color.Gray.copy(alpha = 0.5f)
+                                OutlinedTextField(
+                                    value = newName,
+                                    onValueChange = { newName = it },
+                                    modifier = Modifier.weight(1f),
+                                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Vt323, fontSize = 18.sp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = contentColor,
+                                        unfocusedTextColor = contentColor,
+                                        focusedBorderColor = borderColor,
+                                        unfocusedBorderColor = borderColor.copy(alpha = 0.5f)
                                     )
                                 )
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                border = BorderStroke(1.dp, borderColor.copy(alpha = 0.3f)),
-                                colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.3f)),
-                                shape = RectangleShape
-                            ) {
-                                Text(
-                                    text = "Recibirás alertas periódicas si Thor tiene hambre, sueño o necesita un baño para que nunca descuides a tu compañero virtual. 😺✨",
-                                    fontFamily = Vt323,
-                                    color = if (isDark) Color.LightGray else Color.DarkGray,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.padding(12.dp)
-                                )
-                            }
-                        } else if (settingsSubView == "sync") {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                IconButton(onClick = { settingsSubView = "menu" }) {
-                                    Text("◀", fontFamily = Vt323, fontSize = 22.sp, color = borderColor)
+                                Button(
+                                    onClick = { 
+                                        onUpdateName(newName)
+                                        android.widget.Toast.makeText(context, "¡Nombre guardado! ❤️", android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = borderColor),
+                                    shape = RectangleShape,
+                                    modifier = Modifier.height(52.dp)
+                                ) {
+                                    Text("Guardar", fontFamily = Vt323, color = Color.White, fontSize = 16.sp)
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                        }
+
+                        HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
+
+                        // 2. ALERTAS
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Notificaciones de Cuidado", fontFamily = Vt323, fontSize = 18.sp, color = contentColor)
                                 Text(
-                                    text = "☁️ SINCRONIZACIÓN",
+                                    "Alertas de hambre, sueño y baño",
                                     fontFamily = Vt323,
-                                    color = contentColor,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 14.sp,
+                                    color = if (isDark) Color.LightGray else Color.DarkGray
                                 )
                             }
+                            
+                            Switch(
+                                checked = notificationsEnabled,
+                                onCheckedChange = { isChecked ->
+                                    notificationsEnabled = isChecked
+                                    sharedPrefsNotif.edit().putBoolean("notifications_enabled", isChecked).apply()
+                                    val statusText = if (isChecked) "activadas" else "desactivadas"
+                                    android.widget.Toast.makeText(context, "Notificaciones $statusText", android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = accentColor,
+                                    checkedTrackColor = accentColor.copy(alpha = 0.5f),
+                                    uncheckedThumbColor = Color.Gray,
+                                    uncheckedTrackColor = Color.Gray.copy(alpha = 0.5f)
+                                )
+                            )
+                        }
 
-                            Spacer(modifier = Modifier.height(24.dp))
+                        HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
 
+                        // 3. SINCRONIZACIÓN
+                        Column(modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 text = "Base de Datos: Firebase Cloud Firestore\nEstado: Conectado a la Nube ☁\nCompañero: ${pet.name}",
                                 fontFamily = Vt323,
                                 color = contentColor,
-                                fontSize = 16.sp,
-                                modifier = Modifier.align(Alignment.Start)
+                                fontSize = 16.sp
                             )
-
-                            Spacer(modifier = Modifier.height(24.dp))
-
+                            Spacer(modifier = Modifier.height(10.dp))
                             Button(
                                 onClick = {
                                     android.widget.Toast.makeText(context, "Sincronizando...", android.widget.Toast.LENGTH_SHORT).show()
                                     scope.launch {
                                         delay(800)
                                         android.widget.Toast.makeText(context, "¡Sincronización forzada con éxito! ☁️✨", android.widget.Toast.LENGTH_SHORT).show()
-                                        settingsSubView = "menu"
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(containerColor = borderColor),
                                 shape = RectangleShape
                             ) {
-                                Text("Forzar Sincronización Now", fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
+                                Text("Forzar Sincronización ☁️", fontFamily = Vt323, color = Color.White, fontSize = 16.sp)
                             }
                         }
                     }
@@ -2051,22 +2070,43 @@ fun AccessoryRow(
     cost: Int,
     isUnlocked: Boolean,
     isEquipped: Boolean,
+    isPreviewed: Boolean,
     isDark: Boolean,
     borderColor: Color,
+    onPreview: () -> Unit,
     onAction: () -> Unit
 ) {
+    val rowBorderColor = if (isPreviewed) borderColor else borderColor.copy(alpha = 0.3f)
+    val rowBg = if (isPreviewed) {
+        if (isDark) Color(0xFF2C2C35) else Color(0xFFFFF9E6)
+    } else {
+        Color.Transparent
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, borderColor.copy(alpha = 0.3f))
+            .border(if (isPreviewed) 2.dp else 1.dp, rowBorderColor)
+            .background(rowBg)
+            .clickable { onPreview() }
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column {
-            Text(name, fontFamily = Vt323, fontSize = 18.sp, color = if (isDark) Color.White else Color.Black)
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(name, fontFamily = Vt323, fontSize = 18.sp, color = if (isDark) Color.White else Color.Black)
+                if (isPreviewed) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("👁️", fontSize = 14.sp)
+                }
+            }
             if (!isUnlocked) {
                 Text("${cost} ❤️", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF4081))
+            } else if (isEquipped) {
+                Text("Equipado actualmente", fontFamily = Vt323, fontSize = 13.sp, color = Color(0xFF4CAF50))
+            } else {
+                Text("Desbloqueado", fontFamily = Vt323, fontSize = 13.sp, color = if (isDark) Color.LightGray else Color.DarkGray)
             }
         }
 

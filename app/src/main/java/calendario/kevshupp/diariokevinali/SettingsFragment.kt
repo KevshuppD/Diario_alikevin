@@ -20,6 +20,8 @@ class SettingsFragment : Fragment() {
         fun newInstance(userId: String, partnerId: String, theme: String): SettingsFragment {
             val f = SettingsFragment()
             val a = Bundle()
+            a.putString("userId", userId)
+            a.putString("partnerId", partnerId)
             a.putString("theme", theme)
             f.arguments = a
             return f
@@ -32,10 +34,21 @@ class SettingsFragment : Fragment() {
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        val userId = arguments?.getString("userId") ?: "user_kevin_01"
         return ComposeView(requireContext()).apply {
             setContent {
                 val act = activity as? MainActivity
                 val prefs = act?.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
+
+                val updateFirestoreSetting: (String, Any) -> Unit = { key, value ->
+                    if (userId.isNotEmpty()) {
+                        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        db.collection("users").document(userId).update(key, value)
+                            .addOnFailureListener {
+                                db.collection("users").document(userId).set(mapOf(key to value), com.google.firebase.firestore.SetOptions.merge())
+                            }
+                    }
+                }
                 
                 // Usar remember para que Compose mantenga el estado correctamente
                 var currentTheme by remember { mutableStateOf(theme) }
@@ -93,6 +106,11 @@ class SettingsFragment : Fragment() {
                 DisposableEffect(prefs) {
                     val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
                         when (key) {
+                            "theme" -> currentTheme = p.getString(key, "Pixel Claro") ?: "Pixel Claro"
+                            "useCustomBg" -> useCustomBg = p.getBoolean(key, false)
+                            "cacheSizeLimit" -> currentCacheLimit = p.getLong(key, 100L)
+                            "updateInterval" -> currentUpdateInterval = p.getLong(key, 720L)
+                            "appointmentLeadTime" -> currentAppointmentLeadTime = p.getLong(key, 60L)
                             "syncGoogleAccountEmail" -> googleAccountEmail = p.getString(key, null)
                             "syncLocalFolderUri" -> selectedFolderUri = p.getString(key, null)
                             "syncIntervalMinutes" -> syncIntervalMinutes = p.getLong(key, 0L)
@@ -277,6 +295,7 @@ class SettingsFragment : Fragment() {
                             val lightCol = prefs?.getString("lightColor", "#D1C4E9")
                             val darkCol = prefs?.getString("darkColor", "#4A148C")
                             act?.applyTheme(currentTheme, lightCol, darkCol)
+                            updateFirestoreSetting("useCustomBg", newVal)
                         },
                         versionName = BuildConfig.VERSION_NAME,
                         onThemeChange = { newTheme ->
@@ -286,6 +305,7 @@ class SettingsFragment : Fragment() {
                             val lightCol = prefs?.getString("lightColor", "#D1C4E9")
                             val darkCol = prefs?.getString("darkColor", "#4A148C")
                             act?.applyTheme(newTheme, lightCol, darkCol)
+                            updateFirestoreSetting("theme", newTheme)
                         },
                         onCheckUpdates = {
                             act?.getUpdateManager()?.checkForUpdates(object : UpdateManager.UpdateCallback {
@@ -306,15 +326,18 @@ class SettingsFragment : Fragment() {
                             if (isDark) {
                                 prefs?.edit()?.putString("darkColor", colorHex)?.apply()
                                 act?.applyTheme(currentTheme, null, colorHex)
+                                updateFirestoreSetting("darkColor", colorHex)
                             } else {
                                 prefs?.edit()?.putString("lightColor", colorHex)?.apply()
                                 act?.applyTheme(currentTheme, colorHex, null)
+                                updateFirestoreSetting("lightColor", colorHex)
                             }
                         },
                         currentCacheLimit = currentCacheLimit,
                         onCacheLimitChange = { newLimit ->
                             currentCacheLimit = newLimit
                             prefs?.edit()?.putLong("cacheSizeLimit", newLimit)?.apply()
+                            updateFirestoreSetting("cacheSizeLimit", newLimit)
                         },
                         onTestNotification = {
                             act?.testLocalNotification()
@@ -324,12 +347,14 @@ class SettingsFragment : Fragment() {
                             currentUpdateInterval = newInterval
                             prefs?.edit()?.putLong("updateInterval", newInterval)?.apply()
                             DiarioApp.rescheduleUpdateCheck(requireContext(), newInterval)
+                            updateFirestoreSetting("updateInterval", newInterval)
                         },
                         appointmentLeadTime = currentAppointmentLeadTime,
                         onAppointmentLeadTimeChange = { newLeadTime ->
                             currentAppointmentLeadTime = newLeadTime
                             prefs?.edit()?.putLong("appointmentLeadTime", newLeadTime)?.apply()
                             act?.rescheduleAllCalendarReminders()
+                            updateFirestoreSetting("appointmentLeadTime", newLeadTime)
                         },
                         googleAccountEmail = googleAccountEmail,
                         selectedFolderUri = selectedFolderUri,
