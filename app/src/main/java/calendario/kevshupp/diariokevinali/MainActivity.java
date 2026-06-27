@@ -1626,11 +1626,6 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     is = getAssets().open("service-account.json");
                 } catch (IOException e) {
                     Log.e("FCM_V1", "ERROR: No se encontró service-account.json en assets. Las notificaciones no se enviarán.");
-                    runOnUiThread(() -> {
-                        if (BuildConfig.DEBUG) {
-                            Toast.makeText(MainActivity.this, "⚠️ FCM: Falta service-account.json en assets", Toast.LENGTH_LONG).show();
-                        }
-                    });
                     return;
                 }
 
