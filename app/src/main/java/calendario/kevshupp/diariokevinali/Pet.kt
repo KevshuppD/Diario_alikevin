@@ -29,6 +29,14 @@ data class Pet(
     var unlockedBackgrounds: List<String> = listOf("default"),
     var equippedBackground: String = "default"
 ) {
+    @get:PropertyName("sleeping")
+    @set:PropertyName("sleeping")
+    var sleepingFallback: Boolean
+        get() = isSleeping
+        set(value) {
+            isSleeping = value
+        }
+
     companion object {
         const val STATUS_HAPPY = "FELIZ"
         const val STATUS_SAD = "TRISTE"
