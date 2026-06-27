@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -251,6 +253,24 @@ fun SpiritsChecklistView(
 
     var showAllList by remember { mutableStateOf(false) }
     var expandedCategories by remember { mutableStateOf(emptySet<String>()) }
+    var filterMode by remember { mutableStateOf("todos") }
+    var showFiltersMenu by remember { mutableStateOf(false) }
+    
+    val matchesFilter: (String) -> Boolean = { spiritId ->
+        when (filterMode) {
+            "todos" -> true
+            "no_obtenidos" -> {
+                val ownedByMe = if (isKevin) kevinList.contains(spiritId) else aliList.contains(spiritId)
+                !ownedByMe
+            }
+            "obtenidos_otro_no_yo" -> {
+                val ownedByMe = if (isKevin) kevinList.contains(spiritId) else aliList.contains(spiritId)
+                val ownedByOther = if (isKevin) aliList.contains(spiritId) else kevinList.contains(spiritId)
+                ownedByOther && !ownedByMe
+            }
+            else -> true
+        }
+    }
 
     val categories = remember {
         listOf(
@@ -345,6 +365,66 @@ fun SpiritsChecklistView(
                     .clickable { showAllList = !showAllList }
                     .padding(8.dp)
             )
+            Spacer(modifier = Modifier.width(8.dp))
+            Box {
+                Text(
+                    text = "⋮",
+                    fontFamily = Vt323,
+                    fontSize = 24.sp,
+                    color = textColor,
+                    modifier = Modifier
+                        .clickable { showFiltersMenu = true }
+                        .padding(8.dp)
+                )
+                DropdownMenu(
+                    expanded = showFiltersMenu,
+                    onDismissRequest = { showFiltersMenu = false },
+                    modifier = Modifier.background(cardBg).border(2.dp, borderColor)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (filterMode == "todos") "✓ TODOS" else "TODOS",
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                        },
+                        onClick = {
+                            filterMode = "todos"
+                            showFiltersMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (filterMode == "no_obtenidos") "✓ FALTANTES MÍOS" else "FALTANTES MÍOS",
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                        },
+                        onClick = {
+                            filterMode = "no_obtenidos"
+                            showFiltersMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (filterMode == "obtenidos_otro_no_yo") "✓ DEL OTRO QUE NO TENGO" else "DEL OTRO QUE NO TENGO",
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                        },
+                        onClick = {
+                            filterMode = "obtenidos_otro_no_yo"
+                            showFiltersMenu = false
+                        }
+                    )
+                }
+            }
         }
 
         // Gamified Scoreboard Card
@@ -369,7 +449,7 @@ fun SpiritsChecklistView(
                             color = textColor
                         )
                         Text(
-                            text = "${kevinList.size} / 41",
+                            text = "${kevinList.size} / ${spiritsList.size}",
                             fontFamily = Vt323,
                             fontSize = 22.sp,
                             color = if (isDark) Color(0xFFBD93F9) else Color(0xFF4A2511)
@@ -394,7 +474,7 @@ fun SpiritsChecklistView(
                             color = textColor
                         )
                         Text(
-                            text = "${aliList.size} / 41",
+                            text = "${aliList.size} / ${spiritsList.size}",
                             fontFamily = Vt323,
                             fontSize = 22.sp,
                             color = if (isDark) Color(0xFFFF79C6) else Color(0xFF4A2511)
@@ -431,8 +511,25 @@ fun SpiritsChecklistView(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
-            if (showAllList) {
-                itemsIndexed(spiritsList) { index, spiritId ->
+            val totalFiltered = spiritsList.count { matchesFilter(it) }
+            if (totalFiltered == 0) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No hay espíritus que coincidan con el filtro.",
+                            fontFamily = Vt323,
+                            fontSize = 18.sp,
+                            color = textColor.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            } else if (showAllList) {
+                val filteredSpirits = spiritsList.filter { matchesFilter(it) }
+                items(filteredSpirits, key = { "spirit_$it" }) { spiritId ->
+                    val nameIndex = spiritId.toInt() - 1
                     val hasKevin = kevinList.contains(spiritId)
                     val hasAli = aliList.contains(spiritId)
                     val spiritResId = remember(spiritId, context) {
@@ -442,7 +539,7 @@ fun SpiritsChecklistView(
                     SpiritRow(
                         spiritId = spiritId,
                         spiritResId = spiritResId,
-                        spiritName = spiritNames.getOrElse(index) { "Espíritu #$spiritId" },
+                        spiritName = spiritNames.getOrElse(nameIndex) { "Espíritu #$spiritId" },
                         hasKevin = hasKevin,
                         hasAli = hasAli,
                         isKevin = isKevin,
@@ -455,51 +552,54 @@ fun SpiritsChecklistView(
                 }
             } else {
                 categories.forEach { category ->
-                    val isExpanded = expandedCategories.contains(category.name)
-                    val categoryKevinCount = category.spiritIds.count { kevinList.contains(it) }
-                    val categoryAliCount = category.spiritIds.count { aliList.contains(it) }
-                    
-                    item(key = category.name) {
-                        CategoryHeader(
-                            category = category,
-                            isExpanded = isExpanded,
-                            borderColor = borderColor,
-                            cardBg = cardBg,
-                            textColor = textColor,
-                            kevinCount = categoryKevinCount,
-                            aliCount = categoryAliCount,
-                            onClick = {
-                                expandedCategories = if (isExpanded) {
-                                    expandedCategories - category.name
-                                } else {
-                                    expandedCategories + category.name
-                                }
-                            }
-                        )
-                    }
-                    
-                    if (isExpanded) {
-                        items(category.spiritIds, key = { "spirit_$it" }) { spiritId ->
-                            val index = spiritId.toInt() - 1
-                            val hasKevin = kevinList.contains(spiritId)
-                            val hasAli = aliList.contains(spiritId)
-                            val spiritResId = remember(spiritId, context) {
-                                val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
-                                if (id != 0) id else android.R.drawable.ic_menu_gallery
-                            }
-                            SpiritRow(
-                                spiritId = spiritId,
-                                spiritResId = spiritResId,
-                                spiritName = spiritNames.getOrElse(index) { "Espíritu #$spiritId" },
-                                hasKevin = hasKevin,
-                                hasAli = hasAli,
-                                isKevin = isKevin,
-                                isDark = isDark,
+                    val filteredCategorySpiritIds = category.spiritIds.filter { matchesFilter(it) }
+                    if (filteredCategorySpiritIds.isNotEmpty()) {
+                        val isExpanded = expandedCategories.contains(category.name)
+                        val categoryKevinCount = category.spiritIds.count { kevinList.contains(it) }
+                        val categoryAliCount = category.spiritIds.count { aliList.contains(it) }
+                        
+                        item(key = category.name) {
+                            CategoryHeader(
+                                category = category,
+                                isExpanded = isExpanded,
                                 borderColor = borderColor,
-                                textColor = textColor,
                                 cardBg = cardBg,
-                                onToggleCheck = onToggleCheck
+                                textColor = textColor,
+                                kevinCount = categoryKevinCount,
+                                aliCount = categoryAliCount,
+                                onClick = {
+                                    expandedCategories = if (isExpanded) {
+                                        expandedCategories - category.name
+                                    } else {
+                                        expandedCategories + category.name
+                                    }
+                                }
                             )
+                        }
+                        
+                        if (isExpanded) {
+                            items(filteredCategorySpiritIds, key = { "spirit_$it" }) { spiritId ->
+                                val index = spiritId.toInt() - 1
+                                val hasKevin = kevinList.contains(spiritId)
+                                val hasAli = aliList.contains(spiritId)
+                                val spiritResId = remember(spiritId, context) {
+                                    val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
+                                    if (id != 0) id else android.R.drawable.ic_menu_gallery
+                                }
+                                SpiritRow(
+                                    spiritId = spiritId,
+                                    spiritResId = spiritResId,
+                                    spiritName = spiritNames.getOrElse(index) { "Espíritu #$spiritId" },
+                                    hasKevin = hasKevin,
+                                    hasAli = hasAli,
+                                    isKevin = isKevin,
+                                    isDark = isDark,
+                                    borderColor = borderColor,
+                                    textColor = textColor,
+                                    cardBg = cardBg,
+                                    onToggleCheck = onToggleCheck
+                                )
+                            }
                         }
                     }
                 }
