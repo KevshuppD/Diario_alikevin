@@ -46,7 +46,7 @@ class RecipeManager(
         db.collection("recipes").add(recipe)
             .addOnSuccessListener {
                 Toast.makeText(context, "Receta guardada", Toast.LENGTH_SHORT).show()
-                (context as? MainActivity)?.sendNotificationV1("¡Nueva receta! 🍳", "$userName agregó la receta: \"${recipe.title}\"")
+                (context as? MainActivity)?.sendNotificationV1("¡Nueva receta! 🍳", "$userName agregó la receta: \"${recipe.title}\"", null, "receta")
             }
     }
 
@@ -131,7 +131,7 @@ class RecipeManager(
                 db.collection("recipes").document(recipe.recipeId!!).set(recipe)
                     .addOnSuccessListener { 
                         Toast.makeText(context, "Receta actualizada", Toast.LENGTH_SHORT).show()
-                        (context as? MainActivity)?.sendNotificationV1("¡Receta modificada! 🍳", "$userName actualizó la receta: \"${recipe.title}\"")
+                        (context as? MainActivity)?.sendNotificationV1("¡Receta modificada! 🍳", "$userName actualizó la receta: \"${recipe.title}\"", null, "receta")
                         dialog.dismiss() 
                     }
             } else {

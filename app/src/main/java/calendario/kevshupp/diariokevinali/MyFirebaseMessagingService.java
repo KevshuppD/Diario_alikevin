@@ -52,14 +52,18 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             return;
         }
 
-        sendNotification(title, body != null ? body : "", imageUrl);
+        String clickType = remoteMessage.getData().get("click_type");
+        sendNotification(title, body != null ? body : "", imageUrl, clickType);
     }
 
-    private void sendNotification(String title, String messageBody, String imageUrl) {
+    private void sendNotification(String title, String messageBody, String imageUrl, String clickType) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent,
-                PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE);
+        if (clickType != null) {
+            intent.putExtra("click_type", clickType);
+        }
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, (int) System.currentTimeMillis(), intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         String channelId = "diario_channel";
         NotificationCompat.Builder notificationBuilder =

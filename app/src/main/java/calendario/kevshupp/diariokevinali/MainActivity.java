@@ -641,7 +641,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     }
                     String notifTitle = "¡A " + currentUserName + " le encantó! ❤️";
                     String notifBody = "Le dio me gusta a tu carta: \"" + letterTitle + "\"";
-                    sendNotificationV1(notifTitle, notifBody, msg.getImageUrl());
+                    sendNotificationV1(notifTitle, notifBody, msg.getImageUrl(), "like");
                 }
                 // Forzar actualización del estado local
                 messagesState.setValue(new ArrayList<>(messagesState.getValue()));
@@ -674,7 +674,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                         if (editingMessageState.getValue() == null) {
                             String notifTitle = "Nuevo mensaje de " + currentUserName + " 💌";
                             String notifBody = (title != null && !title.isEmpty()) ? "«" + title + "»: " + content : content;
-                            sendNotificationV1(notifTitle, notifBody, imageUrl);
+                            sendNotificationV1(notifTitle, notifBody, imageUrl, "carta");
                             Toast.makeText(MainActivity.this, "Carta enviada ❤️", Toast.LENGTH_SHORT).show();
                         } else {
                             Toast.makeText(MainActivity.this, "Carta actualizada ✨", Toast.LENGTH_SHORT).show();
@@ -1585,7 +1585,43 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     intent.removeExtra("sync_error_msg");
                 }
             }
+            if (intent.hasExtra("click_type")) {
+                String clickType = intent.getStringExtra("click_type");
+                if (clickType != null) {
+                    navigateToClickType(clickType);
+                    intent.removeExtra("click_type");
+                }
+            }
         }
+    }
+
+    public void navigateToClickType(String clickType) {
+        if (clickType == null) return;
+        runOnUiThread(() -> {
+            switch (clickType) {
+                case "carta":
+                case "like":
+                    updateTabSelection(R.id.btnHome);
+                    fragmentContainer.setVisibility(View.GONE);
+                    composeFeed.setVisibility(View.VISIBLE);
+                    inputArea.setVisibility(View.VISIBLE);
+                    btnMenuMore.setVisibility(View.VISIBLE);
+                    btnSettings.setVisibility(View.VISIBLE);
+                    break;
+                case "receta":
+                    updateTabSelection(R.id.btnRecipes);
+                    showFragment(RecipeFragment.newInstance(currentCoupleId, currentTheme));
+                    break;
+                case "cita":
+                    updateTabSelection(R.id.btnCalendar);
+                    showFragment(CalendarFragment.newInstance(currentCoupleId, currentUserId, currentTheme));
+                    break;
+                case "album":
+                    updateTabSelection(R.id.btnAlbum);
+                    showFragment(AlbumFragment.newInstance(currentCoupleId, currentUserId, currentUserName, currentUserImageUri, currentTheme));
+                    break;
+            }
+        });
     }
 
     public void showSyncErrorDialog(String errorMsg) {
@@ -1618,6 +1654,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     }
 
     public void sendNotificationV1(String title, String messageText, String imageUrl) {
+        sendNotificationV1(title, messageText, imageUrl, null);
+    }
+
+    public void sendNotificationV1(String title, String messageText, String imageUrl, String type) {
         new Thread(() -> {
             try {
                 // El archivo service-account.json debe estar en app/src/main/assets/
@@ -1647,6 +1687,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 
                 data.put("authorId", currentUserId);
                 if (imageUrl != null) data.put("imageUrl", imageUrl);
+                if (type != null) data.put("click_type", type);
 
                 // Topic name sin acentos para evitar errores en FCM
                 String topicName = "diario_" + currentCoupleId.toLowerCase()
@@ -1908,7 +1949,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             db.collection("calendar").document(id).set(ev).addOnSuccessListener(aVoid -> {
                 scheduleCalendarReminder(ev);
                 String notifTitle = isNew ? "¡Nueva cita creada! 📅" : "¡Cita modificada! 📅";
-                sendNotificationV1(notifTitle, currentUserName + (isNew ? " agregó la cita: \"" : " modificó la cita: \"") + ev.getTitle() + "\"");
+                sendNotificationV1(notifTitle, currentUserName + (isNew ? " agregó la cita: \"" : " modificó la cita: \"") + ev.getTitle() + "\"", null, "cita");
             });
             d.dismiss(); 
         });
@@ -2304,7 +2345,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 android.util.Log.d("Firestore", "Mensaje guardado con éxito: " + m.getMessageId());
                 updatePetOnInteraction();
                 Toast.makeText(MainActivity.this, "¡Carta enviada!", Toast.LENGTH_SHORT).show();
-                sendNotificationV1("¡Carta nueva! 💌", m.getContent(), m.getImageUrl());
+                sendNotificationV1("¡Carta nueva! 💌", m.getContent(), m.getImageUrl(), "carta");
             })
             .addOnFailureListener(e -> {
                 android.util.Log.e("Firestore", "Error al guardar mensaje", e);
