@@ -58,6 +58,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.style.TextAlign
 
 fun setFeedContent(
     composeView: ComposeView,
@@ -161,6 +162,7 @@ fun MessageFeedScreen(
     var selectedMessageForMenu by remember { mutableStateOf<Message?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     var showPetDialog by remember { mutableStateOf(false) }
+    var messageToDelete by remember { mutableStateOf<Message?>(null) }
 
     if (showPetDialog) {
         PetMenuDialog(
@@ -181,6 +183,17 @@ fun MessageFeedScreen(
             onBathPet = onBathPet,
             onPlayBallPet = onPlayBallPet,
             onPlayMinigame = onPlayMinigame
+        )
+    }
+
+    if (messageToDelete != null) {
+        DeleteConfirmationDialog(
+            theme = theme,
+            onDismiss = { messageToDelete = null },
+            onConfirm = {
+                onDeleteClick(messageToDelete!!)
+                messageToDelete = null
+            }
         )
     }
 
@@ -211,7 +224,7 @@ fun MessageFeedScreen(
                         selectedMessageForMenu = message
                         showMenu = true
                     },
-                    onDelete = { onDeleteClick(message) },
+                    onDelete = { messageToDelete = message },
                     onLike = { onLikeClick(message) }
                 )
             }
@@ -299,7 +312,7 @@ fun MessageFeedScreen(
                     text = { Text("Borrar", fontFamily = Vt323, fontSize = 18.sp, color = Color.Red) },
                     onClick = {
                         showMenu = false
-                        onDeleteClick(selectedMessageForMenu!!)
+                        messageToDelete = selectedMessageForMenu
                     }
                 )
             }
@@ -3155,6 +3168,100 @@ fun SettingsMenuButton(
         ) {
             Text(text, fontFamily = Vt323, fontSize = 18.sp, color = if (isDark) Color.White else Color(0xFF4A2511))
             Text("▶", fontFamily = Vt323, fontSize = 14.sp, color = borderColor)
+        }
+    }
+}
+
+@Composable
+fun DeleteConfirmationDialog(
+    theme: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val isDark = theme == "Pixel Oscuro"
+    val isMono = theme == "Pixel Monocromático"
+    val bgColor = when {
+        isDark -> Color(0xFF1E1E1E)
+        isMono -> Color.White
+        else -> Color(0xFFFFFDF5)
+    }
+    val borderColor = when {
+        isDark -> Color.White
+        isMono -> Color.Black
+        else -> Color(0xFF4A2511)
+    }
+    val textColor = when {
+        isDark -> Color.White
+        isMono -> Color.Black
+        else -> Color(0xFF4A2511)
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss
+    ) {
+        Surface(
+            modifier = Modifier
+                .width(320.dp)
+                .border(3.dp, borderColor),
+            color = bgColor,
+            shape = RectangleShape
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "¿ELIMINAR CARTA?",
+                    fontFamily = Vt323,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Red,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                Text(
+                    text = "¿Estás seguro de que quieres borrar esta carta? Esta acción no se puede deshacer.",
+                    fontFamily = Vt323,
+                    fontSize = 18.sp,
+                    color = textColor,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 20.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isDark) Color(0xFF333333) else Color(0xFFE0E0E0)
+                        ),
+                        border = BorderStroke(2.dp, borderColor),
+                        shape = RectangleShape
+                    ) {
+                        Text(
+                            text = "Cancelar",
+                            fontFamily = Vt323,
+                            fontSize = 16.sp,
+                            color = textColor
+                        )
+                    }
+                    Button(
+                        onClick = onConfirm,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE53935)
+                        ),
+                        border = BorderStroke(2.dp, borderColor),
+                        shape = RectangleShape
+                    ) {
+                        Text(
+                            text = "Eliminar",
+                            fontFamily = Vt323,
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
         }
     }
 }
