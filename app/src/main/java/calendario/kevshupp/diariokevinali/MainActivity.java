@@ -744,20 +744,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 if (p != null) {
                     if (p.getLovePoints() >= cost) {
                         long now = System.currentTimeMillis();
-                        long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
-                        long hoursToDecay = decayDiff / (1000 * 60 * 60);
-                        int decayedCleanliness = p.getCleanliness();
-                        int decayedSleepPercent = p.getSleepPercent();
-                        long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
-                        if (hoursToDecay >= 1) {
-                            decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
-                            if (p.isSleeping()) {
-                                decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
-                            } else {
-                                decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
-                            }
-                            nextDecayUpdate += hoursToDecay * 3600000L;
-                        }
+                        DecayedStats stats = calculateDecay(p, now);
+                        int decayedCleanliness = stats.cleanliness;
+                        int decayedSleepPercent = stats.sleepPercent;
+                        long nextDecayUpdate = stats.nextDecayUpdate;
 
                         int currentHappiness = p.getHappiness();
                         int newHappiness = Math.min(100, currentHappiness + happinessGain);
@@ -785,20 +775,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 Pet p = petState.getValue();
                 if (p != null) {
                     long now = System.currentTimeMillis();
-                    long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
-                    long hoursToDecay = decayDiff / (1000 * 60 * 60);
-                    int decayedCleanliness = p.getCleanliness();
-                    int decayedSleepPercent = p.getSleepPercent();
-                    long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
-                    if (hoursToDecay >= 1) {
-                        decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
-                        if (p.isSleeping()) {
-                            decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
-                        } else {
-                            decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
-                        }
-                        nextDecayUpdate += hoursToDecay * 3600000L;
-                    }
+                    DecayedStats stats = calculateDecay(p, now);
+                    int decayedCleanliness = stats.cleanliness;
+                    int decayedSleepPercent = stats.sleepPercent;
+                    long nextDecayUpdate = stats.nextDecayUpdate;
 
                     int newExp = p.getExperience() + exp;
                     int newLevel = p.getLevel();
@@ -854,22 +834,11 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     }
 
                     long now = System.currentTimeMillis();
-                    long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
-                    long hoursToDecay = decayDiff / (1000 * 60 * 60);
-                    int decayedHunger = p.getHunger();
-                    int decayedCleanliness = p.getCleanliness();
-                    int decayedSleepPercent = p.getSleepPercent();
-                    long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
-                    if (hoursToDecay >= 1) {
-                        decayedHunger = Math.min(100, p.getHunger() + (int)(hoursToDecay * 4));
-                        decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
-                        if (p.isSleeping()) {
-                            decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
-                        } else {
-                            decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
-                        }
-                        nextDecayUpdate += hoursToDecay * 3600000L;
-                    }
+                    DecayedStats stats = calculateDecay(p, now);
+                    int decayedHunger = stats.hunger;
+                    int decayedCleanliness = stats.cleanliness;
+                    int decayedSleepPercent = stats.sleepPercent;
+                    long nextDecayUpdate = stats.nextDecayUpdate;
 
                     int newHappiness = p.getHappiness();
                     String newStatus = p.getStatus();
@@ -923,20 +892,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     }
 
                     long now = System.currentTimeMillis();
-                    long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
-                    long hoursToDecay = decayDiff / (1000 * 60 * 60);
-                    int decayedHunger = p.getHunger();
-                    int decayedSleepPercent = p.getSleepPercent();
-                    long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
-                    if (hoursToDecay >= 1) {
-                        decayedHunger = Math.min(100, p.getHunger() + (int)(hoursToDecay * 4));
-                        if (p.isSleeping()) {
-                            decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
-                        } else {
-                            decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
-                        }
-                        nextDecayUpdate += hoursToDecay * 3600000L;
-                    }
+                    DecayedStats stats = calculateDecay(p, now);
+                    int decayedHunger = stats.hunger;
+                    int decayedSleepPercent = stats.sleepPercent;
+                    long nextDecayUpdate = stats.nextDecayUpdate;
 
                     int newHappiness = Math.min(100, p.getHappiness() + 10);
                     int newExp = p.getExperience() + 3;
@@ -988,22 +947,11 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                         return kotlin.Unit.INSTANCE;
                     }
 
-                    long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
-                    long hoursToDecay = decayDiff / (1000 * 60 * 60);
-                    int decayedHunger = p.getHunger();
-                    int decayedCleanliness = p.getCleanliness();
-                    int decayedSleepPercent = p.getSleepPercent();
-                    long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
-                    if (hoursToDecay >= 1) {
-                        decayedHunger = Math.min(100, p.getHunger() + (int)(hoursToDecay * 4));
-                        decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
-                        if (p.isSleeping()) {
-                            decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
-                        } else {
-                            decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
-                        }
-                        nextDecayUpdate += hoursToDecay * 3600000L;
-                    }
+                    DecayedStats stats = calculateDecay(p, now);
+                    int decayedHunger = stats.hunger;
+                    int decayedCleanliness = stats.cleanliness;
+                    int decayedSleepPercent = stats.sleepPercent;
+                    long nextDecayUpdate = stats.nextDecayUpdate;
 
                     int newHappiness = Math.min(100, p.getHappiness() + happinessGain);
                     int newLovePoints = p.getLovePoints() + points;
@@ -1060,20 +1008,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                         return kotlin.Unit.INSTANCE;
                     }
 
-                    long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
-                    long hoursToDecay = decayDiff / (1000 * 60 * 60);
-                    int decayedCleanliness = p.getCleanliness();
-                    int decayedSleepPercent = p.getSleepPercent();
-                    long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
-                    if (hoursToDecay >= 1) {
-                        decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
-                        if (p.isSleeping()) {
-                            decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
-                        } else {
-                            decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
-                        }
-                        nextDecayUpdate += hoursToDecay * 3600000L;
-                    }
+                    DecayedStats stats = calculateDecay(p, now);
+                    int decayedCleanliness = stats.cleanliness;
+                    int decayedSleepPercent = stats.sleepPercent;
+                    long nextDecayUpdate = stats.nextDecayUpdate;
                     
                     int newExp = p.getExperience() + exp;
                     int newLevel = p.getLevel();
@@ -1290,29 +1228,122 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     private void ensureUserInFirestore() {
         if (currentUserId == null) return;
         
-        java.util.Map<String, Object> userUpdates = new java.util.HashMap<>();
-        userUpdates.put("userId", currentUserId);
-        userUpdates.put("coupleId", currentCoupleId);
-        if (currentUserName != null && !currentUserName.isEmpty()) {
-            userUpdates.put("userName", currentUserName);
-        }
-        if (currentUserImageUri != null && !currentUserImageUri.isEmpty()) {
-            userUpdates.put("profileImageUrl", currentUserImageUri);
-        }
+        db.collection("users").document(currentUserId).get()
+            .addOnSuccessListener(documentSnapshot -> {
+                SharedPreferences prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE);
+                SharedPreferences.Editor editor = prefs.edit();
+                
+                java.util.Map<String, Object> userUpdates = new java.util.HashMap<>();
+                userUpdates.put("userId", currentUserId);
+                userUpdates.put("coupleId", currentCoupleId);
+                if (currentUserName != null && !currentUserName.isEmpty()) {
+                    userUpdates.put("userName", currentUserName);
+                }
+                if (currentUserImageUri != null && !currentUserImageUri.isEmpty()) {
+                    userUpdates.put("profileImageUrl", currentUserImageUri);
+                }
 
-        SharedPreferences prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE);
-        userUpdates.put("theme", prefs.getString("theme", "Pixel Claro"));
-        userUpdates.put("useCustomBg", prefs.getBoolean("useCustomBg", false));
-        userUpdates.put("lightColor", prefs.getString("lightColor", "#D1C4E9"));
-        userUpdates.put("darkColor", prefs.getString("darkColor", "#4A148C"));
-        userUpdates.put("cacheSizeLimit", prefs.getLong("cacheSizeLimit", 100L));
-        userUpdates.put("updateInterval", prefs.getLong("updateInterval", 720L));
-        userUpdates.put("appointmentLeadTime", prefs.getLong("appointmentLeadTime", 60L));
+                if (documentSnapshot.exists()) {
+                    boolean prefsChanged = false;
+                    
+                    String themeVal = documentSnapshot.getString("theme");
+                    if (themeVal != null) {
+                        editor.putString("theme", themeVal);
+                        prefsChanged = true;
+                    } else {
+                        userUpdates.put("theme", prefs.getString("theme", "Pixel Claro"));
+                    }
+                    
+                    Boolean useCustomBgVal = documentSnapshot.getBoolean("useCustomBg");
+                    if (useCustomBgVal != null) {
+                        editor.putBoolean("useCustomBg", useCustomBgVal);
+                        prefsChanged = true;
+                    } else {
+                        userUpdates.put("useCustomBg", prefs.getBoolean("useCustomBg", false));
+                    }
+                    
+                    String lightColorVal = documentSnapshot.getString("lightColor");
+                    if (lightColorVal != null) {
+                        editor.putString("lightColor", lightColorVal);
+                        prefsChanged = true;
+                    } else {
+                        userUpdates.put("lightColor", prefs.getString("lightColor", "#D1C4E9"));
+                    }
+                    
+                    String darkColorVal = documentSnapshot.getString("darkColor");
+                    if (darkColorVal != null) {
+                        editor.putString("darkColor", darkColorVal);
+                        prefsChanged = true;
+                    } else {
+                        userUpdates.put("darkColor", prefs.getString("darkColor", "#4A148C"));
+                    }
+                    
+                    Long cacheLimitVal = documentSnapshot.getLong("cacheSizeLimit");
+                    if (cacheLimitVal != null) {
+                        editor.putLong("cacheSizeLimit", cacheLimitVal);
+                        prefsChanged = true;
+                    } else {
+                        userUpdates.put("cacheSizeLimit", prefs.getLong("cacheSizeLimit", 100L));
+                    }
+                    
+                    Long intervalVal = documentSnapshot.getLong("updateInterval");
+                    if (intervalVal != null) {
+                        editor.putLong("updateInterval", intervalVal);
+                        prefsChanged = true;
+                    } else {
+                        userUpdates.put("updateInterval", prefs.getLong("updateInterval", 720L));
+                    }
+                    
+                    Long leadTimeVal = documentSnapshot.getLong("appointmentLeadTime");
+                    if (leadTimeVal != null) {
+                        editor.putLong("appointmentLeadTime", leadTimeVal);
+                        prefsChanged = true;
+                    } else {
+                        userUpdates.put("appointmentLeadTime", prefs.getLong("appointmentLeadTime", 60L));
+                    }
+                    
+                    if (prefsChanged) {
+                        editor.apply();
+                        runOnUiThread(() -> {
+                            String finalTheme = prefs.getString("theme", "Pixel Claro");
+                            String lc = prefs.getString("lightColor", "#D1C4E9");
+                            String dc = prefs.getString("darkColor", "#4A148C");
+                            applyTheme(finalTheme, lc, dc);
+                        });
+                    }
+                } else {
+                    userUpdates.put("theme", prefs.getString("theme", "Pixel Claro"));
+                    userUpdates.put("useCustomBg", prefs.getBoolean("useCustomBg", false));
+                    userUpdates.put("lightColor", prefs.getString("lightColor", "#D1C4E9"));
+                    userUpdates.put("darkColor", prefs.getString("darkColor", "#4A148C"));
+                    userUpdates.put("cacheSizeLimit", prefs.getLong("cacheSizeLimit", 100L));
+                    userUpdates.put("updateInterval", prefs.getLong("updateInterval", 720L));
+                    userUpdates.put("appointmentLeadTime", prefs.getLong("appointmentLeadTime", 60L));
+                }
 
-        db.collection("users").document(currentUserId)
-                .set(userUpdates, com.google.firebase.firestore.SetOptions.merge())
-                .addOnSuccessListener(aVoid -> Log.d("MainActivity", "Usuario y ajustes sincronizados con Firestore"))
-                .addOnFailureListener(e -> Log.e("MainActivity", "Error sincronizando usuario", e));
+                db.collection("users").document(currentUserId)
+                    .set(userUpdates, com.google.firebase.firestore.SetOptions.merge())
+                    .addOnSuccessListener(aVoid -> Log.d("MainActivity", "Usuario y ajustes sincronizados con Firestore"))
+                    .addOnFailureListener(e -> Log.e("MainActivity", "Error sincronizando usuario", e));
+            })
+            .addOnFailureListener(e -> Log.e("MainActivity", "Error al obtener documento de usuario de Firestore", e));
+    }
+
+    public void updateAllAuthorMessagesWithProfileImage(String newUrl) {
+        if (currentUserId == null || newUrl == null || newUrl.trim().isEmpty()) return;
+        db.collection("messages")
+            .whereEqualTo("authorId", currentUserId)
+            .get()
+            .addOnSuccessListener(queryDocumentSnapshots -> {
+                com.google.firebase.firestore.WriteBatch batch = db.batch();
+                for (com.google.firebase.firestore.DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
+                    batch.update(doc.getReference(), "authorImageUrl", newUrl);
+                }
+                batch.commit()
+                    .addOnSuccessListener(aVoid -> Log.d("MainActivity", "Cartas anteriores actualizadas con la nueva foto de perfil"))
+                    .addOnFailureListener(e -> Log.e("MainActivity", "Error al actualizar cartas anteriores", e));
+            })
+            .addOnFailureListener(e -> Log.e("MainActivity", "Error obteniendo cartas del autor para actualizar foto de perfil", e));
     }
 
     private void setupFirebaseMessaging() {
@@ -1362,28 +1393,52 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         });
     }
 
+    private static class DecayedStats {
+        public final int hunger;
+        public final int cleanliness;
+        public final int sleepPercent;
+        public final long nextDecayUpdate;
+        public DecayedStats(int hunger, int cleanliness, int sleepPercent, long nextDecayUpdate) {
+            this.hunger = hunger;
+            this.cleanliness = cleanliness;
+            this.sleepPercent = sleepPercent;
+            this.nextDecayUpdate = nextDecayUpdate;
+        }
+    }
+
+    private DecayedStats calculateDecay(Pet p, long now) {
+        long lastDecay = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : now;
+        long decayDiff = now - lastDecay;
+        if (decayDiff < 0) decayDiff = 0;
+        long hoursToDecay = decayDiff / (1000 * 60 * 60);
+        
+        int decayedHunger = p.getHunger();
+        int decayedCleanliness = p.getCleanliness();
+        int decayedSleepPercent = p.getSleepPercent();
+        long nextDecayUpdate = lastDecay;
+        
+        if (hoursToDecay >= 1) {
+            decayedHunger = Math.min(100, p.getHunger() + (int)(hoursToDecay * 4));
+            decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
+            if (p.isSleeping()) {
+                decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
+            } else {
+                decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
+            }
+            nextDecayUpdate += hoursToDecay * 3600000L;
+        }
+        return new DecayedStats(decayedHunger, decayedCleanliness, decayedSleepPercent, nextDecayUpdate);
+    }
+
     private void checkPetDecay(Pet p) {
         long now = System.currentTimeMillis();
         
         // 1. Decaimiento de hambre, limpieza y sueño (basado en lastDecayUpdate)
-        long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
-        long hoursToDecay = decayDiff / (1000 * 60 * 60);
-        
-        int newHunger = p.getHunger();
-        int newCleanliness = p.getCleanliness();
-        int newSleepPercent = p.getSleepPercent();
-        long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
-        
-        if (hoursToDecay >= 1) {
-            newHunger = Math.min(100, p.getHunger() + (int)(hoursToDecay * 4));
-            newCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
-            if (p.isSleeping()) {
-                newSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
-            } else {
-                newSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
-            }
-            nextDecayUpdate += hoursToDecay * 3600000L;
-        }
+        DecayedStats stats = calculateDecay(p, now);
+        int newHunger = stats.hunger;
+        int newCleanliness = stats.cleanliness;
+        int newSleepPercent = stats.sleepPercent;
+        long nextDecayUpdate = stats.nextDecayUpdate;
         
         // 2. Decaimiento de felicidad (basado en lastInteraction, 24 horas sin interactuar)
         long happinessDiff = now - p.getLastInteraction();
@@ -1435,20 +1490,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         String today = dayFormat.format(new java.util.Date(now));
         
         // Primero, calculamos el decaimiento de limpieza y sueño acumulado antes de resetear
-        long decayDiff = now - (p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction());
-        long hoursToDecay = decayDiff / (1000 * 60 * 60);
-        int currentCleanliness = p.getCleanliness();
-        int currentSleepPercent = p.getSleepPercent();
-        long nextDecayUpdate = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : p.getLastInteraction();
-        if (hoursToDecay >= 1) {
-            currentCleanliness = Math.max(0, currentCleanliness - (int)(hoursToDecay * 3));
-            if (p.isSleeping()) {
-                currentSleepPercent = Math.min(100, currentSleepPercent + (int)(hoursToDecay * 15));
-            } else {
-                currentSleepPercent = Math.max(0, currentSleepPercent - (int)(hoursToDecay * 5));
-            }
-            nextDecayUpdate += hoursToDecay * 3600000L;
-        }
+        DecayedStats stats = calculateDecay(p, now);
+        int currentCleanliness = stats.cleanliness;
+        int currentSleepPercent = stats.sleepPercent;
+        long nextDecayUpdate = stats.nextDecayUpdate;
         
         int newHappiness = Math.min(100, p.getHappiness() + 10);
         int newLovePoints = p.getLovePoints() + 5; // +5 puntos por interacción
@@ -1859,6 +1904,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         v.findViewById(R.id.btnSaveEvent).setOnClickListener(v1 -> { 
             String title = et.getText().toString().trim(); 
             if (title.isEmpty()) return; 
+            boolean isNew = (edit == null);
             String id = edit != null ? edit.getEventId() : UUID.randomUUID().toString(); 
             CalendarEvent ev = new CalendarEvent(id, title, etDesc != null ? etDesc.getText().toString().trim() : "", time.getTimeInMillis(), currentUserId, currentCoupleId); 
             ev.setAuthorName(currentUserName);
@@ -1866,6 +1912,8 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             ev.setRecurrence(pos >= 0 ? values[pos] : "NONE"); 
             db.collection("calendar").document(id).set(ev).addOnSuccessListener(aVoid -> {
                 scheduleCalendarReminder(ev);
+                String notifTitle = isNew ? "¡Nueva cita creada! 📅" : "¡Cita modificada! 📅";
+                sendNotificationV1(notifTitle, currentUserName + (isNew ? " agregó la cita: \"" : " modificó la cita: \"") + ev.getTitle() + "\"");
             });
             d.dismiss(); 
         });
@@ -2160,6 +2208,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     if (code == PICK_IMAGE_PROFILE) { 
                         currentUserImageUri = url; 
                         db.collection("users").document(currentUserId).update("profileImageUrl", url);
+                        updateAllAuthorMessagesWithProfileImage(url);
                         androidx.fragment.app.Fragment f = getSupportFragmentManager().findFragmentById(R.id.fragmentContainer);
                         if (f instanceof ProfileFragment) ((ProfileFragment) f).setProfileImage(url);
                     }

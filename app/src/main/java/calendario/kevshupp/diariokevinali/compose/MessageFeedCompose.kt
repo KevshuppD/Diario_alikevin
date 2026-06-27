@@ -748,8 +748,20 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         }
                     }
                     
+                    val stateText = if (pet.isSleeping) {
+                        val remainingMinutes = (100 - pet.sleepPercent) * 4
+                        val hours = remainingMinutes / 60
+                        val minutes = remainingMinutes % 60
+                        if (pet.sleepPercent >= 100) {
+                            "Estado: ${pet.status} (¡Descansado!)"
+                        } else {
+                            "Estado: ${pet.status} (Falta ${hours}h ${minutes}m)"
+                        }
+                    } else {
+                        "Estado: ${pet.status}"
+                    }
                     Text(
-                        text = "Estado: ${pet.status}",
+                        text = stateText,
                         fontFamily = Vt323,
                         fontSize = 16.sp,
                         color = if (isDark) Color.LightGray else Color.DarkGray
@@ -1479,6 +1491,25 @@ fun PetMenuDialog(
                         
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
                             InfoStat("Sueño 💤", "${pet.sleepPercent}%", Color(0xFF9C27B0))
+                        }
+                        
+                        if (pet.isSleeping) {
+                            val remainingMinutes = (100 - pet.sleepPercent) * 4
+                            val hours = remainingMinutes / 60
+                            val minutes = remainingMinutes % 60
+                            val sleepTimeStr = if (pet.sleepPercent >= 100) {
+                                "¡Totalmente descansado!"
+                            } else {
+                                "Tiempo para despertar: ${hours}h ${minutes}m"
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = sleepTimeStr,
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = Color(0xFF9C27B0),
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                         
                         Spacer(modifier = Modifier.height(8.dp))

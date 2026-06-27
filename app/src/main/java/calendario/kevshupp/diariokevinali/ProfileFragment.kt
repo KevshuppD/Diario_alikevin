@@ -82,7 +82,10 @@ class ProfileFragment : Fragment() {
                                 .addOnSuccessListener {
                                     val prefs = act?.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
                                     prefs?.edit()?.putString("userName", newName)?.apply()
-                                    if (newImage != null) prefs?.edit()?.putString("userImage", newImage)?.apply()
+                                    if (newImage != null) {
+                                        prefs?.edit()?.putString("userImage", newImage)?.apply()
+                                        act?.updateAllAuthorMessagesWithProfileImage(newImage)
+                                    }
                                     if (anniversaryDate != null) prefs?.edit()?.putLong("anniversaryDate", anniversaryDate)?.apply()
                                     
                                     currentUserName = newName
