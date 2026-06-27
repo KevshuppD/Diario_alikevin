@@ -346,7 +346,7 @@ class SettingsFragment : Fragment() {
                         onUpdateIntervalChange = { newInterval ->
                             currentUpdateInterval = newInterval
                             prefs?.edit()?.putLong("updateInterval", newInterval)?.apply()
-                            DiarioApp.rescheduleUpdateCheck(requireContext(), newInterval)
+                            DiarioApp.rescheduleUpdateCheck(requireContext(), newInterval, androidx.work.ExistingPeriodicWorkPolicy.REPLACE)
                             updateFirestoreSetting("updateInterval", newInterval)
                         },
                         appointmentLeadTime = currentAppointmentLeadTime,

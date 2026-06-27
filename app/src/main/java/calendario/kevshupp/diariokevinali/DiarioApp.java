@@ -94,7 +94,7 @@ public class DiarioApp extends Application implements ImageLoaderFactory {
         
         long interval = getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
                 .getLong("updateInterval", 720L); // 12h por defecto
-        rescheduleUpdateCheck(this, interval);
+        rescheduleUpdateCheck(this, interval, ExistingPeriodicWorkPolicy.KEEP);
         createNotificationChannel();
         schedulePetCareCheck(this);
     }
@@ -125,11 +125,15 @@ public class DiarioApp extends Application implements ImageLoaderFactory {
     }
     
     public static void rescheduleUpdateCheck(Context context, long intervalMinutes) {
+        rescheduleUpdateCheck(context, intervalMinutes, ExistingPeriodicWorkPolicy.KEEP);
+    }
+
+    public static void rescheduleUpdateCheck(Context context, long intervalMinutes, ExistingPeriodicWorkPolicy policy) {
         PeriodicWorkRequest updateRequest = new PeriodicWorkRequest.Builder(UpdateWorker.class, intervalMinutes, TimeUnit.MINUTES)
                 .build();
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 "UpdateCheck",
-                ExistingPeriodicWorkPolicy.REPLACE, // Usar REPLACE para aplicar el nuevo intervalo
+                policy,
                 updateRequest
         );
     }
