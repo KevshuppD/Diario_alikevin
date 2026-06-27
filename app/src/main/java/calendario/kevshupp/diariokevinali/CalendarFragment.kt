@@ -80,7 +80,7 @@ class CalendarFragment : Fragment() {
                 if (snaps != null) {
                     val list = snaps.map { d ->
                         val ev = d.toObject(CalendarEvent::class.java)
-                        if (ev.eventId == null) ev.eventId = d.id
+                        if (ev.eventId.isEmpty()) ev.eventId = d.id
                         ev
                     }
                     _events.value = list

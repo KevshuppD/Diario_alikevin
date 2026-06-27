@@ -43,7 +43,7 @@ class UpdateManager(private val context: Context) {
             .build()
 
         OkHttpClient().newCall(request).enqueue(object : Callback {
-            override fun onFailure(@NonNull c: Call, @NonNull e: IOException) {
+            override fun onFailure(call: Call, e: IOException) {
                 Log.e(TAG, "Request failed", e)
                 callback?.let {
                     Handler(Looper.getMainLooper()).post { it.onNoUpdate() }
@@ -51,10 +51,10 @@ class UpdateManager(private val context: Context) {
             }
 
             @Throws(IOException::class)
-            override fun onResponse(@NonNull c: Call, @NonNull r: Response) {
-                if (r.isSuccessful && r.body != null) {
+            override fun onResponse(call: Call, response: Response) {
+                if (response.isSuccessful && response.body != null) {
                     try {
-                        val body = r.body!!.string()
+                        val body = response.body!!.string()
                         val j = JSONObject(body)
                         val latestTag = j.getString("tag_name")
                         val currentVersion = BuildConfig.VERSION_NAME
@@ -91,7 +91,7 @@ class UpdateManager(private val context: Context) {
                         }
                     }
                 } else {
-                    Log.e(TAG, "Response not successful: ${r.code}")
+                    Log.e(TAG, "Response not successful: ${response.code}")
                     callback?.let {
                         Handler(Looper.getMainLooper()).post { it.onNoUpdate() }
                     }
