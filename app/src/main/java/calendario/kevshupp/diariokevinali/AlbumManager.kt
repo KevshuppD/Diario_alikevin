@@ -17,6 +17,7 @@ import com.bumptech.glide.Glide
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.QueryDocumentSnapshot
 import java.util.*
+import android.net.Uri
 
 class AlbumManager(
     private val context: Context,
@@ -157,6 +158,7 @@ class AlbumManager(
 
         val btnEdit = v.findViewById<Button>(R.id.btnMessageDetailEdit)
         val btnClose = v.findViewById<Button>(R.id.btnMessageDetailClose)
+        val btnMenu = v.findViewById<TextView>(R.id.btnMessageDetailMenu)
 
         if (msg.authorId == userId) {
             btnEdit.visibility = View.VISIBLE
@@ -166,12 +168,14 @@ class AlbumManager(
             v.setBackgroundColor(Color.parseColor("#0D0D2B"))
             v.findViewById<TextView>(R.id.tvMessageDetailTitle).setTextColor(Color.WHITE)
             v.findViewById<TextView>(R.id.tvMessageDetailContent).setTextColor(Color.WHITE)
+            btnMenu.setTextColor(Color.WHITE)
             btnEdit.setTextColor(Color.WHITE)
             btnEdit.setBackgroundColor(Color.parseColor("#1A1A2E"))
             btnClose.setTextColor(Color.WHITE)
             btnClose.setBackgroundColor(Color.parseColor("#1A1A2E"))
         } else {
             v.setBackgroundColor(Color.parseColor("#F5F5F5"))
+            btnMenu.setTextColor(Color.parseColor("#4A2511"))
             btnEdit.setBackgroundColor(Color.parseColor("#5D2E7A"))
             btnClose.setBackgroundColor(Color.parseColor("#5D2E7A"))
         }
@@ -182,6 +186,29 @@ class AlbumManager(
 
         val ivMain = v.findViewById<ImageView>(R.id.ivMessageDetailImage)
         val rvPhotos = v.findViewById<RecyclerView>(R.id.rvMessageDetailPhotos)
+
+        btnMenu.setOnClickListener { view ->
+            val popup = PopupMenu(context, view)
+            popup.menu.add("2 columnas")
+            popup.menu.add("3 columnas")
+            popup.menu.add("4 columnas")
+            popup.menu.add("5 columnas")
+            popup.menu.add("6 columnas")
+            popup.setOnMenuItemClickListener { item ->
+                val cols = when (item.title) {
+                    "2 columnas" -> 2
+                    "3 columnas" -> 3
+                    "4 columnas" -> 4
+                    "5 columnas" -> 5
+                    "6 columnas" -> 6
+                    else -> 2
+                }
+                (rvPhotos.layoutManager as? GridLayoutManager)?.spanCount = cols
+                rvPhotos.adapter?.notifyDataSetChanged()
+                true
+            }
+            popup.show()
+        }
 
         val urls = msg.imageUrls
         if (urls?.isNotEmpty() == true) {
@@ -282,7 +309,7 @@ class AlbumManager(
         dialog.show()
     }
 
-    private fun showFullScreenImage(url: String) {
+    fun showFullScreenImage(url: String) {
         val d = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         val iv = ImageView(context)
         iv.setBackgroundColor(Color.BLACK)
@@ -336,4 +363,59 @@ class AlbumManager(
             btn.text = if (btn.isEnabled) "Guardar" else "Subiendo..."
         }
     }
+
+    fun getLocalPhotos(): List<LocalPhoto> {
+        val prefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+        val localFolderUriStr = prefs.getString("syncLocalFolderUri", null) ?: return emptyList()
+        val fileList = mutableListOf<LocalPhoto>()
+        val contentResolver = context.contentResolver
+        try {
+            val treeUri = Uri.parse(localFolderUriStr)
+            val documentId = android.provider.DocumentsContract.getTreeDocumentId(treeUri)
+            val childrenUri = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
+            
+            val projection = arrayOf(
+                android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE,
+                android.provider.DocumentsContract.Document.COLUMN_SIZE
+            )
+            
+            contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                val docIdIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                val lastModifiedIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                val mimeTypeIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE)
+                val sizeIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_SIZE)
+                
+                while (cursor.moveToNext()) {
+                    val name = if (nameIndex != -1) cursor.getString(nameIndex) else null
+                    val docId = if (docIdIndex != -1) cursor.getString(docIdIndex) else null
+                    val mimeType = if (mimeTypeIndex != -1) cursor.getString(mimeTypeIndex) ?: "" else ""
+                    
+                    if (!name.isNullOrEmpty() && !docId.isNullOrEmpty() && mimeType.startsWith("image/")) {
+                        val fileUri = android.provider.DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
+                        var lastModified = if (lastModifiedIndex != -1) cursor.getLong(lastModifiedIndex) else 0L
+                        if (lastModified == 0L) {
+                            try {
+                                val docFile = androidx.documentfile.provider.DocumentFile.fromSingleUri(context, fileUri)
+                                lastModified = docFile?.lastModified() ?: 0L
+                            } catch (e: Exception) {
+                                // Ignore
+                            }
+                        }
+                        val size = if (sizeIndex != -1) cursor.getLong(sizeIndex) else 0L
+                        fileList.add(LocalPhoto(fileUri.toString(), name, lastModified, size))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AlbumManager", "Error listing local photos: " + e.message)
+        }
+        fileList.sortByDescending { it.lastModified }
+        return fileList
+    }
 }
+
+data class LocalPhoto(val uri: String, val name: String, val lastModified: Long, val size: Long)

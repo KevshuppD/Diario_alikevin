@@ -16,6 +16,8 @@ import calendario.kevshupp.diariokevinali.compose.AlbumScreen
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 class AlbumFragment : Fragment() {
     private var coupleId: String? = null
@@ -62,6 +64,10 @@ class AlbumFragment : Fragment() {
         return ComposeView(requireContext()).apply {
             setContent {
                 var moments by remember { mutableStateOf(listOf<Message>()) }
+                var localPhotos by remember { mutableStateOf(listOf<LocalPhoto>()) }
+                var localFolderConfigured by remember { mutableStateOf(false) }
+                var isLocalPhotosLoading by remember { mutableStateOf(false) }
+                var localPhotosReloadTrigger by remember { mutableStateOf(0) }
                 val isDark = theme == "Pixel Oscuro"
                 val activityRef = activity as? MainActivity
 
@@ -74,6 +80,22 @@ class AlbumFragment : Fragment() {
                         userImageUri = prefs?.getString("userImage", userImageUri)
                         theme = prefs?.getString("theme", theme) ?: theme
                         albumManager?.setTheme(theme)
+                    }
+                }
+
+                LaunchedEffect(coupleId, localPhotosReloadTrigger) {
+                    val prefs = activityRef?.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
+                    val folderUri = prefs?.getString("syncLocalFolderUri", null)
+                    val configured = !folderUri.isNullOrEmpty()
+                    localFolderConfigured = configured
+                    if (configured) {
+                        isLocalPhotosLoading = true
+                        withContext(Dispatchers.IO) {
+                            albumManager?.getLocalPhotos() ?: emptyList()
+                        }.let { photos ->
+                            localPhotos = photos
+                            isLocalPhotosLoading = false
+                        }
                     }
                 }
 
@@ -101,6 +123,10 @@ class AlbumFragment : Fragment() {
 
                 AlbumScreen(
                     moments = moments,
+                    localPhotos = localPhotos,
+                    localFolderConfigured = localFolderConfigured,
+                    isLocalPhotosLoading = isLocalPhotosLoading,
+                    onReloadLocalPhotos = { localPhotosReloadTrigger++ },
                     theme = theme,
                     onAddMoment = {
                         albumManager?.showAddMomentDialog(object : AlbumManager.AlbumCallback {
@@ -122,6 +148,9 @@ class AlbumFragment : Fragment() {
                     },
                     onDeleteMoment = { msg ->
                         msg.messageId?.let { db.collection("messages").document(it).delete() }
+                    },
+                    onOpenLocalPhoto = { url ->
+                        albumManager?.showFullScreenImage(url)
                     },
                     isOwner = { msg -> msg.authorId == userId }
                 )

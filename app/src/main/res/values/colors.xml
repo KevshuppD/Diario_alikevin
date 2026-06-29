@@ -4,4 +4,14 @@
     <color name="white">#FFFFFFFF</color>
     <color name="pixel_brown">#4A2511</color>
     <color name="pixel_brown_dark">#2D1407</color>
+
+    <!-- Login theme colors (Light Mode) -->
+    <color name="login_bg">#FFFBEA</color>
+    <color name="login_primary">#D81B60</color>
+    <color name="login_input_bg">#FDF8D5</color>
+    <color name="login_input_stroke">#4A2511</color>
+    <color name="login_input_text">#4A2511</color>
+    <color name="login_input_hint">#8B4513</color>
+    <color name="login_button_bg">#D81B60</color>
+    <color name="login_button_text">#FFFFFF</color>
 </resources>

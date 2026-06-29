@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5">
+    android:background="@color/login_bg">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,14 +18,14 @@
             android:layout_width="100dp"
             android:layout_height="100dp"
             android:src="@drawable/ic_heart_pixel"
-            app:tint="#D81B60" />
+            app:tint="@color/login_primary" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/vt323"
             android:text="Diario Kevin &amp; Ali"
-            android:textColor="#D81B60"
+            android:textColor="@color/login_primary"
             android:textSize="36sp"
             android:textStyle="bold" />
 
@@ -37,8 +37,8 @@
             android:background="@drawable/bg_input_text"
             android:fontFamily="@font/vt323"
             android:hint="Usuario (ali o kevin)"
-            android:textColorHint="#888888"
-            android:textColor="#333333"
+            android:textColorHint="@color/login_input_hint"
+            android:textColor="@color/login_input_text"
             android:inputType="text"
             android:padding="12dp"
             android:textSize="24sp" />
@@ -51,8 +51,8 @@
             android:background="@drawable/bg_input_text"
             android:fontFamily="@font/vt323"
             android:hint="Contraseña"
-            android:textColorHint="#888888"
-            android:textColor="#333333"
+            android:textColorHint="@color/login_input_hint"
+            android:textColor="@color/login_input_text"
             android:inputType="textPassword"
             android:padding="12dp"
             android:textSize="24sp" />
@@ -62,10 +62,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:backgroundTint="#D81B60"
+            android:backgroundTint="@color/login_button_bg"
             android:fontFamily="@font/vt323"
             android:text="Entrar"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/login_button_text"
             android:textSize="24sp" />
 
     </LinearLayout>

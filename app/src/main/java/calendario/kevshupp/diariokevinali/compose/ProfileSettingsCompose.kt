@@ -328,7 +328,7 @@ fun ProfileScreen(
 
         var nameText by remember { mutableStateOf(currentUserName) }
 
-        // Nombre de Usuario Retro Campo
+        // Nombre de Usuario Retro Campo con botón de guardado integrado
         OutlinedTextField(
             value = nameText,
             onValueChange = { nameText = it },
@@ -337,6 +337,16 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
+            trailingIcon = {
+                IconButton(
+                    onClick = { onSaveProfile(nameText, currentUserImageUri, anniversaryDate) }
+                ) {
+                    Text(
+                        text = "💾",
+                        fontSize = 24.sp
+                    )
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = boxBackground,
                 unfocusedContainerColor = boxBackground,
@@ -347,35 +357,6 @@ fun ProfileScreen(
                 cursorColor = textColor
             )
         )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Botón 3D Guardar Cambios
-        val saveBtnBg = if (isDark) Color(0xFF00796B) else Color(0xFFE2725B)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(60.dp)
-                .clickable { onSaveProfile(nameText, currentUserImageUri, anniversaryDate) }
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .offset(y = 6.dp)
-                    .background(borderColor)
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .border(3.dp, borderColor)
-                    .background(saveBtnBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("💾 GUARDAR CAMBIOS", fontFamily = Vt323, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
-        }
 
         Spacer(modifier = Modifier.height(14.dp))
 

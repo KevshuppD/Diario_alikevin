@@ -428,7 +428,7 @@ fun MessageCard(
                     AsyncImage(
                         model = avatarUrl,
                         contentDescription = null,
-                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                        modifier = Modifier.fillMaxSize().clip(RectangleShape),
                         contentScale = ContentScale.Crop
                     )
                 }
