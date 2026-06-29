@@ -268,6 +268,11 @@ fun SpiritsChecklistView(
                 val ownedByOther = if (isKevin) aliList.contains(spiritId) else kevinList.contains(spiritId)
                 ownedByOther && !ownedByMe
             }
+            "obtenidos_yo_no_otro" -> {
+                val ownedByMe = if (isKevin) kevinList.contains(spiritId) else aliList.contains(spiritId)
+                val ownedByOther = if (isKevin) aliList.contains(spiritId) else kevinList.contains(spiritId)
+                ownedByMe && !ownedByOther
+            }
             else -> true
         }
     }
@@ -420,6 +425,20 @@ fun SpiritsChecklistView(
                         },
                         onClick = {
                             filterMode = "obtenidos_otro_no_yo"
+                            showFiltersMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (filterMode == "obtenidos_yo_no_otro") "✓ MÍOS QUE EL OTRO NO TIENE" else "MÍOS QUE EL OTRO NO TIENE",
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                        },
+                        onClick = {
+                            filterMode = "obtenidos_yo_no_otro"
                             showFiltersMenu = false
                         }
                     )
