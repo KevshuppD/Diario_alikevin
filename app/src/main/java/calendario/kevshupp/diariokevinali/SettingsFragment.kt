@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
 import calendario.kevshupp.diariokevinali.compose.SettingsScreen
+import kotlinx.coroutines.launch
 
 class SettingsFragment : Fragment() {
     private var theme: String = "Pixel Claro"
@@ -49,7 +50,6 @@ class SettingsFragment : Fragment() {
                             }
                     }
                 }
-                
                 // Usar remember para que Compose mantenga el estado correctamente
                 var currentTheme by remember { mutableStateOf(theme) }
                 var useCustomBg by remember {
@@ -99,6 +99,82 @@ class SettingsFragment : Fragment() {
                 var localFilesCount by remember { mutableStateOf(0) }
                 var cloudFilesCount by remember { mutableStateOf(0) }
                 var activeSyncSlots by remember { mutableStateOf<List<Pair<String, Int>>>(emptyList()) }
+
+                val duplicateManager = remember { DuplicateManager(requireContext()) }
+                val coroutineScope = rememberCoroutineScope()
+                
+                var isScanningDuplicates by remember { mutableStateOf(false) }
+                var duplicateGroups by remember { mutableStateOf<List<DuplicateGroup>>(emptyList()) }
+                var scanCompleted by remember { mutableStateOf(false) }
+                var scannedCount by remember { mutableStateOf(0) }
+                var totalToScan by remember { mutableStateOf(0) }
+                var deletedPhotosCount by remember { mutableStateOf(0) }
+                var spaceFreedBytes by remember { mutableStateOf(0L) }
+                var isDeleting by remember { mutableStateOf(false) }
+
+                val onScanDuplicates: () -> Unit = {
+                    if (!selectedFolderUri.isNullOrEmpty()) {
+                        isScanningDuplicates = true
+                        scanCompleted = false
+                        deletedPhotosCount = 0
+                        spaceFreedBytes = 0L
+                        scannedCount = 0
+                        totalToScan = 0
+                        coroutineScope.launch {
+                            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                try {
+                                    duplicateManager.findDuplicates(selectedFolderUri!!) { scanned, total ->
+                                        isScanningDuplicates = true
+                                        scannedCount = scanned
+                                        totalToScan = total
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("SettingsFragment", "Error scanning duplicates: ${e.message}", e)
+                                    emptyList()
+                                }
+                            }
+                            duplicateGroups = result
+                            isScanningDuplicates = false
+                            scanCompleted = true
+                        }
+                    }
+                }
+
+                val onDeleteDuplicates: (List<LocalPhoto>) -> Unit = { listToDelete ->
+                    if (listToDelete.isNotEmpty()) {
+                        isDeleting = true
+                        scannedCount = 0
+                        totalToScan = listToDelete.size
+                        coroutineScope.launch {
+                            val (freedCount, freedSpace) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                var space = 0L
+                                val count = duplicateManager.deleteDuplicateFiles(listToDelete) { progress ->
+                                    scannedCount = progress
+                                }
+                                listToDelete.forEach {
+                                    space += it.size
+                                }
+                                Pair(count, space)
+                            }
+                            deletedPhotosCount = freedCount
+                            spaceFreedBytes = freedSpace
+                            isDeleting = false
+                            scanCompleted = false
+                            localFilesCount = maxOf(0, localFilesCount - freedCount)
+                        }
+                    }
+                }
+
+                val onResetDuplicateState: () -> Unit = {
+                    isScanningDuplicates = false
+                    duplicateGroups = emptyList()
+                    scanCompleted = false
+                    scannedCount = 0
+                    totalToScan = 0
+                    deletedPhotosCount = 0
+                    spaceFreedBytes = 0L
+                    isDeleting = false
+                }
 
                 val coupleId = prefs?.getString("coupleId", null)
 
@@ -435,7 +511,18 @@ class SettingsFragment : Fragment() {
                         onParallelLinesChange = { newLines ->
                             prefs?.edit()?.putInt("syncParallelLines", newLines)?.apply()
                             syncParallelLines = newLines
-                        }
+                        },
+                        isScanningDuplicates = isScanningDuplicates,
+                        duplicateGroups = duplicateGroups,
+                        scanCompleted = scanCompleted,
+                        scannedCount = scannedCount,
+                        totalToScan = totalToScan,
+                        deletedPhotosCount = deletedPhotosCount,
+                        spaceFreedBytes = spaceFreedBytes,
+                        isDeleting = isDeleting,
+                        onScanDuplicates = onScanDuplicates,
+                        onDeleteDuplicates = onDeleteDuplicates,
+                        onResetDuplicateState = onResetDuplicateState
                     )
                 }
             }
