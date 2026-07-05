@@ -48,7 +48,11 @@ fun SettingsSyncCompose(
     cloudFilesCount: Int = 0,
     syncParallelLines: Int = 3,
     activeSyncSlots: List<Pair<String, Int>> = emptyList(),
-    onParallelLinesChange: (Int) -> Unit = {}
+    onParallelLinesChange: (Int) -> Unit = {},
+    syncDirection: String = "BIDIRECTIONAL",
+    onDirectionChange: (String) -> Unit = {},
+    onResetDrive: () -> Unit = {},
+    onIncorrectPassword: () -> Unit = {}
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val isMono = currentTheme == "Pixel Monocromático"
@@ -208,6 +212,52 @@ fun SettingsSyncCompose(
                 textColor = textColor,
                 borderColor = borderColor
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Dirección de Sincronización:",
+                fontFamily = Vt323Sync,
+                fontSize = 16.sp,
+                color = textColor,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+
+            val directionOptions = listOf(
+                "BIDIRECTIONAL" to "Bidireccional 🔄",
+                "DOWNLOAD_ONLY" to "Solo Bajada ⬇",
+                "UPLOAD_ONLY" to "Solo Subida ⬆"
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                directionOptions.forEach { (dir, label) ->
+                    val selected = syncDirection == dir
+                    val optBg = if (selected) borderColor else Color.Transparent
+                    val optText = if (selected) Color.White else textColor
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .border(2.dp, borderColor)
+                            .background(optBg)
+                            .clickable { onDirectionChange(dir) }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            fontFamily = Vt323Sync,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = optText,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -529,6 +579,133 @@ fun SettingsSyncCompose(
                         Text(text = "DESVINCULAR 🚪", fontFamily = Vt323Sync, fontSize = 16.sp, color = Color.White)
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Botón de Vaciar Nube
+            var showPasswordDialog by remember { mutableStateOf(false) }
+            var passwordText by remember { mutableStateOf("") }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .clickable {
+                        passwordText = ""
+                        showPasswordDialog = true
+                    }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .offset(y = 6.dp)
+                        .background(borderColor)
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .border(2.dp, borderColor)
+                        .background(Color(0xFFD32F2F)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "VACIAR GOOGLE DRIVE 🗑",
+                        fontFamily = Vt323Sync,
+                        fontSize = 16.sp,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            if (showPasswordDialog) {
+                val dialogBg = if (isDark) Color(0xFF1A1A2E) else Color(0xFFFFFBEA)
+                AlertDialog(
+                    onDismissRequest = { showPasswordDialog = false },
+                    confirmButton = {
+                        Box(
+                            modifier = Modifier
+                                .clickable {
+                                    if (passwordText == "1234") {
+                                        showPasswordDialog = false
+                                        onResetDrive()
+                                    } else {
+                                        onIncorrectPassword()
+                                    }
+                                }
+                                .border(2.dp, borderColor)
+                                .background(if (isDark) Color(0xFF00796B) else Color(0xFF00897B))
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "CONFIRMAR",
+                                fontFamily = Vt323Sync,
+                                fontSize = 18.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        Box(
+                            modifier = Modifier
+                                .clickable { showPasswordDialog = false }
+                                .border(2.dp, borderColor)
+                                .background(Color(0xFFD32F2F))
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "CANCELAR",
+                                fontFamily = Vt323Sync,
+                                fontSize = 18.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    title = {
+                        Text(
+                            text = "🔐 VACIAR NUBE",
+                            fontFamily = Vt323Sync,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                    },
+                    text = {
+                        Column {
+                            Text(
+                                text = "Introduce la contraseña para vaciar por completo Google Drive y Firestore:",
+                                fontFamily = Vt323Sync,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = passwordText,
+                                onValueChange = { passwordText = it },
+                                placeholder = { Text("Contraseña", fontFamily = Vt323Sync) },
+                                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = textColor,
+                                    unfocusedTextColor = textColor,
+                                    focusedBorderColor = borderColor,
+                                    unfocusedBorderColor = borderColor.copy(alpha = 0.5f),
+                                    focusedContainerColor = if (isDark) Color(0xFF0D0D2B) else Color.White,
+                                    unfocusedContainerColor = if (isDark) Color(0xFF0D0D2B) else Color.White
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    },
+                    shape = RectangleShape,
+                    containerColor = dialogBg,
+                    tonalElevation = 0.dp
+                )
             }
         }
     }

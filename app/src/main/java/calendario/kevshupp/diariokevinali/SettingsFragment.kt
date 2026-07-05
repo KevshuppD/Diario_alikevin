@@ -6,12 +6,24 @@ import android.view.View
 import android.view.ViewGroup
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.ComposeView
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import calendario.kevshupp.diariokevinali.compose.SettingsScreen
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.drive.Drive
+import com.google.api.services.drive.DriveScopes
+import com.google.android.gms.tasks.Tasks
+import com.google.firebase.firestore.FirebaseFirestore
 
 class SettingsFragment : Fragment() {
     private var theme: String = "Pixel Claro"
@@ -95,6 +107,9 @@ class SettingsFragment : Fragment() {
                 }
                 var syncParallelLines by remember {
                     mutableStateOf(prefs?.getInt("syncParallelLines", 3) ?: 3)
+                }
+                var syncDirection by remember {
+                    mutableStateOf(prefs?.getString("syncDirection", "BIDIRECTIONAL") ?: "BIDIRECTIONAL")
                 }
                 var localFilesCount by remember { mutableStateOf(0) }
                 var cloudFilesCount by remember { mutableStateOf(0) }
@@ -196,6 +211,7 @@ class SettingsFragment : Fragment() {
                             "syncMaxRetries" -> syncMaxRetries = p.getInt(key, 3)
                             "syncLastError" -> syncLastError = p.getString(key, null)
                             "syncParallelLines" -> syncParallelLines = p.getInt(key, 3)
+                            "syncDirection" -> syncDirection = p.getString(key, "BIDIRECTIONAL") ?: "BIDIRECTIONAL"
                         }
                     }
                     prefs?.registerOnSharedPreferenceChangeListener(listener)
@@ -511,6 +527,89 @@ class SettingsFragment : Fragment() {
                         onParallelLinesChange = { newLines ->
                             prefs?.edit()?.putInt("syncParallelLines", newLines)?.apply()
                             syncParallelLines = newLines
+                        },
+                        syncDirection = syncDirection,
+                        onDirectionChange = { newDir ->
+                            prefs?.edit()?.putString("syncDirection", newDir)?.apply()
+                            syncDirection = newDir
+                        },
+                        onResetDrive = {
+                            val context = requireContext()
+                            Toast.makeText(context, "Vaciando Google Drive...", Toast.LENGTH_SHORT).show()
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                try {
+                                    val actPrefs = context.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
+                                    val account = GoogleSignIn.getLastSignedInAccount(context)
+                                    if (account == null) {
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, "Error: No hay cuenta vinculada", Toast.LENGTH_LONG).show()
+                                        }
+                                        return@launch
+                                    }
+                                    val credential = GoogleAccountCredential.usingOAuth2(
+                                        context,
+                                        listOf(DriveScopes.DRIVE_FILE)
+                                    ).setSelectedAccount(account.account)
+
+                                    val driveService = Drive.Builder(
+                                        NetHttpTransport(),
+                                        GsonFactory.getDefaultInstance(),
+                                        credential
+                                    )
+                                        .setApplicationName("Diario Kevin Ali")
+                                        .build()
+
+                                    var folderId = actPrefs.getString("syncDriveFolderId", null)
+                                    if (folderId.isNullOrEmpty()) {
+                                        val listQuery = driveService.files().list()
+                                            .setQ("name = 'DiarioAliKevin_Album' and mimeType = 'application/vnd.google-apps.folder' and trashed = false")
+                                            .setFields("files(id)")
+                                            .execute()
+                                        val files = listQuery.files
+                                        if (files != null && files.isNotEmpty()) {
+                                            folderId = files[0].id
+                                        }
+                                    }
+
+                                    if (!folderId.isNullOrEmpty()) {
+                                        driveService.files().delete(folderId).execute()
+                                        Log.d("ResetDrive", "Carpeta de Google Drive eliminada con éxito.")
+                                    }
+
+                                    val db = FirebaseFirestore.getInstance()
+                                    val coupleId = actPrefs.getString("coupleId", null)
+                                    if (!coupleId.isNullOrEmpty()) {
+                                        val metadataRef = db.collection("pets").document(coupleId).collection("drive_sync_metadata")
+                                        val snapshot = Tasks.await(metadataRef.get())
+                                        val batch = db.batch()
+                                        for (doc in snapshot.documents) {
+                                            batch.delete(doc.reference)
+                                        }
+                                        Tasks.await(batch.commit())
+                                        Log.d("ResetDrive", "Metadatos en Firestore eliminados con éxito.")
+                                    }
+
+                                    val syncRegistryPrefs = context.getSharedPreferences("DiarioSyncedFiles", android.content.Context.MODE_PRIVATE)
+                                    syncRegistryPrefs.edit().clear().apply()
+
+                                    actPrefs.edit()
+                                        .remove("syncDriveFolderId")
+                                        .putString("syncState", "NO_SINCRONIZADO")
+                                        .apply()
+
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "¡Google Drive y metadatos vaciados!", Toast.LENGTH_LONG).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("ResetDrive", "Error al vaciar nube: ${e.message}", e)
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+                        },
+                        onIncorrectPassword = {
+                            Toast.makeText(requireContext(), "Contraseña incorrecta ❌", Toast.LENGTH_SHORT).show()
                         },
                         isScanningDuplicates = isScanningDuplicates,
                         duplicateGroups = duplicateGroups,

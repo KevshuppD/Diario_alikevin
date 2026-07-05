@@ -669,7 +669,11 @@ fun SettingsScreen(
     isDeleting: Boolean = false,
     onScanDuplicates: () -> Unit = {},
     onDeleteDuplicates: (List<LocalPhoto>) -> Unit = {},
-    onResetDuplicateState: () -> Unit = {}
+    onResetDuplicateState: () -> Unit = {},
+    syncDirection: String = "BIDIRECTIONAL",
+    onDirectionChange: (String) -> Unit = {},
+    onResetDrive: () -> Unit = {},
+    onIncorrectPassword: () -> Unit = {}
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val isMono = currentTheme == "Pixel Monocromático"
@@ -946,7 +950,11 @@ fun SettingsScreen(
                         cloudFilesCount = cloudFilesCount,
                         syncParallelLines = syncParallelLines,
                         activeSyncSlots = activeSyncSlots,
-                        onParallelLinesChange = onParallelLinesChange
+                        onParallelLinesChange = onParallelLinesChange,
+                        syncDirection = syncDirection,
+                        onDirectionChange = onDirectionChange,
+                        onResetDrive = onResetDrive,
+                        onIncorrectPassword = onIncorrectPassword
                     )
                 }
                 "cache" -> {

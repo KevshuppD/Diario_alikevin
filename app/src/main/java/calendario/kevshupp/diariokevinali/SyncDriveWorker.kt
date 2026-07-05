@@ -49,11 +49,21 @@ class SyncDriveWorker(
         val localFolderUriStr = prefs.getString("syncLocalFolderUri", null)
         val coupleId = prefs.getString("coupleId", null)
         val userId = prefs.getString("userId", null)
+        val syncDirection = prefs.getString("syncDirection", "BIDIRECTIONAL") ?: "BIDIRECTIONAL"
 
         if (localFolderUriStr.isNullOrEmpty() || coupleId.isNullOrEmpty() || userId.isNullOrEmpty()) {
             Log.e(TAG, "Configuración incompleta: localFolderUri: $localFolderUriStr, coupleId: $coupleId, userId: $userId")
             SyncScheduler.cancelSync(applicationContext)
             return Result.failure()
+        }
+
+        // Limpiar registro local si cambió la carpeta de sincronización seleccionada
+        val syncRegistryPrefs = applicationContext.getSharedPreferences("DiarioSyncedFiles", Context.MODE_PRIVATE)
+        val lastSyncedFolderUri = prefs.getString("lastSyncedFolderUri", "")
+        if (lastSyncedFolderUri != localFolderUriStr) {
+            syncRegistryPrefs.edit().clear().apply()
+            prefs.edit().putString("lastSyncedFolderUri", localFolderUriStr).apply()
+            Log.d(TAG, "Carpeta local cambiada de '$lastSyncedFolderUri' a '$localFolderUriStr'. Registro de sincronización limpiado.")
         }
 
         // 1. Obtener la cuenta de Google vinculada
@@ -157,9 +167,32 @@ class SyncDriveWorker(
             val updatedDbMetadataMap = dbMetadataList.toMutableMap()
             val localFilesMap = localFiles.associateBy { it.name }
 
+            // 5a. Poblar/actualizar el registro local de sincronización con archivos que ya existen localmente y en la nube
+            val registryEditor = syncRegistryPrefs.edit()
+            var registryChanged = false
+            for (fileName in localFilesMap.keys) {
+                val dbMeta = dbMetadataList[fileName]
+                if (dbMeta != null && !dbMeta.eliminado) {
+                    if (!syncRegistryPrefs.contains(fileName)) {
+                        registryEditor.putBoolean(fileName, true)
+                        registryChanged = true
+                    }
+                }
+            }
+            if (registryChanged) {
+                registryEditor.apply()
+                Log.d(TAG, "Registro local de sincronización actualizado con archivos existentes.")
+            }
+
             // 5b. Detectar borrados locales y replicarlos en la nube (Drive + Firestore)
-            val deletedLocally = dbMetadataList.filter { (fileName, meta) ->
-                !meta.eliminado && !localFilesMap.containsKey(fileName)
+            // Sólo consideramos borrado local si no existe localmente Y ya había sido sincronizado previamente en este dispositivo
+            // Omitimos si la dirección es SOLO_BAJADA
+            val deletedLocally = if (syncDirection == "DOWNLOAD_ONLY") {
+                emptyMap<String, SyncMetadata>()
+            } else {
+                dbMetadataList.filter { (fileName, meta) ->
+                    !meta.eliminado && !localFilesMap.containsKey(fileName) && syncRegistryPrefs.getBoolean(fileName, false)
+                }
             }
             if (deletedLocally.isNotEmpty()) {
                 Log.d(TAG, "Detectados ${deletedLocally.size} archivos borrados localmente. Procesando eliminación...")
@@ -179,6 +212,7 @@ class SyncDriveWorker(
                                         .collection("drive_sync_metadata").document(fileName)
                                         .set(updatedMeta)
                                 )
+                                syncRegistryPrefs.edit().remove(fileName).apply()
                                 synchronized(updatedDbMetadataMap) {
                                     updatedDbMetadataMap[fileName] = updatedMeta
                                 }
@@ -190,9 +224,14 @@ class SyncDriveWorker(
             }
 
             // 5c. Detectar borrados remotos y replicarlos localmente (Borrar del dispositivo)
-            val localFilesToDelete = localFiles.filter { localFile ->
-                val meta = updatedDbMetadataMap[localFile.name]
-                meta != null && meta.eliminado
+            // Omitimos si la dirección es SOLO_SUBIDA
+            val localFilesToDelete = if (syncDirection == "UPLOAD_ONLY") {
+                emptyList<LocalFileMeta>()
+            } else {
+                localFiles.filter { localFile ->
+                    val meta = updatedDbMetadataMap[localFile.name]
+                    meta != null && meta.eliminado
+                }
             }
             if (localFilesToDelete.isNotEmpty()) {
                 Log.d(TAG, "Detectados ${localFilesToDelete.size} archivos eliminados remotamente. Borrando localmente...")
@@ -200,6 +239,7 @@ class SyncDriveWorker(
                     try {
                         val singleFile = DocumentFile.fromSingleUri(applicationContext, localFile.uri)
                         singleFile?.delete()
+                        syncRegistryPrefs.edit().remove(localFile.name).apply()
                         Log.d(TAG, "Borrado local: ${localFile.name}")
                     } catch (e: Exception) {
                         Log.e(TAG, "Error al borrar localmente ${localFile.name}: ${e.message}")
@@ -263,40 +303,45 @@ class SyncDriveWorker(
             }
 
             // 6. Determinar qué archivos locales necesitan subirse (en paralelo)
-            val filesToUpload = coroutineScope {
-                finalLocalFiles.map { localFile ->
-                    async {
-                        val fileName = localFile.name
-                        val dbMeta = updatedDbMetadataMap[fileName]
-                        val localLastModified = localFile.lastModified
-                        
-                        val localMd5 = if (dbMeta != null && dbMeta.fechaModificacion == localLastModified) {
-                            dbMeta.md5Checksum
-                        } else {
-                            calculateMd5(localFile.uri) ?: ""
-                        }
+            // Omitimos si la dirección es SOLO_BAJADA
+            val filesToUpload = if (syncDirection == "DOWNLOAD_ONLY") {
+                emptyList()
+            } else {
+                coroutineScope {
+                    finalLocalFiles.map { localFile ->
+                        async {
+                            val fileName = localFile.name
+                            val dbMeta = updatedDbMetadataMap[fileName]
+                            val localLastModified = localFile.lastModified
+                            
+                            val localMd5 = if (dbMeta != null && dbMeta.fechaModificacion == localLastModified) {
+                                dbMeta.md5Checksum
+                            } else {
+                                calculateMd5(localFile.uri) ?: ""
+                            }
 
-                        var needUpload = false
-                        if (dbMeta != null && dbMeta.eliminado) {
-                            // Si fue marcado como eliminado remotamente, no se sube
-                            needUpload = false
-                        } else if (dbMeta == null) {
-                            // Si no tiene metadatos en Firestore, se debe subir
-                            needUpload = true
-                        } else if (dbMeta.md5Checksum != localMd5) {
-                            // Si el checksum difiere y el archivo local es más reciente que los metadatos registrados
-                            if (localLastModified > dbMeta.fechaModificacion) {
+                            var needUpload = false
+                            if (dbMeta != null && dbMeta.eliminado) {
+                                // Si fue marcado como eliminado remotamente, no se sube
+                                needUpload = false
+                            } else if (dbMeta == null) {
+                                // Si no tiene metadatos en Firestore, se debe subir
                                 needUpload = true
+                            } else if (dbMeta.md5Checksum != localMd5) {
+                                // Si el checksum difiere y el archivo local es más reciente que los metadatos registrados
+                                if (localLastModified > dbMeta.fechaModificacion) {
+                                    needUpload = true
+                                }
+                            }
+
+                            if (needUpload) {
+                                Triple(localFile, localMd5, dbMeta)
+                            } else {
+                                null
                             }
                         }
-
-                        if (needUpload) {
-                            Triple(localFile, localMd5, dbMeta)
-                        } else {
-                            null
-                        }
-                    }
-                }.awaitAll().filterNotNull()
+                    }.awaitAll().filterNotNull()
+                }
             }
 
             // 7. Procesar archivos locales en paralelo (según líneas configuradas)
@@ -343,6 +388,7 @@ class SyncDriveWorker(
                                         .set(newMeta)
                                 )
                             }
+                            syncRegistryPrefs.edit().putBoolean(fileName, true).apply()
                             updateSlot(slotIndex, fileName, 100)
                             
                             synchronized(slots) {
@@ -365,29 +411,32 @@ class SyncDriveWorker(
             }
 
             // 8. Determinar qué archivos de Drive necesitan descargarse recorriendo la lista de Firestore
+            // Omitimos si la dirección es SOLO_SUBIDA
             val filesToDownload = mutableListOf<Triple<String, String, SyncMetadata>>()
-            for (dbMeta in updatedDbMetadataMap.values) {
-                if (dbMeta.eliminado) continue
-                val fileName = dbMeta.nombreArchivo
-                val existsLocally = finalLocalFilesMap.containsKey(fileName)
+            if (syncDirection != "UPLOAD_ONLY") {
+                for (dbMeta in updatedDbMetadataMap.values) {
+                    if (dbMeta.eliminado) continue
+                    val fileName = dbMeta.nombreArchivo
+                    val existsLocally = finalLocalFilesMap.containsKey(fileName)
 
-                var needDownload = false
-                if (!existsLocally) {
-                    needDownload = true
-                } else {
-                    val localFile = finalLocalFilesMap[fileName]!!
-                    val localLastModified = localFile.lastModified
-                    // Si la fecha de modificación registrada es diferente, calculamos MD5 para verificar
-                    if (dbMeta.fechaModificacion != localLastModified) {
-                        val localMd5 = calculateMd5(localFile.uri) ?: ""
-                        if (dbMeta.md5Checksum != localMd5 && dbMeta.fechaModificacion > localLastModified) {
-                            needDownload = true
+                    var needDownload = false
+                    if (!existsLocally) {
+                        needDownload = true
+                    } else {
+                        val localFile = finalLocalFilesMap[fileName]!!
+                        val localLastModified = localFile.lastModified
+                        // Si la fecha de modificación registrada es diferente, calculamos MD5 para verificar
+                        if (dbMeta.fechaModificacion != localLastModified) {
+                            val localMd5 = calculateMd5(localFile.uri) ?: ""
+                            if (dbMeta.md5Checksum != localMd5 && dbMeta.fechaModificacion > localLastModified) {
+                                needDownload = true
+                            }
                         }
                     }
-                }
 
-                if (needDownload) {
-                    filesToDownload.add(Triple(dbMeta.idDrive, fileName, dbMeta))
+                    if (needDownload) {
+                        filesToDownload.add(Triple(dbMeta.idDrive, fileName, dbMeta))
+                    }
                 }
             }
 
@@ -442,6 +491,7 @@ class SyncDriveWorker(
                                          .set(finalMeta)
                                  )
                              }
+                             syncRegistryPrefs.edit().putBoolean(fileName, true).apply()
                              updateSlot(slotIndex, fileName, 100)
                              
                              synchronized(slots) {
