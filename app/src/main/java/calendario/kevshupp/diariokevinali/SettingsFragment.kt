@@ -621,7 +621,79 @@ class SettingsFragment : Fragment() {
                         isDeleting = isDeleting,
                         onScanDuplicates = onScanDuplicates,
                         onDeleteDuplicates = onDeleteDuplicates,
-                        onResetDuplicateState = onResetDuplicateState
+                        onResetDuplicateState = onResetDuplicateState,
+                        onTestFirestore = { callback ->
+                            val db = FirebaseFirestore.getInstance()
+                            val coupleId = prefs?.getString("coupleId", null)
+                            if (coupleId.isNullOrEmpty()) {
+                                callback("Error: coupleId no configurado")
+                            } else {
+                                val testDocRef = db.collection("pets").document(coupleId).collection("connection_test").document("test")
+                                val testData = mapOf("timestamp" to System.currentTimeMillis())
+                                testDocRef.set(testData)
+                                    .addOnSuccessListener {
+                                        testDocRef.get()
+                                            .addOnSuccessListener { doc ->
+                                                if (doc.exists()) {
+                                                    callback("✓ Firestore: Escritura/Lectura exitosa (${doc.getLong("timestamp")})")
+                                                } else {
+                                                    callback("Error: Documento de prueba no encontrado")
+                                                }
+                                            }
+                                            .addOnFailureListener { e ->
+                                                callback("Error de lectura: ${e.message}")
+                                            }
+                                    }
+                                    .addOnFailureListener { e ->
+                                        callback("Error de escritura: ${e.message}")
+                                    }
+                            }
+                        },
+                        onTestGoogleDrive = { callback ->
+                            val context = requireContext()
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                try {
+                                    val account = GoogleSignIn.getLastSignedInAccount(context)
+                                    if (account == null) {
+                                        withContext(Dispatchers.Main) {
+                                            callback("Error: Cuenta de Google no vinculada")
+                                        }
+                                        return@launch
+                                    }
+                                    val credential = GoogleAccountCredential.usingOAuth2(
+                                        context,
+                                        listOf(DriveScopes.DRIVE_FILE)
+                                    ).setSelectedAccount(account.account)
+
+                                    val driveService = Drive.Builder(
+                                        NetHttpTransport(),
+                                        GsonFactory.getDefaultInstance(),
+                                        credential
+                                    )
+                                        .setApplicationName("Diario Kevin Ali")
+                                        .build()
+
+                                    val files = driveService.files().list()
+                                        .setPageSize(1)
+                                        .setFields("files(id, name)")
+                                        .execute()
+                                        .files
+
+                                    withContext(Dispatchers.Main) {
+                                        if (files != null) {
+                                            callback("✓ Google Drive: Acceso verificado con éxito")
+                                        } else {
+                                            callback("✓ Google Drive: Conectado, pero no se encontraron archivos")
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("TestDrive", "Drive test failed: ${e.message}", e)
+                                    withContext(Dispatchers.Main) {
+                                        callback("Error: ${e.message}")
+                                    }
+                                }
+                            }
+                        }
                     )
                 }
             }
