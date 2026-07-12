@@ -51,6 +51,7 @@ import androidx.compose.foundation.BorderStroke
 
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -671,19 +672,22 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         .clickable { isClicked = true }
                         .padding(4.dp)
                 ) {
-                    // Imagen de la mascota animada con el accesorio ya integrado
-                    val thorImageRes = when (pet.equippedAccessory) {
-                        Pet.ACC_COLLAR -> R.drawable.ic_thor_collar
-                        Pet.ACC_MUSTACHE -> R.drawable.ic_thor_mustache
-                        Pet.ACC_BALLOON -> R.drawable.ic_thor_balloon
-                        Pet.ACC_BOW -> R.drawable.ic_thor_bow
-                        Pet.ACC_HAT -> R.drawable.ic_thor_hat
-                        Pet.ACC_BANDANA -> R.drawable.ic_thor_bandana
-                        Pet.ACC_GLASSES -> R.drawable.ic_thor_glasses
-                        Pet.ACC_CROWN -> R.drawable.ic_thor_crown
-                        Pet.ACC_BANANA -> R.drawable.ic_thor_banana
-                        Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
-                        else -> R.drawable.ic_thor_base_trans
+                    // Imagen de la mascota animada con el accesorio ya integrado (comprobando si duerme)
+                    val thorImageRes = when {
+                        pet.isSleeping -> R.drawable.ic_thor_sleep
+                        else -> when (pet.equippedAccessory) {
+                            Pet.ACC_COLLAR -> R.drawable.ic_thor_collar
+                            Pet.ACC_MUSTACHE -> R.drawable.ic_thor_mustache
+                            Pet.ACC_BALLOON -> R.drawable.ic_thor_balloon
+                            Pet.ACC_BOW -> R.drawable.ic_thor_bow
+                            Pet.ACC_HAT -> R.drawable.ic_thor_hat
+                            Pet.ACC_BANDANA -> R.drawable.ic_thor_bandana
+                            Pet.ACC_GLASSES -> R.drawable.ic_thor_glasses
+                            Pet.ACC_CROWN -> R.drawable.ic_thor_crown
+                            Pet.ACC_BANANA -> R.drawable.ic_thor_banana
+                            Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
+                            else -> R.drawable.ic_thor_base_trans
+                        }
                     }
                     
                     Image(
@@ -694,8 +698,8 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                             .graphicsLayer(
                                 scaleX = breathingScale * clickScale,
                                 scaleY = breathingScale * clickScale,
-                                translationY = bobbingOffset,
-                                rotationZ = wiggleRotation
+                                translationY = if (pet.isSleeping) 0f else bobbingOffset,
+                                rotationZ = if (pet.isSleeping) 0f else wiggleRotation
                             )
                     )
 
@@ -1031,6 +1035,9 @@ fun PetMenuDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
+    var accumulatedTaps by remember { mutableStateOf(0) }
+    var tapDebounceJob by remember { mutableStateOf<Job?>(null) }
+    
     val bgColor = if (isDark) Color(0xFF1A1A1A) else Color(0xFFF3E5AB)
     val contentColor = if (isDark) Color.White else Color(0xFF4A2511)
     val borderColor = if (isDark) Color(0xFF91465F) else Color(0xFF4A2511)
@@ -1154,29 +1161,56 @@ fun PetMenuDialog(
                             .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // 🏡 LA HABITACIÓN DE THOR (INTERACTIVA 2D TAMAGOTCHI)
+                        // 🏡 LA HABITACIÓN DE THOR (INTERACTIVA 2D TAMAGOTCHI - ESCALADA)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(0.95f)
-                                .height(230.dp)
+                                .height(340.dp)
                                 .border(3.dp, borderColor)
                                 .background(
                                     if (pet.isSleeping) Color(0xFF0F0F3D)
                                     else Color(0xFF8D6E63)
                                 )
                                 .clickable {
+                                    if (pet.isSleeping) {
+                                        android.widget.Toast.makeText(context, "💤 ¡Thor está durmiendo profundamente!", android.widget.Toast.LENGTH_SHORT).show()
+                                        return@clickable
+                                    }
+                                    
+                                    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
+                                    val currentTapsToday = if (pet.lastTapDate == todayStr) pet.dailyTapCount else 0
+                                    val limit = 30
+                                    
+                                    if (currentTapsToday + accumulatedTaps >= limit) {
+                                        android.widget.Toast.makeText(context, "¡Thor ya recibió suficiente cariño por hoy! 💖 (Límite: $limit/día)", android.widget.Toast.LENGTH_SHORT).show()
+                                        return@clickable
+                                    }
+
                                     scope.launch {
                                         showLoveHeart = true
                                         heartY.snapTo(20f)
                                         heartAlpha.snapTo(1f)
                                         dIsClicked = true
-                                        onRewardPet(1, 0)
                                         
                                         launch {
                                             heartY.animateTo(-90f, animationSpec = tween(1200, easing = EaseOutQuad))
                                         }
                                         launch {
                                             heartAlpha.animateTo(0f, animationSpec = tween(1200, easing = EaseOutQuad))
+                                        }
+                                    }
+
+                                    // Incrementar contador local acumulado
+                                    accumulatedTaps++
+
+                                    // Programar la subida con debounce
+                                    tapDebounceJob?.cancel()
+                                    tapDebounceJob = scope.launch {
+                                        delay(1500) // Esperar 1.5 segundos sin nuevos taps
+                                        val totalPoints = accumulatedTaps
+                                        accumulatedTaps = 0
+                                        if (totalPoints > 0) {
+                                            onRewardPet(totalPoints, 0)
                                         }
                                     }
                                 }
@@ -1215,21 +1249,21 @@ fun PetMenuDialog(
                                 }
                             }
 
-                            // 4. Mascot Render con tamaño y alineación responsiva al estado
+                            // 4. Mascot Render con tamaño y alineación responsiva al estado (Escalado)
                             val thorSize = when {
-                                pet.isSleeping -> 145.dp
-                                isWashing -> 140.dp
-                                isPlayingBall -> 125.dp
-                                else -> 115.dp
+                                pet.isSleeping -> 195.dp
+                                isWashing -> 190.dp
+                                isPlayingBall -> 175.dp
+                                else -> 165.dp
                             }
                             val thorOffsetY = when {
-                                pet.isSleeping -> (-10).dp
-                                isWashing -> (-5).dp
-                                isPlayingBall -> (-10).dp
-                                else -> (-15).dp
+                                pet.isSleeping -> (-15).dp
+                                isWashing -> (-8).dp
+                                isPlayingBall -> (-15).dp
+                                else -> (-22).dp
                             }
                             val thorOffsetX = when {
-                                pet.isSleeping -> (-5).dp
+                                pet.isSleeping -> (-8).dp
                                 else -> 0.dp
                             }
 
@@ -1295,11 +1329,14 @@ fun PetMenuDialog(
                                 )
                             }
 
-                            // 5. Corazón flotante
+                            // 5. Corazón flotante con indicador de amor
                             if (showLoveHeart) {
                                 Text(
-                                    text = "❤️",
-                                    fontSize = 26.sp,
+                                    text = "❤️ +1",
+                                    fontFamily = Vt323,
+                                    fontSize = 28.sp,
+                                    color = Color(0xFFFF4081),
+                                    fontWeight = FontWeight.Bold,
                                     modifier = Modifier
                                         .align(Alignment.BottomCenter)
                                         .offset(y = heartY.value.dp)
@@ -1383,31 +1420,31 @@ fun PetMenuDialog(
                                                 catTranslationX.snapTo(0f)
                                                 catTranslationY.snapTo(0f)
                                                 
-                                                // Cat leaps to meet the ball
+                                                // Cat leaps to meet the ball (adjusted leap)
                                                 launch {
                                                     delay(200)
                                                     catTranslationX.animateTo(40f, animationSpec = tween(300, easing = EaseOutQuad))
-                                                    catTranslationY.animateTo(-45f, animationSpec = tween(200, easing = EaseOutQuad))
+                                                    catTranslationY.animateTo(-65f, animationSpec = tween(200, easing = EaseOutQuad))
                                                     catTranslationY.animateTo(0f, animationSpec = tween(200, easing = EaseInQuad))
                                                     delay(300)
                                                     catTranslationX.animateTo(0f, animationSpec = tween(400, easing = EaseInOutQuad))
                                                 }
                                                 
-                                                // Ball fall 1
+                                                // Ball fall 1 (deeper bounce)
                                                 launch { ballRotation.animateTo(360f, animationSpec = tween(500, easing = LinearEasing)) }
                                                 launch { ballX.animateTo(30f, animationSpec = tween(500, easing = EaseOutQuad)) }
-                                                ballY.animateTo(80f, animationSpec = tween(500, easing = EaseInQuad))
+                                                ballY.animateTo(190f, animationSpec = tween(500, easing = EaseInQuad))
                                                 
                                                 // Ball bounce 2
                                                 launch { ballRotation.animateTo(720f, animationSpec = tween(400, easing = LinearEasing)) }
                                                 launch { ballX.animateTo(90f, animationSpec = tween(400, easing = EaseOutQuad)) }
-                                                ballY.animateTo(25f, animationSpec = tween(200, easing = EaseOutQuad))
-                                                ballY.animateTo(80f, animationSpec = tween(200, easing = EaseInQuad))
+                                                ballY.animateTo(110f, animationSpec = tween(200, easing = EaseOutQuad))
+                                                ballY.animateTo(190f, animationSpec = tween(200, easing = EaseInQuad))
                                                 
                                                 // Ball roll 3 (offscreen)
                                                 launch { ballRotation.animateTo(1080f, animationSpec = tween(600, easing = LinearEasing)) }
                                                 launch { ballX.animateTo(240f, animationSpec = tween(600, easing = EaseOutQuad)) }
-                                                ballY.animateTo(80f, animationSpec = tween(600, easing = LinearEasing))
+                                                ballY.animateTo(190f, animationSpec = tween(600, easing = LinearEasing))
                                                 
                                                 isPlayingBall = false
                                                 onPlayBallPet(10, 20)
@@ -1466,31 +1503,35 @@ fun PetMenuDialog(
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                            InfoStat("Nivel", pet.level.toString(), contentColor)
-                            InfoStat("Racha", "${pet.streakDays}d", accentColor)
-                            InfoStat("Amor", pet.lovePoints.toString(), Color(0xFFFF4081))
-                        }
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                            InfoStat("Felicidad", "${pet.happiness}%", Color(0xFF4CAF50))
-                            InfoStat("EXP", "${pet.experience}/100", Color(0xFF2196F3))
-                        }
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                            InfoStat("Hambre 🍖", "${pet.hunger}%", Color(0xFFFF9800))
-                            InfoStat("Limpieza 🧼", "${pet.cleanliness}%", Color(0xFF0EA5E9))
-                        }
 
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                            InfoStat("Sueño 💤", "${pet.sleepPercent}%", Color(0xFF9C27B0))
+                        // Panel de estadísticas compacto (Grid 2x4)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.95f)
+                                .border(2.dp, borderColor)
+                                .background(if (isDark) Color(0xFF2A2A2A) else Color(0xFFFFFDF0))
+                                .padding(8.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    CompactStat("Nivel", pet.level.toString(), contentColor)
+                                    CompactStat("Racha 🔥", "${pet.streakDays}d", accentColor)
+                                    CompactStat("Amor ❤️", (pet.lovePoints + accumulatedTaps).toString(), Color(0xFFFF4081))
+                                    CompactStat("EXP ⭐", "${pet.experience}/100", Color(0xFF2196F3))
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    CompactStat("Felicidad 😊", "${pet.happiness}%", Color(0xFF4CAF50))
+                                    CompactStat("Hambre 🍖", "${pet.hunger}%", Color(0xFFFF9800))
+                                    CompactStat("Limpieza 🧼", "${pet.cleanliness}%", Color(0xFF0EA5E9))
+                                    CompactStat("Sueño 💤", "${pet.sleepPercent}%", Color(0xFF9C27B0))
+                                }
+                            }
                         }
                         
                         if (pet.isSleeping) {
@@ -1560,7 +1601,7 @@ fun PetMenuDialog(
                     // Pestaña de Tienda / Accesorios y Fondos (ESTILO)
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Puntos disponibles: ${pet.lovePoints} ❤️",
+                            "Puntos disponibles: ${pet.lovePoints + accumulatedTaps} ❤️",
                             fontFamily = Vt323,
                             color = accentColor,
                             fontSize = 20.sp,
@@ -1810,7 +1851,7 @@ fun PetMenuDialog(
                                                 foodAlpha.snapTo(1f)
                                                 selectedTab = 0
                                                 
-                                                foodY.animateTo(85f, animationSpec = tween(900, easing = EaseInQuad))
+                                                foodY.animateTo(190f, animationSpec = tween(900, easing = EaseInQuad))
                                                 dIsClicked = true
                                                 foodAlpha.animateTo(0f, animationSpec = tween(300))
                                                 foodAnimationType = null
@@ -2130,6 +2171,15 @@ fun InfoStat(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, fontFamily = Vt323, fontSize = 14.sp, color = Color.Gray)
         Text(value, fontFamily = Vt323, fontSize = 22.sp, color = color, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun CompactStat(label: String, value: String, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontFamily = Vt323, fontSize = 12.sp, color = Color.Gray)
+        Spacer(modifier = Modifier.height(1.dp))
+        Text(value, fontFamily = Vt323, fontSize = 16.sp, color = color, fontWeight = FontWeight.Bold)
     }
 }
 

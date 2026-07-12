@@ -27,7 +27,20 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.os.Build;
 
+import okhttp3.OkHttpClient;
+
 public class DiarioApp extends Application implements ImageLoaderFactory {
+    private static OkHttpClient okHttpClient;
+
+    public static synchronized OkHttpClient getOkHttpClient() {
+        if (okHttpClient == null) {
+            okHttpClient = new OkHttpClient.Builder()
+                    .connectTimeout(15, TimeUnit.SECONDS)
+                    .readTimeout(15, TimeUnit.SECONDS)
+                    .build();
+        }
+        return okHttpClient;
+    }
     @Override
     public void onCreate() {
         super.onCreate();

@@ -1,10 +1,12 @@
 package calendario.kevshupp.diariokevinali
 
 import com.google.firebase.firestore.Exclude
+import androidx.compose.runtime.Stable
 
 /**
  * Modelo de mensaje/publicación para el feed y álbumes.
  */
+@Stable
 data class Message @JvmOverloads constructor(
     var messageId: String? = null,
     var partnerId: String? = null,

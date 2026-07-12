@@ -84,13 +84,13 @@ fun ProfileScreen(
 
     val context = LocalContext.current
 
-    LaunchedEffect(currentUserId) {
+    DisposableEffect(currentUserId) {
         val prefs = context.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
         anniversaryDate = prefs.getLong("anniversaryDate", 1643328000000L)
 
-        // Escuchar cambios en tiempo real
+        // Escuchar cambios en tiempo real de forma segura
         val db = FirebaseFirestore.getInstance()
-        db.collection("users").document(currentUserId)
+        val listener = db.collection("users").document(currentUserId)
             .addSnapshotListener { snapshot, error ->
                 if (snapshot != null && snapshot.exists()) {
                     val firestoreDate = snapshot.getLong("anniversaryDate")
@@ -100,13 +100,17 @@ fun ProfileScreen(
                     }
                 }
             }
+        onDispose {
+            listener.remove()
+        }
     }
 
-    LaunchedEffect(coupleId) {
+    DisposableEffect(coupleId) {
+        var listener: com.google.firebase.firestore.ListenerRegistration? = null
         if (!coupleId.isNullOrEmpty()) {
             isSearchingPartner = true
             val db = FirebaseFirestore.getInstance()
-            db.collection("users")
+            listener = db.collection("users")
                 .whereEqualTo("coupleId", coupleId)
                 .addSnapshotListener { snapshot, error ->
                     isSearchingPartner = false
@@ -136,6 +140,9 @@ fun ProfileScreen(
         } else {
             isSearchingPartner = false
             partnerName = "Sin vínculo"
+        }
+        onDispose {
+            listener?.remove()
         }
     }
 

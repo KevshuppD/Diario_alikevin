@@ -2,7 +2,9 @@ package calendario.kevshupp.diariokevinali
 
 import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
+import androidx.compose.runtime.Stable
 
+@Stable
 data class Pet(
     var happiness: Int = 100,
     var level: Int = 1,
@@ -25,7 +27,9 @@ data class Pet(
     var dndTriggeredByUserId: String? = null,
     var sleepPercent: Int = 100,
     var unlockedBackgrounds: List<String> = listOf("default"),
-    var equippedBackground: String = "default"
+    var equippedBackground: String = "default",
+    var dailyTapCount: Int = 0,
+    var lastTapDate: String? = null
 ) {
     @get:Exclude
     var isSleepingSetFromNewField: Boolean = false

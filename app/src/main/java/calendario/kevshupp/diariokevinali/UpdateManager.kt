@@ -42,7 +42,7 @@ class UpdateManager(private val context: Context) {
             .header("Cache-Control", "no-cache")
             .build()
 
-        OkHttpClient().newCall(request).enqueue(object : Callback {
+        DiarioApp.getOkHttpClient().newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.e(TAG, "Request failed", e)
                 callback?.let {

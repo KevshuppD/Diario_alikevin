@@ -19,6 +19,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
+    private static final java.util.concurrent.ExecutorService imageDownloadExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
 
     @Override
     public void onMessageReceived(@NonNull RemoteMessage remoteMessage) {
@@ -76,18 +77,29 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
                         .setContentIntent(pendingIntent);
 
         if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-            new Thread(() -> {
+            imageDownloadExecutor.execute(() -> {
                 Bitmap bitmap = null;
+                HttpURLConnection connection = null;
                 try {
                     URL url = new URL(imageUrl);
-                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    connection = (HttpURLConnection) url.openConnection();
                     connection.setDoInput(true);
+                    connection.setConnectTimeout(10000);
+                    connection.setReadTimeout(10000);
                     connection.connect();
                     try (InputStream input = connection.getInputStream()) {
                         bitmap = BitmapFactory.decodeStream(input);
                     }
                 } catch (Exception e) {
                     Log.e("FCM", "Error downloading notification image", e);
+                } finally {
+                    if (connection != null) {
+                        try {
+                            connection.disconnect();
+                        } catch (Exception e) {
+                            // ignore
+                        }
+                    }
                 }
 
                 if (bitmap != null) {
@@ -96,7 +108,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
                             .setSummaryText(messageBody));
                 }
                 notifyNow(channelId, notificationBuilder);
-            }).start();
+            });
         } else {
             notifyNow(channelId, notificationBuilder);
         }

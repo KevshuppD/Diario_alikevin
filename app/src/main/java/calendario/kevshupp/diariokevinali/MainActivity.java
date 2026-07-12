@@ -134,6 +134,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     private int activeTabId = R.id.btnHome;
     private String currentCoupleId = "vínculo_único_123", currentUserId, currentUserName, currentUserImageUri;
     private int currentCropType = -1;
+    private final java.util.concurrent.ExecutorService fcmExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
 
     private UpdateManager updateManager;
     private MessageEditor messageEditor;
@@ -775,6 +776,19 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 Pet p = petState.getValue();
                 if (p != null) {
                     long now = System.currentTimeMillis();
+                    String today = dayFormat.format(new java.util.Date(now));
+                    int currentDailyTaps = today.equals(p.getLastTapDate()) ? p.getDailyTapCount() : 0;
+                    
+                    int maxDailyTaps = 30;
+                    int allowedTaps = Math.max(0, maxDailyTaps - currentDailyTaps);
+                    
+                    if (allowedTaps <= 0) {
+                        showStyledPixelToast("¡Thor ya recibió suficiente cariño por hoy! 💖 (Límite: " + maxDailyTaps + "/día)");
+                        return kotlin.Unit.INSTANCE;
+                    }
+                    
+                    int actualTapsAdded = Math.min(points, allowedTaps);
+                    
                     DecayedStats stats = calculateDecay(p, now);
                     int decayedCleanliness = stats.cleanliness;
                     int decayedSleepPercent = stats.sleepPercent;
@@ -782,13 +796,25 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
 
                     int newExp = p.getExperience() + exp;
                     int newLevel = p.getLevel();
-                    int newLovePoints = p.getLovePoints() + points;
-                    int newHappiness = Math.min(100, p.getHappiness() + 15);
-                    String newStatus = p.getStatus();
-                    if (newHappiness > 40 && Pet.STATUS_SAD.equals(newStatus)) {
-                        newStatus = Pet.STATUS_HAPPY;
+                    int newLovePoints = p.getLovePoints() + actualTapsAdded;
+                    int newHappiness = Math.min(100, p.getHappiness() + actualTapsAdded);
+                    
+                    // Determinar estado y verificar despertar automático si el sueño llegó al 100%
+                    boolean isNowSleeping = p.isSleeping();
+                    if (p.isSleeping() && decayedSleepPercent >= 100) {
+                        isNowSleeping = false;
+                        decayedSleepPercent = 100;
                     }
                     
+                    String newStatus = p.getStatus();
+                    if (isNowSleeping) {
+                        newStatus = Pet.STATUS_SLEEPING;
+                    } else if (stats.hunger >= 70) {
+                        newStatus = Pet.STATUS_HUNGRY;
+                    } else {
+                        newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
+                    }
+
                     boolean leveledUp = false;
                     if (newExp >= 100) {
                         newLevel++;
@@ -799,6 +825,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     
                     final boolean showLevelUpToast = leveledUp;
                     final int finalLevel = newLevel;
+                    final int finalTaps = actualTapsAdded;
+                    final int totalTapsToday = currentDailyTaps + actualTapsAdded;
+                    
                     db.collection("pets").document(currentCoupleId)
                         .update("lovePoints", newLovePoints,
                                 "experience", newExp,
@@ -809,15 +838,22 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                 "cleanliness", decayedCleanliness,
                                 "sleepPercent", decayedSleepPercent,
                                 "lastInteraction", now,
-                                "lastDecayUpdate", nextDecayUpdate)
+                                "lastDecayUpdate", nextDecayUpdate,
+                                "isSleeping", isNowSleeping,
+                                "dailyTapCount", totalTapsToday,
+                                "lastTapDate", today)
                         .addOnSuccessListener(aVoid -> {
-                            Toast.makeText(MainActivity.this, "¡Premio reclamado! +15 ❤️, +15 EXP y +15% Felicidad 🥰", Toast.LENGTH_SHORT).show();
+                            if (totalTapsToday >= maxDailyTaps) {
+                                showStyledPixelToast("¡Thor se siente amado! ❤️ +" + finalTaps + " Amor (¡Límite alcanzado! 🎉)");
+                            } else {
+                                showStyledPixelToast("¡Thor se siente amado! ❤️ +" + finalTaps + " Amor (" + totalTapsToday + "/" + maxDailyTaps + ")");
+                            }
                             if (showLevelUpToast) {
                                 Toast.makeText(MainActivity.this, "¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉", Toast.LENGTH_LONG).show();
                             }
                         })
                         .addOnFailureListener(err -> {
-                            Log.e("Minigame", "Error al actualizar recompensa: " + err.getMessage());
+                            Log.e("RewardPet", "Error al actualizar recompensa: " + err.getMessage());
                         });
                 }
                 return kotlin.Unit.INSTANCE;
@@ -844,6 +880,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     String newStatus = p.getStatus();
                     
                     if (targetSleepState) {
+                        if (decayedSleepPercent >= 100) {
+                            Toast.makeText(MainActivity.this, "¡Thor ya está completamente descansado! ☀️ No necesita dormir.", Toast.LENGTH_SHORT).show();
+                            return kotlin.Unit.INSTANCE;
+                        }
                         newStatus = Pet.STATUS_SLEEPING;
                         db.collection("pets").document(currentCoupleId)
                             .update("isSleeping", true,
@@ -1061,6 +1101,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     private void listenMessagesFromFirestore() {
         if (firestoreListener != null) firestoreListener.remove();
         Query query = db.collection("messages").whereEqualTo("partnerId", currentCoupleId).orderBy("timestamp", Query.Direction.DESCENDING);
+        if (selectedFilterDate == null) {
+            query = query.limit(100);
+        }
         if (selectedFilterDate != null) {
             Calendar s = (Calendar) selectedFilterDate.clone();
             s.set(Calendar.HOUR_OF_DAY, 0); s.set(Calendar.MINUTE, 0); s.set(Calendar.SECOND, 0);
@@ -1107,6 +1150,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         if (firestoreListener == null) {
             listenMessagesFromFirestore();
         }
+        if (calendarListener == null) {
+            listenCalendar();
+        }
         enableImmersiveMode();
     }
 
@@ -1141,6 +1187,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         if (connectivityManager != null && networkCallback != null) {
             connectivityManager.unregisterNetworkCallback(networkCallback);
             networkCallback = null;
+        }
+        if (fcmExecutor != null) {
+            fcmExecutor.shutdown();
         }
         super.onDestroy();
     }
@@ -1453,9 +1502,15 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             lastInteractionCompensated += daysToDecayHappiness * 24L * 60L * 60L * 1000L;
         }
         
-        // 3. Determinar estado
+        // 3. Determinar estado y verificar despertar automático si el sueño llegó al 100%
+        boolean isNowSleeping = p.isSleeping();
+        if (p.isSleeping() && newSleepPercent >= 100) {
+            isNowSleeping = false;
+            newSleepPercent = 100;
+        }
+
         String newStatus = p.getStatus();
-        if (p.isSleeping()) {
+        if (isNowSleeping) {
             newStatus = Pet.STATUS_SLEEPING;
         } else if (newHunger >= 70) {
             newStatus = Pet.STATUS_HUNGRY;
@@ -1468,7 +1523,8 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 || newCleanliness != p.getCleanliness()
                 || newSleepPercent != p.getSleepPercent()
                 || !newStatus.equals(p.getStatus())
-                || nextDecayUpdate != p.getLastDecayUpdate();
+                || nextDecayUpdate != p.getLastDecayUpdate()
+                || isNowSleeping != p.isSleeping();
                 
         if (hasChanged) {
             db.collection("pets").document(currentCoupleId)
@@ -1478,7 +1534,8 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                         "sleepPercent", newSleepPercent,
                         "status", newStatus,
                         "lastInteraction", lastInteractionCompensated,
-                        "lastDecayUpdate", nextDecayUpdate);
+                        "lastDecayUpdate", nextDecayUpdate,
+                        "isSleeping", isNowSleeping);
         }
     }
 
@@ -1658,87 +1715,78 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     }
 
     public void sendNotificationV1(String title, String messageText, String imageUrl, String type) {
-        new Thread(() -> {
+        fcmExecutor.execute(() -> {
             try {
-                // El archivo service-account.json debe estar en app/src/main/assets/
-                InputStream is;
-                try {
-                    is = getAssets().open("service-account.json");
-                } catch (IOException e) {
-                    Log.e("FCM_V1", "ERROR: No se encontró service-account.json en assets. Las notificaciones no se enviarán.");
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this, "🚨 ERROR: No se encontró service-account.json en assets.", Toast.LENGTH_LONG).show();
-                    });
-                    return;
+                try (InputStream is = getAssets().open("service-account.json")) {
+                    GoogleCredentials credentials = GoogleCredentials.fromStream(is)
+                            .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"));
+                    credentials.refreshIfExpired();
+                    String token = credentials.getAccessToken().getTokenValue();
+                    
+                    String projectId = "diario-pareja-a2d35"; 
+                    String url = "https://fcm.googleapis.com/v1/projects/" + projectId + "/messages:send";
+
+                    JSONObject jsonBody = new JSONObject();
+                    JSONObject message = new JSONObject();
+                    JSONObject notification = new JSONObject();
+                    JSONObject data = new JSONObject();
+
+                    notification.put("title", title != null ? title : "Nuevo mensaje de " + currentUserName);
+                    notification.put("body", messageText != null && !messageText.isEmpty() ? messageText : "Te han enviado una foto 📸");
+                    
+                    data.put("authorId", currentUserId);
+                    if (imageUrl != null) data.put("imageUrl", imageUrl);
+                    if (type != null) data.put("click_type", type);
+
+                    // Topic name sin acentos para evitar errores en FCM
+                    String topicName = "diario_" + currentCoupleId.toLowerCase()
+                            .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                            .replace("ñ", "n").replace(" ", "_");
+                    
+                    JSONObject android = new JSONObject();
+                    JSONObject androidNotification = new JSONObject();
+                    androidNotification.put("channel_id", "diario_channel");
+                    android.put("notification", androidNotification);
+
+                    message.put("topic", topicName);
+                    message.put("notification", notification);
+                    message.put("data", data);
+                    message.put("android", android);
+                    jsonBody.put("message", message);
+
+                    RequestBody body = RequestBody.create(jsonBody.toString(), MediaType.parse("application/json; charset=utf-8"));
+                    Request request = new Request.Builder()
+                            .url(url)
+                            .post(body)
+                            .addHeader("Authorization", "Bearer " + token)
+                            .build();
+
+                    Response response = DiarioApp.getOkHttpClient().newCall(request).execute();
+                    String responseBody = "";
+                    if (response.body() != null) {
+                        responseBody = response.body().string();
+                    }
+                    final int code = response.code();
+                    final String finalResp = responseBody;
+                    if (response.isSuccessful()) {
+                        Log.d("FCM_V1", "Notificación enviada con éxito");
+                    } else {
+                        Log.e("FCM_V1", "Error al enviar notificación: " + code + " - " + finalResp);
+                        runOnUiThread(() -> {
+                            Toast.makeText(MainActivity.this, "⚠️ FCM Error: " + code + " - " + finalResp, Toast.LENGTH_LONG).show();
+                        });
+                    }
+                    response.close();
                 }
-
-                GoogleCredentials credentials = GoogleCredentials.fromStream(is)
-                        .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"));
-                credentials.refreshIfExpired();
-                String token = credentials.getAccessToken().getTokenValue();
-                
-                String projectId = "diario-pareja-a2d35"; 
-                String url = "https://fcm.googleapis.com/v1/projects/" + projectId + "/messages:send";
-
-                JSONObject jsonBody = new JSONObject();
-                JSONObject message = new JSONObject();
-                JSONObject notification = new JSONObject();
-                JSONObject data = new JSONObject();
-
-                notification.put("title", title != null ? title : "Nuevo mensaje de " + currentUserName);
-                notification.put("body", messageText != null && !messageText.isEmpty() ? messageText : "Te han enviado una foto 📸");
-                
-                data.put("authorId", currentUserId);
-                if (imageUrl != null) data.put("imageUrl", imageUrl);
-                if (type != null) data.put("click_type", type);
-
-                // Topic name sin acentos para evitar errores en FCM
-                String topicName = "diario_" + currentCoupleId.toLowerCase()
-                        .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
-                        .replace("ñ", "n").replace(" ", "_");
-                
-                JSONObject android = new JSONObject();
-                JSONObject androidNotification = new JSONObject();
-                androidNotification.put("channel_id", "diario_channel");
-                android.put("notification", androidNotification);
-
-                message.put("topic", topicName);
-                message.put("notification", notification);
-                message.put("data", data);
-                message.put("android", android);
-                jsonBody.put("message", message);
-
-                RequestBody body = RequestBody.create(jsonBody.toString(), MediaType.parse("application/json; charset=utf-8"));
-                Request request = new Request.Builder()
-                        .url(url)
-                        .post(body)
-                        .addHeader("Authorization", "Bearer " + token)
-                        .build();
-
-                Response response = new OkHttpClient().newCall(request).execute();
-                String responseBody = "";
-                if (response.body() != null) {
-                    responseBody = response.body().string();
-                }
-                final int code = response.code();
-                final String finalResp = responseBody;
-                if (response.isSuccessful()) {
-                    Log.d("FCM_V1", "Notificación enviada con éxito");
-                } else {
-                    Log.e("FCM_V1", "Error al enviar notificación: " + code + " - " + finalResp);
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this, "⚠️ FCM Error: " + code + " - " + finalResp, Toast.LENGTH_LONG).show();
-                    });
-                }
-                response.close();
-            } catch (Exception e) {
-                Log.e("FCM_V1", "Error crítico enviando FCM: " + e.getMessage(), e); 
-                final String errorMsg = e.getMessage();
+            } catch (IOException e) {
+                Log.e("FCM_V1", "ERROR: No se encontró o no se pudo leer service-account.json en assets. Las notificaciones no se enviarán.");
                 runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this, "🚨 FCM Exception: " + errorMsg, Toast.LENGTH_LONG).show();
+                    Toast.makeText(MainActivity.this, "🚨 ERROR: No se pudo leer service-account.json en assets.", Toast.LENGTH_LONG).show();
                 });
+            } catch (Exception e) {
+                Log.e("FCM_V1", "Error en envío de notificación FCM: " + e.getMessage(), e);
             }
-        }).start();
+        });
     }
 
     public void sendNotificationV1(String messageText, String imageUrl) {

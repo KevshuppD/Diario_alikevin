@@ -37,6 +37,9 @@ class SyncDriveWorker(
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
 
+    override val coroutineContext: kotlinx.coroutines.CoroutineDispatcher
+        get() = kotlinx.coroutines.Dispatchers.IO
+
     companion object {
         private const val TAG = "SyncDriveWorker"
         private const val FOLDER_NAME = "DiarioAliKevin_Album"
@@ -737,17 +740,19 @@ class SyncDriveWorker(
         }
 
         val inputStream = applicationContext.contentResolver.openInputStream(fileUri) ?: return null
-        val mediaContent = InputStreamContent(mimeType, inputStream)
+        return inputStream.use { stream ->
+            val mediaContent = InputStreamContent(mimeType, stream)
 
-        val createRequest = driveService.files().create(fileMetadata, mediaContent)
-        // Habilitar subida directa (media upload) para mejorar drásticamente la velocidad en fotos
-        createRequest.mediaHttpUploader.isDirectUploadEnabled = true
+            val createRequest = driveService.files().create(fileMetadata, mediaContent)
+            // Habilitar subida directa (media upload) para mejorar drásticamente la velocidad en fotos
+            createRequest.mediaHttpUploader.isDirectUploadEnabled = true
 
-        val driveFile = createRequest
-            .setFields("id")
-            .execute()
+            val driveFile = createRequest
+                .setFields("id")
+                .execute()
 
-        return driveFile.id
+            driveFile.id
+        }
     }
 
     private fun downloadFromDrive(
