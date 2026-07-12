@@ -28,7 +28,9 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
 - **Servicios Externos / APIs:**
   - **Google Drive API (v3):** Respaldo directo en la nube en una carpeta oculta (`DiarioAliKevin_Album`).
   - **Cloudinary:** Hosting cloud multimedia. Las fotos de las cartas se suben de forma firmada directamente a Cloudinary.
-  - **GitHub API:** Localizada en [UpdateManager.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/UpdateManager.kt) para verificar actualizaciones del APK e instalarlas automáticamente.
+  - **GitHub API:** Localizada en [UpdateManager.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/UpdateManager.kt) para verificar actualizaciones del APK e instalarlas automáticamente.
+- **Colección de Espíritus / Coleccionables:**
+  - **Checklist de Espíritus:** Un listado interactivo en el juego compuesto por **97 espíritus** (originalmente 65, expandido a 97 con las variantes Gema y Holofoil). Su registro en código reside en `MiscCompose.kt` y sus activos de imagen pixel-art están almacenados como `ic_spirit_1.png` a `ic_spirit_97.png` en los recursos drawables.
 - **Estilos y UI:**
   - Estética inmersiva **Retro Pixel-Art de 8 y 16 bits**.
   - Tipografía pixelada `vt323` importada globalmente.
@@ -41,20 +43,21 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
 El código fuente está localizado en `app/src/main/java/calendario/kevshupp/diariokevinali/`.
 
 ### 📁 Inicialización e Infraestructura
-- [DiarioApp.java](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/DiarioApp.java): Punto de entrada. Configura las instancias globales de Cloudinary, WorkManager (para tareas en segundo plano), Firebase y Coil (carga de imágenes).
-- [MainActivity.java](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainActivity.java): Contenedor principal. Orquesta los listeners en tiempo real de Firebase y hace de puente entre los Fragments de Java y el entorno de Jetpack Compose.
-- [LoginActivity.java](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/LoginActivity.java): Gestión del login y asociación del `coupleId`.
+- [DiarioApp.java](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/DiarioApp.java): Punto de entrada. Configura las instancias globales de Cloudinary, WorkManager (para tareas en segundo plano), Firebase y Coil (carga de imágenes).
+- [MainActivity.java](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainActivity.java): Contenedor principal. Orquesta los listeners en tiempo real de Firebase y hace de puente entre los Fragments de Java y el entorno de Jetpack Compose.
+- [LoginActivity.java](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/LoginActivity.java): Gestión del login y asociación del `coupleId`.
 
-### 📁 Sincronización en Segundo Plano (Google Drive)
-- [SyncDriveWorker.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/SyncDriveWorker.kt): Trabajador de primer plano (`CoroutineWorker` promovido a Foreground Service). Maneja la lógica de subir/descargar fotos pendientes, replicar borrados locales en la nube y descargar eliminaciones marcadas remotamente.
-- [SyncScheduler.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/SyncScheduler.kt): Orquestador de WorkManager. Agenda sincronizaciones periódicas (con restricciones de red Wi-Fi y carga eléctrica) o inmediatas bajo demanda.
+### 📁 Sincronización en Segundo Plano y Gestión de Archivos
+- [SyncDriveWorker.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/SyncDriveWorker.kt): Trabajador de primer plano (`CoroutineWorker` promovido a Foreground Service). Maneja la lógica de subir/descargar fotos pendientes de forma optimizada y control de borrados bidireccionales.
+- [SyncScheduler.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/SyncScheduler.kt): Orquestador de WorkManager. Agenda sincronizaciones periódicas (con restricciones de red Wi-Fi y carga eléctrica) o inmediatas bajo demanda.
+- [DuplicateManager.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/DuplicateManager.kt): Gestor de detección y limpieza de imágenes duplicadas mediante pre-filtrado por tamaño y comparación MD5.
 
 ### 📁 Pantallas en Jetpack Compose (`compose/`)
-- [MessageFeedCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/compose/MessageFeedCompose.kt): Pantalla principal del feed con paginación de 5 en 5 cartas, tarjeta interactiva de **Thor** (gato con animaciones y latido de corazón) y diálogo de la tienda de ropa.
-- [SettingsSyncCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/compose/SettingsSyncCompose.kt): Interfaz retro para gestionar la vinculación con Google Drive, configurar líneas de subida paralelas (1, 2, 3, 5) con barras de progreso concurrentes por slot de carga y visualización de contadores de archivos.
-- [ProfileSettingsCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/compose/ProfileSettingsCompose.kt): Editor de perfil de la pareja (Kevin & Ali) con contador de tiempo juntos dinámico e interactivo.
-- [RecipeCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/compose/RecipeCompose.kt) & [RecipeDetailCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/compose/RecipeDetailCompose.kt): Creación y visualización del libro de recetas culinarias compartido.
-- [CalendarCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/compose/CalendarCompose.kt): Vista mensual de citas y eventos recurrentes (semanales/anuales) de la pareja.
+- [MessageFeedCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/MessageFeedCompose.kt): Pantalla principal del feed con paginación de 5 en 5 cartas, tarjeta interactiva de **Thor** (gato con animaciones y latido de corazón) y diálogo de la tienda de ropa.
+- [SettingsSyncCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/SettingsSyncCompose.kt): Interfaz retro para gestionar la vinculación con Google Drive, configurar líneas de subida paralelas (1, 2, 3, 5) con barras de progreso concurrentes por slot de carga y visualización de contadores de archivos.
+- [ProfileSettingsCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/ProfileSettingsCompose.kt): Editor de perfil de la pareja (Kevin & Ali) con contador de tiempo juntos dinámico e interactivo.
+- [RecipeCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/RecipeCompose.kt) & [RecipeDetailCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/RecipeDetailCompose.kt): Creación y visualización del libro de recetas culinarias compartido.
+- [CalendarCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/CalendarCompose.kt): Vista mensual de citas y eventos recurrentes (semanales/anuales) de la pareja.
 
 ---
 
@@ -144,33 +147,33 @@ Desde el diálogo de Thor, los usuarios gastan Puntos de Amor para desbloquear y
 
 ### C. Algoritmo de Decay y Temporizador en Tiempo Real
 - **Desgaste de Felicidad:** Si la pareja no interactúa en un periodo de 24 horas, la felicidad de Thor disminuye en un **20%**. 
-- **Prevención de Bucle Recursivo:** El sistema matemático en [MainActivity.java](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainActivity.java) compensa el timestamp de la última interacción (`lastInteraction`) sumando bloques exactos de 24 horas por cada decaimiento aplicado. Esto previene llamadas en cascada infinitas del Snapshot Listener de Firebase.
-- **Temporizador en Tiempo Real:** Implementado con una corrutina y `LaunchedEffect` en [MessageFeedCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt), calcula y muestra una cuenta regresiva dinámica en formato `"Próxima baja en: hh:mm"` / `"mm:ss ⏳"` que avisa cuándo ocurrirá el próximo decremento, o muestra un dulce aviso `"¡Dale amor! ❤️"` si Thor ha alcanzado el 0% de felicidad.
+- **Prevención de Bucle Recursivo:** El sistema matemático en [MainActivity.java](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainActivity.java) compensa el timestamp de la última interacción (`lastInteraction`) sumando bloques exactos de 24 horas por cada decaimiento aplicado. Esto previene llamadas en cascada infinitas del Snapshot Listener de Firebase.
+- **Temporizador en Tiempo Real:** Implementado con una corrutina y `LaunchedEffect` en [MessageFeedCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt), calcula y muestra una cuenta regresiva dinámica en formato `"Próxima baja en: hh:mm"` / `"mm:ss ⏳"` que avisa cuándo ocurrirá el próximo decremento, o muestra un dulce aviso `"¡Dale amor! ❤️"` si Thor ha alcanzado el 0% de felicidad.
 
 ### D. Guía de Creación e Integración de Nuevos Accesorios / Ropa
 Para añadir nuevos accesorios (como el *Plátano Nano* o las *Calcetas y Botitas*), se debe seguir un protocolo estructurado de 5 pasos para garantizar la integridad visual e interactiva:
 
 1. **Generación del Asset Visual (AI + Transparencia Flood-Fill):**
-   - **Imagen de Thor Vestido:** Generar la imagen del gato utilizando el diseño base [ic_thor_base_trans.png](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/res/drawable/ic_thor_base_trans.png) sobre un fondo blanco sólido (`#FFFFFF`) con el prompt deseado (ej. suéter, calcetas, sombrero).
+   - **Imagen de Thor Vestido:** Generar la imagen del gato utilizando el diseño base [ic_thor_base_trans.png](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/res/drawable/ic_thor_base_trans.png) sobre un fondo blanco sólido (`#FFFFFF`) con el prompt deseado (ej. suéter, calcetas, sombrero).
    - **Icono de Tienda:** Generar una miniatura del accesorio individual (`ic_acc_<nombre>_raw.png`) sobre fondo blanco.
    - **Procesamiento de Transparencia:** Ejecutar un script de Python con algoritmo *Flood Fill* (partiendo de las 4 esquinas de la imagen) para remover el fondo blanco sin afectar las partes blancas del cuerpo de Thor, guardando los resultados PNG transparentes finales como `ic_thor_<nombre>.png` y `ic_acc_<nombre>.png` en `app/src/main/res/drawable/`.
 2. **Definición de Constantes:**
-   - Registrar la nueva constante en el companion object de [Pet.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/Pet.kt):
+   - Registrar la nueva constante en el companion object de [Pet.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/Pet.kt):
      ```kotlin
      const val ACC_SOCKS = "socks"
      ```
 3. **Mapeo de Recursos en Compose:**
-   - Añadir el recurso de imagen correspondiente en los bloques `when (pet.equippedAccessory)` ubicados en [MessageFeedCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt) (tanto en el renderizador principal de Thor como en el diálogo de información):
+   - Añadir el recurso de imagen correspondiente en los bloques `when (pet.equippedAccessory)` ubicados en [MessageFeedCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt) (tanto en el renderizador principal de Thor como en el diálogo de información):
      ```kotlin
      Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
      ```
 4. **Registro en el Listado de la Tienda:**
-   - Agregar la tupla descriptiva a la lista `items` en la pestaña de tienda dentro de [MessageFeedCompose.kt](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt) definiendo el ID, nombre para mostrar y precio en puntos de amor:
+   - Agregar la tupla descriptiva a la lista `items` en la pestaña de tienda dentro de [MessageFeedCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt) definiendo el ID, nombre para mostrar y precio en puntos de amor:
      ```kotlin
      Triple(Pet.ACC_SOCKS, "Calcetas y Botitas 🧦🥾", 15)
      ```
 5. **Enlace en el Widget de Pantalla de Inicio:**
-   - Mapear el nuevo accesorio en [ThorWidgetProvider.java](file:///home/kevshupp/Escritorio/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/ThorWidgetProvider.java) para mantener paridad visual fuera de la app:
+   - Mapear el nuevo accesorio en [ThorWidgetProvider.java](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/ThorWidgetProvider.java) para mantener paridad visual fuera de la app:
      ```java
      } else if ("socks".equals(accessory)) {
          thorImageRes = R.drawable.ic_thor_socks;
@@ -190,12 +193,15 @@ Para añadir nuevos accesorios (como el *Plátano Nano* o las *Calcetas y Botita
    - Si una foto en metadatos no existe localmente, se borra de Drive y se marca `eliminado = true` in Firestore (Borrado local replicado en la nube).
    - Si un archivo local existe pero sus metadatos tienen `eliminado == true`, la app borra la foto física localmente (Borrado remoto replicado en el local).
 4. **Carga en Slots Paralelos**: Las subidas y descargas pendientes se procesan de acuerdo al selector de líneas concurrentes (1, 2, 3, o 5) usando coroutines y un `Semaphore`.
+5. **Cálculo Perezoso de MD5 (Lazy MD5 Checksum)**: Para evitar cuellos de botella de I/O, el hash MD5 local solo se calcula cuando se sospecha un cambio (comparando timestamps locales contra los metadatos de Firestore) o para archivos totalmente nuevos, omitiendo el proceso en archivos que ya están sincronizados o marcados para eliminación.
 
 ---
 
 ## 7. Reglas de Negocio y Restricciones Técnicas Importantes
-
 - **Optimizaciones SAF**: La API por defecto `DocumentFile.listFiles()` de Android es extremadamente lenta porque inicializa objetos pesados para cada archivo en la carpeta. En su lugar, el proyecto utiliza consultas directas por cursor a través de `contentResolver.query`, solicitando la proyección de datos mínimos. El listado se ejecuta una sola vez al inicio y se opera en memoria.
+- **Detección Eficiente de Duplicados**: Para acelerar la búsqueda de duplicados locales, se realiza un pre-filtrado agrupando archivos por tamaño (`size`). Solo se calcula el hash MD5 para aquellos archivos que comparten un tamaño idéntico con algún otro, reduciendo drásticamente las lecturas I/O de disco.
+- **Seguridad en Descriptores de Archivos**: Todas las funciones de hashing MD5 (`DuplicateManager` y `SyncDriveWorker`) implementan cierres automáticos de recursos utilizando bloques `.use` para asegurar la liberación de descriptores de archivos (`InputStream`) y evitar fugas de memoria o bloqueos.
+- **Firma Digital y Credenciales de Google**: La firma de la aplicación reside en el almacén de llaves `diario_keystore.jks` con alias `diario_alias`. En caso de regeneración de llaves, se deben registrar las nuevas huellas SHA-1 y SHA-256 en la Consola de Firebase y en la consola de APIs de Google Cloud para que la sincronización con Google Drive y la autenticación funcionen.
 - **Conciliación de Contadores**: Si el conteo de fotos locales difiere del conteo en la nube (Firestore), la interfaz de sincronización invalida automáticamente el estado y muestra **ESTADO: NO SINCRONIZADO 🔴** para advertir al usuario.
 - **Tienda de Mascota**: Cada accesorio comprado en la tienda de Thor se descuenta de los `lovePoints` acumulados en Firestore y se agrega al array de compras permanentes. Los assets visuales se superponen de forma transparente sobre la imagen base de la mascota.
 
@@ -204,15 +210,15 @@ Para añadir nuevos accesorios (como el *Plátano Nano* o las *Calcetas y Botita
 ## 8. Control de Versiones y Despliegues (CI/CD Automatizado)
 
 Cada cambio que deba publicarse a producción sigue este proceso de despliegue automatizado mediante **GitHub Actions**:
-* **Paso 1 (Versionado):** Incrementar las propiedades `versionCode` y `versionName` en el archivo [app/build.gradle.kts](file:///home/kevshupp/Escritorio/Diario_alikevin/app/build.gradle.kts).
+* **Paso 1 (Versionado):** Incrementar las propiedades `versionCode` y `versionName` en el archivo [app/build.gradle.kts](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/build.gradle.kts).
 * **Paso 2 (Confirmación de Cambios):** Hacer commit y push de todos los cambios de código a la rama `master`.
-* **Paso 3 (Disparador de Compilación):** Crear y empujar una etiqueta de versión que comience con `v` (ejemplo: `v1.4.5`):
+* **Paso 3 (Disparador de Compilación - Solo a demanda):** Para un uso eficiente de los corredores de Actions, los tags de versión que comienzan con `v` se empujan únicamente cuando se completa un hito importante y a petición explícita del usuario, evitando disparar lanzamientos continuos para cambios mínimos:
   ```bash
-  git tag v1.4.5
-  git push origin v1.4.5
+  git tag v1.7.11
+  git push origin v1.7.11
   ```
 * **Paso 4 (Ejecución en GitHub Actions):** El empuje de la etiqueta activará automáticamente el workflow en la nube definido en `.github/workflows/android.yml`.
-  - El pipeline decodifica de forma segura las credenciales Base64 guardadas en los secretos de GitHub (`DIARIO_KEYSTORE_BASE64` y `GOOGLE_SERVICES_JSON_BASE64`), limpiando automáticamente posibles saltos de línea con `tr -d '\r\n '`.
+  - El pipeline decodifica de forma segura las credenciales Base64 guardadas en los secretos de GitHub (`DIARIO_KEYSTORE_BASE64` y `GOOGLE_SERVICES_JSON_BASE64` actualizados en julio de 2026), limpiando automáticamente posibles saltos de línea con `tr -d '\r\n '`.
   - Compila la aplicación, firma el APK de lanzamiento (Release APK), crea un lanzamiento oficial en GitHub con el nombre de la versión y adjunta el archivo `app-release.apk` firmado listo para descargar.
 
 ---
