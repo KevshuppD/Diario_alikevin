@@ -102,9 +102,7 @@ fun AlbumScreen(
     var gridColumnsDiario by remember { mutableStateOf(2) }
     var gridColumnsGeneral by remember { mutableStateOf(2) }
     var showColumnsMenu by remember { mutableStateOf(false) }
-    var showColsSubMenu by remember { mutableStateOf(false) }
-    var showSortSubMenu by remember { mutableStateOf(false) }
-    var showFilterSubMenu by remember { mutableStateOf(false) }
+    var menuPage by remember { mutableStateOf("MAIN") }
 
     // Estados de orden y filtrado
     var sortBy by remember { mutableStateOf("fecha_desc") }
@@ -236,24 +234,36 @@ fun AlbumScreen(
                     )
                     DropdownMenu(
                         expanded = showColumnsMenu,
-                        onDismissRequest = { showColumnsMenu = false },
+                        onDismissRequest = { 
+                            showColumnsMenu = false
+                            menuPage = "MAIN"
+                        },
                         modifier = Modifier
                             .background(cardBgColor)
                             .border(2.dp, borderColor)
                     ) {
-                        // 1. Submenú de Columnas (Ancho de cuadrícula)
-                        Box {
-                            DropdownMenuItem(
-                                text = { Text("Ancho cuadrícula ▸", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                onClick = { showColsSubMenu = true }
-                            )
-                            DropdownMenu(
-                                expanded = showColsSubMenu,
-                                onDismissRequest = { showColsSubMenu = false },
-                                modifier = Modifier
-                                    .background(cardBgColor)
-                                    .border(2.dp, borderColor)
-                            ) {
+                        when (menuPage) {
+                            "MAIN" -> {
+                                DropdownMenuItem(
+                                    text = { Text("Ancho cuadrícula ▸", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
+                                    onClick = { menuPage = "COLS" }
+                                )
+                                if (selectedAlbum == "general") {
+                                    DropdownMenuItem(
+                                        text = { Text("Ordenar por ▸", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
+                                        onClick = { menuPage = "SORT" }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Filtrar por ▸", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
+                                        onClick = { menuPage = "FILTER" }
+                                    )
+                                }
+                            }
+                            "COLS" -> {
+                                DropdownMenuItem(
+                                    text = { Text("◂ Volver", fontFamily = AlbumVt323, fontSize = 16.sp, color = subtitleColor) },
+                                    onClick = { menuPage = "MAIN" }
+                                )
                                 val currentCols = if (selectedAlbum == "diario") gridColumnsDiario else gridColumnsGeneral
                                 (2..6).forEach { cols ->
                                     DropdownMenuItem(
@@ -271,77 +281,55 @@ fun AlbumScreen(
                                             } else {
                                                 gridColumnsGeneral = cols
                                             }
-                                            showColsSubMenu = false
                                             showColumnsMenu = false
+                                            menuPage = "MAIN"
                                         }
                                     )
                                 }
                             }
-                        }
-
-                        if (selectedAlbum == "general") {
-                            // 2. Submenú de Ordenación
-                            Box {
+                            "SORT" -> {
                                 DropdownMenuItem(
-                                    text = { Text("Ordenar por ▸", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                    onClick = { showSortSubMenu = true }
+                                    text = { Text("◂ Volver", fontFamily = AlbumVt323, fontSize = 16.sp, color = subtitleColor) },
+                                    onClick = { menuPage = "MAIN" }
                                 )
-                                DropdownMenu(
-                                    expanded = showSortSubMenu,
-                                    onDismissRequest = { showSortSubMenu = false },
-                                    modifier = Modifier
-                                        .background(cardBgColor)
-                                        .border(2.dp, borderColor)
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(if (sortBy == "fecha_desc") "✓ Más recientes" else "  Más recientes", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                        onClick = { sortBy = "fecha_desc"; showSortSubMenu = false; showColumnsMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(if (sortBy == "fecha_asc") "✓ Más antiguos" else "  Más antiguos", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                        onClick = { sortBy = "fecha_asc"; showSortSubMenu = false; showColumnsMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(if (sortBy == "size_desc") "✓ Tamaño (Más grandes)" else "  Tamaño (Más grandes)", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                        onClick = { sortBy = "size_desc"; showSortSubMenu = false; showColumnsMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(if (sortBy == "name_asc") "✓ Nombre (A-Z)" else "  Nombre (A-Z)", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                        onClick = { sortBy = "name_asc"; showSortSubMenu = false; showColumnsMenu = false }
-                                    )
-                                }
+                                DropdownMenuItem(
+                                    text = { Text(if (sortBy == "fecha_desc") "✓ Más recientes" else "  Más recientes", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
+                                    onClick = { sortBy = "fecha_desc"; showColumnsMenu = false; menuPage = "MAIN" }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (sortBy == "fecha_asc") "✓ Más antiguos" else "  Más antiguos", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
+                                    onClick = { sortBy = "fecha_asc"; showColumnsMenu = false; menuPage = "MAIN" }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (sortBy == "size_desc") "✓ Tamaño (Más grandes)" else "  Tamaño (Más grandes)", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
+                                    onClick = { sortBy = "size_desc"; showColumnsMenu = false; menuPage = "MAIN" }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (sortBy == "name_asc") "✓ Nombre (A-Z)" else "  Nombre (A-Z)", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
+                                    onClick = { sortBy = "name_asc"; showColumnsMenu = false; menuPage = "MAIN" }
+                                )
                             }
-
-                            // 3. Submenú de Filtrado
-                            Box {
+                            "FILTER" -> {
                                 DropdownMenuItem(
-                                    text = { Text("Filtrar por ▸", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                    onClick = { showFilterSubMenu = true }
+                                    text = { Text("◂ Volver", fontFamily = AlbumVt323, fontSize = 16.sp, color = subtitleColor) },
+                                    onClick = { menuPage = "MAIN" }
                                 )
-                                DropdownMenu(
-                                    expanded = showFilterSubMenu,
-                                    onDismissRequest = { showFilterSubMenu = false },
-                                    modifier = Modifier
-                                        .background(cardBgColor)
-                                        .border(2.dp, borderColor)
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(if (filterBy == "todo") "✓ Mostrar todo" else "  Mostrar todo", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                        onClick = { filterBy = "todo"; showFilterSubMenu = false; showColumnsMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(if (filterBy == "hoy") "✓ Agregado hoy" else "  Agregado hoy", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                        onClick = { filterBy = "hoy"; showFilterSubMenu = false; showColumnsMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(if (filterBy == "semana") "✓ Agregado esta semana" else "  Agregado esta semana", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                        onClick = { filterBy = "semana"; showFilterSubMenu = false; showColumnsMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(if (filterBy == "grandes") "✓ Archivos grandes (>2MB)" else "  Archivos grandes (>2MB)", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                        onClick = { filterBy = "grandes"; showFilterSubMenu = false; showColumnsMenu = false }
-                                    )
-                                }
+                                DropdownMenuItem(
+                                    text = { Text(if (filterBy == "todo") "✓ Mostrar todo" else "  Mostrar todo", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
+                                    onClick = { filterBy = "todo"; showColumnsMenu = false; menuPage = "MAIN" }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (filterBy == "hoy") "✓ Agregado hoy" else "  Agregado hoy", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
+                                    onClick = { filterBy = "hoy"; showColumnsMenu = false; menuPage = "MAIN" }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (filterBy == "semana") "✓ Agregado esta semana" else "  Agregado esta semana", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
+                                    onClick = { filterBy = "semana"; showColumnsMenu = false; menuPage = "MAIN" }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (filterBy == "grandes") "✓ Archivos grandes (>2MB)" else "  Archivos grandes (>2MB)", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
+                                    onClick = { filterBy = "grandes"; showColumnsMenu = false; menuPage = "MAIN" }
+                                )
                             }
                         }
                     }

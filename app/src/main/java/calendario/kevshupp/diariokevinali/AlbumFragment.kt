@@ -150,7 +150,9 @@ class AlbumFragment : Fragment() {
                         msg.messageId?.let { db.collection("messages").document(it).delete() }
                     },
                     onOpenLocalPhoto = { url ->
-                        albumManager?.showFullScreenImage(url)
+                        albumManager?.showFullScreenImage(url, null) {
+                            localPhotosReloadTrigger++
+                        }
                     },
                     isOwner = { msg -> msg.authorId == userId }
                 )

@@ -3,13 +3,17 @@ package calendario.kevshupp.diariokevinali
 import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.Gravity
 import android.widget.*
+import android.provider.DocumentsContract
+import android.provider.OpenableColumns
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -17,6 +21,7 @@ import com.bumptech.glide.Glide
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.QueryDocumentSnapshot
 import java.util.*
+import java.text.SimpleDateFormat
 import android.net.Uri
 
 class AlbumManager(
@@ -225,7 +230,7 @@ class AlbumManager(
                     val url = urls[position]
                     val iv = holder.itemView.findViewById<ImageView>(R.id.ivGalleryImage)
                     Glide.with(context).load(url).centerCrop().into(iv)
-                    holder.itemView.setOnClickListener { showFullScreenImage(url) }
+                    holder.itemView.setOnClickListener { showFullScreenImage(url, msg) }
                     holder.itemView.setOnLongClickListener {
                         if (msg.authorId == userId) {
                             AlertDialog.Builder(context).setTitle("Eliminar foto").setMessage("¿Deseas eliminar esta foto de este momento?")
@@ -309,13 +314,311 @@ class AlbumManager(
         dialog.show()
     }
 
-    fun showFullScreenImage(url: String) {
+    private fun dpToPx(dp: Int): Int {
+        val density = context.resources.displayMetrics.density
+        return (dp * density).toInt()
+    }
+
+    fun showFullScreenImage(url: String, parentMessage: Message? = null, onRefresh: (() -> Unit)? = null) {
         val d = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
-        val iv = ImageView(context)
-        iv.setBackgroundColor(Color.BLACK)
+        
+        // Root container
+        val root = RelativeLayout(context).apply {
+            setBackgroundColor(Color.BLACK)
+            layoutParams = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT)
+        }
+        
+        // ImageView
+        val iv = ImageView(context).apply {
+            layoutParams = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+        }
         Glide.with(context).load(url).into(iv)
-        iv.setOnClickListener { d.dismiss() }
-        d.setContentView(iv)
+        root.addView(iv)
+        
+        // Parse metadata
+        val isLocal = url.startsWith("content://")
+        var fileName = ""
+        var fileSize = 0L
+        var fileDate = 0L
+        if (isLocal) {
+            try {
+                val uri = Uri.parse(url)
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIdx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        val sizeIdx = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE)
+                        val modIdx = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                        if (nameIdx != -1) fileName = cursor.getString(nameIdx) ?: ""
+                        if (sizeIdx != -1) fileSize = cursor.getLong(sizeIdx)
+                        if (modIdx != -1) fileDate = cursor.getLong(modIdx)
+                    }
+                }
+            } catch (e: Exception) {
+                val doc = androidx.documentfile.provider.DocumentFile.fromSingleUri(context, Uri.parse(url))
+                fileName = doc?.name ?: ""
+                fileSize = doc?.length() ?: 0L
+                fileDate = doc?.lastModified() ?: 0L
+            }
+        } else {
+            fileName = url.substringAfterLast("/").substringBefore("?")
+        }
+        if (fileName.isEmpty()) {
+            fileName = "Foto_${System.currentTimeMillis()}"
+        }
+        
+        // Load custom font vt323
+        val vt323 = try {
+            androidx.core.content.res.ResourcesCompat.getFont(context, R.font.vt323)
+        } catch (e: Exception) {
+            android.graphics.Typeface.DEFAULT
+        }
+        
+        // Theme styling variables
+        val isDark = currentTheme == "Pixel Oscuro"
+        val isMono = currentTheme == "Pixel Monocromático"
+        
+        val barBgColor = when {
+            isDark -> Color.parseColor("#E60D0D2B") // 90% opacity deep blue
+            isMono -> Color.parseColor("#E6FFFFFF") // 90% opacity white
+            else -> Color.parseColor("#E6FFFDF9")   // 90% opacity cream
+        }
+        
+        val textColor = when {
+            isDark -> Color.WHITE
+            isMono -> Color.BLACK
+            else -> Color.parseColor("#4A2511")
+        }
+        
+        val buttonBgColor = when {
+            isDark -> Color.parseColor("#1A1A2E")
+            isMono -> Color.BLACK
+            else -> Color.parseColor("#8B4513")
+        }
+        
+        val buttonTextColor = Color.WHITE
+        
+        // Top Bar
+        val topBar = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(barBgColor)
+            setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12))
+            gravity = Gravity.CENTER_VERTICAL
+            val params = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT).apply {
+                addRule(RelativeLayout.ALIGN_PARENT_TOP)
+            }
+            layoutParams = params
+        }
+        
+        // Back Button
+        val btnBack = TextView(context).apply {
+            text = "✕ Volver"
+            typeface = vt323
+            textSize = 20f
+            setTextColor(textColor)
+            setPadding(dpToPx(8), dpToPx(8), dpToPx(16), dpToPx(8))
+            isClickable = true
+            setOnClickListener { d.dismiss() }
+        }
+        topBar.addView(btnBack)
+        
+        // Filename Text
+        val tvFileName = TextView(context).apply {
+            text = fileName
+            typeface = vt323
+            textSize = 20f
+            setTextColor(textColor)
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            maxLines = 1
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        topBar.addView(tvFileName)
+        root.addView(topBar)
+        
+        // Bottom Bar
+        val bottomBar = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(barBgColor)
+            setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
+            gravity = Gravity.CENTER
+            val params = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT).apply {
+                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+            }
+            layoutParams = params
+        }
+        
+        // Helper function to create standard pixel buttons
+        fun createPixelButton(label: String, onClick: () -> Unit): Button {
+            return Button(context).apply {
+                text = label
+                typeface = vt323
+                textSize = 18f
+                setTextColor(buttonTextColor)
+                backgroundTintList = ColorStateList.valueOf(buttonBgColor)
+                val params = LinearLayout.LayoutParams(0, dpToPx(50), 1f).apply {
+                    setMargins(dpToPx(4), 0, dpToPx(4), 0)
+                }
+                layoutParams = params
+                setOnClickListener { onClick() }
+            }
+        }
+        
+        // Info Button
+        val btnInfo = createPixelButton("Información") {
+            val formattedDate = if (fileDate > 0L) {
+                SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(fileDate))
+            } else "Desconocida"
+            
+            val formattedSize = if (fileSize > 0L) {
+                val kb = fileSize / 1024.0
+                if (kb > 1024.0) {
+                    String.format(Locale.getDefault(), "%.2f MB", kb / 1024.0)
+                } else {
+                    String.format(Locale.getDefault(), "%.2f KB", kb)
+                }
+            } else "Desconocido"
+            
+            val infoMsg = """
+                Nombre: $fileName
+                Fecha: $formattedDate
+                Tamaño: $formattedSize
+                Tipo: ${if (isLocal) "Foto Local" else "Foto en la Nube"}
+            """.trimIndent()
+            
+            val alertB = AlertDialog.Builder(context)
+            val customV = LayoutInflater.from(context).inflate(R.layout.dialog_album_options, null)
+            alertB.setView(customV)
+            val dTitle = customV.findViewById<TextView>(R.id.tvOptionsTitle)
+            dTitle.text = "Detalles de la Foto"
+            dTitle.typeface = vt323
+            dTitle.textSize = 28f
+            
+            val contentTv = TextView(context).apply {
+                text = infoMsg
+                typeface = vt323
+                textSize = 20f
+                setTextColor(textColor)
+                setPadding(dpToPx(24), dpToPx(16), dpToPx(24), dpToPx(16))
+            }
+            
+            // Reemplazar los botones de dialog_album_options con nuestro contenido
+            val container = customV.findViewById<Button>(R.id.btnOptionAdd).parent as ViewGroup
+            container.removeAllViews()
+            container.addView(dTitle)
+            container.addView(contentTv)
+            
+            val closeBtn = Button(context).apply {
+                text = "Entendido"
+                typeface = vt323
+                textSize = 18f
+                setTextColor(Color.WHITE)
+                backgroundTintList = ColorStateList.valueOf(buttonBgColor)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(50)).apply {
+                    setMargins(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
+                }
+            }
+            container.addView(closeBtn)
+            
+            if (isDark) {
+                customV.setBackgroundResource(R.drawable.bg_parchment_pixel_dark)
+                dTitle.setTextColor(Color.WHITE)
+                contentTv.setTextColor(Color.WHITE)
+            } else if (isMono) {
+                customV.setBackgroundColor(Color.WHITE)
+                dTitle.setTextColor(Color.BLACK)
+                contentTv.setTextColor(Color.BLACK)
+            } else {
+                customV.setBackgroundResource(R.drawable.bg_parchment_pixel)
+                dTitle.setTextColor(Color.parseColor("#4A2511"))
+                contentTv.setTextColor(Color.parseColor("#4A2511"))
+            }
+            
+            val infoDialog = alertB.create()
+            closeBtn.setOnClickListener { infoDialog.dismiss() }
+            infoDialog.show()
+        }
+        bottomBar.addView(btnInfo)
+        
+        // Share Button
+        val btnShare = createPixelButton("Compartir") {
+            try {
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    if (url.startsWith("http")) {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, url)
+                    } else {
+                        type = "image/*"
+                        putExtra(Intent.EXTRA_STREAM, Uri.parse(url))
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "Compartir foto"))
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error al compartir: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+        bottomBar.addView(btnShare)
+        
+        // Edit Button (Only rename if local, or edit caption if it is a Cloudinary photo with parentMessage)
+        if (isLocal || parentMessage != null) {
+            val btnEdit = createPixelButton("Editar") {
+                if (isLocal) {
+                    val alertRename = AlertDialog.Builder(context)
+                    val input = EditText(context).apply {
+                        setText(fileName)
+                        setSelection(fileName.length)
+                        typeface = vt323
+                        textSize = 20f
+                        setTextColor(textColor)
+                    }
+                    
+                    if (isDark) {
+                        input.setBackgroundResource(R.drawable.bg_message_pixel_dark)
+                    }
+                    
+                    val layout = LinearLayout(context).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(dpToPx(24), dpToPx(16), dpToPx(24), dpToPx(16))
+                        addView(input)
+                    }
+                    
+                    alertRename.setTitle("Renombrar Foto")
+                        .setView(layout)
+                        .setPositiveButton("Guardar") { _, _ ->
+                            val newName = input.text.toString().trim()
+                            if (newName.isNotEmpty() && newName != fileName) {
+                                try {
+                                    val uri = Uri.parse(url)
+                                    android.provider.DocumentsContract.renameDocument(context.contentResolver, uri, newName)
+                                    Toast.makeText(context, "Archivo renombrado", Toast.LENGTH_SHORT).show()
+                                    tvFileName.text = newName
+                                    fileName = newName
+                                    onRefresh?.invoke()
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Error al renombrar: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                        .setNegativeButton("Cancelar", null)
+                        .show()
+                } else if (parentMessage != null) {
+                    d.dismiss()
+                    showEditAlbumDialog(parentMessage)
+                }
+            }
+            bottomBar.addView(btnEdit)
+        }
+        root.addView(bottomBar)
+        
+        // Tapping the image hides/shows the bars
+        var barsVisible = true
+        iv.setOnClickListener {
+            barsVisible = !barsVisible
+            topBar.visibility = if (barsVisible) View.VISIBLE else View.GONE
+            bottomBar.visibility = if (barsVisible) View.VISIBLE else View.GONE
+        }
+        
+        d.setContentView(root)
         d.show()
     }
 
