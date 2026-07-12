@@ -279,27 +279,27 @@ fun SpiritsChecklistView(
 
     val categories = remember {
         listOf(
-            SpiritCategory("Espíritu de Agua", (1..4).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu Dormilón", (5..8).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu de Tierra", (9..12).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu de Agua", (1..4).map { String.format("%02d", it) } + listOf("66", "67")),
+            SpiritCategory("Espíritu Dormilón", (5..8).map { String.format("%02d", it) } + listOf("68", "69")),
+            SpiritCategory("Espíritu de Tierra", (9..12).map { String.format("%02d", it) } + listOf("70", "71")),
             SpiritCategory("Espíritu del Cacahuete", listOf("13")),
-            SpiritCategory("Espíritu Demoníaco", (14..17).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu de Fuego", (18..21).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu Punk", (22..25).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu Pato", (26..29).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu Rey", (30..33).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu Fantasma", (34..37).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu del Punto Cero", (38..41).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu de Aura", (42..45).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu de la Fundación", (46..49).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu de la Parca", (50..53).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu Futbolero", (54..57).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu Jefe", (58..61).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu Pescado", (62..65).map { String.format("%02d", it) })
+            SpiritCategory("Espíritu Demoníaco", (14..17).map { String.format("%02d", it) } + listOf("72", "73")),
+            SpiritCategory("Espíritu de Fuego", (18..21).map { String.format("%02d", it) } + listOf("74", "75")),
+            SpiritCategory("Espíritu Punk", (22..25).map { String.format("%02d", it) } + listOf("76", "77")),
+            SpiritCategory("Espíritu Pato", (26..29).map { String.format("%02d", it) } + listOf("78", "79")),
+            SpiritCategory("Espíritu Rey", (30..33).map { String.format("%02d", it) } + listOf("80", "81")),
+            SpiritCategory("Espíritu Fantasma", (34..37).map { String.format("%02d", it) } + listOf("82", "83")),
+            SpiritCategory("Espíritu del Punto Cero", (38..41).map { String.format("%02d", it) } + listOf("84", "85")),
+            SpiritCategory("Espíritu de Aura", (42..45).map { String.format("%02d", it) } + listOf("86", "87")),
+            SpiritCategory("Espíritu de la Fundación", (46..49).map { String.format("%02d", it) } + listOf("88", "89")),
+            SpiritCategory("Espíritu de la Parca", (50..53).map { String.format("%02d", it) } + listOf("90", "91")),
+            SpiritCategory("Espíritu Futbolero", (54..57).map { String.format("%02d", it) } + listOf("92", "93")),
+            SpiritCategory("Espíritu Jefe", (58..61).map { String.format("%02d", it) } + listOf("94", "95")),
+            SpiritCategory("Espíritu Pescado", (62..65).map { String.format("%02d", it) } + listOf("96", "97"))
         )
     }
 
-    val spiritsList = remember { (1..65).map { String.format("%02d", it) } }
+    val spiritsList = remember { (1..97).map { String.format("%02d", it) } }
     val spiritNames = remember {
         listOf(
             // Fila 1
@@ -326,7 +326,24 @@ fun SpiritsChecklistView(
             "Espíritu Futbolero", "Espíritu Futbolero Dorado", "Espíritu Futbolero Galaxia", "Espíritu Futbolero Gomita",
             // Fila 8 (Nuevos)
             "Espíritu Jefe", "Espíritu Jefe Dorado", "Espíritu Jefe Galaxia", "Espíritu Jefe Gomita",
-            "Espíritu Pescado", "Espíritu Pescado Dorado", "Espíritu Pescado Galaxia", "Espíritu Pescado Gomita"
+            "Espíritu Pescado", "Espíritu Pescado Dorado", "Espíritu Pescado Galaxia", "Espíritu Pescado Gomita",
+            // Nuevas Variantes (Gema y Holofoil)
+            "Espíritu de Agua Gema", "Espíritu de Agua Holofoil",
+            "Espíritu Dormilón Gema", "Espíritu Dormilón Holofoil",
+            "Espíritu de Tierra Gema", "Espíritu de Tierra Holofoil",
+            "Espíritu Demoníaco Gema", "Espíritu Demoníaco Holofoil",
+            "Espíritu de Fuego Gema", "Espíritu de Fuego Holofoil",
+            "Espíritu Punk Gema", "Espíritu Punk Holofoil",
+            "Espíritu Pato Gema", "Espíritu Pato Holofoil",
+            "Espíritu Rey Gema", "Espíritu Rey Holofoil",
+            "Espíritu Fantasma Gema", "Espíritu Fantasma Holofoil",
+            "Espíritu del Punto Cero Gema", "Espíritu del Punto Cero Holofoil",
+            "Espíritu de Aura Gema", "Espíritu de Aura Holofoil",
+            "Espíritu de la Fundación Gema", "Espíritu de la Fundación Holofoil",
+            "Espíritu de la Parca Gema", "Espíritu de la Parca Holofoil",
+            "Espíritu Futbolero Gema", "Espíritu Futbolero Holofoil",
+            "Espíritu Jefe Gema", "Espíritu Jefe Holofoil",
+            "Espíritu Pescado Gema", "Espíritu Pescado Holofoil"
         )
     }
 
