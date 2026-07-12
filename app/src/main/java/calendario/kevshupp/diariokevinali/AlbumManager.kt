@@ -435,11 +435,14 @@ class AlbumManager(
         topBar.addView(tvFileName)
         root.addView(topBar)
         
+        val resId = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
+        val navBarHeight = if (resId > 0) context.resources.getDimensionPixelSize(resId) else dpToPx(48)
+
         // Bottom Bar
         val bottomBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             setBackgroundColor(barBgColor)
-            setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
+            setPadding(dpToPx(16), dpToPx(16), dpToPx(16), navBarHeight + dpToPx(8))
             gravity = Gravity.CENTER
             val params = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT).apply {
                 addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
@@ -448,17 +451,27 @@ class AlbumManager(
         }
         
         // Helper function to create standard pixel buttons
-        fun createPixelButton(label: String, onClick: () -> Unit): Button {
-            return Button(context).apply {
+        fun createPixelButton(label: String, onClick: () -> Unit): TextView {
+            return TextView(context).apply {
                 text = label
                 typeface = vt323
-                textSize = 18f
+                textSize = 20f
                 setTextColor(buttonTextColor)
-                backgroundTintList = ColorStateList.valueOf(buttonBgColor)
-                val params = LinearLayout.LayoutParams(0, dpToPx(50), 1f).apply {
-                    setMargins(dpToPx(4), 0, dpToPx(4), 0)
+                gravity = Gravity.CENTER
+                
+                // Pixel/Retro border and background
+                val borderDrawable = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(buttonBgColor)
+                    setStroke(dpToPx(2), textColor)
+                }
+                background = borderDrawable
+                
+                val params = LinearLayout.LayoutParams(0, dpToPx(45), 1f).apply {
+                    setMargins(dpToPx(6), 0, dpToPx(6), 0)
                 }
                 layoutParams = params
+                isClickable = true
+                isFocusable = true
                 setOnClickListener { onClick() }
             }
         }
@@ -507,15 +520,22 @@ class AlbumManager(
             container.addView(dTitle)
             container.addView(contentTv)
             
-            val closeBtn = Button(context).apply {
+            val closeBtn = TextView(context).apply {
                 text = "Entendido"
                 typeface = vt323
-                textSize = 18f
+                textSize = 20f
                 setTextColor(Color.WHITE)
-                backgroundTintList = ColorStateList.valueOf(buttonBgColor)
+                gravity = Gravity.CENTER
+                val borderDrawable = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(buttonBgColor)
+                    setStroke(dpToPx(2), textColor)
+                }
+                background = borderDrawable
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(50)).apply {
                     setMargins(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
                 }
+                isClickable = true
+                isFocusable = true
             }
             container.addView(closeBtn)
             

@@ -2295,8 +2295,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     private void startCrop(Uri uri) {
         UCrop.Options opt = new UCrop.Options();
         opt.setCompressionFormat(Bitmap.CompressFormat.JPEG);
-        opt.setFreeStyleCropEnabled(true);
+        opt.setFreeStyleCropEnabled(false);
+        opt.setHideBottomControls(true);
         Intent cropIntent = UCrop.of(uri, Uri.fromFile(new File(getCacheDir(), "crop_" + System.currentTimeMillis() + ".jpg")))
+                .withAspectRatio(1, 1)
                 .withOptions(opt)
                 .getIntent(this);
         cropImageLauncher.launch(cropIntent);
