@@ -39,6 +39,7 @@ class AlbumManager(
     private var allowDeferredUploads = false
     private var pendingAlbumUploads = 0
     private var activeSaveButton: Button? = null
+    private var cachedLocalPhotos: List<LocalPhoto>? = null
 
     interface AlbumCallback {
         fun onPickImage()
@@ -689,7 +690,15 @@ class AlbumManager(
         }
     }
 
-    fun getLocalPhotos(): List<LocalPhoto> {
+    fun invalidateLocalPhotosCache() {
+        cachedLocalPhotos = null
+        android.util.Log.d("AlbumManager", "Cache de fotos locales invalidado.")
+    }
+
+    fun getLocalPhotos(forceRefresh: Boolean = false): List<LocalPhoto> {
+        if (!forceRefresh && cachedLocalPhotos != null) {
+            return cachedLocalPhotos!!
+        }
         val prefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
         val localFolderUriStr = prefs.getString("syncLocalFolderUri", null) ?: return emptyList()
         val fileList = mutableListOf<LocalPhoto>()
@@ -721,15 +730,7 @@ class AlbumManager(
                     
                     if (!name.isNullOrEmpty() && !docId.isNullOrEmpty() && mimeType.startsWith("image/")) {
                         val fileUri = android.provider.DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
-                        var lastModified = if (lastModifiedIndex != -1) cursor.getLong(lastModifiedIndex) else 0L
-                        if (lastModified == 0L) {
-                            try {
-                                val docFile = androidx.documentfile.provider.DocumentFile.fromSingleUri(context, fileUri)
-                                lastModified = docFile?.lastModified() ?: 0L
-                            } catch (e: Exception) {
-                                // Ignore
-                            }
-                        }
+                        val lastModified = if (lastModifiedIndex != -1) cursor.getLong(lastModifiedIndex) else 0L
                         val size = if (sizeIndex != -1) cursor.getLong(sizeIndex) else 0L
                         fileList.add(LocalPhoto(fileUri.toString(), name, lastModified, size))
                     }
@@ -739,6 +740,7 @@ class AlbumManager(
             android.util.Log.e("AlbumManager", "Error listing local photos: " + e.message)
         }
         fileList.sortByDescending { it.lastModified }
+        cachedLocalPhotos = fileList
         return fileList
     }
 }

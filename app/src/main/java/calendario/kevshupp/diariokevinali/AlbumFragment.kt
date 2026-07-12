@@ -91,7 +91,7 @@ class AlbumFragment : Fragment() {
                     if (configured) {
                         isLocalPhotosLoading = true
                         withContext(Dispatchers.IO) {
-                            albumManager?.getLocalPhotos() ?: emptyList()
+                            albumManager?.getLocalPhotos(true) ?: emptyList()
                         }.let { photos ->
                             localPhotos = photos
                             isLocalPhotosLoading = false

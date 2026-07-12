@@ -2305,6 +2305,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     }
 
     public void logout() { getSharedPreferences("DiarioPrefs", MODE_PRIVATE).edit().clear().apply(); updateWidget(); startActivity(new Intent(this, LoginActivity.class)); finish(); }
+    public AlbumManager getAlbumManager() { return albumManager; }
 
     public void onMessageClick(View v, Message msg) { if (msg.getContent() != null && msg.getContent().startsWith("[ALBUM]")) albumManager.showAlbumDetail(msg); else messageEditor.showMessageDetail(msg); }
     public void onMessageLongClick(View v, Message msg) {

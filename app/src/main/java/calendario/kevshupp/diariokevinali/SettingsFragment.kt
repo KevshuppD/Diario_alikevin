@@ -7,6 +7,12 @@ import android.view.ViewGroup
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import android.content.Context
+import android.app.Dialog
+import android.graphics.Color
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.ProgressBar
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.ComposeView
 import androidx.documentfile.provider.DocumentFile
@@ -707,17 +713,88 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    private fun showPixelProgressDialog(context: Context, initialText: String): Pair<Dialog, (String) -> Unit> {
+        val d = Dialog(context, android.R.style.Theme_Panel)
+        
+        val isDark = theme == "Pixel Oscuro"
+        val isMono = theme == "Pixel Monocromático"
+        
+        val barBgColor = when {
+            isDark -> Color.parseColor("#E60D0D2B")
+            isMono -> Color.parseColor("#E6FFFFFF")
+            else -> Color.parseColor("#E6FFFDF9")
+        }
+        val textColor = when {
+            isDark -> Color.WHITE
+            isMono -> Color.BLACK
+            else -> Color.parseColor("#4A2511")
+        }
+        
+        val vt323 = try {
+            androidx.core.content.res.ResourcesCompat.getFont(context, R.font.vt323)
+        } catch (e: Exception) {
+            android.graphics.Typeface.DEFAULT
+        }
+        
+        val layout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            setPadding(48, 48, 48, 48)
+            
+            if (isDark) {
+                setBackgroundResource(R.drawable.bg_parchment_pixel_dark)
+            } else if (isMono) {
+                setBackgroundColor(Color.WHITE)
+            } else {
+                setBackgroundResource(R.drawable.bg_parchment_pixel)
+            }
+        }
+        
+        val titleTv = TextView(context).apply {
+            text = "Renombrando Fotos"
+            typeface = vt323
+            textSize = 26f
+            setTextColor(textColor)
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 0, 0, 16)
+        }
+        layout.addView(titleTv)
+        
+        val progressTv = TextView(context).apply {
+            text = initialText
+            typeface = vt323
+            textSize = 20f
+            setTextColor(textColor)
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 0, 0, 20)
+        }
+        layout.addView(progressTv)
+        
+        val spinner = ProgressBar(context).apply {
+            indeterminateTintList = android.content.res.ColorStateList.valueOf(textColor)
+        }
+        layout.addView(spinner)
+        
+        d.setContentView(layout)
+        d.setCancelable(false)
+        
+        val updateFunc = { newText: String ->
+            (context as? android.app.Activity)?.runOnUiThread {
+                progressTv.text = newText
+            } ?: Unit
+        }
+        
+        return Pair(d, updateFunc)
+    }
+
     private fun renamePhotosByDate(treeUriStr: String) {
         val treeUri = Uri.parse(treeUriStr)
         val context = requireContext()
         val contentResolver = context.contentResolver
         
-        // Show a loading dialog
-        val progressDialog = android.app.ProgressDialog(context).apply {
-            setMessage("Renombrando fotos por fecha...")
-            setCancelable(false)
-            show()
-        }
+        // Show our beautiful pixel custom progress dialog
+        val (progressDialog, updateProgress) = showPixelProgressDialog(context, "Analizando carpeta...")
+        progressDialog.show()
         
         lifecycleScope.launch(Dispatchers.IO) {
             var renamedCount = 0
@@ -757,10 +834,21 @@ class SettingsFragment : Fragment() {
                     }
                 }
                 
+                val totalFiles = filesToProcess.size
+                withContext(Dispatchers.Main) {
+                    updateProgress("Procesando: 0 / $totalFiles fotos")
+                }
+                
                 val sdf = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
                 val assignedNames = mutableSetOf<String>()
+                var currentIndex = 0
                 
                 for ((fileUri, name, lastModified) in filesToProcess) {
+                    currentIndex++
+                    withContext(Dispatchers.Main) {
+                        updateProgress("Procesando: $currentIndex / $totalFiles fotos")
+                    }
+                    
                     if (lastModified == 0L) continue
                     val dateStr = sdf.format(java.util.Date(lastModified))
                     val extension = name.substringAfterLast(".", "")
@@ -798,6 +886,10 @@ class SettingsFragment : Fragment() {
             } catch (e: Exception) {
                 Log.e("SettingsFragment", "Error en renamePhotosByDate: ${e.message}")
             }
+            
+            // Invalidate the local photos cache since the filenames have changed!
+            val act = activity as? MainActivity
+            act?.getAlbumManager()?.invalidateLocalPhotosCache()
             
             withContext(Dispatchers.Main) {
                 progressDialog.dismiss()
