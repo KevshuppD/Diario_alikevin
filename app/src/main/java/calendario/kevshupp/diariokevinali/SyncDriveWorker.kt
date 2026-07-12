@@ -184,16 +184,93 @@ class SyncDriveWorker(
                 Log.d(TAG, "Registro local de sincronización actualizado con archivos existentes.")
             }
 
-            // 5b. Detectar borrados locales y replicarlos en la nube (Drive + Firestore)
+            // 5b. Detectar borrados locales y renombrados, y replicarlos en la nube (Drive + Firestore)
             // Sólo consideramos borrado local si no existe localmente Y ya había sido sincronizado previamente en este dispositivo
             // Omitimos si la dirección es SOLO_BAJADA
-            val deletedLocally = if (syncDirection == "DOWNLOAD_ONLY") {
-                emptyMap<String, SyncMetadata>()
-            } else {
-                dbMetadataList.filter { (fileName, meta) ->
-                    !meta.eliminado && !localFilesMap.containsKey(fileName) && syncRegistryPrefs.getBoolean(fileName, false)
+            val deletedLocally = mutableMapOf<String, SyncMetadata>()
+            if (syncDirection != "DOWNLOAD_ONLY") {
+                // Identificamos archivos locales "nuevos" (que no coinciden por nombre con la BD)
+                val newLocalFiles = localFiles.filter { !updatedDbMetadataMap.containsKey(it.name) }
+                val newLocalFilesWithMd5 = coroutineScope {
+                    newLocalFiles.map { photo ->
+                        async {
+                            photo to (calculateMd5(photo.uri) ?: "")
+                        }
+                    }.awaitAll().filter { it.second.isNotEmpty() }
+                }
+
+                val renames = mutableListOf<Pair<SyncMetadata, LocalFileMeta>>()
+
+                for ((fileName, meta) in dbMetadataList) {
+                    if (meta.eliminado) continue
+                    if (!localFilesMap.containsKey(fileName) && syncRegistryPrefs.getBoolean(fileName, false)) {
+                        // Buscar coincidencia de MD5 con algún archivo local nuevo
+                        val renameMatch = newLocalFilesWithMd5.find { it.second == meta.md5Checksum }
+                        if (renameMatch != null) {
+                            renames.add(meta to renameMatch.first)
+                        } else {
+                            deletedLocally[fileName] = meta
+                        }
+                    }
+                }
+
+                // Procesar los archivos renombrados
+                if (renames.isNotEmpty()) {
+                    Log.d(TAG, "Detectados ${renames.size} archivos renombrados localmente. Sincronizando nombres en Drive y Firestore...")
+                    coroutineScope {
+                        val renameJobs = renames.map { (meta, localFile) ->
+                            async {
+                                runWithRetry(maxRetries) {
+                                    try {
+                                        // 1. Renombrar en Google Drive
+                                        val fileMetadata = com.google.api.services.drive.model.File().apply {
+                                            name = localFile.name
+                                        }
+                                        driveService.files().update(meta.idDrive, fileMetadata).execute()
+                                        Log.d(TAG, "Renombrado en Google Drive: ${meta.nombreArchivo} -> ${localFile.name}")
+                                        
+                                        // 2. Crear nuevo metadato en Firestore
+                                        val newMeta = meta.copy(
+                                            idLocal = localFile.name,
+                                            nombreArchivo = localFile.name,
+                                            uriLocal = localFile.uri.toString(),
+                                            fechaModificacion = localFile.lastModified
+                                        )
+                                        Tasks.await(
+                                            db.collection("pets").document(coupleId)
+                                                .collection("drive_sync_metadata").document(localFile.name)
+                                                .set(newMeta)
+                                        )
+                                        
+                                        // 3. Eliminar metadato antiguo en Firestore
+                                        Tasks.await(
+                                            db.collection("pets").document(coupleId)
+                                                .collection("drive_sync_metadata").document(meta.nombreArchivo)
+                                                .delete()
+                                        )
+                                        
+                                        // 4. Actualizar registro local de sincronización
+                                        syncRegistryPrefs.edit()
+                                            .remove(meta.nombreArchivo)
+                                            .putBoolean(localFile.name, true)
+                                            .apply()
+                                        
+                                        // 5. Actualizar mapa de metadatos en memoria
+                                        synchronized(updatedDbMetadataMap) {
+                                            updatedDbMetadataMap.remove(meta.nombreArchivo)
+                                            updatedDbMetadataMap[localFile.name] = newMeta
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error al procesar renombrado de ${meta.nombreArchivo} a ${localFile.name}: ${e.message}", e)
+                                    }
+                                }
+                            }
+                        }
+                        renameJobs.awaitAll()
+                    }
                 }
             }
+
             if (deletedLocally.isNotEmpty()) {
                 Log.d(TAG, "Detectados ${deletedLocally.size} archivos borrados localmente. Procesando eliminación...")
                 coroutineScope {

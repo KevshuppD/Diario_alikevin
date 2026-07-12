@@ -693,9 +693,119 @@ class SettingsFragment : Fragment() {
                                     }
                                 }
                             }
+                        },
+                        onRenamePhotosByDate = {
+                            selectedFolderUri?.let { uriStr ->
+                                renamePhotosByDate(uriStr)
+                            } ?: run {
+                                Toast.makeText(requireContext(), "Por favor, selecciona primero una carpeta de sincronización", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     )
                 }
+            }
+        }
+    }
+
+    private fun renamePhotosByDate(treeUriStr: String) {
+        val treeUri = Uri.parse(treeUriStr)
+        val context = requireContext()
+        val contentResolver = context.contentResolver
+        
+        // Show a loading dialog
+        val progressDialog = android.app.ProgressDialog(context).apply {
+            setMessage("Renombrando fotos por fecha...")
+            setCancelable(false)
+            show()
+        }
+        
+        lifecycleScope.launch(Dispatchers.IO) {
+            var renamedCount = 0
+            try {
+                val documentId = android.provider.DocumentsContract.getTreeDocumentId(treeUri)
+                val childrenUri = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
+                
+                val projection = arrayOf(
+                    android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                    android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE
+                )
+                
+                val filesToProcess = mutableListOf<Triple<Uri, String, Long>>()
+                val existingNames = mutableSetOf<String>()
+                
+                contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                    val docIdIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                    val lastModifiedIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                    val mimeTypeIndex = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE)
+                    
+                    while (cursor.moveToNext()) {
+                        val name = if (nameIndex != -1) cursor.getString(nameIndex) else null
+                        val docId = if (docIdIndex != -1) cursor.getString(docIdIndex) else null
+                        val mimeType = if (mimeTypeIndex != -1) cursor.getString(mimeTypeIndex) ?: "" else ""
+                        
+                        if (!name.isNullOrEmpty() && !docId.isNullOrEmpty()) {
+                            existingNames.add(name)
+                            if (mimeType.startsWith("image/")) {
+                                val lastModified = if (lastModifiedIndex != -1) cursor.getLong(lastModifiedIndex) else 0L
+                                val fileUri = android.provider.DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
+                                filesToProcess.add(Triple(fileUri, name, lastModified))
+                            }
+                        }
+                    }
+                }
+                
+                val sdf = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
+                val assignedNames = mutableSetOf<String>()
+                
+                for ((fileUri, name, lastModified) in filesToProcess) {
+                    if (lastModified == 0L) continue
+                    val dateStr = sdf.format(java.util.Date(lastModified))
+                    val extension = name.substringAfterLast(".", "")
+                    val baseName = "IMG_$dateStr"
+                    var targetName = if (extension.isNotEmpty()) "$baseName.$extension" else baseName
+                    
+                    // If the file is already named correctly, keep it
+                    if (name == targetName) {
+                        assignedNames.add(name)
+                        continue
+                    }
+                    
+                    // Resolve collisions
+                    var suffix = 1
+                    while (existingNames.contains(targetName) || assignedNames.contains(targetName)) {
+                        targetName = if (extension.isNotEmpty()) {
+                            "${baseName}_$suffix.$extension"
+                        } else {
+                            "${baseName}_$suffix"
+                        }
+                        suffix++
+                    }
+                    
+                    // Perform rename
+                    try {
+                        android.provider.DocumentsContract.renameDocument(contentResolver, fileUri, targetName)
+                        existingNames.remove(name)
+                        existingNames.add(targetName)
+                        assignedNames.add(targetName)
+                        renamedCount++
+                    } catch (e: Exception) {
+                        Log.e("SettingsFragment", "Error al renombrar $name a $targetName: ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SettingsFragment", "Error en renamePhotosByDate: ${e.message}")
+            }
+            
+            withContext(Dispatchers.Main) {
+                progressDialog.dismiss()
+                Toast.makeText(
+                    context,
+                    if (renamedCount > 0) "Se renombraron $renamedCount fotos con éxito." else "No fue necesario renombrar ninguna foto.",
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
     }

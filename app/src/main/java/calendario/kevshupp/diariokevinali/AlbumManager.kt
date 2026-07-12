@@ -499,26 +499,43 @@ class AlbumManager(
             """.trimIndent()
             
             val alertB = AlertDialog.Builder(context)
-            val customV = LayoutInflater.from(context).inflate(R.layout.dialog_album_options, null)
-            alertB.setView(customV)
-            val dTitle = customV.findViewById<TextView>(R.id.tvOptionsTitle)
-            dTitle.text = "Detalles de la Foto"
-            dTitle.typeface = vt323
-            dTitle.textSize = 28f
+            
+            // Create a programmatic vertical layout to prevent overlapping in ConstraintLayout
+            val layout = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dpToPx(24), dpToPx(24), dpToPx(24), dpToPx(24))
+                
+                if (isDark) {
+                    setBackgroundResource(R.drawable.bg_parchment_pixel_dark)
+                } else if (isMono) {
+                    setBackgroundColor(Color.WHITE)
+                } else {
+                    setBackgroundResource(R.drawable.bg_parchment_pixel)
+                }
+            }
+            
+            val dTitle = TextView(context).apply {
+                text = "Detalles de la Foto"
+                typeface = vt323
+                textSize = 28f
+                setTextColor(if (isDark) Color.WHITE else if (isMono) Color.BLACK else Color.parseColor("#4A2511"))
+                gravity = Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, 0, dpToPx(16))
+                }
+            }
+            layout.addView(dTitle)
             
             val contentTv = TextView(context).apply {
                 text = infoMsg
                 typeface = vt323
                 textSize = 20f
-                setTextColor(textColor)
-                setPadding(dpToPx(24), dpToPx(16), dpToPx(24), dpToPx(16))
+                setTextColor(if (isDark) Color.WHITE else if (isMono) Color.BLACK else Color.parseColor("#4A2511"))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, 0, dpToPx(20))
+                }
             }
-            
-            // Reemplazar los botones de dialog_album_options con nuestro contenido
-            val container = customV.findViewById<Button>(R.id.btnOptionAdd).parent as ViewGroup
-            container.removeAllViews()
-            container.addView(dTitle)
-            container.addView(contentTv)
+            layout.addView(contentTv)
             
             val closeBtn = TextView(context).apply {
                 text = "Entendido"
@@ -531,28 +548,13 @@ class AlbumManager(
                     setStroke(dpToPx(2), textColor)
                 }
                 background = borderDrawable
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(50)).apply {
-                    setMargins(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
-                }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(50))
                 isClickable = true
                 isFocusable = true
             }
-            container.addView(closeBtn)
+            layout.addView(closeBtn)
             
-            if (isDark) {
-                customV.setBackgroundResource(R.drawable.bg_parchment_pixel_dark)
-                dTitle.setTextColor(Color.WHITE)
-                contentTv.setTextColor(Color.WHITE)
-            } else if (isMono) {
-                customV.setBackgroundColor(Color.WHITE)
-                dTitle.setTextColor(Color.BLACK)
-                contentTv.setTextColor(Color.BLACK)
-            } else {
-                customV.setBackgroundResource(R.drawable.bg_parchment_pixel)
-                dTitle.setTextColor(Color.parseColor("#4A2511"))
-                contentTv.setTextColor(Color.parseColor("#4A2511"))
-            }
-            
+            alertB.setView(layout)
             val infoDialog = alertB.create()
             closeBtn.setOnClickListener { infoDialog.dismiss() }
             infoDialog.show()

@@ -675,7 +675,8 @@ fun SettingsScreen(
     onResetDrive: () -> Unit = {},
     onIncorrectPassword: () -> Unit = {},
     onTestFirestore: ( (String) -> Unit ) -> Unit = {},
-    onTestGoogleDrive: ( (String) -> Unit ) -> Unit = {}
+    onTestGoogleDrive: ( (String) -> Unit ) -> Unit = {},
+    onRenamePhotosByDate: () -> Unit = {}
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val isMono = currentTheme == "Pixel Monocromático"
@@ -1012,6 +1013,44 @@ fun SettingsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text("🔍 BUSCAR FOTOS REPETIDAS", fontFamily = Vt323, fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Text(text = "ORGANIZACIÓN POR FECHA", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Renombra automáticamente todas las fotos de tu carpeta compartida usando su fecha de creación (ej. IMG_20260712_120000.png). La sincronización inteligente detectará el cambio de nombre sin subir copias duplicadas.",
+                        fontFamily = Vt323,
+                        fontSize = 14.sp,
+                        color = textColor.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .clickable { 
+                                onRenamePhotosByDate()
+                            }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .offset(y = 6.dp)
+                                .background(borderColor)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .border(2.dp, borderColor)
+                                .background(if (isDark) Color(0xFF00796B) else Color(0xFFE65100)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("📅 RENOMBRAR FOTOS POR FECHA", fontFamily = Vt323, fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
