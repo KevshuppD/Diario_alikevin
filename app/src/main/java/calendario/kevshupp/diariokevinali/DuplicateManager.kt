@@ -14,19 +14,16 @@ class DuplicateManager(private val context: Context) {
     private fun calculateMd5(uri: Uri): String? {
         return try {
             val digest = MessageDigest.getInstance("MD5")
-            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
-            val buffer = ByteArray(32768)
-            var read: Int
-            while (inputStream.read(buffer).also { read = it } > 0) {
-                digest.update(buffer, 0, read)
-            }
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val buffer = ByteArray(32768)
+                var read: Int
+                while (inputStream.read(buffer).also { read = it } > 0) {
+                    digest.update(buffer, 0, read)
+                }
+            } ?: return null
             val md5sum = digest.digest()
             val bigInt = java.math.BigInteger(1, md5sum)
-            var output = bigInt.toString(16)
-            while (output.length < 32) {
-                output = "0$output"
-            }
-            output
+            bigInt.toString(16).padStart(32, '0')
         } catch (e: Exception) {
             Log.e(tag, "Error calculating MD5 for URI $uri: ${e.message}", e)
             null
@@ -47,13 +44,21 @@ class DuplicateManager(private val context: Context) {
         if (total == 0) return emptyList()
 
         val md5Map = mutableMapOf<String, MutableList<LocalPhoto>>()
+        
+        // Group photos by size to identify candidates for duplicate checks
+        val sizeGroups = files.groupBy { it.size }
 
         files.forEachIndexed { index, photo ->
             onProgress(index + 1, total)
-            val md5 = calculateMd5(Uri.parse(photo.uri))
-            if (md5 != null) {
-                val list = md5Map.getOrPut(md5) { mutableListOf() }
-                list.add(photo)
+            
+            // Only calculate MD5 if there are other files with the same size
+            val isCandidate = sizeGroups[photo.size]?.let { it.size > 1 } ?: false
+            if (isCandidate) {
+                val md5 = calculateMd5(Uri.parse(photo.uri))
+                if (md5 != null) {
+                    val list = md5Map.getOrPut(md5) { mutableListOf() }
+                    list.add(photo)
+                }
             }
         }
 
