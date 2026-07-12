@@ -314,24 +314,27 @@ class SyncDriveWorker(
                             val dbMeta = updatedDbMetadataMap[fileName]
                             val localLastModified = localFile.lastModified
                             
-                            val localMd5 = if (dbMeta != null && dbMeta.fechaModificacion == localLastModified) {
-                                dbMeta.md5Checksum
-                            } else {
-                                calculateMd5(localFile.uri) ?: ""
-                            }
-
+                            var localMd5 = ""
                             var needUpload = false
                             if (dbMeta != null && dbMeta.eliminado) {
-                                // Si fue marcado como eliminado remotamente, no se sube
                                 needUpload = false
                             } else if (dbMeta == null) {
-                                // Si no tiene metadatos en Firestore, se debe subir
                                 needUpload = true
-                            } else if (dbMeta.md5Checksum != localMd5) {
-                                // Si el checksum difiere y el archivo local es más reciente que los metadatos registrados
+                            } else {
                                 if (localLastModified > dbMeta.fechaModificacion) {
-                                    needUpload = true
+                                    localMd5 = if (dbMeta.fechaModificacion == localLastModified) {
+                                        dbMeta.md5Checksum
+                                    } else {
+                                        calculateMd5(localFile.uri) ?: ""
+                                    }
+                                    if (dbMeta.md5Checksum != localMd5) {
+                                        needUpload = true
+                                    }
                                 }
+                            }
+
+                            if (needUpload && localMd5.isEmpty()) {
+                                localMd5 = calculateMd5(localFile.uri) ?: ""
                             }
 
                             if (needUpload) {
@@ -425,10 +428,10 @@ class SyncDriveWorker(
                     } else {
                         val localFile = finalLocalFilesMap[fileName]!!
                         val localLastModified = localFile.lastModified
-                        // Si la fecha de modificación registrada es diferente, calculamos MD5 para verificar
-                        if (dbMeta.fechaModificacion != localLastModified) {
+                        // Si la fecha en la nube es posterior a la local, calculamos MD5 para verificar si cambió
+                        if (dbMeta.fechaModificacion > localLastModified) {
                             val localMd5 = calculateMd5(localFile.uri) ?: ""
-                            if (dbMeta.md5Checksum != localMd5 && dbMeta.fechaModificacion > localLastModified) {
+                            if (dbMeta.md5Checksum != localMd5) {
                                 needDownload = true
                             }
                         }
@@ -694,21 +697,16 @@ class SyncDriveWorker(
     private fun calculateMd5(uri: Uri): String? {
         return try {
             val digest = MessageDigest.getInstance("MD5")
-            val inputStream: InputStream? = applicationContext.contentResolver.openInputStream(uri)
-            if (inputStream == null) return null
-            val buffer = ByteArray(32768)
-            var read: Int
-            while (inputStream.read(buffer).also { read = it } > 0) {
-                digest.update(buffer, 0, read)
-            }
+            applicationContext.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val buffer = ByteArray(32768)
+                var read: Int
+                while (inputStream.read(buffer).also { read = it } > 0) {
+                    digest.update(buffer, 0, read)
+                }
+            } ?: return null
             val md5sum = digest.digest()
             val bigInt = java.math.BigInteger(1, md5sum)
-            var output = bigInt.toString(16)
-            // Rellenar con ceros a la izquierda
-            while (output.length < 32) {
-                output = "0$output"
-            }
-            output
+            bigInt.toString(16).padStart(32, '0')
         } catch (e: Exception) {
             Log.e(TAG, "Error al calcular MD5 para $uri: ${e.message}")
             null
