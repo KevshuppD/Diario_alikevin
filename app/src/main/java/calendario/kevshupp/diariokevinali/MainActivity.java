@@ -127,7 +127,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     private LinearLayout downloadProgressContainer;
     private ProgressBar downloadProgressBar;
     private View toolbarBorder, bottomActionsBarBorder;
-    private TextView tvTabHome, tvTabCalendar, tvTabAlbum, tvTabRecipes, tvTabProfile, tvTabMisc;
+    private TextView tvTabHome, tvTabCalendar, tvTabAlbum, tvTabRecipes, tvTabProfile, tvTabMisc, tvTabSettings;
     private String selectedImageUrl = null;
 
     private String currentTheme = "Pixel Claro";
@@ -343,7 +343,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             showFragment(ProfileFragment.newInstance(currentUserId, currentCoupleId, currentTheme));
         });
         btnSettings.setOnClickListener(v -> {
-            updateTabSelection(0); // Quitar resalte de las pestañas inferiores
+            updateTabSelection(R.id.btnSettings);
             showFragment(SettingsFragment.newInstance(currentUserId, currentCoupleId, currentTheme));
         });
         btnMisc.setOnClickListener(v -> {
@@ -384,7 +384,6 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             composeFeed.setVisibility(View.VISIBLE);
             inputArea.setVisibility(View.VISIBLE);
             btnMenuMore.setVisibility(View.VISIBLE); // Mostrar filtro en cartas
-            btnSettings.setVisibility(View.VISIBLE); // Mostrar configuración en cartas
         });
 
         // Manejo moderno del botón Atrás
@@ -396,7 +395,6 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     composeFeed.setVisibility(View.VISIBLE);
                     inputArea.setVisibility(View.VISIBLE);
                     btnMenuMore.setVisibility(View.VISIBLE);
-                    btnSettings.setVisibility(View.VISIBLE);
                     fragmentContainer.setVisibility(View.GONE);
                     updateTabSelection(R.id.btnHome);
                 } else {
@@ -500,6 +498,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         tvTabRecipes = findViewById(R.id.tvTabRecipes);
         tvTabProfile = findViewById(R.id.tvTabProfile);
         tvTabMisc = findViewById(R.id.tvTabMisc);
+        tvTabSettings = findViewById(R.id.tvTabSettings);
     }
 
     private void showOverflowMenu(View v) {
@@ -517,7 +516,6 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
 
     private void showFragment(androidx.fragment.app.Fragment fragment) {
         btnMenuMore.setVisibility(View.GONE); // Ocultar filtro fuera de cartas
-        btnSettings.setVisibility(View.GONE); // Ocultar botón configuración
         composeFeed.setVisibility(View.GONE);
         inputArea.setVisibility(View.GONE);
         fragmentContainer.setVisibility(View.VISIBLE);
@@ -1663,7 +1661,6 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     composeFeed.setVisibility(View.VISIBLE);
                     inputArea.setVisibility(View.VISIBLE);
                     btnMenuMore.setVisibility(View.VISIBLE);
-                    btnSettings.setVisibility(View.VISIBLE);
                     break;
                 case "receta":
                     updateTabSelection(R.id.btnRecipes);
@@ -2046,6 +2043,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         // Misc Tab
         btnMisc.setColorFilter(activeTabId == R.id.btnMisc ? activeColor : inactiveColor);
         tvTabMisc.setTextColor(activeTabId == R.id.btnMisc ? activeColor : inactiveColor);
+
+        // Settings Tab
+        btnSettings.setColorFilter(activeTabId == R.id.btnSettings ? activeColor : inactiveColor);
+        tvTabSettings.setTextColor(activeTabId == R.id.btnSettings ? activeColor : inactiveColor);
     }
 
     public void applyTheme(String theme) {
@@ -2159,7 +2160,6 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         tvToolbarTitle.setTextColor(toolbarContentColor);
         ivToolbarHeart.setColorFilter(toolbarContentColor);
         btnMenuMore.setColorFilter(toolbarContentColor);
-        btnSettings.setColorFilter(toolbarContentColor);
         
         // Llamar a updateTabSelection para aplicar los filtros correctos de pestaña activa/inactiva
         updateTabSelection(activeTabId);

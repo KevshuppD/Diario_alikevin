@@ -84,15 +84,6 @@
                 android:orientation="horizontal">
 
                 <ImageButton
-                    android:id="@+id/btnSettings"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Configuración"
-                    android:src="@drawable/ic_settings_pixel"
-                    app:tint="@android:color/white" />
-
-                <ImageButton
                     android:id="@+id/btnMenuMore"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
@@ -400,6 +391,32 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/vt323"
                 android:text="Perfil"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageButton
+                android:id="@+id/btnSettings"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Configuración"
+                android:src="@drawable/ic_settings_pixel"
+                app:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvTabSettings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/vt323"
+                android:text="Config."
                 android:textColor="@android:color/white"
                 android:textSize="14sp" />
         </LinearLayout>
