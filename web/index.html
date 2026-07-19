@@ -693,12 +693,24 @@
         // Render placed spirits inside this category
         cat.spiritIds.forEach(id => {
           if (!spiritsList.includes(id)) return; // Skipped if deleted from master spiritsList
+          
+          // Generate option list of all categories
+          let optionsHtml = `<option value="" disabled selected>Mover a...</option>`;
+          categories.forEach(c => {
+            const isCurrent = c.name === cat.name;
+            optionsHtml += `<option value="${c.name}" ${isCurrent ? 'selected' : ''}>${customCategories[c.name] || c.name}</option>`;
+          });
+          optionsHtml += `<option value="__uncategorized__">Sin Categoría / Suelto</option>`;
+
           const slot = document.createElement("div");
           slot.className = "spirit-slot";
           slot.innerHTML = `
             <button class="remove-btn" onclick="removeSpiritFromCategory('${id}', '${cat.name}')">×</button>
             <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}">
-            <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}">
+            <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}" style="margin-bottom: 4px;">
+            <select class="category-select" data-id="${id}" style="width: 100%; font-size: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); color: var(--text-color); border-radius: 4px; padding: 2px; outline: none; cursor: pointer;">
+              ${optionsHtml}
+            </select>
           `;
 
           // Editable spirit name input
@@ -712,6 +724,12 @@
             } else {
               customNames[sid] = newVal;
             }
+          });
+
+          const selectEl = slot.querySelector("select");
+          selectEl.addEventListener("change", (e) => {
+            const newCat = e.target.value;
+            moveSpiritToCategory(id, newCat);
           });
 
           slotsGrid.appendChild(slot);
@@ -758,12 +776,21 @@
       looseGrid.dataset.categoryName = "__uncategorized__";
 
       uncategorizedIds.forEach(id => {
+        // Generate options list
+        let optionsHtml = `<option value="__uncategorized__" selected>Sin Categoría / Suelto</option>`;
+        categories.forEach(c => {
+          optionsHtml += `<option value="${c.name}">${customCategories[c.name] || c.name}</option>`;
+        });
+
         const slot = document.createElement("div");
         slot.className = "spirit-slot";
         slot.innerHTML = `
           <button class="remove-btn" style="background: rgba(239, 68, 68, 0.2);" onclick="permanentlyDeleteSpirit('${id}')">🗑</button>
           <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}">
-          <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}">
+          <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}" style="margin-bottom: 4px;">
+          <select class="category-select" data-id="${id}" style="width: 100%; font-size: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); color: var(--text-color); border-radius: 4px; padding: 2px; outline: none; cursor: pointer;">
+            ${optionsHtml}
+          </select>
         `;
 
         const nameInput = slot.querySelector("input");
@@ -776,6 +803,12 @@
           } else {
             customNames[sid] = newVal;
           }
+        });
+
+        const selectEl = slot.querySelector("select");
+        selectEl.addEventListener("change", (e) => {
+          const newCat = e.target.value;
+          moveSpiritToCategory(id, newCat);
         });
 
         looseGrid.appendChild(slot);

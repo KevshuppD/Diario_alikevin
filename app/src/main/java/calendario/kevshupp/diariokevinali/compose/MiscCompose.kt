@@ -453,54 +453,64 @@ fun SpiritsChecklistView(
 
                     val schemaVersion = (snapshot.get("schema_version") as? Number)?.toInt() ?: 1
 
+                    val isFromCache = snapshot.metadata.isFromCache
+
                     if (parsedSpiritsList.isEmpty()) {
-                        // New document or empty list, write default values to Firestore!
-                        val docRef = db.collection("fortnite_spirits").document(coupleId)
-                        val updates = hashMapOf<String, Any>(
-                            "categories" to defaultCategories.map { cat ->
-                                hashMapOf("name" to cat.name, "spiritIds" to cat.spiritIds)
-                            },
-                            "spirits_list" to defaultSpiritsList,
-                            "schema_version" to 3
-                        )
-                        docRef.set(updates, SetOptions.merge())
+                        if (!isFromCache) {
+                            // New document or empty list, write default values to Firestore!
+                            val docRef = db.collection("fortnite_spirits").document(coupleId)
+                            val updates = hashMapOf<String, Any>(
+                                "categories" to defaultCategories.map { cat ->
+                                    hashMapOf("name" to cat.name, "spiritIds" to cat.spiritIds)
+                                },
+                                "spirits_list" to defaultSpiritsList,
+                                "schema_version" to 3
+                            )
+                            docRef.set(updates, SetOptions.merge())
+                        }
                         categories = defaultCategories
                         spiritsList = defaultSpiritsList
                     } else if (schemaVersion < 3) {
-                        // Firestore document is outdated (schema_version < 3). Migrate it to 121!
-                        val migrateSelections = { oldList: List<String> ->
-                            oldList.map { id ->
-                                val num = id.toIntOrNull() ?: return@map id
-                                val newNum = when {
-                                    num in 117..119 -> num + 2
-                                    num in 110..116 -> num + 2
-                                    num in 104..109 -> num + 1
-                                    else -> num
-                                }
-                                String.format("%02d", newNum)
-                            }.distinct()
+                        if (!isFromCache) {
+                            // Firestore document is outdated (schema_version < 3). Migrate it to 121!
+                            val migrateSelections = { oldList: List<String> ->
+                                oldList.map { id ->
+                                    val num = id.toIntOrNull() ?: return@map id
+                                    val newNum = when {
+                                        num in 117..119 -> num + 2
+                                        num in 110..116 -> num + 2
+                                        num in 104..109 -> num + 1
+                                        else -> num
+                                    }
+                                    String.format("%02d", newNum)
+                                }.distinct()
+                            }
+
+                            val migratedKevin = if (schemaVersion == 1) migrateSelections(kevinList) else kevinList
+                            val migratedAli = if (schemaVersion == 1) migrateSelections(aliList) else aliList
+                            val migratedKevinMastery = if (schemaVersion == 1) migrateSelections(kevinMastery) else kevinMastery
+                            val migratedAliMastery = if (schemaVersion == 1) migrateSelections(aliMastery) else aliMastery
+
+                            val docRef = db.collection("fortnite_spirits").document(coupleId)
+                            val updates = hashMapOf<String, Any>(
+                                "categories" to defaultCategories.map { cat ->
+                                    hashMapOf("name" to cat.name, "spiritIds" to cat.spiritIds)
+                                },
+                                "spirits_list" to defaultSpiritsList,
+                                "kevin_list" to migratedKevin,
+                                "ali_list" to migratedAli,
+                                "kevin_mastery" to migratedKevinMastery,
+                                "ali_mastery" to migratedAliMastery,
+                                "schema_version" to 3
+                            )
+                            docRef.update(updates)
+                            categories = defaultCategories
+                            spiritsList = defaultSpiritsList
+                        } else {
+                            // Cache is outdated, display temporarily but wait for server to migrate/load
+                            categories = parsedCategories.ifEmpty { defaultCategories }
+                            spiritsList = parsedSpiritsList
                         }
-
-                        val migratedKevin = if (schemaVersion == 1) migrateSelections(kevinList) else kevinList
-                        val migratedAli = if (schemaVersion == 1) migrateSelections(aliList) else aliList
-                        val migratedKevinMastery = if (schemaVersion == 1) migrateSelections(kevinMastery) else kevinMastery
-                        val migratedAliMastery = if (schemaVersion == 1) migrateSelections(aliMastery) else aliMastery
-
-                        val docRef = db.collection("fortnite_spirits").document(coupleId)
-                        val updates = hashMapOf<String, Any>(
-                            "categories" to defaultCategories.map { cat ->
-                                hashMapOf("name" to cat.name, "spiritIds" to cat.spiritIds)
-                            },
-                            "spirits_list" to defaultSpiritsList,
-                            "kevin_list" to migratedKevin,
-                            "ali_list" to migratedAli,
-                            "kevin_mastery" to migratedKevinMastery,
-                            "ali_mastery" to migratedAliMastery,
-                            "schema_version" to 3
-                        )
-                        docRef.update(updates)
-                        categories = defaultCategories
-                        spiritsList = defaultSpiritsList
                     } else {
                         // Firestore document is up to date, use its values
                         categories = parsedCategories.ifEmpty { defaultCategories }
