@@ -96,6 +96,7 @@ import androidx.compose.runtime.MutableState;
 import androidx.compose.runtime.SnapshotStateKt;
 import calendario.kevshupp.diariokevinali.compose.MessageFeedComposeKt;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.ViewModelProvider;
 
 public class MainActivity extends AppCompatActivity implements AppNavigation {
 
@@ -136,6 +137,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     private int currentCropType = -1;
     private final java.util.concurrent.ExecutorService fcmExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
 
+    public MainViewModel viewModel;
     private UpdateManager updateManager;
     private MessageEditor messageEditor;
     public RecipeManager recipeManager;
@@ -250,50 +252,12 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED.equals(intent.getAction())) {
-                syncDndStateWithPet();
+                if (viewModel != null) {
+                    viewModel.syncDndStateWithPet();
+                }
             }
         }
     };
-
-    private boolean isDoNotDisturbActive() {
-        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (nm != null) {
-            int filter = nm.getCurrentInterruptionFilter();
-            return filter != NotificationManager.INTERRUPTION_FILTER_ALL;
-        }
-        return false;
-    }
-
-    private void syncDndStateWithPet() {
-        Pet p = petState.getValue();
-        if (p == null || currentCoupleId == null) return;
-        boolean dndActive = isDoNotDisturbActive();
-        if (dndActive) {
-            if (!p.isSleeping()) {
-                db.collection("pets").document(currentCoupleId)
-                    .update("isSleeping", true,
-                            "status", Pet.STATUS_SLEEPING,
-                            "dndTriggeredByUserId", currentUserId)
-                    .addOnSuccessListener(aVoid -> {
-                        showStyledPixelToast("Thor se durmió porque activaste No Molestar 🌙");
-                    });
-            }
-        } else {
-            if (p.isSleeping() && currentUserId.equals(p.getDndTriggeredByUserId())) {
-                int newHappiness = Math.min(100, p.getHappiness() + 20);
-                String newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
-                db.collection("pets").document(currentCoupleId)
-                    .update("isSleeping", false,
-                            "status", newStatus,
-                            "happiness", newHappiness,
-                            "lastInteraction", System.currentTimeMillis(),
-                            "dndTriggeredByUserId", null)
-                    .addOnSuccessListener(aVoid -> {
-                        showStyledPixelToast("¡Thor despertó al desactivar No Molestar! ☀️");
-                    });
-            }
-        }
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -317,6 +281,8 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         }
 
         setContentView(R.layout.activity_main);
+        viewModel = new ViewModelProvider(this).get(MainViewModel.class);
+        setupViewModelObservers();
         db = FirebaseFirestore.getInstance();
         ensureUserInFirestore();
         
@@ -415,15 +381,12 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     @Override
     protected void onStart() {
         super.onStart();
-        listenMessagesFromFirestore();
-        listenUserInfo();
-        listenPet();
-        listenCalendar();
+        viewModel.startAllListeners();
         setupOverlays();
         checkNotificationPermission();
         try {
             registerReceiver(dndReceiver, new IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED));
-            syncDndStateWithPet();
+            viewModel.syncDndStateWithPet();
         } catch (Exception e) {
             Log.e("MainActivity", "Error registering dndReceiver: " + e.getMessage());
         }
@@ -432,10 +395,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     @Override
     protected void onStop() {
         super.onStop();
-        if (firestoreListener != null) { firestoreListener.remove(); firestoreListener = null; }
-        if (calendarListener != null) { calendarListener.remove(); calendarListener = null; }
-        if (userListener != null) { userListener.remove(); userListener = null; }
-        if (petListener != null) { petListener.remove(); petListener = null; }
+        viewModel.stopAllListeners();
         try {
             unregisterReceiver(dndReceiver);
         } catch (Exception e) {
@@ -605,6 +565,37 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         controller.show(WindowInsetsCompat.Type.systemBars());
     }
 
+    private void setupViewModelObservers() {
+        viewModel.getPetState().observe(this, pet -> {
+            if (pet != null) {
+                petState.setValue(pet);
+            }
+        });
+        viewModel.getMessagesState().observe(this, list -> {
+            if (list != null) {
+                messagesState.setValue(list);
+            }
+        });
+        viewModel.getThemeState().observe(this, theme -> {
+            if (theme != null) {
+                themeState.setValue(theme);
+                applyTheme(theme);
+            }
+        });
+        viewModel.getToastMessage().observe(this, message -> {
+            if (message != null) {
+                showStyledPixelToast(message);
+                viewModel.getToastMessage().setValue(null);
+            }
+        });
+        viewModel.getLevelUpEvent().observe(this, pair -> {
+            if (pair != null) {
+                showStyledPixelToast("¡" + pair.getFirst() + " ha subido al nivel " + pair.getSecond() + "! 🎉");
+                viewModel.getLevelUpEvent().setValue(null);
+            }
+        });
+    }
+
     private void setupRecyclerView() {
         messages = new ArrayList<>();
         MessageFeedComposeKt.setFeedContent(
@@ -628,12 +619,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 }
                 return kotlin.Unit.INSTANCE;
             },
-            msg -> { db.collection("messages").document(msg.getMessageId()).delete(); return kotlin.Unit.INSTANCE; },
+            msg -> { viewModel.deleteMessage(msg); return kotlin.Unit.INSTANCE; },
             msg -> {
-                boolean newLiked = !msg.isLiked();
-                msg.setLiked(newLiked);
-                db.collection("messages").document(msg.getMessageId()).update("liked", newLiked);
-                if (newLiked) {
+                viewModel.toggleLikeMessage(msg);
+                if (!msg.isLiked()) {
                     String letterTitle = msg.getTitle();
                     if (letterTitle == null || letterTitle.trim().isEmpty()) {
                         letterTitle = "una carta";
@@ -642,14 +631,12 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     String notifBody = "Le dio me gusta a tu carta: \"" + letterTitle + "\"";
                     sendNotificationV1(notifTitle, notifBody, msg.getImageUrl(), "like");
                 }
-                // Forzar actualización del estado local
-                messagesState.setValue(new ArrayList<>(messagesState.getValue()));
                 return kotlin.Unit.INSTANCE;
             },
             (title, content, imageUrl) -> {
                 Message m = editingMessageState.getValue();
+                boolean isEdit = m != null;
                 if (m == null) {
-                    // Nuevo mensaje
                     m = new Message();
                     m.setMessageId(db.collection("messages").document().getId());
                     m.setAuthorId(currentUserId);
@@ -667,432 +654,30 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     m.setImageUrls(urls);
                 }
 
-                db.collection("messages").document(m.getMessageId()).set(m)
-                    .addOnSuccessListener(aVoid -> {
-                        updatePetOnInteraction();
-                        if (editingMessageState.getValue() == null) {
-                            String notifTitle = "Nuevo mensaje de " + currentUserName + " 💌";
-                            String notifBody = (title != null && !title.isEmpty()) ? "«" + title + "»: " + content : content;
-                            sendNotificationV1(notifTitle, notifBody, imageUrl, "carta");
-                            Toast.makeText(MainActivity.this, "Carta enviada ❤️", Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(MainActivity.this, "Carta actualizada ✨", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                return kotlin.Unit.INSTANCE;
-            },
-            newName -> {
-                db.collection("pets").document(currentCoupleId).update("name", newName);
-                return kotlin.Unit.INSTANCE;
-            },
-            (accessoryId, cost) -> {
-                Pet p = petState.getValue();
-                if (p != null && p.getLovePoints() >= cost) {
-                    List<String> unlocked = new ArrayList<>(p.getUnlockedAccessories());
-                    if (!unlocked.contains(accessoryId)) {
-                        unlocked.add(accessoryId);
-                        db.collection("pets").document(currentCoupleId)
-                            .update("lovePoints", p.getLovePoints() - cost,
-                                    "unlockedAccessories", unlocked,
-                                    "equippedAccessory", accessoryId);
-                        showStyledPixelToast("¡Accesorio comprado y equipado! ✨");
-                    }
+                viewModel.saveMessageToFirestore(m, isEdit);
+
+                if (!isEdit) {
+                    String notifTitle = "Nuevo mensaje de " + currentUserName + " 💌";
+                    String notifBody = (title != null && !title.isEmpty()) ? "«" + title + "»: " + content : content;
+                    sendNotificationV1(notifTitle, notifBody, imageUrl, "carta");
+                    Toast.makeText(MainActivity.this, "Carta enviada ❤️", Toast.LENGTH_SHORT).show();
                 } else {
-                    showStyledPixelToast("No tienes suficientes puntos de amor ❤️");
+                    Toast.makeText(MainActivity.this, "Carta actualizada ✨", Toast.LENGTH_SHORT).show();
                 }
                 return kotlin.Unit.INSTANCE;
             },
-            accessoryId -> {
-                db.collection("pets").document(currentCoupleId).update("equippedAccessory", accessoryId);
-                return kotlin.Unit.INSTANCE;
-            },
-            (backgroundId, cost) -> {
-                Pet p = petState.getValue();
-                if (p != null) {
-                    if (p.getLovePoints() >= cost) {
-                        List<String> unlocked = new ArrayList<>(p.getUnlockedBackgrounds());
-                        if (!unlocked.contains(backgroundId)) {
-                            unlocked.add(backgroundId);
-                        }
-                        db.collection("pets").document(currentCoupleId)
-                            .update("lovePoints", p.getLovePoints() - cost,
-                                    "unlockedBackgrounds", unlocked,
-                                    "equippedBackground", backgroundId)
-                            .addOnSuccessListener(aVoid -> {
-                                showStyledPixelToast("¡Fondo comprado y equipado! 🖼️✨");
-                            });
-                    } else {
-                        showStyledPixelToast("No tienes suficientes puntos de amor ❤️");
-                    }
-                }
-                return kotlin.Unit.INSTANCE;
-            },
-            backgroundId -> {
-                Pet p = petState.getValue();
-                if (p != null) {
-                    db.collection("pets").document(currentCoupleId)
-                        .update("equippedBackground", backgroundId)
-                        .addOnSuccessListener(aVoid -> {
-                            showStyledPixelToast("¡Fondo equipado! 🖼️");
-                        });
-                }
-                return kotlin.Unit.INSTANCE;
-            },
-            (foodId, cost, happinessGain) -> {
-                Pet p = petState.getValue();
-                if (p != null) {
-                    if (p.getLovePoints() >= cost) {
-                        long now = System.currentTimeMillis();
-                        DecayedStats stats = calculateDecay(p, now);
-                        int decayedCleanliness = stats.cleanliness;
-                        int decayedSleepPercent = stats.sleepPercent;
-                        long nextDecayUpdate = stats.nextDecayUpdate;
-
-                        int currentHappiness = p.getHappiness();
-                        int newHappiness = Math.min(100, currentHappiness + happinessGain);
-                        String newStatus = p.getStatus();
-                        if (newHappiness > 40 && Pet.STATUS_SAD.equals(newStatus)) {
-                            newStatus = Pet.STATUS_HAPPY;
-                        }
-                        db.collection("pets").document(currentCoupleId)
-                            .update("lovePoints", p.getLovePoints() - cost,
-                                    "happiness", newHappiness,
-                                    "status", newStatus,
-                                    "hunger", 0,
-                                    "cleanliness", decayedCleanliness,
-                                    "sleepPercent", decayedSleepPercent,
-                                    "lastInteraction", now,
-                                    "lastDecayUpdate", nextDecayUpdate);
-                        showStyledPixelToast("¡Le has dado de comer a Thor! 💖 +" + happinessGain + "% Felicidad");
-                    } else {
-                        showStyledPixelToast("No tienes suficientes puntos de amor ❤️");
-                    }
-                }
-                return kotlin.Unit.INSTANCE;
-            },
-            (points, exp) -> {
-                Pet p = petState.getValue();
-                if (p != null) {
-                    long now = System.currentTimeMillis();
-                    String today = dayFormat.format(new java.util.Date(now));
-                    int currentDailyTaps = today.equals(p.getLastTapDate()) ? p.getDailyTapCount() : 0;
-                    
-                    int maxDailyTaps = 30;
-                    int allowedTaps = Math.max(0, maxDailyTaps - currentDailyTaps);
-                    
-                    if (allowedTaps <= 0) {
-                        showStyledPixelToast("¡Thor ya recibió suficiente cariño por hoy! 💖 (Límite: " + maxDailyTaps + "/día)");
-                        return kotlin.Unit.INSTANCE;
-                    }
-                    
-                    int actualTapsAdded = Math.min(points, allowedTaps);
-                    
-                    DecayedStats stats = calculateDecay(p, now);
-                    int decayedCleanliness = stats.cleanliness;
-                    int decayedSleepPercent = stats.sleepPercent;
-                    long nextDecayUpdate = stats.nextDecayUpdate;
-
-                    int newExp = p.getExperience() + exp;
-                    int newLevel = p.getLevel();
-                    int newLovePoints = p.getLovePoints() + actualTapsAdded;
-                    int newHappiness = Math.min(100, p.getHappiness() + actualTapsAdded);
-                    
-                    // Determinar estado y verificar despertar automático si el sueño llegó al 100%
-                    boolean isNowSleeping = p.isSleeping();
-                    if (p.isSleeping() && decayedSleepPercent >= 100) {
-                        isNowSleeping = false;
-                        decayedSleepPercent = 100;
-                    }
-                    
-                    String newStatus = p.getStatus();
-                    if (isNowSleeping) {
-                        newStatus = Pet.STATUS_SLEEPING;
-                    } else if (stats.hunger >= 70) {
-                        newStatus = Pet.STATUS_HUNGRY;
-                    } else {
-                        newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
-                    }
-
-                    boolean leveledUp = false;
-                    if (newExp >= 100) {
-                        newLevel++;
-                        newExp -= 100;
-                        newLovePoints += 50; // Bonus por nivel
-                        leveledUp = true;
-                    }
-                    
-                    final boolean showLevelUpToast = leveledUp;
-                    final int finalLevel = newLevel;
-                    final int finalTaps = actualTapsAdded;
-                    final int totalTapsToday = currentDailyTaps + actualTapsAdded;
-                    
-                    db.collection("pets").document(currentCoupleId)
-                        .update("lovePoints", newLovePoints,
-                                "experience", newExp,
-                                "level", newLevel,
-                                "happiness", newHappiness,
-                                "status", newStatus,
-                                "hunger", 0,
-                                "cleanliness", decayedCleanliness,
-                                "sleepPercent", decayedSleepPercent,
-                                "lastInteraction", now,
-                                "lastDecayUpdate", nextDecayUpdate,
-                                "isSleeping", isNowSleeping,
-                                "dailyTapCount", totalTapsToday,
-                                "lastTapDate", today)
-                        .addOnSuccessListener(aVoid -> {
-                            if (totalTapsToday >= maxDailyTaps) {
-                                showStyledPixelToast("¡Thor se siente amado! ❤️ +" + finalTaps + " Amor (¡Límite alcanzado! 🎉)");
-                            } else {
-                                showStyledPixelToast("¡Thor se siente amado! ❤️ +" + finalTaps + " Amor (" + totalTapsToday + "/" + maxDailyTaps + ")");
-                            }
-                            if (showLevelUpToast) {
-                                showStyledPixelToast("¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉");
-                            }
-                        })
-                        .addOnFailureListener(err -> {
-                            Log.e("RewardPet", "Error al actualizar recompensa: " + err.getMessage());
-                        });
-                }
-                return kotlin.Unit.INSTANCE;
-            },
-            () -> {
-                Pet p = petState.getValue();
-                if (p != null) {
-                    boolean dndActive = isDoNotDisturbActive();
-                    boolean targetSleepState = !p.isSleeping();
-                    
-                    if (!targetSleepState && dndActive) {
-                        showStyledPixelToast("No puedes despertar a Thor mientras el modo No Molestar esté activo en tu celular. 📵");
-                        return kotlin.Unit.INSTANCE;
-                    }
-
-                    long now = System.currentTimeMillis();
-                    DecayedStats stats = calculateDecay(p, now);
-                    int decayedHunger = stats.hunger;
-                    int decayedCleanliness = stats.cleanliness;
-                    int decayedSleepPercent = stats.sleepPercent;
-                    long nextDecayUpdate = stats.nextDecayUpdate;
-
-                    int newHappiness = p.getHappiness();
-                    String newStatus = p.getStatus();
-                    
-                    if (targetSleepState) {
-                        if (decayedSleepPercent >= 100) {
-                            showStyledPixelToast("¡Thor ya está completamente descansado! ☀️ No necesita dormir.");
-                            return kotlin.Unit.INSTANCE;
-                        }
-                        newStatus = Pet.STATUS_SLEEPING;
-                        db.collection("pets").document(currentCoupleId)
-                            .update("isSleeping", true,
-                                    "status", newStatus,
-                                    "hunger", decayedHunger,
-                                    "cleanliness", decayedCleanliness,
-                                    "sleepPercent", decayedSleepPercent,
-                                    "lastInteraction", now,
-                                    "lastDecayUpdate", nextDecayUpdate,
-                                    "dndTriggeredByUserId", null)
-                            .addOnSuccessListener(aVoid -> {
-                                showStyledPixelToast("¡Thor se ha ido a dormir! 🌙 Shhh...");
-                            });
-                    } else {
-                        newHappiness = Math.min(100, newHappiness + 20);
-                        newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
-                        db.collection("pets").document(currentCoupleId)
-                            .update("isSleeping", false,
-                                    "status", newStatus,
-                                    "happiness", newHappiness,
-                                    "hunger", decayedHunger,
-                                    "cleanliness", decayedCleanliness,
-                                    "sleepPercent", decayedSleepPercent,
-                                    "lastInteraction", now,
-                                    "lastDecayUpdate", nextDecayUpdate,
-                                    "dndTriggeredByUserId", null)
-                            .addOnSuccessListener(aVoid -> {
-                                showStyledPixelToast("¡Thor ha despertado muy alegre! ☀️ +20% Felicidad");
-                            });
-                    }
-                }
-                return kotlin.Unit.INSTANCE;
-            },
+            newName -> { viewModel.updatePetName(newName); return kotlin.Unit.INSTANCE; },
+            (accessoryId, cost) -> { viewModel.buyAccessory(accessoryId, cost); return kotlin.Unit.INSTANCE; },
+            accessoryId -> { viewModel.equipAccessory(accessoryId); return kotlin.Unit.INSTANCE; },
+            (backgroundId, cost) -> { viewModel.buyBackground(backgroundId, cost); return kotlin.Unit.INSTANCE; },
+            backgroundId -> { viewModel.equipBackground(backgroundId); return kotlin.Unit.INSTANCE; },
+            (foodId, cost, happinessGain) -> { viewModel.feedPet(foodId, cost, happinessGain); return kotlin.Unit.INSTANCE; },
+            (points, exp) -> { viewModel.rewardPet(points, exp); return kotlin.Unit.INSTANCE; },
+            () -> { viewModel.togglePetSleep(); return kotlin.Unit.INSTANCE; },
             () -> { pickImage(PICK_IMAGE_CARTA); return kotlin.Unit.INSTANCE; },
-            // onBathPet
-            () -> {
-                Pet p = petState.getValue();
-                if (p != null) {
-                    if (p.isSleeping()) {
-                        showStyledPixelToast("💤 ¡Thor está durmiendo!");
-                        return kotlin.Unit.INSTANCE;
-                    }
-                    if (p.getCleanliness() >= 80) {
-                        showStyledPixelToast("¡" + p.getName() + " todavía está limpio! 🫧 (Limpieza: " + p.getCleanliness() + "%)");
-                        return kotlin.Unit.INSTANCE;
-                    }
-
-                    long now = System.currentTimeMillis();
-                    DecayedStats stats = calculateDecay(p, now);
-                    int decayedHunger = stats.hunger;
-                    int decayedSleepPercent = stats.sleepPercent;
-                    long nextDecayUpdate = stats.nextDecayUpdate;
-
-                    int newHappiness = Math.min(100, p.getHappiness() + 10);
-                    int newExp = p.getExperience() + 3;
-                    int newLevel = p.getLevel();
-                    int newLovePoints = p.getLovePoints();
-                    boolean leveledUp = false;
-                    if (newExp >= 100) {
-                        newLevel++;
-                        newExp -= 100;
-                        newLovePoints += 50;
-                        leveledUp = true;
-                    }
-                    String newStatus = p.getStatus();
-                    if (newHappiness > 40 && Pet.STATUS_SAD.equals(newStatus)) {
-                        newStatus = Pet.STATUS_HAPPY;
-                    }
-                    final boolean showLevelUpToast = leveledUp;
-                    final int finalLevel = newLevel;
-                    String today = dayFormat.format(new java.util.Date(now));
-                    db.collection("pets").document(currentCoupleId)
-                        .update("cleanliness", 100,
-                                "happiness", newHappiness,
-                                "experience", newExp,
-                                "level", newLevel,
-                                "lovePoints", newLovePoints,
-                                "status", newStatus,
-                                "lastBathDate", today,
-                                "hunger", decayedHunger,
-                                "sleepPercent", decayedSleepPercent,
-                                "lastInteraction", now,
-                                "lastDecayUpdate", nextDecayUpdate)
-                        .addOnSuccessListener(aVoid -> {
-                            showStyledPixelToast("¡Thor ha quedado súper limpio! 🫧🚿");
-                            if (showLevelUpToast) {
-                                showStyledPixelToast("¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉");
-                            }
-                        });
-                }
-                return kotlin.Unit.INSTANCE;
-            },
-            // onPlayBallPet
-            (points, happinessGain) -> {
-                Pet p = petState.getValue();
-                if (p != null) {
-                    long now = System.currentTimeMillis();
-                    String today = dayFormat.format(new java.util.Date(now));
-                    if (today.equals(p.getLastBallDate())) {
-                        showStyledPixelToast("¡Ya jugaste con la pelota hoy! ⚾");
-                        return kotlin.Unit.INSTANCE;
-                    }
-
-                    DecayedStats stats = calculateDecay(p, now);
-                    int decayedHunger = stats.hunger;
-                    int decayedCleanliness = stats.cleanliness;
-                    int decayedSleepPercent = stats.sleepPercent;
-                    long nextDecayUpdate = stats.nextDecayUpdate;
-
-                    int newHappiness = Math.min(100, p.getHappiness() + happinessGain);
-                    int newLovePoints = p.getLovePoints() + points;
-                    int newExp = p.getExperience() + 10;
-                    int newLevel = p.getLevel();
-                    boolean leveledUp = false;
-                    if (newExp >= 100) {
-                        newLevel++;
-                        newExp -= 100;
-                        newLovePoints += 50;
-                        leveledUp = true;
-                    }
-                    String newStatus = p.getStatus();
-                    if (newHappiness > 40 && Pet.STATUS_SAD.equals(newStatus)) {
-                        newStatus = Pet.STATUS_HAPPY;
-                    }
-                    final boolean showLevelUpToast = leveledUp;
-                    final int finalLevel = newLevel;
-                    db.collection("pets").document(currentCoupleId)
-                        .update("happiness", newHappiness,
-                                "lovePoints", newLovePoints,
-                                "experience", newExp,
-                                "level", newLevel,
-                                "status", newStatus,
-                                "lastBallDate", today,
-                                "hunger", decayedHunger,
-                                "cleanliness", decayedCleanliness,
-                                "sleepPercent", decayedSleepPercent,
-                                "lastInteraction", now,
-                                "lastDecayUpdate", nextDecayUpdate)
-                        .addOnSuccessListener(aVoid -> {
-                            showStyledPixelToast("¡Jugaste a la pelota con Thor! ⚾");
-                            if (showLevelUpToast) {
-                                showStyledPixelToast("¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉");
-                            }
-                        });
-                }
-                return kotlin.Unit.INSTANCE;
-            },
-            // onPlayMinigame
-            (gameType, points, exp) -> {
-                Pet p = petState.getValue();
-                if (p != null) {
-                    long now = System.currentTimeMillis();
-                    String today = dayFormat.format(new java.util.Date(now));
-                    String updateDateField = "memory".equals(gameType) ? "lastMemoryDate" : "lastSnakeDate";
-                    
-                    if ("memory".equals(gameType) && today.equals(p.getLastMemoryDate())) {
-                        showStyledPixelToast("¡Ya jugaste a Retro Memory hoy! 🧠");
-                        return kotlin.Unit.INSTANCE;
-                    }
-                    if ("snake".equals(gameType) && today.equals(p.getLastSnakeDate())) {
-                        showStyledPixelToast("¡Ya jugaste a La Serpiente hoy! 🐍");
-                        return kotlin.Unit.INSTANCE;
-                    }
-
-                    DecayedStats stats = calculateDecay(p, now);
-                    int decayedCleanliness = stats.cleanliness;
-                    int decayedSleepPercent = stats.sleepPercent;
-                    long nextDecayUpdate = stats.nextDecayUpdate;
-                    
-                    int newExp = p.getExperience() + exp;
-                    int newLevel = p.getLevel();
-                    int newLovePoints = p.getLovePoints() + points;
-                    int newHappiness = Math.min(100, p.getHappiness() + 15);
-                    String newStatus = p.getStatus();
-                    if (newHappiness > 40 && Pet.STATUS_SAD.equals(newStatus)) {
-                        newStatus = Pet.STATUS_HAPPY;
-                    }
-                    boolean leveledUp = false;
-                    if (newExp >= 100) {
-                        newLevel++;
-                        newExp -= 100;
-                        newLovePoints += 50;
-                        leveledUp = true;
-                    }
-                    final boolean showLevelUpToast = leveledUp;
-                    final int finalLevel = newLevel;
-                    
-                    db.collection("pets").document(currentCoupleId)
-                        .update("lovePoints", newLovePoints,
-                                "experience", newExp,
-                                "level", newLevel,
-                                "happiness", newHappiness,
-                                "status", newStatus,
-                                "hunger", 0,
-                                "cleanliness", decayedCleanliness,
-                                "sleepPercent", decayedSleepPercent,
-                                updateDateField, today,
-                                "lastInteraction", now,
-                                "lastDecayUpdate", nextDecayUpdate)
-                        .addOnSuccessListener(aVoid -> {
-                            showStyledPixelToast("¡Premio reclamado! +" + points + " ❤️ y +" + exp + " EXP 🥰");
-                            if (showLevelUpToast) {
-                                showStyledPixelToast("¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉");
-                            }
-                        })
-                        .addOnFailureListener(err -> {
-                            Log.e("Minigame", "Error al actualizar recompensa: " + err.getMessage());
-                        });
-                }
-                return kotlin.Unit.INSTANCE;
-            }
+            () -> { viewModel.bathPet(); return kotlin.Unit.INSTANCE; },
+            (points, happinessGain) -> { viewModel.playBallPet(points, happinessGain); return kotlin.Unit.INSTANCE; },
+            (gameType, points, exp) -> { viewModel.playMinigame(gameType, points, exp); return kotlin.Unit.INSTANCE; }
         );
     }
 
@@ -1132,25 +717,13 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     @Override
     protected void onPause() {
         super.onPause();
-        if (firestoreListener != null) {
-            firestoreListener.remove();
-            firestoreListener = null;
-        }
-        if (calendarListener != null) {
-            calendarListener.remove();
-            calendarListener = null;
-        }
+        viewModel.stopActiveListeners();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (firestoreListener == null) {
-            listenMessagesFromFirestore();
-        }
-        if (calendarListener == null) {
-            listenCalendar();
-        }
+        viewModel.startActiveListeners();
         enableImmersiveMode();
     }
 
@@ -1164,24 +737,6 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
 
     @Override
     protected void onDestroy() {
-        // Desvincular oyentes de Firestore para evitar pérdidas de memoria y consumo de red innecesario
-        if (firestoreListener != null) {
-            firestoreListener.remove();
-            firestoreListener = null;
-        }
-        if (userListener != null) {
-            userListener.remove();
-            userListener = null;
-        }
-        if (petListener != null) {
-            petListener.remove();
-            petListener = null;
-        }
-        if (calendarListener != null) {
-            calendarListener.remove();
-            calendarListener = null;
-        }
-
         if (connectivityManager != null && networkCallback != null) {
             connectivityManager.unregisterNetworkCallback(networkCallback);
             networkCallback = null;
@@ -1208,69 +763,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         sendBroadcast(wLargeIntent);
     }
 
-    private void listenUserInfo() {
-        if (userListener != null) userListener.remove();
-        userListener = db.collection("users").document(currentUserId).addSnapshotListener((snapshot, e) -> {
-            if (snapshot != null && snapshot.exists()) {
-                String url = snapshot.getString("profileImageUrl");
-                if (url != null && !url.equals(currentUserImageUri)) {
-                    currentUserImageUri = url;
-                    getSharedPreferences("DiarioPrefs", MODE_PRIVATE).edit().putString("userImage", url).apply();
-                }
 
-                String themeVal = snapshot.getString("theme");
-                Boolean useCustomBgVal = snapshot.getBoolean("useCustomBg");
-                String lightColorVal = snapshot.getString("lightColor");
-                String darkColorVal = snapshot.getString("darkColor");
-                Long cacheSizeLimitVal = snapshot.getLong("cacheSizeLimit");
-                Long updateIntervalVal = snapshot.getLong("updateInterval");
-                Long appointmentLeadTimeVal = snapshot.getLong("appointmentLeadTime");
-
-                SharedPreferences prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE);
-                SharedPreferences.Editor editor = prefs.edit();
-                boolean changed = false;
-
-                if (themeVal != null && !themeVal.equals(prefs.getString("theme", ""))) {
-                    editor.putString("theme", themeVal);
-                    changed = true;
-                }
-                if (useCustomBgVal != null && useCustomBgVal != prefs.getBoolean("useCustomBg", false)) {
-                    editor.putBoolean("useCustomBg", useCustomBgVal);
-                    changed = true;
-                }
-                if (lightColorVal != null && !lightColorVal.equals(prefs.getString("lightColor", ""))) {
-                    editor.putString("lightColor", lightColorVal);
-                    changed = true;
-                }
-                if (darkColorVal != null && !darkColorVal.equals(prefs.getString("darkColor", ""))) {
-                    editor.putString("darkColor", darkColorVal);
-                    changed = true;
-                }
-                if (cacheSizeLimitVal != null && cacheSizeLimitVal != prefs.getLong("cacheSizeLimit", 100L)) {
-                    editor.putLong("cacheSizeLimit", cacheSizeLimitVal);
-                    changed = true;
-                }
-                if (updateIntervalVal != null && updateIntervalVal != prefs.getLong("updateInterval", 720L)) {
-                    editor.putLong("updateInterval", updateIntervalVal);
-                    changed = true;
-                }
-                if (appointmentLeadTimeVal != null && appointmentLeadTimeVal != prefs.getLong("appointmentLeadTime", 60L)) {
-                    editor.putLong("appointmentLeadTime", appointmentLeadTimeVal);
-                    changed = true;
-                }
-
-                if (changed) {
-                    editor.apply();
-                    runOnUiThread(() -> {
-                        String finalTheme = prefs.getString("theme", "Pixel Claro");
-                        String lc = prefs.getString("lightColor", "#D1C4E9");
-                        String dc = prefs.getString("darkColor", "#4A148C");
-                        applyTheme(finalTheme, lc, dc);
-                    });
-                }
-            }
-        });
-    }
 
     private void ensureUserInFirestore() {
         if (currentUserId == null) return;
@@ -1422,181 +915,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
         ThorWidgetProvider.triggerUpdate(this);
     }
 
-    private void listenPet() {
-        if (petListener != null) petListener.remove();
-        petListener = db.collection("pets").document(currentCoupleId).addSnapshotListener((snapshot, e) -> {
-            if (snapshot != null && snapshot.exists()) {
-                Pet p = snapshot.toObject(Pet.class);
-                if (p != null) {
-                    petState.setValue(p);
-                    checkPetDecay(p);
-                    savePetDataToWidgetPrefs(p);
-                }
-            } else {
-                // Crear mascota inicial si no existe
-                Pet initialPet = new Pet();
-                db.collection("pets").document(currentCoupleId).set(initialPet);
-            }
-        });
-    }
 
-    private static class DecayedStats {
-        public final int hunger;
-        public final int cleanliness;
-        public final int sleepPercent;
-        public final long nextDecayUpdate;
-        public DecayedStats(int hunger, int cleanliness, int sleepPercent, long nextDecayUpdate) {
-            this.hunger = hunger;
-            this.cleanliness = cleanliness;
-            this.sleepPercent = sleepPercent;
-            this.nextDecayUpdate = nextDecayUpdate;
-        }
-    }
-
-    private DecayedStats calculateDecay(Pet p, long now) {
-        long lastDecay = p.getLastDecayUpdate() != 0 ? p.getLastDecayUpdate() : now;
-        long decayDiff = now - lastDecay;
-        if (decayDiff < 0) decayDiff = 0;
-        long hoursToDecay = decayDiff / (1000 * 60 * 60);
-        
-        int decayedHunger = p.getHunger();
-        int decayedCleanliness = p.getCleanliness();
-        int decayedSleepPercent = p.getSleepPercent();
-        long nextDecayUpdate = lastDecay;
-        
-        if (hoursToDecay >= 1) {
-            decayedHunger = Math.min(100, p.getHunger() + (int)(hoursToDecay * 4));
-            decayedCleanliness = Math.max(0, p.getCleanliness() - (int)(hoursToDecay * 3));
-            if (p.isSleeping()) {
-                decayedSleepPercent = Math.min(100, p.getSleepPercent() + (int)(hoursToDecay * 15));
-            } else {
-                decayedSleepPercent = Math.max(0, p.getSleepPercent() - (int)(hoursToDecay * 5));
-            }
-            nextDecayUpdate += hoursToDecay * 3600000L;
-        }
-        return new DecayedStats(decayedHunger, decayedCleanliness, decayedSleepPercent, nextDecayUpdate);
-    }
-
-    private void checkPetDecay(Pet p) {
-        long now = System.currentTimeMillis();
-        
-        // 1. Decaimiento de hambre, limpieza y sueño (basado en lastDecayUpdate)
-        DecayedStats stats = calculateDecay(p, now);
-        int newHunger = stats.hunger;
-        int newCleanliness = stats.cleanliness;
-        int newSleepPercent = stats.sleepPercent;
-        long nextDecayUpdate = stats.nextDecayUpdate;
-        
-        // 2. Decaimiento de felicidad (basado en lastInteraction, 24 horas sin interactuar)
-        long happinessDiff = now - p.getLastInteraction();
-        long daysToDecayHappiness = happinessDiff / (1000L * 60L * 60L * 24L);
-        
-        int newHappiness = p.getHappiness();
-        long lastInteractionCompensated = p.getLastInteraction();
-        
-        if (daysToDecayHappiness >= 1) {
-            int decay = (int)daysToDecayHappiness * 20;
-            newHappiness = Math.max(0, p.getHappiness() - decay);
-            lastInteractionCompensated += daysToDecayHappiness * 24L * 60L * 60L * 1000L;
-        }
-        
-        // 3. Determinar estado y verificar despertar automático si el sueño llegó al 100%
-        boolean isNowSleeping = p.isSleeping();
-        if (p.isSleeping() && newSleepPercent >= 100) {
-            isNowSleeping = false;
-            newSleepPercent = 100;
-        }
-
-        String newStatus = p.getStatus();
-        if (isNowSleeping) {
-            newStatus = Pet.STATUS_SLEEPING;
-        } else if (newHunger >= 70) {
-            newStatus = Pet.STATUS_HUNGRY;
-        } else {
-            newStatus = newHappiness > 40 ? Pet.STATUS_HAPPY : Pet.STATUS_SAD;
-        }
-        
-        boolean hasChanged = newHappiness != p.getHappiness() 
-                || newHunger != p.getHunger() 
-                || newCleanliness != p.getCleanliness()
-                || newSleepPercent != p.getSleepPercent()
-                || !newStatus.equals(p.getStatus())
-                || nextDecayUpdate != p.getLastDecayUpdate()
-                || isNowSleeping != p.isSleeping();
-                
-        if (hasChanged) {
-            db.collection("pets").document(currentCoupleId)
-                .update("happiness", newHappiness, 
-                        "hunger", newHunger,
-                        "cleanliness", newCleanliness,
-                        "sleepPercent", newSleepPercent,
-                        "status", newStatus,
-                        "lastInteraction", lastInteractionCompensated,
-                        "lastDecayUpdate", nextDecayUpdate,
-                        "isSleeping", isNowSleeping);
-        }
-    }
-
-    public void updatePetOnInteraction() {
-        Pet p = petState.getValue();
-        if (p == null) return;
-        
-        long now = System.currentTimeMillis();
-        String today = dayFormat.format(new java.util.Date(now));
-        
-        // Primero, calculamos el decaimiento de limpieza y sueño acumulado antes de resetear
-        DecayedStats stats = calculateDecay(p, now);
-        int currentCleanliness = stats.cleanliness;
-        int currentSleepPercent = stats.sleepPercent;
-        long nextDecayUpdate = stats.nextDecayUpdate;
-        
-        int newHappiness = Math.min(100, p.getHappiness() + 10);
-        int newLovePoints = p.getLovePoints() + 5; // +5 puntos por interacción
-        int newExp = p.getExperience() + 10;
-        int newLevel = p.getLevel();
-        int newStreak = p.getStreakDays();
-        
-        // Manejo de racha diaria
-        if (p.getLastInteractionDate() == null || !p.getLastInteractionDate().equals(today)) {
-            if (p.getLastInteractionDate() != null) {
-                // Verificar si ayer hubo interacción
-                Calendar yesterday = Calendar.getInstance();
-                yesterday.add(Calendar.DAY_OF_YEAR, -1);
-                String yesterdayStr = dayFormat.format(yesterday.getTime());
-                
-                if (p.getLastInteractionDate().equals(yesterdayStr)) {
-                    newStreak++;
-                    newLovePoints += (newStreak * 2); // Bonus por racha
-                } else {
-                    newStreak = 1;
-                }
-            } else {
-                newStreak = 1;
-            }
-        }
-        
-        // Subida de nivel (cada 100 XP)
-        if (newExp >= 100) {
-            newLevel++;
-            newExp -= 100;
-            newLovePoints += 50; // Bonus por nivel
-            Toast.makeText(this, "¡" + p.getName() + " ha subido al nivel " + newLevel + "! 🎉", Toast.LENGTH_SHORT).show();
-        }
-        
-        db.collection("pets").document(currentCoupleId)
-            .update("happiness", newHappiness, 
-                    "lovePoints", newLovePoints,
-                    "experience", newExp,
-                    "level", newLevel,
-                    "streakDays", newStreak,
-                    "lastInteractionDate", today,
-                    "lastInteraction", now,
-                    "lastDecayUpdate", nextDecayUpdate,
-                    "hunger", 0,
-                    "cleanliness", currentCleanliness,
-                    "sleepPercent", currentSleepPercent,
-                    "status", p.isSleeping() ? Pet.STATUS_SLEEPING : Pet.STATUS_HAPPY);
-    }
     private void checkAndRequestPermissions() {
         List<String> permissions = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1849,55 +1168,8 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
 
     public long normalizeDate(long ts) { Calendar c = Calendar.getInstance(); c.setTimeInMillis(ts); c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0); return c.getTimeInMillis(); }
 
-    private void scheduleCalendarReminder(CalendarEvent event) {
-        long leadTimeMinutes = getSharedPreferences("DiarioPrefs", MODE_PRIVATE).getLong("appointmentLeadTime", 15L);
-        long leadTimeMillis = leadTimeMinutes * 60 * 1000;
-        long reminderTime = event.getDate() - leadTimeMillis;
-
-        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        if (reminderTime < System.currentTimeMillis()) {
-            android.util.Log.d("CalendarSync", "Recordatorio omitido: la fecha ya pasó (" + event.getTitle() + ")");
-            return;
-        }
-
-        android.util.Log.d("CalendarSync", "Programando alarma para: " + event.getTitle() + " en " + new java.util.Date(reminderTime));
-        Intent intent = new Intent(this, NotificationReceiver.class);
-        intent.putExtra("title", "¡Tienes una cita cercana! ❤️");
-        intent.putExtra("content", event.getTitle() + (event.getDescription() != null && !event.getDescription().isEmpty() ? " - " + event.getDescription() : ""));
-
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, event.getEventId().hashCode(), intent, 
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, reminderTime, pendingIntent);
-        } else {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, reminderTime, pendingIntent);
-        }
-    }
-
     public void rescheduleAllCalendarReminders() {
-        db.collection("calendar").whereEqualTo("partnerId", currentCoupleId)
-            .get().addOnSuccessListener(snaps -> {
-                for (QueryDocumentSnapshot doc : snaps) {
-                    CalendarEvent ev = doc.toObject(CalendarEvent.class);
-                    if (ev.getEventId() == null) ev.setEventId(doc.getId());
-                    scheduleCalendarReminder(ev);
-                }
-            });
-    }
-
-    private void listenCalendar() {
-        if (calendarListener != null) calendarListener.remove();
-        calendarListener = db.collection("calendar").whereEqualTo("partnerId", currentCoupleId)
-            .addSnapshotListener((snaps, e) -> {
-                if (snaps != null) {
-                    for (QueryDocumentSnapshot doc : snaps) {
-                        CalendarEvent ev = doc.toObject(CalendarEvent.class);
-                        if (ev.getEventId() == null) ev.setEventId(doc.getId());
-                        scheduleCalendarReminder(ev);
-                    }
-                }
-            });
+        viewModel.rescheduleAllCalendarReminders();
     }
 
     @Override
@@ -1991,7 +1263,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             int pos = spinner.getSelectedItemPosition();
             ev.setRecurrence(pos >= 0 ? values[pos] : "NONE"); 
             db.collection("calendar").document(id).set(ev).addOnSuccessListener(aVoid -> {
-                scheduleCalendarReminder(ev);
+                viewModel.scheduleCalendarReminder(ev);
                 String notifTitle = isNew ? "¡Nueva cita creada! 📅" : "¡Cita modificada! 📅";
                 sendNotificationV1(notifTitle, currentUserName + (isNew ? " agregó la cita: \"" : " modificó la cita: \"") + ev.getTitle() + "\"", null, "cita");
             });
@@ -2387,20 +1659,17 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
     }
     private void saveMessageToFirestore(Message m) {
         String docId = m.getMessageId();
-        if (docId == null) docId = UUID.randomUUID().toString();
+        if (docId == null) {
+            docId = UUID.randomUUID().toString();
+            m.setMessageId(docId);
+        }
         if (m.getPartnerId() == null) m.setPartnerId(currentCoupleId);
         
-        db.collection("messages").document(docId).set(m)
-            .addOnSuccessListener(aVoid -> {
-                android.util.Log.d("Firestore", "Mensaje guardado con éxito: " + m.getMessageId());
-                updatePetOnInteraction();
-                Toast.makeText(MainActivity.this, "¡Carta enviada!", Toast.LENGTH_SHORT).show();
-                sendNotificationV1("¡Carta nueva! 💌", m.getContent(), m.getImageUrl(), "carta");
-            })
-            .addOnFailureListener(e -> {
-                android.util.Log.e("Firestore", "Error al guardar mensaje", e);
-                Toast.makeText(MainActivity.this, "Error al enviar carta: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            });
+        viewModel.saveMessageToFirestore(m, false);
+        
+        android.util.Log.d("Firestore", "Mensaje guardado con éxito: " + m.getMessageId());
+        Toast.makeText(MainActivity.this, "¡Carta enviada!", Toast.LENGTH_SHORT).show();
+        sendNotificationV1("¡Carta nueva! 💌", m.getContent(), m.getImageUrl(), "carta");
     }
 
     private void setupOverlays() {
