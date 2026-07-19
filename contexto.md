@@ -223,9 +223,25 @@ Cada cambio que deba publicarse a producción sigue este proceso de despliegue a
 
 ---
 
-## 9. Conexión Inalámbrica de Pruebas (ADB sobre Wi-Fi)
+## 9. Conexión de Pruebas Multidispositivo (Script ADB + Gradle)
 
-Para conectar inalámbricamente el entorno de desarrollo al celular del usuario durante las pruebas locales (ya sea para instalar la versión Debug o Release), se debe ejecutar el siguiente comando que autodetecta y conecta el dispositivo por red local utilizando mDNS (Avahi):
-```bash
-adb connect $(avahi-browse -rtp _adb-tls-connect._tcp -t 2>/dev/null | grep ^= | cut -d';' -f8,9 --output-delimiter=: | head -n1)
-```
+Para simplificar el proceso de pruebas locales, el script interactivo [conectar_adb.sh](file:///home/kevin/Escritorio/conectar_adb.sh) en el Escritorio gestiona el ciclo completo de conexión y despliegue:
+* **Detección Automática:** Escanea dispositivos USB activos y descubre servicios de conexión/vinculación de red mDNS (Avahi). Si el dispositivo no está vinculado, solicita interactivamente el código de 6 dígitos vía Zenity.
+* **Multiselección:** Mediante una lista de selección múltiple (Zenity Checklist), el usuario puede marcar exactamente qué dispositivos (USB o red) quiere desplegar en paralelo.
+* **Bucle de Instalación Directa:** El script exporta de forma secuencial la variable `ANDROID_SERIAL` para cada dispositivo seleccionado y ejecuta la compilación con `./gradlew`. La primera ejecución compila la app y las siguientes se benefician de la caché de Gradle, resultando en instalaciones casi instantáneas.
+
+---
+
+## 10. Web de Gestión de Espíritus y Servidor de Desarrollo Local (Python)
+
+Se ha incorporado una **Web de Gestión** (`web/index.html`) para permitir la administración visual, masiva y cómoda de los 121 espíritus desde una computadora:
+* **Interactividad y Diseño:** Diseñada con estética premium oscura (`glassmorphism` y tipografías Outfit/Inter). Dispone de un listado lateral con las 121 imágenes de los espíritus y un panel central con la estructura de categorías y tipos (Normal, Dorado, Gomita, etc.).
+* **Cambio de Categoría y Tipo:** Permite arrastrar fotos (`drag and drop`) o usar los desplegables de cada tarjeta para mover un espíritu a cualquier categoría o alternar su variante. Al hacerlo, el nombre en la base de datos se actualiza de forma automática (ej. `"Espíritu de Viento Cubo"`).
+* **Eliminación Física de Archivos en PC:**
+  * Al hacer clic en el botón de la papelera en la web, el sistema solicita confirmación y quita al espíritu del listado de Firestore.
+  * Para eliminar también la imagen física del disco, se incluye un servidor ligero en Python (`web/server.py`) que opera en el puerto `8000` con directorio base en la raíz del proyecto.
+  * Cuando la web corre en este servidor (`http://localhost:8000`), el borrado dispara una petición a `/api/delete-spirit-image`, que ejecuta la eliminación física del archivo `.png` en la carpeta `app/src/main/res/drawable/` del proyecto de forma automatizada.
+* **Integración en la App:** En la pantalla **Misceláneo**, el slot antes bloqueado ahora muestra **🌐 Web Gestión**, que abre la página correspondiente en el navegador del celular.
+* **Seguridad de Sincronización y Protección de Caché (Firestore):**
+  * Toda la base de datos está versionada bajo la clave `schema_version = 3` para asegurar la compatibilidad con el listado de 121 espíritus.
+  * Para evitar problemas de sincronización en los que la caché local de un dispositivo (con un esquema viejo) sobreescriba y borre la base de datos remota del servidor al actualizar, la app de Android valida la propiedad `snapshot.metadata.isFromCache`. Las migraciones e inicializaciones automáticas de estructura solo se escriben si se confirma que los datos provienen del servidor remoto (`!isFromCache`), garantizando la integridad de Firebase en todo momento.

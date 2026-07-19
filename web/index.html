@@ -14,6 +14,18 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <style>
+    html {
+      color-scheme: dark;
+    }
+    select {
+      background-color: #12131a !important;
+      color: #f3f4f6 !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    option {
+      background-color: #12131a !important;
+      color: #f3f4f6 !important;
+    }
     :root {
       --bg-color: #0d0e15;
       --card-bg: rgba(22, 24, 37, 0.7);
@@ -324,7 +336,7 @@
 
     .spirit-slots-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
       gap: 12px;
       min-height: 80px;
       border: 2px dashed rgba(255, 255, 255, 0.05);
@@ -357,8 +369,8 @@
     }
 
     .spirit-slot img {
-      width: 44px;
-      height: 44px;
+      width: 80px;
+      height: 80px;
       object-fit: contain;
       image-rendering: pixelated;
       margin-bottom: 6px;
@@ -867,11 +879,29 @@
       renderWorkspace();
     }
 
-    // Permanently delete spirit
     window.permanentlyDeleteSpirit = function(spiritId) {
-      if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el espíritu ID ${spiritId}? Se borrarán también sus checkmarks.`)) {
+      if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el espíritu ID ${spiritId}? Se borrarán también sus checkmarks y su archivo de imagen en tu PC.`)) {
         spiritsList = spiritsList.filter(id => id !== spiritId);
         renderWorkspace();
+
+        // Call local server API to delete drawable file
+        fetch('/api/delete-spirit-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ spiritId: spiritId })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            showToast(`Espíritu e imagen ic_spirit_${spiritId}.png eliminados de tu PC.`, false);
+          } else {
+            showToast("Espíritu eliminado en la base de datos (imagen no encontrada).", false);
+          }
+        })
+        .catch(err => {
+          console.warn("No se pudo conectar al servidor local para borrar el archivo físico:", err);
+          showToast("Espíritu eliminado en Firestore. (Para borrar la imagen física de tu PC automáticamente, inicia el servidor con 'python3 server.py')", false);
+        });
       }
     }
 
