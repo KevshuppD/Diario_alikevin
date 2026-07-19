@@ -274,12 +274,54 @@ fun SpiritsChecklistView(
     // Deterministic identification of roles
     val isKevin = currentUserId == "user_kevin_01"
     
+    val defaultCategories = remember {
+        listOf(
+            SpiritCategory("Espíritu de Agua", (1..4).map { String.format("%02d", it) } + listOf("66", "67", "112")),
+            SpiritCategory("Espíritu Dormilón", (5..8).map { String.format("%02d", it) } + listOf("68", "69", "113")),
+            SpiritCategory("Espíritu de Tierra", (9..12).map { String.format("%02d", it) } + listOf("70", "71", "114")),
+            SpiritCategory("Espíritu del Cacahuete", listOf("13")),
+            SpiritCategory("Espíritu Demoníaco", (14..17).map { String.format("%02d", it) } + listOf("72", "73", "115")),
+            SpiritCategory("Espíritu de Fuego", (18..21).map { String.format("%02d", it) } + listOf("74", "75", "116")),
+            SpiritCategory("Espíritu Punk", (22..25).map { String.format("%02d", it) } + listOf("76", "77", "117")),
+            SpiritCategory("Espíritu Pato", (26..29).map { String.format("%02d", it) } + listOf("78", "79", "118")),
+            SpiritCategory("Espíritu Rey", (30..33).map { String.format("%02d", it) } + listOf("80", "81")),
+            SpiritCategory("Espíritu Fantasma", (34..37).map { String.format("%02d", it) } + listOf("82", "83")),
+            SpiritCategory("Espíritu del Punto Cero", (38..41).map { String.format("%02d", it) } + listOf("84", "85")),
+            SpiritCategory("Espíritu de Aura", (42..45).map { String.format("%02d", it) } + listOf("86", "87")),
+            SpiritCategory("Espíritu de la Fundación", (46..49).map { String.format("%02d", it) } + listOf("88", "89")),
+            SpiritCategory("Espíritu de la Parca", (50..53).map { String.format("%02d", it) } + listOf("90", "91")),
+            SpiritCategory("Espíritu Futbolero", (54..57).map { String.format("%02d", it) } + listOf("92", "93")),
+            SpiritCategory("Espíritu Jefe", (58..61).map { String.format("%02d", it) } + listOf("94", "95")),
+            SpiritCategory("Espíritu Pescado", (62..65).map { String.format("%02d", it) } + listOf("96", "97")),
+            SpiritCategory("Espíritu de Batman", (98..104).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu de Viento", (105..111).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu Especial/Invitado", (119..121).map { String.format("%02d", it) })
+        )
+    }
+    val defaultSpiritsList = remember { (1..121).map { String.format("%02d", it) } }
+
+    var categories by remember { mutableStateOf(defaultCategories) }
+    var spiritsList by remember { mutableStateOf(defaultSpiritsList) }
+
     // Firebase references
     val db = FirebaseFirestore.getInstance()
     var kevinList by remember { mutableStateOf(emptyList<String>()) }
     var aliList by remember { mutableStateOf(emptyList<String>()) }
     var kevinMastery by remember { mutableStateOf(emptyList<String>()) }
     var aliMastery by remember { mutableStateOf(emptyList<String>()) }
+
+    var customNames by remember { mutableStateOf(emptyMap<String, String>()) }
+    var customCategories by remember { mutableStateOf(emptyMap<String, String>()) }
+    var isEditMode by remember { mutableStateOf(false) }
+
+    var editingSpiritId by remember { mutableStateOf<String?>(null) }
+    var editingSpiritInitialName by remember { mutableStateOf("") }
+    
+    var editingCategoryOriginalName by remember { mutableStateOf<String?>(null) }
+    var editingCategoryInitialName by remember { mutableStateOf("") }
+
+    var deletingSpiritId by remember { mutableStateOf<String?>(null) }
+    var deletingCategoryName by remember { mutableStateOf<String?>(null) }
 
     // Read real-time values from Firestore
     DisposableEffect(coupleId) {
@@ -295,16 +337,178 @@ fun SpiritsChecklistView(
                     aliList = aList?.filterIsInstance<String>() ?: emptyList()
                     kevinMastery = kMastery?.filterIsInstance<String>() ?: emptyList()
                     aliMastery = aMastery?.filterIsInstance<String>() ?: emptyList()
+
+                    val cNames = snapshot.get("custom_names") as? Map<*, *>
+                    val cCategories = snapshot.get("custom_categories") as? Map<*, *>
+                    customNames = cNames?.entries?.associate { it.key.toString() to it.value.toString() } ?: emptyMap()
+                    customCategories = cCategories?.entries?.associate { it.key.toString() to it.value.toString() } ?: emptyMap()
+
+                    val dbSpiritsList = snapshot.get("spirits_list") as? List<*>
+                    val parsedSpiritsList = dbSpiritsList?.filterIsInstance<String>() ?: emptyList()
+
+                    val dbCategories = snapshot.get("categories") as? List<*>
+                    val parsedCategories = dbCategories?.mapNotNull { item ->
+                        val map = item as? Map<*, *> ?: return@mapNotNull null
+                        val name = map["name"] as? String ?: return@mapNotNull null
+                        val spiritIds = (map["spiritIds"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                        SpiritCategory(name, spiritIds)
+                    } ?: emptyList()
+
+                    val schemaVersion = (snapshot.get("schema_version") as? Number)?.toInt() ?: 1
+
+                    if (parsedSpiritsList.isEmpty()) {
+                        // New document or empty list, write default values to Firestore!
+                        val docRef = db.collection("fortnite_spirits").document(coupleId)
+                        val updates = hashMapOf<String, Any>(
+                            "categories" to defaultCategories.map { cat ->
+                                hashMapOf("name" to cat.name, "spiritIds" to cat.spiritIds)
+                            },
+                            "spirits_list" to defaultSpiritsList,
+                            "schema_version" to 3
+                        )
+                        docRef.set(updates, SetOptions.merge())
+                        categories = defaultCategories
+                        spiritsList = defaultSpiritsList
+                    } else if (schemaVersion < 3) {
+                        // Firestore document is outdated (schema_version < 3). Migrate it to 121!
+                        val migrateSelections = { oldList: List<String> ->
+                            oldList.map { id ->
+                                val num = id.toIntOrNull() ?: return@map id
+                                val newNum = when {
+                                    num in 117..119 -> num + 2
+                                    num in 110..116 -> num + 2
+                                    num in 104..109 -> num + 1
+                                    else -> num
+                                }
+                                String.format("%02d", newNum)
+                            }.distinct()
+                        }
+
+                        val migratedKevin = if (schemaVersion == 1) migrateSelections(kevinList) else kevinList
+                        val migratedAli = if (schemaVersion == 1) migrateSelections(aliList) else aliList
+                        val migratedKevinMastery = if (schemaVersion == 1) migrateSelections(kevinMastery) else kevinMastery
+                        val migratedAliMastery = if (schemaVersion == 1) migrateSelections(aliMastery) else aliMastery
+
+                        val docRef = db.collection("fortnite_spirits").document(coupleId)
+                        val updates = hashMapOf<String, Any>(
+                            "categories" to defaultCategories.map { cat ->
+                                hashMapOf("name" to cat.name, "spiritIds" to cat.spiritIds)
+                            },
+                            "spirits_list" to defaultSpiritsList,
+                            "kevin_list" to migratedKevin,
+                            "ali_list" to migratedAli,
+                            "kevin_mastery" to migratedKevinMastery,
+                            "ali_mastery" to migratedAliMastery,
+                            "schema_version" to 3
+                        )
+                        docRef.update(updates)
+                        categories = defaultCategories
+                        spiritsList = defaultSpiritsList
+                    } else {
+                        // Firestore document is up to date, use its values
+                        categories = parsedCategories.ifEmpty { defaultCategories }
+                        spiritsList = parsedSpiritsList
+                    }
                 } else {
                     kevinList = emptyList()
                     aliList = emptyList()
                     kevinMastery = emptyList()
                     aliMastery = emptyList()
+                    customNames = emptyMap()
+                    customCategories = emptyMap()
+                    categories = defaultCategories
+                    spiritsList = defaultSpiritsList
                 }
             }
         onDispose {
             listener.remove()
         }
+    }
+
+    val onSaveSpiritChanges: (String, String, String) -> Unit = { spiritId, newName, targetCategoryName ->
+        val newCustomNames = if (newName.isBlank()) {
+            customNames - spiritId
+        } else {
+            customNames + (spiritId to newName)
+        }
+
+        val updatedCategories = categories.map { category ->
+            val updatedIds = if (category.name == targetCategoryName) {
+                if (!category.spiritIds.contains(spiritId)) {
+                    category.spiritIds + spiritId
+                } else {
+                    category.spiritIds
+                }
+            } else {
+                category.spiritIds.filter { it != spiritId }
+            }
+            SpiritCategory(category.name, updatedIds)
+        }
+
+        val categoriesMap = updatedCategories.map {
+            mapOf("name" to it.name, "spiritIds" to it.spiritIds)
+        }
+
+        val updates = mapOf(
+            "custom_names" to newCustomNames,
+            "categories" to categoriesMap,
+            "schema_version" to 3
+        )
+        db.collection("fortnite_spirits").document(coupleId)
+            .set(updates, SetOptions.merge())
+    }
+
+    val onSaveCategoryName: (String, String) -> Unit = { originalName, newName ->
+        val newCustomCategories = if (newName.isBlank()) {
+            customCategories - originalName
+        } else {
+            customCategories + (originalName to newName)
+        }
+        db.collection("fortnite_spirits").document(coupleId)
+            .set(mapOf("custom_categories" to newCustomCategories, "schema_version" to 3), SetOptions.merge())
+    }
+
+    val onDeleteSpirit: (String) -> Unit = { spiritId ->
+        val updatedSpiritsList = spiritsList.filter { it != spiritId }
+        val updatedCategories = categories.map { category ->
+            SpiritCategory(category.name, category.spiritIds.filter { it != spiritId })
+        }
+        val categoriesMap = updatedCategories.map {
+            mapOf("name" to it.name, "spiritIds" to it.spiritIds)
+        }
+        val newCustomNames = customNames - spiritId
+        val newKevinList = kevinList.filter { it != spiritId }
+        val newAliList = aliList.filter { it != spiritId }
+        val newKevinMastery = kevinMastery.filter { it != spiritId }
+        val newAliMastery = aliMastery.filter { it != spiritId }
+
+        val updates = mapOf(
+            "spirits_list" to updatedSpiritsList,
+            "categories" to categoriesMap,
+            "custom_names" to newCustomNames,
+            "kevin_list" to newKevinList,
+            "ali_list" to newAliList,
+            "kevin_mastery" to newKevinMastery,
+            "ali_mastery" to newAliMastery,
+            "schema_version" to 3
+        )
+        db.collection("fortnite_spirits").document(coupleId)
+            .set(updates, SetOptions.merge())
+    }
+
+    val onDeleteCategory: (String) -> Unit = { categoryName ->
+        val updatedCategories = categories.filter { it.name != categoryName }
+        val categoriesMap = updatedCategories.map {
+            mapOf("name" to it.name, "spiritIds" to it.spiritIds)
+        }
+        val newCustomCategories = customCategories - categoryName
+        val updates = mapOf(
+            "categories" to categoriesMap,
+            "custom_categories" to newCustomCategories,
+            "schema_version" to 3
+        )
+        db.collection("fortnite_spirits").document(coupleId)
+            .set(updates, SetOptions.merge())
     }
 
     // Toggle check state function
@@ -364,29 +568,7 @@ fun SpiritsChecklistView(
         }
     }
 
-    val categories = remember {
-        listOf(
-            SpiritCategory("Espíritu de Agua", (1..4).map { String.format("%02d", it) } + listOf("66", "67")),
-            SpiritCategory("Espíritu Dormilón", (5..8).map { String.format("%02d", it) } + listOf("68", "69")),
-            SpiritCategory("Espíritu de Tierra", (9..12).map { String.format("%02d", it) } + listOf("70", "71")),
-            SpiritCategory("Espíritu del Cacahuete", listOf("13")),
-            SpiritCategory("Espíritu Demoníaco", (14..17).map { String.format("%02d", it) } + listOf("72", "73")),
-            SpiritCategory("Espíritu de Fuego", (18..21).map { String.format("%02d", it) } + listOf("74", "75")),
-            SpiritCategory("Espíritu Punk", (22..25).map { String.format("%02d", it) } + listOf("76", "77")),
-            SpiritCategory("Espíritu Pato", (26..29).map { String.format("%02d", it) } + listOf("78", "79")),
-            SpiritCategory("Espíritu Rey", (30..33).map { String.format("%02d", it) } + listOf("80", "81")),
-            SpiritCategory("Espíritu Fantasma", (34..37).map { String.format("%02d", it) } + listOf("82", "83")),
-            SpiritCategory("Espíritu del Punto Cero", (38..41).map { String.format("%02d", it) } + listOf("84", "85")),
-            SpiritCategory("Espíritu de Aura", (42..45).map { String.format("%02d", it) } + listOf("86", "87")),
-            SpiritCategory("Espíritu de la Fundación", (46..49).map { String.format("%02d", it) } + listOf("88", "89")),
-            SpiritCategory("Espíritu de la Parca", (50..53).map { String.format("%02d", it) } + listOf("90", "91")),
-            SpiritCategory("Espíritu Futbolero", (54..57).map { String.format("%02d", it) } + listOf("92", "93")),
-            SpiritCategory("Espíritu Jefe", (58..61).map { String.format("%02d", it) } + listOf("94", "95")),
-            SpiritCategory("Espíritu Pescado", (62..65).map { String.format("%02d", it) } + listOf("96", "97"))
-        )
-    }
 
-    val spiritsList = remember { (1..97).map { String.format("%02d", it) } }
     val spiritNames = remember {
         listOf(
             // Fila 1
@@ -430,7 +612,16 @@ fun SpiritsChecklistView(
             "Espíritu de la Parca Gema", "Espíritu de la Parca Holofoil",
             "Espíritu Futbolero Gema", "Espíritu Futbolero Holofoil",
             "Espíritu Jefe Gema", "Espíritu Jefe Holofoil",
-            "Espíritu Pescado Gema", "Espíritu Pescado Holofoil"
+            "Espíritu Pescado Gema", "Espíritu Pescado Holofoil",
+            // Nuevos Espíritus (98..121)
+            // Fila 9 (Batman)
+            "Espíritu de Batman", "Espíritu de Batman Dorado", "Espíritu de Batman Gomita", "Espíritu de Batman Galaxia", "Espíritu de Batman Gema", "Espíritu de Batman Holofoil", "Espíritu de Batman Cubo",
+            // Fila 10 (Viento)
+            "Espíritu de Viento", "Espíritu de Viento Dorado", "Espíritu de Viento Gomita", "Espíritu de Viento Galaxia", "Espíritu de Viento Gema", "Espíritu de Viento Holofoil", "Espíritu de Viento Cubo",
+            // Fila 11 (Cubo)
+            "Espíritu de Agua Cubo", "Espíritu Dormilón Cubo", "Espíritu de Tierra Cubo", "Espíritu Demoníaco Cubo", "Espíritu de Fuego Cubo", "Espíritu Punk Cubo", "Espíritu Pato Cubo",
+            // Fila 12 (Especiales / Invitados)
+            "Espíritu Pollo", "Espíritu de Vini Jr.", "Espíritu de la Fundación Especial"
         )
     }
 
@@ -543,6 +734,20 @@ fun SpiritsChecklistView(
                         },
                         onClick = {
                             filterMode = "obtenidos_yo_no_otro"
+                            showFiltersMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (isEditMode) "✓ MODO EDICIÓN" else "MODO EDICIÓN",
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                        },
+                        onClick = {
+                            isEditMode = !isEditMode
                             showFiltersMenu = false
                         }
                     )
@@ -681,10 +886,11 @@ fun SpiritsChecklistView(
                         val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
                         if (id != 0) id else android.R.drawable.ic_menu_gallery
                     }
+                    val currentName = customNames[spiritId] ?: spiritNames.getOrElse(nameIndex) { "Espíritu #$spiritId" }
                     SpiritRow(
                         spiritId = spiritId,
                         spiritResId = spiritResId,
-                        spiritName = spiritNames.getOrElse(nameIndex) { "Espíritu #$spiritId" },
+                        spiritName = currentName,
                         hasKevin = hasKevin,
                         hasAli = hasAli,
                         hasKevinMastery = hasKevinMastery,
@@ -694,6 +900,14 @@ fun SpiritsChecklistView(
                         borderColor = borderColor,
                         textColor = textColor,
                         cardBg = cardBg,
+                        isEditMode = isEditMode,
+                        onEditName = {
+                            editingSpiritId = spiritId
+                            editingSpiritInitialName = currentName
+                        },
+                        onDeleteSpirit = {
+                            deletingSpiritId = spiritId
+                        },
                         onToggleCheck = onToggleCheck,
                         onToggleMastery = onToggleMastery
                     )
@@ -707,10 +921,12 @@ fun SpiritsChecklistView(
                         val categoryAliCount = category.spiritIds.count { aliList.contains(it) }
                         val categoryKevinMasteryCount = category.spiritIds.count { kevinMastery.contains(it) }
                         val categoryAliMasteryCount = category.spiritIds.count { aliMastery.contains(it) }
+                        val displayCategoryName = customCategories[category.name] ?: category.name
                         
                         item(key = category.name) {
                             CategoryHeader(
                                 category = category,
+                                displayName = displayCategoryName,
                                 isExpanded = isExpanded,
                                 borderColor = borderColor,
                                 cardBg = cardBg,
@@ -719,6 +935,14 @@ fun SpiritsChecklistView(
                                 aliCount = categoryAliCount,
                                 kevinMasteryCount = categoryKevinMasteryCount,
                                 aliMasteryCount = categoryAliMasteryCount,
+                                isEditMode = isEditMode,
+                                onEditCategoryName = {
+                                    editingCategoryOriginalName = category.name
+                                    editingCategoryInitialName = displayCategoryName
+                                },
+                                onDeleteCategory = {
+                                    deletingCategoryName = category.name
+                                },
                                 onClick = {
                                     expandedCategories = if (isExpanded) {
                                         expandedCategories - category.name
@@ -740,10 +964,11 @@ fun SpiritsChecklistView(
                                     val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
                                     if (id != 0) id else android.R.drawable.ic_menu_gallery
                                 }
+                                val currentName = customNames[spiritId] ?: spiritNames.getOrElse(index) { "Espíritu #$spiritId" }
                                 SpiritRow(
                                     spiritId = spiritId,
                                     spiritResId = spiritResId,
-                                    spiritName = spiritNames.getOrElse(index) { "Espíritu #$spiritId" },
+                                    spiritName = currentName,
                                     hasKevin = hasKevin,
                                     hasAli = hasAli,
                                     hasKevinMastery = hasKevinMastery,
@@ -753,6 +978,14 @@ fun SpiritsChecklistView(
                                     borderColor = borderColor,
                                     textColor = textColor,
                                     cardBg = cardBg,
+                                    isEditMode = isEditMode,
+                                    onEditName = {
+                                        editingSpiritId = spiritId
+                                        editingSpiritInitialName = currentName
+                                    },
+                                    onDeleteSpirit = {
+                                        deletingSpiritId = spiritId
+                                    },
                                     onToggleCheck = onToggleCheck,
                                     onToggleMastery = onToggleMastery
                                 )
@@ -760,8 +993,533 @@ fun SpiritsChecklistView(
                         }
                     }
                 }
+
+                // Render "Sin Categoría / Sueltos" Virtual Category at the bottom!
+                val categorizedIds = categories.flatMap { it.spiritIds }.toSet()
+                val uncategorizedIds = spiritsList.filter { !categorizedIds.contains(it) && matchesFilter(it) }
+                if (uncategorizedIds.isNotEmpty()) {
+                    val virtualCategoryName = "Sin Categoría / Sueltos"
+                    val isExpanded = expandedCategories.contains(virtualCategoryName)
+                    val categoryKevinCount = uncategorizedIds.count { kevinList.contains(it) }
+                    val categoryAliCount = uncategorizedIds.count { aliList.contains(it) }
+                    val categoryKevinMasteryCount = uncategorizedIds.count { kevinMastery.contains(it) }
+                    val categoryAliMasteryCount = uncategorizedIds.count { aliMastery.contains(it) }
+                    
+                    item(key = virtualCategoryName) {
+                        CategoryHeader(
+                            category = SpiritCategory(virtualCategoryName, uncategorizedIds),
+                            displayName = virtualCategoryName,
+                            isExpanded = isExpanded,
+                            borderColor = borderColor,
+                            cardBg = cardBg,
+                            textColor = textColor,
+                            kevinCount = categoryKevinCount,
+                            aliCount = categoryAliCount,
+                            kevinMasteryCount = categoryKevinMasteryCount,
+                            aliMasteryCount = categoryAliMasteryCount,
+                            isEditMode = false, // Virtual category cannot be renamed or deleted
+                            onClick = {
+                                expandedCategories = if (isExpanded) {
+                                    expandedCategories - virtualCategoryName
+                                } else {
+                                    expandedCategories + virtualCategoryName
+                                }
+                            }
+                        )
+                    }
+
+                    if (isExpanded) {
+                        items(uncategorizedIds, key = { "spirit_$it" }) { spiritId ->
+                            val index = spiritId.toInt() - 1
+                            val hasKevin = kevinList.contains(spiritId)
+                            val hasAli = aliList.contains(spiritId)
+                            val hasKevinMastery = kevinMastery.contains(spiritId)
+                            val hasAliMastery = aliMastery.contains(spiritId)
+                            val spiritResId = remember(spiritId, context) {
+                                val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
+                                if (id != 0) id else android.R.drawable.ic_menu_gallery
+                            }
+                            val currentName = customNames[spiritId] ?: spiritNames.getOrElse(index) { "Espíritu #$spiritId" }
+                            SpiritRow(
+                                spiritId = spiritId,
+                                spiritResId = spiritResId,
+                                spiritName = currentName,
+                                hasKevin = hasKevin,
+                                hasAli = hasAli,
+                                hasKevinMastery = hasKevinMastery,
+                                hasAliMastery = hasAliMastery,
+                                isKevin = isKevin,
+                                isDark = isDark,
+                                borderColor = borderColor,
+                                textColor = textColor,
+                                cardBg = cardBg,
+                                isEditMode = isEditMode,
+                                onEditName = {
+                                    editingSpiritId = spiritId
+                                    editingSpiritInitialName = currentName
+                                },
+                                onDeleteSpirit = {
+                                    deletingSpiritId = spiritId
+                                },
+                                onToggleCheck = onToggleCheck,
+                                onToggleMastery = onToggleMastery
+                            )
+                        }
+                    }
+                }
             }
         }
+    }
+
+    if (editingSpiritId != null) {
+        val spiritId = editingSpiritId!!
+        val currentCat = categories.find { it.spiritIds.contains(spiritId) }
+        val currentCatName = currentCat?.name ?: ""
+        val displayCategoryName = customCategories[currentCatName] ?: currentCatName
+        
+        var selectedCategoryName by remember(spiritId) { mutableStateOf(currentCatName) }
+        var selectedType by remember(spiritId) {
+            val name = editingSpiritInitialName
+            val suffix = when {
+                name == displayCategoryName -> "Normal"
+                name.startsWith(displayCategoryName) -> name.substring(displayCategoryName.length).trim()
+                else -> "Normal"
+            }
+            val types = listOf("Dorado", "Gomita", "Galaxia", "Gema", "Holofoil", "Cubo", "Extra", "Especial")
+            val t = if (types.contains(suffix)) suffix else "Normal"
+            mutableStateOf(t)
+        }
+        var tempName by remember(spiritId) { mutableStateOf(editingSpiritInitialName) }
+        
+        val updateGeneratedName = { categoryName: String, typeName: String ->
+            val catDisplayName = customCategories[categoryName] ?: categoryName
+            tempName = if (typeName == "Normal") {
+                catDisplayName
+            } else {
+                "$catDisplayName $typeName"
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { editingSpiritId = null },
+            modifier = Modifier.border(3.dp, borderColor),
+            containerColor = cardBg,
+            title = {
+                Text(
+                    text = "EDITAR ESPÍRITU",
+                    fontFamily = Vt323,
+                    fontSize = 24.sp,
+                    color = textColor
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "ID del Espíritu: $spiritId",
+                        fontFamily = Vt323,
+                        fontSize = 16.sp,
+                        color = textColor.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "Nombre:",
+                        fontFamily = Vt323,
+                        fontSize = 16.sp,
+                        color = textColor
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = tempName,
+                        onValueChange = { tempName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontFamily = Vt323,
+                            fontSize = 18.sp,
+                            color = textColor
+                        ),
+                        placeholder = {
+                            Text(
+                                "Escribe el nombre...",
+                                fontFamily = Vt323,
+                                fontSize = 18.sp,
+                                color = textColor.copy(alpha = 0.5f)
+                            )
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(150.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Category selector column
+                        Column(modifier = Modifier.weight(1.5f)) {
+                            Text(
+                                text = "Categoría:",
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .border(1.dp, borderColor)
+                                    .background(if (isDark) Color(0xFF1E1E1E) else Color(0xFFFFFBEA))
+                                    .padding(4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                item {
+                                    val isSelected = selectedCategoryName.isEmpty()
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(if (isSelected) borderColor.copy(alpha = 0.2f) else Color.Transparent)
+                                            .clickable { 
+                                                selectedCategoryName = ""
+                                                // If category is removed, we don't automatically generate name
+                                            }
+                                            .padding(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "[Sin Categoría]" + (if (isSelected) " ✓" else ""),
+                                            fontFamily = Vt323,
+                                            fontSize = 16.sp,
+                                            color = if (isSelected) textColor else textColor.copy(alpha = 0.7f),
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                                items(categories) { cat ->
+                                    val displayCat = customCategories[cat.name] ?: cat.name
+                                    val isSelected = selectedCategoryName == cat.name
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(if (isSelected) borderColor.copy(alpha = 0.2f) else Color.Transparent)
+                                            .clickable { 
+                                                selectedCategoryName = cat.name 
+                                                updateGeneratedName(cat.name, selectedType)
+                                            }
+                                            .padding(6.dp)
+                                    ) {
+                                        Text(
+                                            text = displayCat + (if (isSelected) " ✓" else ""),
+                                            fontFamily = Vt323,
+                                            fontSize = 16.sp,
+                                            color = if (isSelected) textColor else textColor.copy(alpha = 0.7f),
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Type / Variant selector column
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Tipo:",
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .border(1.dp, borderColor)
+                                    .background(if (isDark) Color(0xFF1E1E1E) else Color(0xFFFFFBEA))
+                                    .padding(4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                val types = listOf("Normal", "Dorado", "Gomita", "Galaxia", "Gema", "Holofoil", "Cubo", "Extra", "Especial")
+                                items(types) { t ->
+                                    val isSelected = selectedType == t
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(if (isSelected) borderColor.copy(alpha = 0.2f) else Color.Transparent)
+                                            .clickable { 
+                                                selectedType = t 
+                                                if (selectedCategoryName.isNotEmpty()) {
+                                                    updateGeneratedName(selectedCategoryName, t)
+                                                }
+                                            }
+                                            .padding(6.dp)
+                                    ) {
+                                        Text(
+                                            text = t + (if (isSelected) " ✓" else ""),
+                                            fontFamily = Vt323,
+                                            fontSize = 16.sp,
+                                            color = if (isSelected) textColor else textColor.copy(alpha = 0.7f),
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .border(2.dp, Color.Red)
+                            .clickable {
+                                deletingSpiritId = spiritId
+                                editingSpiritId = null
+                            }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "ELIMINAR",
+                            fontFamily = Vt323,
+                            fontSize = 18.sp,
+                            color = Color.Red
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .border(2.dp, borderColor)
+                                .clickable { editingSpiritId = null }
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "CANCELAR",
+                                fontFamily = Vt323,
+                                fontSize = 18.sp,
+                                color = textColor
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .border(2.dp, borderColor)
+                                .clickable {
+                                    onSaveSpiritChanges(spiritId, tempName, selectedCategoryName)
+                                    editingSpiritId = null
+                                }
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "GUARDAR",
+                                fontFamily = Vt323,
+                                fontSize = 18.sp,
+                                color = textColor
+                            )
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    if (editingCategoryOriginalName != null) {
+        var tempCategoryName by remember(editingCategoryOriginalName) { mutableStateOf(editingCategoryInitialName) }
+        AlertDialog(
+            onDismissRequest = { editingCategoryOriginalName = null },
+            modifier = Modifier.border(3.dp, borderColor),
+            containerColor = cardBg,
+            title = {
+                Text(
+                    text = "EDITAR CATEGORÍA",
+                    fontFamily = Vt323,
+                    fontSize = 24.sp,
+                    color = textColor
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Categoría Original: $editingCategoryOriginalName",
+                        fontFamily = Vt323,
+                        fontSize = 16.sp,
+                        color = textColor.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = tempCategoryName,
+                        onValueChange = { tempCategoryName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontFamily = Vt323,
+                            fontSize = 18.sp,
+                            color = textColor
+                        ),
+                        placeholder = {
+                            Text(
+                                "Escribe el nombre de la categoría...",
+                                fontFamily = Vt323,
+                                fontSize = 18.sp,
+                                color = textColor.copy(alpha = 0.5f)
+                            )
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                Box(
+                    modifier = Modifier
+                        .border(2.dp, borderColor)
+                        .clickable {
+                            editingCategoryOriginalName?.let { orig ->
+                                onSaveCategoryName(orig, tempCategoryName)
+                            }
+                            editingCategoryOriginalName = null
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "GUARDAR",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        color = textColor
+                    )
+                }
+            },
+            dismissButton = {
+                Box(
+                    modifier = Modifier
+                        .border(2.dp, borderColor)
+                        .clickable { editingCategoryOriginalName = null }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "CANCELAR",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        color = textColor
+                    )
+                }
+            }
+        )
+    }
+
+
+
+    if (deletingSpiritId != null) {
+        val spiritId = deletingSpiritId!!
+        AlertDialog(
+            onDismissRequest = { deletingSpiritId = null },
+            modifier = Modifier.border(3.dp, borderColor),
+            containerColor = cardBg,
+            title = {
+                Text(
+                    text = "ELIMINAR ESPÍRITU",
+                    fontFamily = Vt323,
+                    fontSize = 24.sp,
+                    color = textColor
+                )
+            },
+            text = {
+                Text(
+                    text = "¿Estás seguro de que deseas eliminar este espíritu de la lista permanente? Esta acción no se puede deshacer.",
+                    fontFamily = Vt323,
+                    fontSize = 18.sp,
+                    color = textColor
+                )
+            },
+            confirmButton = {
+                Box(
+                    modifier = Modifier
+                        .border(2.dp, borderColor)
+                        .clickable {
+                            onDeleteSpirit(spiritId)
+                            deletingSpiritId = null
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "ELIMINAR",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        color = textColor
+                    )
+                }
+            },
+            dismissButton = {
+                Box(
+                    modifier = Modifier
+                        .border(2.dp, borderColor)
+                        .clickable { deletingSpiritId = null }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "CANCELAR",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        color = textColor
+                    )
+                }
+            }
+        )
+    }
+
+    if (deletingCategoryName != null) {
+        val categoryName = deletingCategoryName!!
+        val displayName = customCategories[categoryName] ?: categoryName
+        AlertDialog(
+            onDismissRequest = { deletingCategoryName = null },
+            modifier = Modifier.border(3.dp, borderColor),
+            containerColor = cardBg,
+            title = {
+                Text(
+                    text = "ELIMINAR CATEGORÍA",
+                    fontFamily = Vt323,
+                    fontSize = 24.sp,
+                    color = textColor
+                )
+            },
+            text = {
+                Text(
+                    text = "¿Estás seguro de que deseas eliminar la categoría \"$displayName\"? Los espíritus que pertenezcan a ella se mantendrán en la lista general pero quedarán sin categoría.",
+                    fontFamily = Vt323,
+                    fontSize = 18.sp,
+                    color = textColor
+                )
+            },
+            confirmButton = {
+                Box(
+                    modifier = Modifier
+                        .border(2.dp, borderColor)
+                        .clickable {
+                            onDeleteCategory(categoryName)
+                            deletingCategoryName = null
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "ELIMINAR",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        color = textColor
+                    )
+                }
+            },
+            dismissButton = {
+                Box(
+                    modifier = Modifier
+                        .border(2.dp, borderColor)
+                        .clickable { deletingCategoryName = null }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "CANCELAR",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        color = textColor
+                    )
+                }
+            }
+        )
     }
 }
 
@@ -801,6 +1559,7 @@ data class SpiritCategory(
 @Composable
 fun CategoryHeader(
     category: SpiritCategory,
+    displayName: String,
     isExpanded: Boolean,
     borderColor: Color,
     cardBg: Color,
@@ -809,6 +1568,9 @@ fun CategoryHeader(
     aliCount: Int,
     kevinMasteryCount: Int,
     aliMasteryCount: Int,
+    isEditMode: Boolean = false,
+    onEditCategoryName: () -> Unit = {},
+    onDeleteCategory: () -> Unit = {},
     onClick: () -> Unit
 ) {
     Box(
@@ -830,20 +1592,51 @@ fun CategoryHeader(
                 color = textColor,
                 modifier = Modifier.padding(end = 8.dp)
             )
-            Text(
-                text = category.name,
-                fontFamily = Vt323,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = textColor,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = "K: $kevinCount ($kevinMasteryCount👑) | A: $aliCount ($aliMasteryCount👑)",
-                fontFamily = Vt323,
-                fontSize = 16.sp,
-                color = textColor.copy(alpha = 0.8f)
-            )
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = displayName,
+                    fontFamily = Vt323,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor,
+                    modifier = if (isEditMode) Modifier.clickable { onEditCategoryName() } else Modifier
+                )
+                if (isEditMode) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clickable { onEditCategoryName() }
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            text = "✏️",
+                            fontSize = 16.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .clickable { onDeleteCategory() }
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            text = "❌",
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
+            if (!isEditMode) {
+                Text(
+                    text = "K: $kevinCount ($kevinMasteryCount👑) | A: $aliCount ($aliMasteryCount👑)",
+                    fontFamily = Vt323,
+                    fontSize = 16.sp,
+                    color = textColor.copy(alpha = 0.8f)
+                )
+            }
         }
     }
 }
@@ -862,6 +1655,9 @@ fun SpiritRow(
     borderColor: Color,
     textColor: Color,
     cardBg: Color,
+    isEditMode: Boolean = false,
+    onEditName: () -> Unit = {},
+    onDeleteSpirit: () -> Unit = {},
     onToggleCheck: (String, Boolean, String) -> Unit,
     onToggleMastery: (String, Boolean, String) -> Unit
 ) {
@@ -889,80 +1685,113 @@ fun SpiritRow(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        Text(
-            text = spiritName,
-            fontFamily = Vt323,
-            fontSize = 18.sp,
-            color = textColor,
-            modifier = Modifier.weight(1f)
-        )
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 6.dp)
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "K",
+                text = spiritName,
                 fontFamily = Vt323,
-                fontSize = 12.sp,
-                color = textColor.copy(alpha = 0.7f)
+                fontSize = 18.sp,
+                color = textColor,
+                modifier = if (isEditMode) Modifier.clickable { onEditName() } else Modifier
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                RetroCheckbox(
-                    checked = hasKevin,
-                    enabled = isKevin,
-                    borderColor = borderColor,
-                    onCheckedChange = { onToggleCheck(spiritId, hasKevin, "kevin_list") }
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                val crownAlpha = if (hasKevinMastery) 1f else 0.25f
-                Text(
-                    text = "👑",
-                    fontSize = 20.sp,
+            if (isEditMode) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
                     modifier = Modifier
-                        .alpha(crownAlpha)
-                        .clickable(enabled = isKevin && hasKevin) {
-                            onToggleMastery(spiritId, hasKevinMastery, "kevin_mastery")
-                        }
-                )
+                        .clickable { onEditName() }
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        text = "✏️",
+                        fontSize = 16.sp
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 6.dp)
-        ) {
-            Text(
-                text = "A",
-                fontFamily = Vt323,
-                fontSize = 12.sp,
-                color = textColor.copy(alpha = 0.7f)
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+        if (!isEditMode) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 6.dp)
             ) {
-                RetroCheckbox(
-                    checked = hasAli,
-                    enabled = !isKevin,
-                    borderColor = borderColor,
-                    onCheckedChange = { onToggleCheck(spiritId, hasAli, "ali_list") }
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                val crownAlpha = if (hasAliMastery) 1f else 0.25f
                 Text(
-                    text = "👑",
+                    text = "K",
+                    fontFamily = Vt323,
+                    fontSize = 12.sp,
+                    color = textColor.copy(alpha = 0.7f)
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    RetroCheckbox(
+                        checked = hasKevin,
+                        enabled = isKevin,
+                        borderColor = borderColor,
+                        onCheckedChange = { onToggleCheck(spiritId, hasKevin, "kevin_list") }
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    val crownAlpha = if (hasKevinMastery) 1f else 0.25f
+                    Text(
+                        text = "👑",
+                        fontSize = 20.sp,
+                        modifier = Modifier
+                            .alpha(crownAlpha)
+                            .clickable(enabled = isKevin && hasKevin) {
+                                onToggleMastery(spiritId, hasKevinMastery, "kevin_mastery")
+                            }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 6.dp)
+            ) {
+                Text(
+                    text = "A",
+                    fontFamily = Vt323,
+                    fontSize = 12.sp,
+                    color = textColor.copy(alpha = 0.7f)
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    RetroCheckbox(
+                        checked = hasAli,
+                        enabled = !isKevin,
+                        borderColor = borderColor,
+                        onCheckedChange = { onToggleCheck(spiritId, hasAli, "ali_list") }
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    val crownAlpha = if (hasAliMastery) 1f else 0.25f
+                    Text(
+                        text = "👑",
+                        fontSize = 20.sp,
+                        modifier = Modifier
+                            .alpha(crownAlpha)
+                            .clickable(enabled = !isKevin && hasAli) {
+                                onToggleMastery(spiritId, hasAliMastery, "ali_mastery")
+                            }
+                    )
+                }
+            }
+        } else {
+            // Show Delete button (Cross ❌) on the right edge in Edit Mode!
+            Box(
+                modifier = Modifier
+                    .clickable { onDeleteSpirit() }
+                    .padding(8.dp)
+            ) {
+                Text(
+                    text = "❌",
                     fontSize = 20.sp,
-                    modifier = Modifier
-                        .alpha(crownAlpha)
-                        .clickable(enabled = !isKevin && hasAli) {
-                            onToggleMastery(spiritId, hasAliMastery, "ali_mastery")
-                        }
+                    color = Color.Red
                 )
             }
         }

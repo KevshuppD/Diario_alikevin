@@ -695,10 +695,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                             .update("lovePoints", p.getLovePoints() - cost,
                                     "unlockedAccessories", unlocked,
                                     "equippedAccessory", accessoryId);
-                        Toast.makeText(MainActivity.this, "¡Accesorio comprado y equipado! ✨", Toast.LENGTH_SHORT).show();
+                        showStyledPixelToast("¡Accesorio comprado y equipado! ✨");
                     }
                 } else {
-                    Toast.makeText(MainActivity.this, "No tienes suficientes puntos de amor ❤️", Toast.LENGTH_SHORT).show();
+                    showStyledPixelToast("No tienes suficientes puntos de amor ❤️");
                 }
                 return kotlin.Unit.INSTANCE;
             },
@@ -719,10 +719,10 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                     "unlockedBackgrounds", unlocked,
                                     "equippedBackground", backgroundId)
                             .addOnSuccessListener(aVoid -> {
-                                Toast.makeText(MainActivity.this, "¡Fondo comprado y equipado! 🖼️✨", Toast.LENGTH_SHORT).show();
+                                showStyledPixelToast("¡Fondo comprado y equipado! 🖼️✨");
                             });
                     } else {
-                        Toast.makeText(MainActivity.this, "No tienes suficientes puntos de amor ❤️", Toast.LENGTH_SHORT).show();
+                        showStyledPixelToast("No tienes suficientes puntos de amor ❤️");
                     }
                 }
                 return kotlin.Unit.INSTANCE;
@@ -733,7 +733,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     db.collection("pets").document(currentCoupleId)
                         .update("equippedBackground", backgroundId)
                         .addOnSuccessListener(aVoid -> {
-                            Toast.makeText(MainActivity.this, "¡Fondo equipado! 🖼️", Toast.LENGTH_SHORT).show();
+                            showStyledPixelToast("¡Fondo equipado! 🖼️");
                         });
                 }
                 return kotlin.Unit.INSTANCE;
@@ -763,9 +763,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                     "sleepPercent", decayedSleepPercent,
                                     "lastInteraction", now,
                                     "lastDecayUpdate", nextDecayUpdate);
-                        Toast.makeText(MainActivity.this, "¡Le has dado de comer a Thor! 💖 +" + happinessGain + "% Felicidad", Toast.LENGTH_SHORT).show();
+                        showStyledPixelToast("¡Le has dado de comer a Thor! 💖 +" + happinessGain + "% Felicidad");
                     } else {
-                        Toast.makeText(MainActivity.this, "No tienes suficientes puntos de amor ❤️", Toast.LENGTH_SHORT).show();
+                        showStyledPixelToast("No tienes suficientes puntos de amor ❤️");
                     }
                 }
                 return kotlin.Unit.INSTANCE;
@@ -847,7 +847,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                 showStyledPixelToast("¡Thor se siente amado! ❤️ +" + finalTaps + " Amor (" + totalTapsToday + "/" + maxDailyTaps + ")");
                             }
                             if (showLevelUpToast) {
-                                Toast.makeText(MainActivity.this, "¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉", Toast.LENGTH_LONG).show();
+                                showStyledPixelToast("¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉");
                             }
                         })
                         .addOnFailureListener(err -> {
@@ -863,7 +863,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     boolean targetSleepState = !p.isSleeping();
                     
                     if (!targetSleepState && dndActive) {
-                        Toast.makeText(MainActivity.this, "No puedes despertar a Thor mientras el modo No Molestar esté activo en tu celular. 📵", Toast.LENGTH_LONG).show();
+                        showStyledPixelToast("No puedes despertar a Thor mientras el modo No Molestar esté activo en tu celular. 📵");
                         return kotlin.Unit.INSTANCE;
                     }
 
@@ -879,7 +879,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     
                     if (targetSleepState) {
                         if (decayedSleepPercent >= 100) {
-                            Toast.makeText(MainActivity.this, "¡Thor ya está completamente descansado! ☀️ No necesita dormir.", Toast.LENGTH_SHORT).show();
+                            showStyledPixelToast("¡Thor ya está completamente descansado! ☀️ No necesita dormir.");
                             return kotlin.Unit.INSTANCE;
                         }
                         newStatus = Pet.STATUS_SLEEPING;
@@ -921,11 +921,11 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                 Pet p = petState.getValue();
                 if (p != null) {
                     if (p.isSleeping()) {
-                        Toast.makeText(MainActivity.this, "💤 ¡Thor está durmiendo!", Toast.LENGTH_SHORT).show();
+                        showStyledPixelToast("💤 ¡Thor está durmiendo!");
                         return kotlin.Unit.INSTANCE;
                     }
                     if (p.getCleanliness() >= 80) {
-                        Toast.makeText(MainActivity.this, "¡" + p.getName() + " todavía está limpio! 🫧 (Limpieza: " + p.getCleanliness() + "%)", Toast.LENGTH_SHORT).show();
+                        showStyledPixelToast("¡" + p.getName() + " todavía está limpio! 🫧 (Limpieza: " + p.getCleanliness() + "%)");
                         return kotlin.Unit.INSTANCE;
                     }
 
@@ -966,9 +966,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                 "lastInteraction", now,
                                 "lastDecayUpdate", nextDecayUpdate)
                         .addOnSuccessListener(aVoid -> {
-                            Toast.makeText(MainActivity.this, "¡Thor ha quedado súper limpio! 🫧🚿", Toast.LENGTH_SHORT).show();
+                            showStyledPixelToast("¡Thor ha quedado súper limpio! 🫧🚿");
                             if (showLevelUpToast) {
-                                Toast.makeText(MainActivity.this, "¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉", Toast.LENGTH_LONG).show();
+                                showStyledPixelToast("¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉");
                             }
                         });
                 }
@@ -981,7 +981,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     long now = System.currentTimeMillis();
                     String today = dayFormat.format(new java.util.Date(now));
                     if (today.equals(p.getLastBallDate())) {
-                        Toast.makeText(MainActivity.this, "¡Ya jugaste con la pelota hoy! ⚾", Toast.LENGTH_SHORT).show();
+                        showStyledPixelToast("¡Ya jugaste con la pelota hoy! ⚾");
                         return kotlin.Unit.INSTANCE;
                     }
 
@@ -1021,9 +1021,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                 "lastInteraction", now,
                                 "lastDecayUpdate", nextDecayUpdate)
                         .addOnSuccessListener(aVoid -> {
-                            Toast.makeText(MainActivity.this, "¡Jugaste a la pelota con Thor! ⚾", Toast.LENGTH_SHORT).show();
+                            showStyledPixelToast("¡Jugaste a la pelota con Thor! ⚾");
                             if (showLevelUpToast) {
-                                Toast.makeText(MainActivity.this, "¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉", Toast.LENGTH_LONG).show();
+                                showStyledPixelToast("¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉");
                             }
                         });
                 }
@@ -1038,11 +1038,11 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                     String updateDateField = "memory".equals(gameType) ? "lastMemoryDate" : "lastSnakeDate";
                     
                     if ("memory".equals(gameType) && today.equals(p.getLastMemoryDate())) {
-                        Toast.makeText(MainActivity.this, "¡Ya jugaste a Retro Memory hoy! 🧠", Toast.LENGTH_SHORT).show();
+                        showStyledPixelToast("¡Ya jugaste a Retro Memory hoy! 🧠");
                         return kotlin.Unit.INSTANCE;
                     }
                     if ("snake".equals(gameType) && today.equals(p.getLastSnakeDate())) {
-                        Toast.makeText(MainActivity.this, "¡Ya jugaste a La Serpiente hoy! 🐍", Toast.LENGTH_SHORT).show();
+                        showStyledPixelToast("¡Ya jugaste a La Serpiente hoy! 🐍");
                         return kotlin.Unit.INSTANCE;
                     }
 
@@ -1082,9 +1082,9 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
                                 "lastInteraction", now,
                                 "lastDecayUpdate", nextDecayUpdate)
                         .addOnSuccessListener(aVoid -> {
-                            Toast.makeText(MainActivity.this, "¡Premio reclamado! +" + points + " ❤️ y +" + exp + " EXP 🥰", Toast.LENGTH_SHORT).show();
+                            showStyledPixelToast("¡Premio reclamado! +" + points + " ❤️ y +" + exp + " EXP 🥰");
                             if (showLevelUpToast) {
-                                Toast.makeText(MainActivity.this, "¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉", Toast.LENGTH_LONG).show();
+                                showStyledPixelToast("¡" + p.getName() + " ha subido al nivel " + finalLevel + "! 🎉");
                             }
                         })
                         .addOnFailureListener(err -> {

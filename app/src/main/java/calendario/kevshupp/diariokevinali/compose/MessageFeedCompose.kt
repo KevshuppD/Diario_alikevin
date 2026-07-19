@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import calendario.kevshupp.diariokevinali.Message
 import calendario.kevshupp.diariokevinali.Pet
+import calendario.kevshupp.diariokevinali.MainActivity
 import calendario.kevshupp.diariokevinali.R
 import coil.compose.AsyncImage
 import java.text.SimpleDateFormat
@@ -1096,18 +1097,23 @@ fun PetMenuDialog(
         finishedListener = { dIsClicked = false }
     )
 
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .height(screenHeight - 40.dp)
+                .padding(horizontal = 8.dp)
                 .border(3.dp, borderColor),
             color = bgColor,
             shape = RectangleShape
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                 // Encabezado principal estilo Retro con botón Cerrar [X] pegajoso y responsivo
                 Row(
                     modifier = Modifier
@@ -2004,7 +2010,7 @@ fun PetMenuDialog(
                                 Button(
                                     onClick = { 
                                         onUpdateName(newName)
-                                        android.widget.Toast.makeText(context, "¡Nombre guardado! ❤️", android.widget.Toast.LENGTH_SHORT).show()
+                                        (context as? MainActivity)?.showStyledPixelToast("¡Nombre guardado! ❤️")
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = borderColor),
                                     shape = RectangleShape,
@@ -2039,7 +2045,7 @@ fun PetMenuDialog(
                                     notificationsEnabled = isChecked
                                     sharedPrefsNotif.edit().putBoolean("notifications_enabled", isChecked).apply()
                                     val statusText = if (isChecked) "activadas" else "desactivadas"
-                                    android.widget.Toast.makeText(context, "Notificaciones $statusText", android.widget.Toast.LENGTH_SHORT).show()
+                                    (context as? MainActivity)?.showStyledPixelToast("Notificaciones $statusText 🔔")
                                 },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = accentColor,
@@ -2063,10 +2069,10 @@ fun PetMenuDialog(
                             Spacer(modifier = Modifier.height(10.dp))
                             Button(
                                 onClick = {
-                                    android.widget.Toast.makeText(context, "Sincronizando...", android.widget.Toast.LENGTH_SHORT).show()
+                                    (context as? MainActivity)?.showStyledPixelToast("Sincronizando... ☁️")
                                     scope.launch {
                                         delay(800)
-                                        android.widget.Toast.makeText(context, "¡Sincronización forzada con éxito! ☁️✨", android.widget.Toast.LENGTH_SHORT).show()
+                                        (context as? MainActivity)?.showStyledPixelToast("¡Sincronización forzada con éxito! ☁️✨")
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -2112,7 +2118,7 @@ fun PetMenuDialog(
             onDismiss = { showGameSelector = false },
             onPlayMemory = {
                 if (playedMemoryToday) {
-                    android.widget.Toast.makeText(context, "¡Ya jugaste a Retro Memory hoy! 🧠", android.widget.Toast.LENGTH_SHORT).show()
+                    (context as? MainActivity)?.showStyledPixelToast("¡Ya jugaste a Retro Memory hoy! 🧠")
                 } else {
                     showGameSelector = false
                     showMemoryGame = true
@@ -2120,7 +2126,7 @@ fun PetMenuDialog(
             },
             onPlaySnake = {
                 if (playedSnakeToday) {
-                    android.widget.Toast.makeText(context, "¡Ya jugaste a La Serpiente hoy! 🐍", android.widget.Toast.LENGTH_SHORT).show()
+                    (context as? MainActivity)?.showStyledPixelToast("¡Ya jugaste a La Serpiente hoy! 🐍")
                 } else {
                     showGameSelector = false
                     showSnakeGame = true
@@ -2759,30 +2765,29 @@ fun SnakeGameDialog(
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
     ) {
         Surface(
-            modifier = Modifier
-                .width(320.dp)
-                .wrapContentHeight()
-                .padding(8.dp),
-            color = Color.Transparent
+            modifier = Modifier.fillMaxSize(),
+            color = Color(0xFFC5C6C0) // Classic GameBoy Gray
         ) {
-            // Carcasa de la Consola GameBoy Clásica (Gris Retro)
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFC5C6C0), shape = RoundedCornerShape(16.dp))
-                    .border(4.dp, Color(0xFF8E8F88), shape = RoundedCornerShape(16.dp))
-                    .padding(16.dp),
+                    .fillMaxSize()
+                    .systemBarsPadding()
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 90.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 1. Marco de la pantalla (Plástico gris oscuro)
+                // 1. Marco de la pantalla (Plástico gris oscuro) - Grande e inmersivo
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF3F403F), shape = RoundedCornerShape(8.dp))
-                        .border(3.dp, Color(0xFF1E1E1E), shape = RoundedCornerShape(8.dp))
+                        .fillMaxWidth(0.85f)
+                        .background(Color(0xFF3F403F), shape = RoundedCornerShape(12.dp))
+                        .border(3.dp, Color(0xFF1E1E1E), shape = RoundedCornerShape(12.dp))
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -2825,10 +2830,11 @@ fun SnakeGameDialog(
                         )
                     }
 
-                    // 2. La Pantalla LCD Verde (Con HUD integrado)
+                    // 2. La Pantalla LCD Verde (Con HUD integrado) - Full Width y AspectRatio(1f) para verse grande!
                     Column(
                         modifier = Modifier
-                            .size(230.dp)
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
                             .background(Color(0xFF9BBC0F))
                             .border(2.dp, Color(0xFF0F380F))
                     ) {
@@ -2871,27 +2877,52 @@ fun SnakeGameDialog(
                                     verticalArrangement = Arrangement.Center,
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .background(Color(0xFF0F380F).copy(alpha = 0.9f))
+                                        .background(Color(0xFF0F380F).copy(alpha = 0.95f))
                                 ) {
                                     Text(
                                         text = "GAME OVER!",
                                         fontFamily = Vt323,
-                                        fontSize = 24.sp,
+                                        fontSize = 28.sp,
                                         color = Color(0xFF9BBC0F),
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     val pts = score * 2
                                     val xp = score * 5
                                     Text(
                                         text = "+$pts LOVE  +$xp XP",
                                         fontFamily = Vt323,
-                                        fontSize = 16.sp,
+                                        fontSize = 20.sp,
                                         color = Color(0xFF9BBC0F)
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    if (score > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .border(2.dp, Color(0xFF9BBC0F))
+                                                .background(Color(0xFF0F380F))
+                                                .clickable {
+                                                    val rewardedPts = score * 2
+                                                    val rewardedXp = score * 5
+                                                    onReward(rewardedPts, rewardedXp)
+                                                    onDismiss()
+                                                }
+                                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = "RECLAMAR RECOMPENSA 🏆",
+                                                fontFamily = Vt323,
+                                                fontSize = 16.sp,
+                                                color = Color(0xFF9BBC0F),
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                    }
+
                                     Text(
-                                        text = "PULSA [A] REINICIAR",
+                                        text = "PULSA [A] GUARDAR Y SALIR",
                                         fontFamily = Vt323,
                                         fontSize = 14.sp,
                                         color = Color(0xFF9BBC0F).copy(alpha = 0.8f)
@@ -2994,19 +3025,7 @@ fun SnakeGameDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Marca de la consola impreso en el plástico
-                Text(
-                    "THOR POCKET™",
-                    fontFamily = Vt323,
-                    color = Color(0xFF2C2D2F),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.Start).padding(start = 8.dp)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // 3. Controles Físicos (D-PAD cruz contiguous a la izquierda, botones A/B a la derecha)
+                // Marca de la consola impreso en el plástico y botones SELECT/START al lado
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -3014,109 +3033,34 @@ fun SnakeGameDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // D-PAD CONTIGUO DE PLÁSTICO (Diseño clásico de cruz unificada)
-                    Box(
-                        modifier = Modifier.size(110.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        // Cuerpo Vertical de la Cruz
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp, 100.dp)
-                                .background(Color(0xFF2E2D2D), shape = RoundedCornerShape(4.dp))
-                                .border(1.5.dp, Color.Black, shape = RoundedCornerShape(4.dp))
-                        )
-                        // Cuerpo Horizontal de la Cruz
-                        Box(
-                            modifier = Modifier
-                                .size(100.dp, 34.dp)
-                                .background(Color(0xFF2E2D2D), shape = RoundedCornerShape(4.dp))
-                                .border(1.5.dp, Color.Black, shape = RoundedCornerShape(4.dp))
-                        )
-                        // Centro unificador
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .background(Color(0xFF252424))
-                        )
+                    Text(
+                        "THOR POCKET™",
+                        fontFamily = Vt323,
+                        color = Color(0xFF2C2D2F),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
 
-                        // Zonas Clickables sobre la Cruz
-                        // Botón Arriba
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .align(Alignment.TopCenter)
-                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                                    if (direction != (0 to 1)) direction = 0 to -1
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("▲", color = Color(0xFF8E8F88), fontSize = 12.sp)
-                        }
-
-                        // Botón Abajo
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .align(Alignment.BottomCenter)
-                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                                    if (direction != (0 to -1)) direction = 0 to 1
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("▼", color = Color(0xFF8E8F88), fontSize = 12.sp)
-                        }
-
-                        // Botón Izquierda
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .align(Alignment.CenterStart)
-                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                                    if (direction != (1 to 0)) direction = -1 to 0
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("◀", color = Color(0xFF8E8F88), fontSize = 12.sp)
-                        }
-
-                        // Botón Derecha
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .align(Alignment.CenterEnd)
-                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                                    if (direction != (-1 to 0)) direction = 1 to 0
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("▶", color = Color(0xFF8E8F88), fontSize = 12.sp)
-                        }
-                    }
-
-                    // Botones de Acción Redondos (B / A)
+                    // SELECT y START alineados a la derecha de la marca para liberar espacio horizontal inferior
                     Row(
-                        modifier = Modifier.padding(top = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Botón B (Pausar)
+                        // SELECT (SALIR)
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
-                                    .background(Color(0xFF8B1E3F), shape = CircleShape)
-                                    .border(2.dp, Color.Black, shape = CircleShape)
+                                    .size(38.dp, 10.dp)
+                                    .graphicsLayer(rotationZ = -25f)
+                                    .background(Color(0xFF6B6A68), shape = RoundedCornerShape(3.dp))
+                                    .border(1.dp, Color.Black, shape = RoundedCornerShape(3.dp))
                                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                                        isPlaying = !isPlaying
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("B", color = Color.White, fontFamily = Vt323, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
+                                        onDismiss()
+                                    }
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = if (isPlaying) "PAUSA" else "PLAY",
+                                text = "SELECT",
                                 fontFamily = Vt323,
                                 fontSize = 9.sp,
                                 color = Color(0xFF3F403F),
@@ -3124,31 +3068,24 @@ fun SnakeGameDialog(
                             )
                         }
 
-                        // Botón A (Reiniciar)
-                        Column(
-                            modifier = Modifier.padding(bottom = 12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
+                        // START (GUARDAR)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
-                                    .background(Color(0xFF8B1E3F), shape = CircleShape)
-                                    .border(2.dp, Color.Black, shape = CircleShape)
+                                    .size(38.dp, 10.dp)
+                                    .graphicsLayer(rotationZ = -25f)
+                                    .background(Color(0xFF6B6A68), shape = RoundedCornerShape(3.dp))
+                                    .border(1.dp, Color.Black, shape = RoundedCornerShape(3.dp))
                                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                                        if (isGameOver) {
-                                            snake = listOf(6 to 6, 6 to 7)
-                                            direction = 0 to -1
-                                            score = 0
-                                            isGameOver = false
-                                            isPlaying = true
-                                            spawnFood()
+                                        val rewardedPts = score * 2
+                                        val rewardedXp = score * 5
+                                        if (score > 0) {
+                                            onReward(rewardedPts, rewardedXp)
                                         }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("A", color = Color.White, fontFamily = Vt323, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
+                                        onDismiss()
+                                    }
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "START",
                                 fontFamily = Vt323,
@@ -3160,69 +3097,165 @@ fun SnakeGameDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                // Spacer dinámico para empujar los controles hacia la parte inferior de la pantalla
+                Spacer(modifier = Modifier.weight(1f))
 
-                // 4. Botones de goma SELECT y START en diagonal al fondo
+                // 3. Controles Físicos (D-PAD gigante a la izquierda, botones A/B a la derecha)
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Botón SELECT (Salir del juego)
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 14.dp)
+                    // D-PAD CONTIGUO DE PLÁSTICO (Diseño clásico de cruz unificada - Gigante: 160dp)
+                    Box(
+                        modifier = Modifier.size(160.dp),
+                        contentAlignment = Alignment.Center
                     ) {
+                        // Cuerpo Vertical de la Cruz
                         Box(
                             modifier = Modifier
-                                .size(38.dp, 10.dp)
-                                .graphicsLayer(rotationZ = -25f)
-                                .background(Color(0xFF6B6A68), shape = RoundedCornerShape(3.dp))
-                                .border(1.dp, Color.Black, shape = RoundedCornerShape(3.dp))
+                                .size(50.dp, 150.dp)
+                                .background(Color(0xFF2E2D2D), shape = RoundedCornerShape(4.dp))
+                                .border(1.5.dp, Color.Black, shape = RoundedCornerShape(4.dp))
+                        )
+                        // Cuerpo Horizontal de la Cruz
+                        Box(
+                            modifier = Modifier
+                                .size(150.dp, 50.dp)
+                                .background(Color(0xFF2E2D2D), shape = RoundedCornerShape(4.dp))
+                                .border(1.5.dp, Color.Black, shape = RoundedCornerShape(4.dp))
+                        )
+                        // Centro unificador
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .background(Color(0xFF252424))
+                        )
+
+                        // Zonas Clickables sobre la Cruz (Gigantes para evitar zonas muertas de contacto)
+                        // Botón Arriba
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp, 65.dp)
+                                .align(Alignment.TopCenter)
                                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                                    onDismiss()
-                                }
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "SALIR",
-                            fontFamily = Vt323,
-                            fontSize = 10.sp,
-                            color = Color(0xFF3F403F),
-                            fontWeight = FontWeight.Bold
-                        )
+                                    if (direction != (0 to 1)) direction = 0 to -1
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("▲", color = Color(0xFF8E8F88), fontSize = 18.sp)
+                        }
+
+                        // Botón Abajo
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp, 65.dp)
+                                .align(Alignment.BottomCenter)
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                    if (direction != (0 to -1)) direction = 0 to 1
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("▼", color = Color(0xFF8E8F88), fontSize = 18.sp)
+                        }
+
+                        // Botón Izquierda
+                        Box(
+                            modifier = Modifier
+                                .size(65.dp, 80.dp)
+                                .align(Alignment.CenterStart)
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                    if (direction != (1 to 0)) direction = -1 to 0
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("◀", color = Color(0xFF8E8F88), fontSize = 18.sp)
+                        }
+
+                        // Botón Derecha
+                        Box(
+                            modifier = Modifier
+                                .size(65.dp, 80.dp)
+                                .align(Alignment.CenterEnd)
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                    if (direction != (-1 to 0)) direction = 1 to 0
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("▶", color = Color(0xFF8E8F88), fontSize = 18.sp)
+                        }
                     }
 
-                    // Botón START (Guardar Recompensa)
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 14.dp)
+                    // Botones de Acción Redondos (B / A) - Grandes y en diagonal
+                    Row(
+                        modifier = Modifier.padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp, 10.dp)
-                                .graphicsLayer(rotationZ = -25f)
-                                .background(Color(0xFF6B6A68), shape = RoundedCornerShape(3.dp))
-                                .border(1.dp, Color.Black, shape = RoundedCornerShape(3.dp))
-                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                                    val rewardedPts = score * 2
-                                    val rewardedXp = score * 5
-                                    if (score > 0) {
-                                        onReward(rewardedPts, rewardedXp)
-                                    }
-                                    onDismiss()
-                                }
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "GUARDAR",
-                            fontFamily = Vt323,
-                            fontSize = 10.sp,
-                            color = Color(0xFF3F403F),
-                            fontWeight = FontWeight.Bold
-                        )
+                        // Botón B (Pausar)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .background(Color(0xFF8B1E3F), shape = CircleShape)
+                                    .border(3.dp, Color.Black, shape = CircleShape)
+                                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                        isPlaying = !isPlaying
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("B", color = Color.White, fontFamily = Vt323, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isPlaying) "PAUSA" else "PLAY",
+                                fontFamily = Vt323,
+                                fontSize = 10.sp,
+                                color = Color(0xFF3F403F),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // Botón A (En GameOver: Guardar y Salir)
+                        Column(
+                            modifier = Modifier.padding(bottom = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .background(Color(0xFF8B1E3F), shape = CircleShape)
+                                    .border(3.dp, Color.Black, shape = CircleShape)
+                                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                        if (isGameOver) {
+                                            val rewardedPts = score * 2
+                                            val rewardedXp = score * 5
+                                            if (score > 0) {
+                                                onReward(rewardedPts, rewardedXp)
+                                            }
+                                            onDismiss()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("A", color = Color.White, fontFamily = Vt323, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "START",
+                                fontFamily = Vt323,
+                                fontSize = 10.sp,
+                                color = Color(0xFF3F403F),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
+
+                // Margen de seguridad inferior
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
