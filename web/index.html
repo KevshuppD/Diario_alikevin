@@ -475,6 +475,144 @@
       border-radius: 16px;
       font-size: 14px;
     }
+
+    /* Mobile-responsive and Variant editor overrides */
+    .gallery-grid {
+      grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)) !important;
+    }
+    .gallery-item {
+      cursor: pointer;
+    }
+    .spirit-slots-grid {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    }
+    .spirit-slot .remove-btn {
+      opacity: 0.8;
+    }
+
+    /* Mobile Tabs Navigation */
+    .mobile-tabs {
+      display: none;
+      background: rgba(13, 14, 21, 0.95);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 73px;
+      z-index: 99;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .tab-btn.active {
+      color: #fff;
+      border-bottom: 2px solid var(--accent-color);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Assign Modal Overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #12131a;
+      border: 1px solid var(--accent-color);
+      box-shadow: 0 10px 30px rgba(156, 39, 176, 0.3);
+      padding: 24px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+    }
+
+    .modal-content h3 {
+      font-family: 'Outfit', sans-serif;
+      margin-bottom: 8px;
+      color: var(--text-color);
+    }
+
+    /* Responsive Queries */
+    @media (max-width: 767px) {
+      .mobile-tabs {
+        display: flex;
+      }
+      .main-container {
+        flex-direction: column;
+        height: calc(100vh - 126px) !important;
+        overflow: hidden;
+      }
+      .sidebar {
+        width: 100% !important;
+        height: 100% !important;
+        border-right: none;
+      }
+      .content-area {
+        width: 100% !important;
+        height: 100% !important;
+        padding: 16px !important;
+      }
+      .actions-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        text-align: center;
+      }
+      .actions-bar div {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      #btn-save {
+        grid-column: span 2;
+      }
+      .connection-panel {
+        width: 100%;
+        margin-top: 8px;
+        justify-content: space-between;
+      }
+      .connection-panel input {
+        flex: 1;
+        width: auto;
+      }
+      
+      /* Mobile active tab visibility logic */
+      .main-container.show-gallery .sidebar {
+        display: flex !important;
+      }
+      .main-container.show-gallery .content-area {
+        display: none !important;
+      }
+      .main-container.show-categories .sidebar {
+        display: none !important;
+      }
+      .main-container.show-categories .content-area {
+        display: flex !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -496,7 +634,12 @@
     </div>
   </header>
 
-  <div class="main-container">
+  <div class="mobile-tabs" id="mobile-tabs">
+    <button class="tab-btn active" id="tab-gallery">Galería</button>
+    <button class="tab-btn" id="tab-categories">Categorías</button>
+  </div>
+
+  <div class="main-container show-gallery" id="main-container">
     <!-- Left Sidebar: Gallery of 121 raw spirit images -->
     <div class="sidebar">
       <div class="sidebar-header">
@@ -521,6 +664,21 @@
 
       <div class="categories-list" id="categories-container">
         <div class="empty-state">Ingresa tu ID de Pareja y haz clic en "Cargar Datos" para sincronizar la base de datos de Firestore.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for mobile click assignment -->
+  <div class="modal-overlay" id="assign-modal">
+    <div class="modal-content">
+      <h3 id="assign-modal-title">Asignar Espíritu</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Selecciona la categoría a la que deseas mover este espíritu:</p>
+      <select id="assign-category-select" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+        <!-- Categories list loaded dynamically -->
+      </select>
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="btn btn-secondary" id="btn-close-modal">Cancelar</button>
+        <button class="btn" id="btn-confirm-assign">Asignar</button>
       </div>
     </div>
   </div>
@@ -618,6 +776,79 @@
       "Espíritu Pollo", "Espíritu de Vini Jr.", "Espíritu de la Fundación Especial"
     ];
 
+    const spiritTypes = [
+      { name: "Normal", suffix: "" },
+      { name: "Dorado", suffix: " Dorado" },
+      { name: "Gomita", suffix: " Gomita" },
+      { name: "Galaxia", suffix: " Galaxia" },
+      { name: "Gema", suffix: " Gema" },
+      { name: "Holofoil", suffix: " Holofoil" },
+      { name: "Cubo", suffix: " Cubo" }
+    ];
+
+    function getSpiritCurrentType(id) {
+      const name = getSpiritName(id);
+      for (let i = spiritTypes.length - 1; i >= 1; i--) {
+        if (name.endsWith(spiritTypes[i].suffix)) {
+          return spiritTypes[i].name;
+        }
+      }
+      return "Normal";
+    }
+
+    function getSpiritBaseName(id) {
+      const name = getSpiritName(id);
+      for (let i = spiritTypes.length - 1; i >= 1; i--) {
+        if (name.endsWith(spiritTypes[i].suffix)) {
+          return name.slice(0, -spiritTypes[i].suffix.length);
+        }
+      }
+      return name;
+    }
+
+    window.changeSpiritType = function(id, newTypeName) {
+      const baseName = getSpiritBaseName(id);
+      const newType = spiritTypes.find(t => t.name === newTypeName);
+      const newSuffix = newType ? newType.suffix : "";
+      const newFullName = baseName + newSuffix;
+
+      const defName = defaultNames[parseInt(id) - 1] || "";
+      if (newFullName === defName) {
+        delete customNames[id];
+      } else {
+        customNames[id] = newFullName;
+      }
+      renderWorkspace();
+    };
+
+    let activeModalSpiritId = null;
+
+    function openAssignModal(id) {
+      activeModalSpiritId = id;
+      document.getElementById("assign-modal-title").textContent = `Asignar Espíritu #${id} (${getSpiritName(id)})`;
+      
+      let currentCatName = "__uncategorized__";
+      const foundCat = categories.find(c => c.spiritIds.includes(id));
+      if (foundCat) {
+        currentCatName = foundCat.name;
+      }
+      
+      let assignOptionsHtml = "";
+      categories.forEach(c => {
+        const isCurrent = c.name === currentCatName;
+        assignOptionsHtml += `<option value="${c.name}" ${isCurrent ? 'selected' : ''}>${customCategories[c.name] || c.name}</option>`;
+      });
+      assignOptionsHtml += `<option value="__uncategorized__" ${currentCatName === "__uncategorized__" ? 'selected' : ''}>Sin Categoría / Suelto</option>`;
+      document.getElementById("assign-category-select").innerHTML = assignOptionsHtml;
+      
+      document.getElementById("assign-modal").classList.add("show");
+    }
+
+    function closeAssignModal() {
+      document.getElementById("assign-modal").classList.remove("show");
+      activeModalSpiritId = null;
+    }
+
     // Determine correct raw image path or relative fallback
     function getSpiritImgUrl(id) {
       if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:") {
@@ -650,6 +881,11 @@
         
         item.addEventListener("dragstart", (e) => {
           e.dataTransfer.setData("text/plain", id);
+        });
+
+        // Click handler for mobile compatibility
+        item.addEventListener("click", () => {
+          openAssignModal(id);
         });
         
         container.appendChild(item);
@@ -714,12 +950,22 @@
           });
           optionsHtml += `<option value="__uncategorized__">Sin Categoría / Suelto</option>`;
 
+          // Generate type select options
+          const currentType = getSpiritCurrentType(id);
+          let typesHtml = "";
+          spiritTypes.forEach(t => {
+            typesHtml += `<option value="${t.name}" ${t.name === currentType ? 'selected' : ''}>${t.name}</option>`;
+          });
+
           const slot = document.createElement("div");
           slot.className = "spirit-slot";
           slot.innerHTML = `
             <button class="remove-btn" onclick="removeSpiritFromCategory('${id}', '${cat.name}')">×</button>
             <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}">
             <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}" style="margin-bottom: 4px;">
+            <select class="type-select" data-id="${id}" style="width: 100%; font-size: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); color: var(--text-color); border-radius: 4px; padding: 2px; outline: none; cursor: pointer; margin-bottom: 4px;">
+              ${typesHtml}
+            </select>
             <select class="category-select" data-id="${id}" style="width: 100%; font-size: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); color: var(--text-color); border-radius: 4px; padding: 2px; outline: none; cursor: pointer;">
               ${optionsHtml}
             </select>
@@ -738,7 +984,12 @@
             }
           });
 
-          const selectEl = slot.querySelector("select");
+          const typeSelectEl = slot.querySelector(".type-select");
+          typeSelectEl.addEventListener("change", (e) => {
+            changeSpiritType(id, e.target.value);
+          });
+
+          const selectEl = slot.querySelector(".category-select");
           selectEl.addEventListener("change", (e) => {
             const newCat = e.target.value;
             moveSpiritToCategory(id, newCat);
@@ -794,12 +1045,22 @@
           optionsHtml += `<option value="${c.name}">${customCategories[c.name] || c.name}</option>`;
         });
 
+        // Generate type select options
+        const currentType = getSpiritCurrentType(id);
+        let typesHtml = "";
+        spiritTypes.forEach(t => {
+          typesHtml += `<option value="${t.name}" ${t.name === currentType ? 'selected' : ''}>${t.name}</option>`;
+        });
+
         const slot = document.createElement("div");
         slot.className = "spirit-slot";
         slot.innerHTML = `
           <button class="remove-btn" style="background: rgba(239, 68, 68, 0.2);" onclick="permanentlyDeleteSpirit('${id}')">🗑</button>
           <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}">
           <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}" style="margin-bottom: 4px;">
+          <select class="type-select" data-id="${id}" style="width: 100%; font-size: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); color: var(--text-color); border-radius: 4px; padding: 2px; outline: none; cursor: pointer; margin-bottom: 4px;">
+            ${typesHtml}
+          </select>
           <select class="category-select" data-id="${id}" style="width: 100%; font-size: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); color: var(--text-color); border-radius: 4px; padding: 2px; outline: none; cursor: pointer;">
             ${optionsHtml}
           </select>
@@ -817,7 +1078,12 @@
           }
         });
 
-        const selectEl = slot.querySelector("select");
+        const typeSelectEl = slot.querySelector(".type-select");
+        typeSelectEl.addEventListener("change", (e) => {
+          changeSpiritType(id, e.target.value);
+        });
+
+        const selectEl = slot.querySelector(".category-select");
         selectEl.addEventListener("change", (e) => {
           const newCat = e.target.value;
           moveSpiritToCategory(id, newCat);
@@ -1053,6 +1319,36 @@
       if (savedCoupleId) {
         document.getElementById("couple-id").value = savedCoupleId;
       }
+
+      // Mobile Tab toggles
+      const mainContainer = document.getElementById("main-container");
+      const tabGallery = document.getElementById("tab-gallery");
+      const tabCategories = document.getElementById("tab-categories");
+
+      tabGallery.addEventListener("click", () => {
+        tabGallery.classList.add("active");
+        tabCategories.classList.remove("active");
+        mainContainer.classList.add("show-gallery");
+        mainContainer.classList.remove("show-categories");
+      });
+
+      tabCategories.addEventListener("click", () => {
+        tabCategories.classList.add("active");
+        tabGallery.classList.remove("active");
+        mainContainer.classList.add("show-categories");
+        mainContainer.classList.remove("show-gallery");
+      });
+
+      // Modal action buttons
+      document.getElementById("btn-close-modal").addEventListener("click", closeAssignModal);
+      document.getElementById("btn-confirm-assign").addEventListener("click", () => {
+        if (activeModalSpiritId) {
+          const selectedCat = document.getElementById("assign-category-select").value;
+          moveSpiritToCategory(activeModalSpiritId, selectedCat);
+          closeAssignModal();
+          showToast("Espíritu asignado correctamente.", false);
+        }
+      });
       
       renderGallery();
     });
