@@ -1,6 +1,8 @@
 package calendario.kevshupp.diariokevinali.compose
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -102,6 +104,7 @@ fun MiscGridView(
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
     val context = LocalContext.current
+    var showWebDialog by remember { mutableStateOf(false) }
 
     // Dynamically retrieve the first spirit icon for the button logo
     val spiritIconId = remember(context) {
@@ -217,8 +220,42 @@ fun MiscGridView(
                 }
             }
 
-            // Other 2 slots: placeholders for future activities (locked)
-            items(2) { index ->
+            // Third item: Web manager section
+            item {
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .border(3.dp, borderColor)
+                        .background(cardBg)
+                        .clickable { showWebDialog = true }
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "🌐",
+                            fontSize = 44.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Web Gestión",
+                            fontFamily = Vt323,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 22.sp
+                        )
+                    }
+                }
+            }
+
+            // Fourth item: placeholder for future activities (locked)
+            item {
                 Box(
                     modifier = Modifier
                         .aspectRatio(1f)
@@ -251,6 +288,66 @@ fun MiscGridView(
                 }
             }
         }
+    }
+
+    if (showWebDialog) {
+        AlertDialog(
+            onDismissRequest = { showWebDialog = false },
+            title = {
+                Text(
+                    text = "🌐 WEB DE GESTIÓN",
+                    fontFamily = Vt323,
+                    fontSize = 24.sp,
+                    color = textColor
+                )
+            },
+            text = {
+                Text(
+                    text = "Puedes gestionar todos tus espíritus de forma visual y rápida (cambiar nombres, categorías y tipos arrastrando fotos) desde tu computadora abriendo:\n\n1. El archivo local 'web/index.html' en tu proyecto.\n2. O en línea desde tu celular o PC en la web del proyecto.",
+                    fontFamily = Vt323,
+                    fontSize = 18.sp,
+                    color = textColor.copy(alpha = 0.8f)
+                )
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .border(2.dp, borderColor)
+                            .clickable {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://kevshuppd.github.io/Diario_alikevin/web/index.html"))
+                                context.startActivity(intent)
+                                showWebDialog = false
+                            }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "ABRIR WEB",
+                            fontFamily = Vt323,
+                            fontSize = 18.sp,
+                            color = textColor
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .border(2.dp, borderColor)
+                            .clickable { showWebDialog = false }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "CERRAR",
+                            fontFamily = Vt323,
+                            fontSize = 18.sp,
+                            color = textColor
+                        )
+                    }
+                }
+            }
+        )
     }
 }
 

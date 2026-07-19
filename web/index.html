@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor de Espíritus - Diario Kevin y Ali</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&family=VT323&display=swap" rel="stylesheet">
+  
+  <!-- Firebase Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #0d0e15;
+      --card-bg: rgba(22, 24, 37, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-color: #9c27b0;
+      --accent-glow: rgba(156, 39, 176, 0.4);
+      --text-color: #f3f4f6;
+      --text-muted: #9ca3af;
+      --success-color: #10b981;
+      --error-color: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Background Neon Effects */
+    .neon-bg {
+      position: fixed;
+      top: -10%;
+      left: -10%;
+      width: 120%;
+      height: 120%;
+      z-index: -1;
+      background: 
+        radial-gradient(circle at 10% 20%, rgba(156, 39, 176, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(33, 150, 243, 0.15) 0%, transparent 40%);
+      pointer-events: none;
+    }
+
+    header {
+      background: rgba(13, 14, 21, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 16px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-container h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #e040fb, #00e5ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .connection-panel {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      padding: 6px 14px;
+      border-radius: 12px;
+    }
+
+    .connection-panel label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .connection-panel input {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--card-border);
+      color: var(--text-color);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      width: 180px;
+      font-family: monospace;
+      transition: border-color 0.2s;
+    }
+
+    .connection-panel input:focus {
+      border-color: var(--accent-color);
+    }
+
+    .btn {
+      background: var(--accent-color);
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px var(--accent-glow);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px var(--accent-glow);
+      filter: brightness(1.1);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      box-shadow: none;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: none;
+    }
+
+    .btn-success {
+      background: var(--success-color);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    .btn-success:hover {
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    }
+
+    .main-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 73px);
+      position: relative;
+    }
+
+    /* Left Sidebar: Image Gallery */
+    .sidebar {
+      width: 320px;
+      border-right: 1px solid var(--card-border);
+      background: rgba(10, 11, 18, 0.6);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .sidebar-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-color);
+      margin-bottom: 8px;
+    }
+
+    .sidebar-header p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .gallery-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      align-content: start;
+    }
+
+    .gallery-item {
+      aspect-ratio: 1;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: grab;
+      transition: all 0.2s;
+    }
+
+    .gallery-item:hover {
+      border-color: var(--accent-color);
+      background: rgba(255, 255, 255, 0.06);
+      transform: scale(1.05);
+    }
+
+    .gallery-item:active {
+      cursor: grabbing;
+    }
+
+    .gallery-item img {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+
+    .gallery-item .badge {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      background: rgba(0, 0, 0, 0.6);
+      font-size: 9px;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-family: monospace;
+      color: var(--text-muted);
+    }
+
+    /* Central Panel: Category Editor */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .actions-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .categories-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .category-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transition: box-shadow 0.3s;
+    }
+
+    .category-card:hover {
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .category-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 12px;
+    }
+
+    .category-title-edit {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .category-title-edit input {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-color);
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      outline: none;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .category-title-edit input:focus {
+      background: rgba(0, 0, 0, 0.2);
+      border-color: var(--accent-color);
+    }
+
+    .spirit-slots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+      min-height: 80px;
+      border: 2px dashed rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.1);
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+
+    .spirit-slots-grid.drag-over {
+      background: rgba(156, 39, 176, 0.05);
+      border-color: var(--accent-color);
+    }
+
+    .spirit-slot {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .spirit-slot:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .spirit-slot img {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      margin-bottom: 6px;
+    }
+
+    .spirit-slot input {
+      width: 100%;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-color);
+      font-size: 11px;
+      text-align: center;
+      outline: none;
+      padding: 2px;
+      border-radius: 4px;
+    }
+
+    .spirit-slot input:focus {
+      background: rgba(0, 0, 0, 0.3);
+      border-color: var(--accent-color);
+    }
+
+    .spirit-slot .remove-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(239, 68, 68, 0.1);
+      border: none;
+      color: var(--error-color);
+      font-size: 9px;
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .spirit-slot:hover .remove-btn {
+      opacity: 1;
+    }
+
+    .spirit-slot .remove-btn:hover {
+      background: var(--error-color);
+      color: #fff;
+    }
+
+    /* Uncategorized Bin */
+    .uncategorized-bin {
+      background: rgba(239, 68, 68, 0.03);
+      border: 1px solid rgba(239, 68, 68, 0.15);
+    }
+    
+    .uncategorized-bin .spirit-slots-grid {
+      border-color: rgba(239, 68, 68, 0.1);
+    }
+
+    .uncategorized-bin .spirit-slots-grid.drag-over {
+      background: rgba(239, 68, 68, 0.05);
+      border-color: var(--error-color);
+    }
+
+    /* Notification Banner */
+    .toast-banner {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(16, 185, 129, 0.9);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .toast-banner.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast-banner.error {
+      background: rgba(239, 68, 68, 0.9);
+    }
+
+    /* Empty state warning */
+    .empty-state {
+      padding: 48px;
+      text-align: center;
+      color: var(--text-muted);
+      border: 1px dashed var(--card-border);
+      border-radius: 16px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="neon-bg"></div>
+
+  <header>
+    <div class="logo-container">
+      <span style="font-size: 28px;">👾</span>
+      <div>
+        <h1>Gestor de Espíritus</h1>
+        <p style="font-size: 11px; color: var(--text-muted); font-weight: 500;">Diario Kevin y Ali — Editor de Base de Datos</p>
+      </div>
+    </div>
+
+    <div class="connection-panel">
+      <label for="couple-id">ID Pareja:</label>
+      <input type="text" id="couple-id" value="vínculo_único_123">
+      <button class="btn" id="btn-load">Cargar Datos</button>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- Left Sidebar: Gallery of 121 raw spirit images -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>Galería de Espíritus</h2>
+        <p>Arrastra fotos de la lista para asignarlas a las categorías de la derecha.</p>
+      </div>
+      <div class="gallery-grid" id="gallery-container">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Content Area: Category structure -->
+    <div class="content-area">
+      <div class="actions-bar">
+        <h2 style="font-family: 'Outfit', sans-serif; font-size: 22px;">Estructura de Categorías en Firestore</h2>
+        <div style="display: flex; gap: 12px;">
+          <button class="btn btn-secondary" id="btn-add-category">Nueva Categoría</button>
+          <button class="btn btn-secondary" id="btn-reset">Restablecer por Defecto</button>
+          <button class="btn btn-success" id="btn-save">Guardar Cambios</button>
+        </div>
+      </div>
+
+      <div class="categories-list" id="categories-container">
+        <div class="empty-state">Ingresa tu ID de Pareja y haz clic en "Cargar Datos" para sincronizar la base de datos de Firestore.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-banner" id="toast-banner">
+    <span id="toast-icon">✓</span>
+    <span id="toast-msg">Mensaje de alerta</span>
+  </div>
+
+  <script>
+    // 1. Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAY4lXaHIXNlftWZ3XcLgm4xuQE0atLnoM",
+      authDomain: "diario-pareja-a2d35.firebaseapp.com",
+      projectId: "diario-pareja-a2d35",
+      storageBucket: "diario-pareja-a2d35.firebasestorage.app",
+      messagingSenderId: "439201068702",
+      appId: "1:439201068702:web:baaa7771e132758a3ced8f"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // 2. Global State
+    let coupleId = "vínculo_único_123";
+    let spiritsList = [];
+    let categories = [];
+    let customNames = {};
+    let customCategories = {};
+
+    // Default configuration for resetting/migration
+    const defaultSpiritsList = Array.from({length: 121}, (_, i) => String(i + 1).padStart(2, '0'));
+    
+    const defaultCategories = [
+      { name: "Espíritu de Agua", spiritIds: ["01", "02", "03", "04", "66", "67", "112"] },
+      { name: "Espíritu Dormilón", spiritIds: ["05", "06", "07", "08", "68", "69", "113"] },
+      { name: "Espíritu de Tierra", spiritIds: ["09", "10", "11", "12", "70", "71", "114"] },
+      { name: "Espíritu del Cacahuete", spiritIds: ["13"] },
+      { name: "Espíritu Demoníaco", spiritIds: ["14", "15", "16", "17", "72", "73", "115"] },
+      { name: "Espíritu de Fuego", spiritIds: ["18", "19", "20", "21", "74", "75", "116"] },
+      { name: "Espíritu Punk", spiritIds: ["22", "23", "24", "25", "76", "77", "117"] },
+      { name: "Espíritu Pato", spiritIds: ["26", "27", "28", "29", "78", "79", "118"] },
+      { name: "Espíritu Rey", spiritIds: ["30", "31", "32", "33", "80", "81"] },
+      { name: "Espíritu Fantasma", spiritIds: ["34", "35", "36", "37", "82", "83"] },
+      { name: "Espíritu del Punto Cero", spiritIds: ["38", "39", "40", "41", "84", "85"] },
+      { name: "Espíritu de Aura", spiritIds: ["42", "43", "44", "45", "86", "87"] },
+      { name: "Espíritu de la Fundación", spiritIds: ["46", "47", "48", "49", "88", "89"] },
+      { name: "Espíritu de la Parca", spiritIds: ["50", "51", "52", "53", "90", "91"] },
+      { name: "Espíritu Futbolero", spiritIds: ["54", "55", "56", "57", "92", "93"] },
+      { name: "Espíritu Jefe", spiritIds: ["58", "59", "60", "61", "94", "95"] },
+      { name: "Espíritu Pescado", spiritIds: ["62", "63", "64", "65", "96", "97"] },
+      { name: "Espíritu de Batman", spiritIds: ["98", "99", "100", "101", "102", "103", "104"] },
+      { name: "Espíritu de Viento", spiritIds: ["105", "106", "107", "108", "109", "110", "111"] },
+      { name: "Espíritu Especial/Invitado", spiritIds: ["119", "120", "121"] }
+    ];
+
+    const defaultNames = [
+      "Espíritu de Agua", "Espíritu de Agua Dorado", "Espíritu de Agua Gomita", "Espíritu de Agua Galaxia",
+      "Espíritu Dormilón", "Espíritu Dormilón Dorado", "Espíritu Dormilón Gomita", "Espíritu Dormilón Galaxia",
+      "Espíritu de Tierra", "Espíritu de Tierra Dorado", "Espíritu de Tierra Gomita", "Espíritu de Tierra Galaxia",
+      "TheBurntPeanut (Espíritu del Cacahuete)",
+      "Espíritu Demoníaco", "Espíritu Demoníaco Dorado", "Espíritu Demoníaco Gomita", "Espíritu Demoníaco Galaxia",
+      "Espíritu de Fuego", "Espíritu de Fuego Dorado", "Espíritu de Fuego Gomita", "Espíritu de Fuego Galaxia",
+      "Espíritu Punk", "Espíritu Punk Dorado", "Espíritu Punk Gomita", "Espíritu Punk Galaxia",
+      "Espíritu Pato", "Espíritu Pato Dorado", "Espíritu Pato Gomita", "Espíritu Pato Galaxia",
+      "Espíritu Rey", "Espíritu Rey Dorado", "Espíritu Rey Gomita", "Espíritu Rey Galaxia",
+      "Espíritu Fantasma", "Espíritu Fantasma Dorado", "Espíritu Fantasma Gomita", "Espíritu Fantasma Galaxia",
+      "Espíritu del Punto Cero", "Espíritu del Punto Cero Dorado", "Espíritu del Punto Cero Gomita", "Espíritu del Punto Cero Galaxia",
+      "Espíritu de Aura", "Espíritu de Aura Dorado", "Espíritu de Aura Galaxia", "Espíritu de Aura Gomita",
+      "Espíritu de la Fundación", "Espíritu de la Fundación Dorado", "Espíritu de la Fundación Galaxia", "Espíritu de la Fundación Gomita",
+      "Espíritu de la Parca", "Espíritu de la Parca Dorado", "Espíritu de la Parca Galaxia", "Espíritu de la Parca Gomita",
+      "Espíritu Futbolero", "Espíritu Futbolero Dorado", "Espíritu Futbolero Galaxia", "Espíritu Futbolero Gomita",
+      "Espíritu Jefe", "Espíritu Jefe Dorado", "Espíritu Jefe Galaxia", "Espíritu Jefe Gomita",
+      "Espíritu Pescado", "Espíritu Pescado Dorado", "Espíritu Pescado Galaxia", "Espíritu Pescado Gomita",
+      "Espíritu de Agua Gema", "Espíritu de Agua Holofoil",
+      "Espíritu Dormilón Gema", "Espíritu Dormilón Holofoil",
+      "Espíritu de Tierra Gema", "Espíritu de Tierra Holofoil",
+      "Espíritu Demoníaco Gema", "Espíritu Demoníaco Holofoil",
+      "Espíritu de Fuego Gema", "Espíritu de Fuego Holofoil",
+      "Espíritu Punk Gema", "Espíritu Punk Holofoil",
+      "Espíritu Pato Gema", "Espíritu Pato Holofoil",
+      "Espíritu Rey Gema", "Espíritu Rey Holofoil",
+      "Espíritu Fantasma Gema", "Espíritu Fantasma Holofoil",
+      "Espíritu del Punto Cero Gema", "Espíritu del Punto Cero Holofoil",
+      "Espíritu de Aura Gema", "Espíritu de Aura Holofoil",
+      "Espíritu de la Fundación Gema", "Espíritu de la Fundación Holofoil",
+      "Espíritu de la Parca Gema", "Espíritu de la Parca Holofoil",
+      "Espíritu Futbolero Gema", "Espíritu Futbolero Holofoil",
+      "Espíritu Jefe Gema", "Espíritu Jefe Holofoil",
+      "Espíritu Pescado Gema", "Espíritu Pescado Holofoil",
+      "Espíritu de Batman", "Espíritu de Batman Dorado", "Espíritu de Batman Gomita", "Espíritu de Batman Galaxia", "Espíritu de Batman Gema", "Espíritu de Batman Holofoil", "Espíritu de Batman Cubo",
+      "Espíritu de Viento", "Espíritu de Viento Dorado", "Espíritu de Viento Gomita", "Espíritu de Viento Galaxia", "Espíritu de Viento Gema", "Espíritu de Viento Holofoil", "Espíritu de Viento Cubo",
+      "Espíritu de Agua Cubo", "Espíritu Dormilón Cubo", "Espíritu de Tierra Cubo", "Espíritu Demoníaco Cubo", "Espíritu de Fuego Cubo", "Espíritu Punk Cubo", "Espíritu Pato Cubo",
+      "Espíritu Pollo", "Espíritu de Vini Jr.", "Espíritu de la Fundación Especial"
+    ];
+
+    // Determine correct raw image path or relative fallback
+    function getSpiritImgUrl(id) {
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:") {
+        return `../app/src/main/res/drawable/ic_spirit_${id}.png`;
+      }
+      return `https://raw.githubusercontent.com/KevshuppD/Diario_alikevin/master/app/src/main/res/drawable/ic_spirit_${id}.png`;
+    }
+
+    function getSpiritName(id) {
+      if (customNames[id]) return customNames[id];
+      const idx = parseInt(id) - 1;
+      return defaultNames[idx] || `Espíritu ${id}`;
+    }
+
+    // 3. UI Render Functions
+    function renderGallery() {
+      const container = document.getElementById("gallery-container");
+      container.innerHTML = "";
+      
+      // Render all 121 possible IDs
+      defaultSpiritsList.forEach(id => {
+        const item = document.createElement("div");
+        item.className = "gallery-item";
+        item.draggable = true;
+        item.dataset.id = id;
+        item.innerHTML = `
+          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" onerror="this.src='https://placehold.co/48x48?text=${id}'">
+          <span class="badge">${id}</span>
+        `;
+        
+        item.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("text/plain", id);
+        });
+        
+        container.appendChild(item);
+      });
+    }
+
+    function renderWorkspace() {
+      const container = document.getElementById("categories-container");
+      container.innerHTML = "";
+
+      // Group spirit IDs that are already placed in some category
+      const assignedIds = new Set();
+      categories.forEach(cat => {
+        cat.spiritIds.forEach(id => assignedIds.add(id));
+      });
+
+      // Render Categories
+      categories.forEach((cat, catIdx) => {
+        const card = document.createElement("div");
+        card.className = "category-card";
+        
+        // Header
+        const header = document.createElement("div");
+        header.className = "category-header";
+        
+        // Editable Title
+        const customTitle = customCategories[cat.name] || cat.name;
+        header.innerHTML = `
+          <div class="category-title-edit">
+            <span style="font-size: 20px;">📂</span>
+            <input type="text" value="${customTitle}" placeholder="Nombre de categoría" data-original="${cat.name}">
+          </div>
+          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.15); color: var(--error-color);" onclick="deleteCategory(${catIdx})">Eliminar</button>
+        `;
+
+        // Update custom category title on input edit
+        const titleInput = header.querySelector("input");
+        titleInput.addEventListener("change", (e) => {
+          const newVal = e.target.value.trim();
+          const orig = e.target.dataset.original;
+          if (newVal === "" || newVal === orig) {
+            delete customCategories[orig];
+          } else {
+            customCategories[orig] = newVal;
+          }
+        });
+
+        // Slots grid
+        const slotsGrid = document.createElement("div");
+        slotsGrid.className = "spirit-slots-grid";
+        slotsGrid.dataset.categoryName = cat.name;
+
+        // Render placed spirits inside this category
+        cat.spiritIds.forEach(id => {
+          if (!spiritsList.includes(id)) return; // Skipped if deleted from master spiritsList
+          const slot = document.createElement("div");
+          slot.className = "spirit-slot";
+          slot.innerHTML = `
+            <button class="remove-btn" onclick="removeSpiritFromCategory('${id}', '${cat.name}')">×</button>
+            <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}">
+            <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}">
+          `;
+
+          // Editable spirit name input
+          const nameInput = slot.querySelector("input");
+          nameInput.addEventListener("change", (e) => {
+            const newVal = e.target.value.trim();
+            const sid = e.target.dataset.id;
+            const defName = defaultNames[parseInt(sid) - 1] || "";
+            if (newVal === "" || newVal === defName) {
+              delete customNames[sid];
+            } else {
+              customNames[sid] = newVal;
+            }
+          });
+
+          slotsGrid.appendChild(slot);
+        });
+
+        // Drag events for this category slots area
+        slotsGrid.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          slotsGrid.classList.add("drag-over");
+        });
+
+        slotsGrid.addEventListener("dragleave", () => {
+          slotsGrid.classList.remove("drag-over");
+        });
+
+        slotsGrid.addEventListener("drop", (e) => {
+          e.preventDefault();
+          slotsGrid.classList.remove("drag-over");
+          const spiritId = e.dataTransfer.getData("text/plain");
+          moveSpiritToCategory(spiritId, cat.name);
+        });
+
+        card.appendChild(header);
+        card.appendChild(slotsGrid);
+        container.appendChild(card);
+      });
+
+      // Render Uncategorized / Loose Spirits at the bottom
+      const uncategorizedIds = spiritsList.filter(id => !assignedIds.has(id));
+      
+      const looseCard = document.createElement("div");
+      looseCard.className = "category-card uncategorized-bin";
+      looseCard.innerHTML = `
+        <div class="category-header">
+          <div class="category-title-edit">
+            <span style="font-size: 20px;">📦</span>
+            <span style="font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: var(--error-color);">Sin Categoría / Sueltos</span>
+          </div>
+        </div>
+      `;
+
+      const looseGrid = document.createElement("div");
+      looseGrid.className = "spirit-slots-grid";
+      looseGrid.dataset.categoryName = "__uncategorized__";
+
+      uncategorizedIds.forEach(id => {
+        const slot = document.createElement("div");
+        slot.className = "spirit-slot";
+        slot.innerHTML = `
+          <button class="remove-btn" style="background: rgba(239, 68, 68, 0.2);" onclick="permanentlyDeleteSpirit('${id}')">🗑</button>
+          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}">
+          <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}">
+        `;
+
+        const nameInput = slot.querySelector("input");
+        nameInput.addEventListener("change", (e) => {
+          const newVal = e.target.value.trim();
+          const sid = e.target.dataset.id;
+          const defName = defaultNames[parseInt(sid) - 1] || "";
+          if (newVal === "" || newVal === defName) {
+            delete customNames[sid];
+          } else {
+            customNames[sid] = newVal;
+          }
+        });
+
+        looseGrid.appendChild(slot);
+      });
+
+      looseGrid.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        looseGrid.classList.add("drag-over");
+      });
+
+      looseGrid.addEventListener("dragleave", () => {
+        looseGrid.classList.remove("drag-over");
+      });
+
+      looseGrid.addEventListener("drop", (e) => {
+        e.preventDefault();
+        looseGrid.classList.remove("drag-over");
+        const spiritId = e.dataTransfer.getData("text/plain");
+        moveSpiritToCategory(spiritId, "__uncategorized__");
+      });
+
+      looseCard.appendChild(looseGrid);
+      container.appendChild(looseCard);
+    }
+
+    // 4. Data mutation functions
+    function moveSpiritToCategory(spiritId, targetCatName) {
+      // 1. Remove from all other categories
+      categories.forEach(cat => {
+        cat.spiritIds = cat.spiritIds.filter(id => id !== spiritId);
+      });
+
+      // 2. Add to target category if not __uncategorized__
+      if (targetCatName !== "__uncategorized__") {
+        const cat = categories.find(c => c.name === targetCatName);
+        if (cat && !cat.spiritIds.includes(spiritId)) {
+          cat.spiritIds.push(spiritId);
+        }
+      }
+
+      // Ensure it is in spiritsList (active list)
+      if (!spiritsList.includes(spiritId)) {
+        spiritsList.push(spiritId);
+        spiritsList.sort();
+      }
+
+      renderWorkspace();
+    }
+
+    // Remove spirit from category
+    window.removeSpiritFromCategory = function(spiritId, categoryName) {
+      const cat = categories.find(c => c.name === categoryName);
+      if (cat) {
+        cat.spiritIds = cat.spiritIds.filter(id => id !== spiritId);
+      }
+      renderWorkspace();
+    }
+
+    // Permanently delete spirit
+    window.permanentlyDeleteSpirit = function(spiritId) {
+      if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el espíritu ID ${spiritId}? Se borrarán también sus checkmarks.`)) {
+        spiritsList = spiritsList.filter(id => id !== spiritId);
+        renderWorkspace();
+      }
+    }
+
+    // Delete category
+    window.deleteCategory = function(index) {
+      if (confirm(`¿Eliminar la categoría "${categories[index].name}"? Los espíritus asignados a ella no se borrarán; se moverán al cajón de "Sueltos".`)) {
+        categories.splice(index, 1);
+        renderWorkspace();
+      }
+    }
+
+    // 5. Firebase Loading/Saving
+    document.getElementById("btn-load").addEventListener("click", loadData);
+    
+    function loadData() {
+      coupleId = document.getElementById("couple-id").value.trim();
+      if (!coupleId) {
+        showToast("Por favor, ingresa un ID de Pareja válido.", true);
+        return;
+      }
+      localStorage.setItem("coupleId", coupleId);
+
+      showToast("Cargando datos de Firestore...", false);
+
+      db.collection("fortnite_spirits").doc(coupleId).get()
+        .then(doc => {
+          if (doc.exists) {
+            const data = doc.data();
+            
+            // Extract custom names & custom categories
+            customNames = data.custom_names || {};
+            customCategories = data.custom_categories || {};
+            
+            // Extract spirits list
+            spiritsList = data.spirits_list || [...defaultSpiritsList];
+            
+            // Extract categories
+            const dbCategories = data.categories || [];
+            categories = dbCategories.map(cat => ({
+              name: cat.name,
+              spiritIds: cat.spiritIds || []
+            }));
+
+            if (categories.length === 0) {
+              categories = JSON.parse(JSON.stringify(defaultCategories));
+            }
+
+            showToast("¡Datos cargados con éxito!", false);
+          } else {
+            // Document doesn't exist yet, load defaults locally
+            spiritsList = [...defaultSpiritsList];
+            categories = JSON.parse(JSON.stringify(defaultCategories));
+            customNames = {};
+            customCategories = {};
+            showToast("Documento no encontrado. Cargando valores por defecto...", false);
+          }
+          renderWorkspace();
+        })
+        .catch(err => {
+          console.error(err);
+          showToast("Error al conectar con Firestore: " + err.message, true);
+        });
+    }
+
+    document.getElementById("btn-save").addEventListener("click", () => {
+      coupleId = document.getElementById("couple-id").value.trim();
+      if (!coupleId) {
+        showToast("Error: ID de pareja vacío.", true);
+        return;
+      }
+
+      showToast("Guardando cambios en Firestore...", false);
+
+      // Map categories for Firestore format
+      const categoriesMap = categories.map(cat => ({
+        name: cat.name,
+        spiritIds: cat.spiritIds
+      }));
+
+      // Create updates package (with schema_version = 3!)
+      const updates = {
+        "categories": categoriesMap,
+        "spirits_list": spiritsList,
+        "custom_names": customNames,
+        "custom_categories": customCategories,
+        "schema_version": 3
+      };
+
+      db.collection("fortnite_spirits").doc(coupleId).set(updates, { merge: true })
+        .then(() => {
+          showToast("¡Base de datos actualizada con éxito en la nube! 🚀", false);
+        })
+        .catch(err => {
+          console.error(err);
+          showToast("Error al guardar cambios: " + err.message, true);
+        });
+    });
+
+    document.getElementById("btn-reset").addEventListener("click", () => {
+      if (confirm("¿Estás seguro de que deseas restablecer todos los espíritus y categorías a sus valores por defecto? Se perderán las personalizaciones actuales de nombres y ordenación.")) {
+        spiritsList = [...defaultSpiritsList];
+        categories = JSON.parse(JSON.stringify(defaultCategories));
+        customNames = {};
+        customCategories = {};
+        renderWorkspace();
+        showToast("Restablecido a valores por defecto locales. Haz clic en Guardar para subir a Firestore.", false);
+      }
+    });
+
+    document.getElementById("btn-add-category").addEventListener("click", () => {
+      const name = prompt("Ingresa el nombre de la nueva categoría:");
+      if (name && name.trim()) {
+        const cleanName = name.trim();
+        if (categories.some(c => c.name === cleanName)) {
+          alert("Ya existe una categoría con ese nombre.");
+          return;
+        }
+        categories.push({ name: cleanName, spiritIds: [] });
+        renderWorkspace();
+      }
+    });
+
+    // 6. Toast Utility
+    function showToast(msg, isError) {
+      const banner = document.getElementById("toast-banner");
+      const icon = document.getElementById("toast-icon");
+      const text = document.getElementById("toast-msg");
+
+      text.textContent = msg;
+      icon.textContent = isError ? "⚠" : "✓";
+      
+      if (isError) {
+        banner.classList.add("error");
+      } else {
+        banner.classList.remove("error");
+      }
+
+      banner.classList.add("show");
+
+      setTimeout(() => {
+        banner.classList.remove("show");
+      }, 4000);
+    }
+
+    // 7. Initialize
+    window.addEventListener("DOMContentLoaded", () => {
+      // Restore previous coupleId from localStorage if present
+      const savedCoupleId = localStorage.getItem("coupleId");
+      if (savedCoupleId) {
+        document.getElementById("couple-id").value = savedCoupleId;
+      }
+      
+      renderGallery();
+    });
+  </script>
+</body>
+</html>
