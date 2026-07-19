@@ -16,8 +16,8 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
 ## 2. Stack Tecnológico y Arquitectura
 
 - **Plataforma / Lenguajes:** Android Nativo.
-  - **Kotlin:** Utilizado en el 100% de la lógica moderna, pantallas de Jetpack Compose y Workers en segundo plano.
-  - **Java:** Utilizado en inicializadores de infraestructura heredados (ej. `MainActivity`, `DiarioApp`, `LoginActivity`).
+  - **Kotlin:** Utilizado en prácticamente la totalidad de la lógica, ViewModel, pantallas de Jetpack Compose, Workers y utilidades en segundo plano.
+  - **Java:** Utilizado en el controlador de la interfaz principal (`MainActivity.java`), que interactúa con la lógica moderna de Kotlin mediante `MainViewModel`.
 - **UI Framework:**
   - **Jetpack Compose:** Sistema declarativo moderno para la totalidad de la interfaz de configuración, perfiles, cartas y grillas.
   - **Vanilla XML / ViewBinding:** En desuso, restringido a ciertos layouts legados.
@@ -43,9 +43,10 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
 El código fuente está localizado en `app/src/main/java/calendario/kevshupp/diariokevinali/`.
 
 ### 📁 Inicialización e Infraestructura
-- [DiarioApp.java](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/DiarioApp.java): Punto de entrada. Configura las instancias globales de Cloudinary, WorkManager (para tareas en segundo plano), Firebase y Coil (carga de imágenes).
-- [MainActivity.java](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainActivity.java): Contenedor principal. Orquesta los listeners en tiempo real de Firebase y hace de puente entre los Fragments de Java y el entorno de Jetpack Compose.
-- [LoginActivity.java](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/LoginActivity.java): Gestión del login y asociación del `coupleId`.
+- [DiarioApp.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/DiarioApp.kt): Punto de entrada en Kotlin. Configura las instancias globales de Cloudinary, WorkManager, Firebase y Coil.
+- [MainActivity.java](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainActivity.java): Contenedor principal. Orquesta las vistas de Compose observando los estados del ViewModel y delega la lógica de negocio.
+- [LoginActivity.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/LoginActivity.kt): Gestión del login y asociación del `coupleId`.
+- [MainViewModel.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainViewModel.kt): ViewModel central en Kotlin. Administra el estado global, listeners de Firestore en tiempo real, alarmas de calendario y toda la lógica de interacción/decay del pet Thor.
 
 ### 📁 Sincronización en Segundo Plano y Gestión de Archivos
 - [SyncDriveWorker.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/SyncDriveWorker.kt): Trabajador de primer plano (`CoroutineWorker` promovido a Foreground Service). Maneja la lógica de subir/descargar fotos pendientes de forma optimizada y control de borrados bidireccionales.
@@ -147,7 +148,7 @@ Desde el diálogo de Thor, los usuarios gastan Puntos de Amor para desbloquear y
 
 ### C. Algoritmo de Decay y Temporizador en Tiempo Real
 - **Desgaste de Felicidad:** Si la pareja no interactúa en un periodo de 24 horas, la felicidad de Thor disminuye en un **20%**. 
-- **Prevención de Bucle Recursivo:** El sistema matemático en [MainActivity.java](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainActivity.java) compensa el timestamp de la última interacción (`lastInteraction`) sumando bloques exactos de 24 horas por cada decaimiento aplicado. Esto previene llamadas en cascada infinitas del Snapshot Listener de Firebase.
+- **Prevención de Bucle Recursivo:** El sistema matemático en [MainViewModel.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/MainViewModel.kt) compensa el timestamp de la última interacción (`lastInteraction`) sumando bloques exactos de 24 horas por cada decaimiento aplicado. Esto previene llamadas en cascada infinitas del Snapshot Listener de Firebase.
 - **Temporizador en Tiempo Real:** Implementado con una corrutina y `LaunchedEffect` en [MessageFeedCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt), calcula y muestra una cuenta regresiva dinámica en formato `"Próxima baja en: hh:mm"` / `"mm:ss ⏳"` que avisa cuándo ocurrirá el próximo decremento, o muestra un dulce aviso `"¡Dale amor! ❤️"` si Thor ha alcanzado el 0% de felicidad.
 
 ### D. Guía de Creación e Integración de Nuevos Accesorios / Ropa
@@ -173,10 +174,9 @@ Para añadir nuevos accesorios (como el *Plátano Nano* o las *Calcetas y Botita
      Triple(Pet.ACC_SOCKS, "Calcetas y Botitas 🧦🥾", 15)
      ```
 5. **Enlace en el Widget de Pantalla de Inicio:**
-   - Mapear el nuevo accesorio en [ThorWidgetProvider.java](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/ThorWidgetProvider.java) para mantener paridad visual fuera de la app:
-     ```java
-     } else if ("socks".equals(accessory)) {
-         thorImageRes = R.drawable.ic_thor_socks;
+   - Mapear el nuevo accesorio en [ThorWidgetProvider.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/ThorWidgetProvider.kt) para mantener paridad visual fuera de la app:
+     ```kotlin
+     "socks" -> R.drawable.ic_thor_socks
      ```
 
 ---
