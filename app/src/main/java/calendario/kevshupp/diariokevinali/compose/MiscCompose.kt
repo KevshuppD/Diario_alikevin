@@ -293,20 +293,22 @@ fun MiscGridView(
     if (showWebDialog) {
         AlertDialog(
             onDismissRequest = { showWebDialog = false },
+            containerColor = Color(0xFF161822),
             title = {
                 Text(
                     text = "🌐 WEB DE GESTIÓN",
                     fontFamily = Vt323,
-                    fontSize = 24.sp,
-                    color = textColor
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
             },
             text = {
                 Text(
-                    text = "Puedes gestionar todos tus espíritus de forma visual y rápida (cambiar nombres, categorías y tipos arrastrando fotos) desde tu computadora abriendo:\n\n1. El archivo local 'web/index.html' en tu proyecto.\n2. O en línea desde tu celular o PC en la web del proyecto.",
+                    text = "Puedes gestionar todos tus espíritus de forma visual y rápida (cambiar nombres, categorías y tipos arrastrando fotos) desde tu celular o computadora abriendo la web:\n\nhttps://kevshuppd.github.io/Diario_alikevin/",
                     fontFamily = Vt323,
-                    fontSize = 18.sp,
-                    color = textColor.copy(alpha = 0.8f)
+                    fontSize = 19.sp,
+                    color = Color(0xFFCBD5E1)
                 )
             },
             confirmButton = {
@@ -316,9 +318,10 @@ fun MiscGridView(
                 ) {
                     Box(
                         modifier = Modifier
-                            .border(2.dp, borderColor)
+                            .background(Color(0xFF10B981))
+                            .border(2.dp, Color(0xFF34D399))
                             .clickable {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://kevshuppd.github.io/Diario_alikevin/web/index.html"))
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://kevshuppd.github.io/Diario_alikevin/"))
                                 context.startActivity(intent)
                                 showWebDialog = false
                             }
@@ -328,13 +331,15 @@ fun MiscGridView(
                             text = "ABRIR WEB",
                             fontFamily = Vt323,
                             fontSize = 18.sp,
-                            color = textColor
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
-                            .border(2.dp, borderColor)
+                            .background(Color(0xFF334155))
+                            .border(2.dp, Color(0xFF64748B))
                             .clickable { showWebDialog = false }
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
@@ -342,7 +347,7 @@ fun MiscGridView(
                             text = "CERRAR",
                             fontFamily = Vt323,
                             fontSize = 18.sp,
-                            color = textColor
+                            color = Color.White
                         )
                     }
                 }
