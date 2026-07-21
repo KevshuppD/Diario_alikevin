@@ -462,6 +462,120 @@
     .stat-pill.ali .stat-val { color: #f472b6; }
     .stat-pill.both .stat-val { color: #c084fc; }
 
+    .mastery-count-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      margin-left: 8px;
+      padding: 2px 8px;
+      background: rgba(251, 191, 36, 0.15);
+      border: 1px solid rgba(251, 191, 36, 0.4);
+      border-radius: 12px;
+      color: #fbbf24;
+      font-size: 13px;
+      font-weight: 700;
+      vertical-align: middle;
+      box-shadow: 0 0 8px rgba(251, 191, 36, 0.2);
+    }
+
+    .cat-stat-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--card-border);
+    }
+
+    .cat-stat-badge.kevin {
+      color: #60a5fa;
+      border-color: rgba(96, 165, 250, 0.3);
+    }
+
+    .cat-stat-badge.ali {
+      color: #f472b6;
+      border-color: rgba(244, 114, 182, 0.3);
+    }
+
+    /* Search Bar Styles */
+    .search-bar-container {
+      width: 100%;
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 6px 14px;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+
+    .search-input-wrapper:focus-within {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 14px var(--accent-glow);
+    }
+
+    .search-icon {
+      font-size: 15px;
+      margin-right: 10px;
+      opacity: 0.7;
+    }
+
+    .search-input-wrapper input {
+      width: 100%;
+      background: transparent !important;
+      border: none !important;
+      color: var(--text-color) !important;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      outline: none;
+      padding: 4px 0;
+    }
+
+    .clear-search-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-left: 8px;
+      white-space: nowrap;
+      transition: color 0.2s, background-color 0.2s, border-color 0.2s;
+    }
+
+    .clear-search-btn:hover {
+      color: #fff;
+      background: rgba(239, 68, 68, 0.3);
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    .empty-search-state {
+      text-align: center;
+      padding: 40px 20px;
+      background: var(--card-bg);
+      border: 1px dashed var(--card-border);
+      border-radius: 16px;
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
+
+    .empty-search-state h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      color: var(--text-color);
+      margin-bottom: 6px;
+    }
+
+
     .filter-bar {
       display: flex;
       gap: 8px;
@@ -952,6 +1066,15 @@
           </div>
         </div>
 
+        <!-- Search Input Bar -->
+        <div class="search-bar-container">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="spirit-search-input" placeholder="Buscar espíritu por nombre, # ID o variante (ej. Viento, Cubo, #12)..." oninput="onSearchInput(this.value)">
+            <button class="clear-search-btn" id="clear-search-btn" onclick="clearSearch()" style="display:none;" title="Limpiar búsqueda">✕ Limpiar</button>
+          </div>
+        </div>
+
         <!-- Filter Buttons -->
         <div class="filter-bar">
           <span style="font-size: 13px; color: var(--text-muted); font-weight: 600; margin-right: 4px;">Filtrar:</span>
@@ -960,6 +1083,7 @@
           <button class="filter-btn" onclick="setFilter('obtenidos_otro_no_yo', this)">🔁 Tiene mi pareja (no yo)</button>
           <button class="filter-btn" onclick="setFilter('obtenidos_yo_no_otro', this)">⭐ Solo yo</button>
           <button class="filter-btn" onclick="setFilter('obtenidos_ambos', this)">💜 Ambos</button>
+          <button class="filter-btn" onclick="setFilter('sin_maestria', this)">☆ Sin Maestría</button>
         </div>
       </div>
 
@@ -1043,6 +1167,7 @@
     let coupleId = "vínculo_único_123";
     let currentMode = "normal"; // "normal" or "edit"
     let currentFilter = "todos"; // "todos", "no_obtenidos", "obtenidos_otro_no_yo", "obtenidos_yo_no_otro", "obtenidos_ambos"
+    let searchQuery = "";
     let currentUser = null; // { username: 'kevin'|'ali', name: 'Kevin'|'Ali', key: 'kevin_list'|'ali_list', masteryKey: 'kevin_mastery'|'ali_mastery' }
 
     let spiritsList = [];
@@ -1369,8 +1494,11 @@
       const totalAli = aliList.filter(id => assignedIds.has(id)).length;
       const bothCount = Array.from(assignedIds).filter(id => kevinList.includes(id) && aliList.includes(id)).length;
 
-      document.getElementById("stat-kevin").textContent = `${totalKevin} / ${totalRegistered}`;
-      document.getElementById("stat-ali").textContent = `${totalAli} / ${totalRegistered}`;
+      const kevinMasteryCount = kevinMastery.filter(id => assignedIds.has(id)).length;
+      const aliMasteryCount = aliMastery.filter(id => assignedIds.has(id)).length;
+
+      document.getElementById("stat-kevin").innerHTML = `${totalKevin} / ${totalRegistered} <span class="mastery-count-tag" title="Maestría (Estrellas) de Kevin">⭐ ${kevinMasteryCount}</span>`;
+      document.getElementById("stat-ali").innerHTML = `${totalAli} / ${totalRegistered} <span class="mastery-count-tag" title="Maestría (Estrellas) de Ali">⭐ ${aliMasteryCount}</span>`;
       document.getElementById("stat-both").textContent = `${bothCount} / ${totalRegistered}`;
     }
 
@@ -1421,13 +1549,59 @@
       });
     };
 
+    // Search Handler Functions
+    window.onSearchInput = function(val) {
+      searchQuery = val.trim().toLowerCase();
+      const clearBtn = document.getElementById("clear-search-btn");
+      if (clearBtn) {
+        clearBtn.style.display = searchQuery.length > 0 ? "inline-block" : "none";
+      }
+      renderWorkspace();
+      if (currentMode === "edit") {
+        renderGallery();
+      }
+    };
+
+    window.clearSearch = function() {
+      searchQuery = "";
+      const input = document.getElementById("spirit-search-input");
+      if (input) input.value = "";
+      const clearBtn = document.getElementById("clear-search-btn");
+      if (clearBtn) clearBtn.style.display = "none";
+      renderWorkspace();
+      if (currentMode === "edit") {
+        renderGallery();
+      }
+    };
+
     // Filter matcher for spirits
     function matchesFilter(id) {
+      // 1. Search Query Filter
+      if (searchQuery !== "") {
+        const name = getSpiritName(id).toLowerCase();
+        const type = getSpiritCurrentType(id).toLowerCase();
+        const numStr = String(id).padStart(2, '0');
+        const hashNum = `#${numStr}`;
+        const plainId = String(parseInt(id, 10));
+
+        const matchesQuery = name.includes(searchQuery) ||
+                             type.includes(searchQuery) ||
+                             numStr.includes(searchQuery) ||
+                             hashNum.includes(searchQuery) ||
+                             plainId === searchQuery;
+
+        if (!matchesQuery) return false;
+      }
+
+      // 2. Ownership & Mastery Filters
       const isKevinOwned = kevinList.includes(id);
       const isAliOwned = aliList.includes(id);
+      const isKevinMastered = kevinMastery.includes(id);
+      const isAliMastered = aliMastery.includes(id);
 
-      const isOwnedByCurrent = currentUser.username === "kevin" ? isKevinOwned : isAliOwned;
-      const isOwnedByOther = currentUser.username === "kevin" ? isAliOwned : isKevinOwned;
+      const isOwnedByCurrent = currentUser && currentUser.username === "kevin" ? isKevinOwned : isAliOwned;
+      const isOwnedByOther = currentUser && currentUser.username === "kevin" ? isAliOwned : isKevinOwned;
+      const isMasteredByCurrent = currentUser && currentUser.username === "kevin" ? isKevinMastered : isAliMastered;
 
       switch (currentFilter) {
         case "todos":
@@ -1440,6 +1614,8 @@
           return isOwnedByCurrent && !isOwnedByOther;
         case "obtenidos_ambos":
           return isKevinOwned && isAliOwned;
+        case "sin_maestria":
+          return isOwnedByCurrent && !isMasteredByCurrent;
         default:
           return true;
       }
@@ -1468,6 +1644,8 @@
       let unassignedCount = 0;
 
       listToRender.forEach((id, index) => {
+        if (searchQuery !== "" && !matchesFilter(id)) return;
+
         const isUnassigned = !assignedIds.has(id);
         if (isUnassigned) unassignedCount++;
 
@@ -1573,11 +1751,20 @@
             renderWorkspace();
           });
         } else {
+          const catKevinCount = cat.spiritIds.filter(id => kevinList.includes(id)).length;
+          const catAliCount = cat.spiritIds.filter(id => aliList.includes(id)).length;
+          const catKevinMastery = cat.spiritIds.filter(id => kevinMastery.includes(id)).length;
+          const catAliMastery = cat.spiritIds.filter(id => aliMastery.includes(id)).length;
+
           header.innerHTML = `
-            <div class="category-title-edit">
+            <div class="category-title-edit" style="flex-wrap: wrap; gap: 8px 12px;">
               <span style="font-size: 20px;">📂</span>
               <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; color: var(--text-color);">${customTitle}</h3>
-              <span style="font-size: 12px; color: var(--text-muted);">(${matchingSpirits.length})</span>
+              <span style="font-size: 12px; color: var(--text-muted);">(${matchingSpirits.length}/${cat.spiritIds.length})</span>
+              <div style="display: inline-flex; gap: 6px; align-items: center;">
+                <span class="cat-stat-badge kevin" title="Obtenidos / Maestría de Kevin">🔵 ${catKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${catKevinMastery}</span></span>
+                <span class="cat-stat-badge ali" title="Obtenidos / Maestría de Ali">🔴 ${catAliCount} <span style="color:#fbbf24; font-weight:700;">⭐${catAliMastery}</span></span>
+              </div>
             </div>
           `;
         }
@@ -1621,12 +1808,23 @@
       if (currentMode === "edit" || uncategorizedIds.length > 0) {
         const looseCard = document.createElement("div");
         looseCard.className = "category-card uncategorized-bin";
+        const uncatKevinCount = uncategorizedIds.filter(id => kevinList.includes(id)).length;
+        const uncatAliCount = uncategorizedIds.filter(id => aliList.includes(id)).length;
+        const uncatKevinMastery = uncategorizedIds.filter(id => kevinMastery.includes(id)).length;
+        const uncatAliMastery = uncategorizedIds.filter(id => aliMastery.includes(id)).length;
+
         looseCard.innerHTML = `
           <div class="category-header">
-            <div class="category-title-edit">
+            <div class="category-title-edit" style="flex-wrap: wrap; gap: 8px 12px;">
               <span style="font-size: 20px;">📦</span>
               <span style="font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: var(--error-color);">Sin Categoría / Sueltos</span>
               <span style="font-size: 12px; color: var(--text-muted);">(${uncategorizedIds.length})</span>
+              ${currentMode === 'normal' ? `
+                <div style="display: inline-flex; gap: 6px; align-items: center;">
+                  <span class="cat-stat-badge kevin" title="Obtenidos / Maestría de Kevin">🔵 ${uncatKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${uncatKevinMastery}</span></span>
+                  <span class="cat-stat-badge ali" title="Obtenidos / Maestría de Ali">🔴 ${uncatAliCount} <span style="color:#fbbf24; font-weight:700;">⭐${uncatAliMastery}</span></span>
+                </div>
+              ` : ''}
             </div>
           </div>
         `;
@@ -1660,6 +1858,18 @@
 
         looseCard.appendChild(looseGrid);
         container.appendChild(looseCard);
+      }
+
+      // Render Empty State if no spirits match
+      if (container.children.length === 0) {
+        const emptyDiv = document.createElement("div");
+        emptyDiv.className = "empty-search-state";
+        emptyDiv.innerHTML = `
+          <h3>🔍 Sin resultados</h3>
+          <p>${searchQuery !== '' ? `No se encontraron espíritus que coincidan con "<strong>${searchQuery}</strong>".` : 'No hay espíritus para mostrar con el filtro seleccionado.'}</p>
+          ${searchQuery !== '' ? '<button class="btn btn-secondary" style="margin-top: 12px; font-size: 12px;" onclick="clearSearch()">Limpiar Búsqueda</button>' : ''}
+        `;
+        container.appendChild(emptyDiv);
       }
     }
 
@@ -1698,13 +1908,13 @@
           <span class="spirit-name-label">${getSpiritName(id)}</span>
           
           <div class="checks-row">
-            <span class="user-check-badge kevin-badge ${isKevinHas ? 'active' : ''}">
-              🔵 K ${isKevinHas ? '✓' : ''}
+            <span class="user-check-badge kevin-badge ${isKevinHas ? 'active' : ''}" title="Kevin: ${isKevinHas ? 'Obtenido' : 'No obtenido'}${isKevinMastered ? ' | Maestría ⭐' : ''}">
+              🔵 K ${isKevinHas ? '✓' : ''}${isKevinMastered ? ' ⭐' : ''}
             </span>
-            <span class="user-check-badge ali-badge ${isAliHas ? 'active' : ''}">
-              🔴 A ${isAliHas ? '✓' : ''}
+            <span class="user-check-badge ali-badge ${isAliHas ? 'active' : ''}" title="Ali: ${isAliHas ? 'Obtenida' : 'No obtenida'}${isAliMastered ? ' | Maestría ⭐' : ''}">
+              🔴 A ${isAliHas ? '✓' : ''}${isAliMastered ? ' ⭐' : ''}
             </span>
-            <span class="mastery-star ${isCurrentMastered ? 'active' : ''}" onclick="toggleSpiritMastery('${id}', event)" title="Maestría">
+            <span class="mastery-star ${isCurrentMastered ? 'active' : ''}" onclick="toggleSpiritMastery('${id}', event)" title="Alternar Maestría ⭐ (${currentUser ? currentUser.name : ''})">
               ⭐
             </span>
           </div>
