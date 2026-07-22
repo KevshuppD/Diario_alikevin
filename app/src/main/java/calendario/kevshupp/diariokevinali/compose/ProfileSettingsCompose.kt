@@ -81,6 +81,7 @@ fun ProfileScreen(
     // Fecha de Aniversario Dinámica
     var anniversaryDate by remember { mutableStateOf(1643328000000L) } // Default 28 Ene 2022
     var showAnniversaryDialog by remember { mutableStateOf(false) }
+    var showMedicalDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
@@ -367,6 +368,14 @@ fun ProfileScreen(
             )
         )
 
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 🏥 Tarjeta 3D Datos Médicos de Emergencia
+        MedicalEmergencyCard(
+            theme = theme,
+            onOpenDialog = { showMedicalDialog = true }
+        )
+
         Spacer(modifier = Modifier.height(14.dp))
 
         // Botón 3D Cerrar Sesión
@@ -394,6 +403,18 @@ fun ProfileScreen(
                 Text("🚪 CERRAR SESIÓN", fontFamily = Vt323, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
         }
+    }
+
+    // Diálogo Ficha Médica de Emergencia
+    if (showMedicalDialog) {
+        MedicalEmergencyDialog(
+            currentUserId = currentUserId,
+            currentUserName = currentUserName,
+            coupleId = coupleId,
+            partnerName = partnerName,
+            theme = theme,
+            onDismiss = { showMedicalDialog = false }
+        )
     }
 
     // Dialogo del Editor de Aniversario Retro Píxel

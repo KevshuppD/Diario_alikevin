@@ -10,6 +10,7 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
 2. **Calendario y Recetas:** Un calendario común para recordar aniversarios/citas (con alertas de aviso) y un recetario culinario de cocina compartido.
 3. **Mascota Virtual (Thor):** Un sistema de gamificación en formato pixel-art en el que un gato virtual reacciona a la interacción diaria de la pareja, subiendo de nivel y desbloqueando ropa/accesorios en una tienda 3D.
 4. **Sincronización Local-Nube (Google Drive)**: Respaldo y replicación automática bidireccional en segundo plano de la carpeta de fotos local seleccionada por cada usuario, sincronizando incluso eliminaciones entre dispositivos.
+5. **Ficha Médica de Emergencia (Datos Vitales)**: Módulo interactivo dentro de la pantalla de Perfil con sincronización Firestore en tiempo real (`medical_records/<coupleId>`) que permite consultar y editar grupo sanguíneo, alergias, enfermedades/condiciones, medicación diaria, seguro médico y contacto de emergencia (con marcación directa `ACTION_DIAL`) de ambos integrantes de la pareja.
 
 ---
 
@@ -56,8 +57,9 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 ### 📁 Pantallas en Jetpack Compose (`compose/`)
 - [MessageFeedCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/MessageFeedCompose.kt): Pantalla principal del feed con paginación de 5 en 5 cartas, tarjeta interactiva de **Thor** (gato con animaciones y latido de corazón) y diálogo de la tienda de ropa.
 - [SettingsSyncCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/SettingsSyncCompose.kt): Interfaz retro para gestionar la vinculación con Google Drive, configurar líneas de subida paralelas (1, 2, 3, 5) con barras de progreso concurrentes por slot de carga y visualización de contadores de archivos.
-- [ProfileSettingsCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/ProfileSettingsCompose.kt): Editor de perfil de la pareja (Kevin & Ali) con contador de tiempo juntos dinámico e interactivo.
-- [RecipeCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/RecipeCompose.kt) & [RecipeDetailCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/RecipeDetailCompose.kt): Creación y visualización del libro de recetas culinarias compartido.
+- [ProfileSettingsCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/ProfileSettingsCompose.kt): Editor de perfil de la pareja (Kevin & Ali) con contador de tiempo juntos dinámico e interactivo.
+- [MedicalCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MedicalCompose.kt): Módulo y diálogo retro de Ficha Médica de Emergencia con datos de salud, grupo sanguíneo, alergias y llamadas directas de emergencia.
+- [RecipeCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/RecipeCompose.kt) & [RecipeDetailCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/RecipeDetailCompose.kt): Creación y visualización del libro de recetas culinarias compartido.
 - [CalendarCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/CalendarCompose.kt): Vista mensual de citas y eventos recurrentes (semanales/anuales) de la pareja.
 
 ---
