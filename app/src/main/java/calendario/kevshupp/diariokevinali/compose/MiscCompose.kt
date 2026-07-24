@@ -378,26 +378,25 @@ fun SpiritsChecklistView(
     
     val defaultCategories = remember {
         listOf(
-            SpiritCategory("Espíritu de Agua", (1..4).map { String.format("%02d", it) } + listOf("66", "67", "112")),
-            SpiritCategory("Espíritu Dormilón", (5..8).map { String.format("%02d", it) } + listOf("68", "69", "113")),
-            SpiritCategory("Espíritu de Tierra", (9..12).map { String.format("%02d", it) } + listOf("70", "71", "114")),
-            SpiritCategory("Espíritu del Cacahuete", listOf("13")),
-            SpiritCategory("Espíritu Demoníaco", (14..17).map { String.format("%02d", it) } + listOf("72", "73", "115")),
-            SpiritCategory("Espíritu de Fuego", (18..21).map { String.format("%02d", it) } + listOf("74", "75", "116")),
-            SpiritCategory("Espíritu Punk", (22..25).map { String.format("%02d", it) } + listOf("76", "77", "117")),
-            SpiritCategory("Espíritu Pato", (26..29).map { String.format("%02d", it) } + listOf("78", "79", "118")),
-            SpiritCategory("Espíritu Rey", (30..33).map { String.format("%02d", it) } + listOf("80", "81")),
-            SpiritCategory("Espíritu Fantasma", (34..37).map { String.format("%02d", it) } + listOf("82", "83")),
-            SpiritCategory("Espíritu del Punto Cero", (38..41).map { String.format("%02d", it) } + listOf("84", "85")),
-            SpiritCategory("Espíritu de Aura", (42..45).map { String.format("%02d", it) } + listOf("86", "87")),
-            SpiritCategory("Espíritu de la Fundación", (46..49).map { String.format("%02d", it) } + listOf("88", "89")),
-            SpiritCategory("Espíritu de la Parca", (50..53).map { String.format("%02d", it) } + listOf("90", "91")),
-            SpiritCategory("Espíritu Futbolero", (54..57).map { String.format("%02d", it) } + listOf("92", "93")),
-            SpiritCategory("Espíritu Jefe", (58..61).map { String.format("%02d", it) } + listOf("94", "95")),
-            SpiritCategory("Espíritu Pescado", (62..65).map { String.format("%02d", it) } + listOf("96", "97")),
             SpiritCategory("Espíritu de Batman", (98..104).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu de Agua", (1..4).map { String.format("%02d", it) } + listOf("66", "67", "112")),
+            SpiritCategory("Espíritu de Tierra", (9..12).map { String.format("%02d", it) } + listOf("70", "71", "114")),
+            SpiritCategory("Espíritu de Fuego", (18..21).map { String.format("%02d", it) } + listOf("74", "75", "116")),
+            SpiritCategory("Espíritu Pato", (26..29).map { String.format("%02d", it) } + listOf("78", "79", "118")),
+            SpiritCategory("Espíritu Fantasma", (34..37).map { String.format("%02d", it) } + listOf("82", "83")),
+            SpiritCategory("Espíritu Dormilón", (5..8).map { String.format("%02d", it) } + listOf("68", "69", "113")),
+            SpiritCategory("Espíritu Demoníaco", (14..17).map { String.format("%02d", it) } + listOf("72", "73", "115")),
+            SpiritCategory("Espíritu Punk", (22..25).map { String.format("%02d", it) } + listOf("76", "77", "117")),
+            SpiritCategory("Espíritu Monarca", (30..33).map { String.format("%02d", it) } + listOf("80", "81")),
+            SpiritCategory("Espíritu del Punto Cero", (38..41).map { String.format("%02d", it) } + listOf("84", "85")),
+            SpiritCategory("Espíritu Pescado", (62..65).map { String.format("%02d", it) } + listOf("96", "97")),
+            SpiritCategory("Espíritu Futbolero", (54..57).map { String.format("%02d", it) } + listOf("92", "93")),
+            SpiritCategory("Espíritu de Aura", (42..45).map { String.format("%02d", it) } + listOf("86", "87")),
+            SpiritCategory("Espíritu Jefe", (58..61).map { String.format("%02d", it) } + listOf("94", "95")),
+            SpiritCategory("Espíritu de la Parca", (50..53).map { String.format("%02d", it) } + listOf("90", "91")),
             SpiritCategory("Espíritu de Viento", (105..111).map { String.format("%02d", it) }),
-            SpiritCategory("Espíritu Especial/Invitado", (119..121).map { String.format("%02d", it) })
+            SpiritCategory("Espíritu de la Fundación", (46..49).map { String.format("%02d", it) } + listOf("88", "89")),
+            SpiritCategory("Espíritu Especial/Invitado", listOf("13") + (119..121).map { String.format("%02d", it) })
         )
     }
     val defaultSpiritsList = remember { (1..121).map { String.format("%02d", it) } }
@@ -695,7 +694,7 @@ fun SpiritsChecklistView(
             "Espíritu Punk", "Espíritu Punk Dorado", "Espíritu Punk Gomita", "Espíritu Punk Galaxia",
             // Fila 4
             "Espíritu Pato", "Espíritu Pato Dorado", "Espíritu Pato Gomita", "Espíritu Pato Galaxia",
-            "Espíritu Rey", "Espíritu Rey Dorado", "Espíritu Rey Gomita", "Espíritu Rey Galaxia",
+            "Espíritu Monarca", "Espíritu Monarca Dorado", "Espíritu Monarca Gomita", "Espíritu Monarca Galaxia",
             // Fila 5
             "Espíritu Fantasma", "Espíritu Fantasma Dorado", "Espíritu Fantasma Gomita", "Espíritu Fantasma Galaxia",
             "Espíritu del Punto Cero", "Espíritu del Punto Cero Dorado", "Espíritu del Punto Cero Gomita", "Espíritu del Punto Cero Galaxia",
@@ -716,7 +715,7 @@ fun SpiritsChecklistView(
             "Espíritu de Fuego Gema", "Espíritu de Fuego Holofoil",
             "Espíritu Punk Gema", "Espíritu Punk Holofoil",
             "Espíritu Pato Gema", "Espíritu Pato Holofoil",
-            "Espíritu Rey Gema", "Espíritu Rey Holofoil",
+            "Espíritu Monarca Gema", "Espíritu Monarca Holofoil",
             "Espíritu Fantasma Gema", "Espíritu Fantasma Holofoil",
             "Espíritu del Punto Cero Gema", "Espíritu del Punto Cero Holofoil",
             "Espíritu de Aura Gema", "Espíritu de Aura Holofoil",

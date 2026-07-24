@@ -1181,29 +1181,28 @@
     let firestoreUnsubscribe = null;
 
     // Default configuration for resetting/migration
-    const defaultSpiritsList = Array.from({length: 120}, (_, i) => String(i + 1).padStart(2, '0'));
+    const defaultSpiritsList = Array.from({length: 121}, (_, i) => String(i + 1).padStart(2, '0'));
     
     const defaultCategories = [
-      { name: "Espíritu de Agua", spiritIds: ["01", "02", "03", "04", "66", "67", "112"] },
-      { name: "Espíritu Dormilón", spiritIds: ["05", "06", "07", "08", "68", "69", "113"] },
-      { name: "Espíritu de Tierra", spiritIds: ["09", "10", "11", "12", "70", "71", "114"] },
-      { name: "Espíritu del Cacahuete", spiritIds: ["13"] },
-      { name: "Espíritu Demoníaco", spiritIds: ["14", "15", "16", "17", "72", "73", "115"] },
-      { name: "Espíritu de Fuego", spiritIds: ["18", "19", "20", "21", "74", "75", "116"] },
-      { name: "Espíritu Punk", spiritIds: ["22", "23", "24", "25", "76", "77", "117"] },
-      { name: "Espíritu Pato", spiritIds: ["26", "27", "28", "29", "78", "79", "118"] },
-      { name: "Espíritu Rey", spiritIds: ["30", "31", "32", "33", "80", "81"] },
-      { name: "Espíritu Fantasma", spiritIds: ["34", "35", "36", "37", "82", "83"] },
-      { name: "Espíritu del Punto Cero", spiritIds: ["38", "39", "40", "41", "84", "85"] },
-      { name: "Espíritu de Aura", spiritIds: ["42", "43", "44", "45", "86", "87"] },
-      { name: "Espíritu de la Fundación", spiritIds: ["46", "47", "48", "49", "88", "89"] },
-      { name: "Espíritu de la Parca", spiritIds: ["50", "51", "52", "53", "90", "91"] },
-      { name: "Espíritu Futbolero", spiritIds: ["54", "55", "56", "57", "92", "93"] },
-      { name: "Espíritu Jefe", spiritIds: ["58", "59", "60", "61", "94", "95"] },
-      { name: "Espíritu Pescado", spiritIds: ["62", "63", "64", "65", "96", "97"] },
       { name: "Espíritu de Batman", spiritIds: ["98", "99", "100", "101", "102", "103", "104"] },
+      { name: "Espíritu de Agua", spiritIds: ["01", "02", "03", "04", "66", "67", "112"] },
+      { name: "Espíritu de Tierra", spiritIds: ["09", "10", "11", "12", "70", "71", "114"] },
+      { name: "Espíritu de Fuego", spiritIds: ["18", "19", "20", "21", "74", "75", "116"] },
+      { name: "Espíritu Pato", spiritIds: ["26", "27", "28", "29", "78", "79", "118"] },
+      { name: "Espíritu Fantasma", spiritIds: ["34", "35", "36", "37", "82", "83"] },
+      { name: "Espíritu Dormilón", spiritIds: ["05", "06", "07", "08", "68", "69", "113"] },
+      { name: "Espíritu Demoníaco", spiritIds: ["14", "15", "16", "17", "72", "73", "115"] },
+      { name: "Espíritu Punk", spiritIds: ["22", "23", "24", "25", "76", "77", "117"] },
+      { name: "Espíritu Monarca", spiritIds: ["30", "31", "32", "33", "80", "81"] },
+      { name: "Espíritu del Punto Cero", spiritIds: ["38", "39", "40", "41", "84", "85"] },
+      { name: "Espíritu Pescado", spiritIds: ["62", "63", "64", "65", "96", "97"] },
+      { name: "Espíritu Futbolero", spiritIds: ["54", "55", "56", "57", "92", "93"] },
+      { name: "Espíritu de Aura", spiritIds: ["42", "43", "44", "45", "86", "87"] },
+      { name: "Espíritu Jefe", spiritIds: ["58", "59", "60", "61", "94", "95"] },
+      { name: "Espíritu de la Parca", spiritIds: ["50", "51", "52", "53", "90", "91"] },
       { name: "Espíritu de Viento", spiritIds: ["105", "106", "107", "108", "109", "110", "111"] },
-      { name: "Espíritu Especial/Invitado", spiritIds: [] }
+      { name: "Espíritu de la Fundación", spiritIds: ["46", "47", "48", "49", "88", "89"] },
+      { name: "Espíritu Especial/Invitado", spiritIds: ["13", "119", "120", "121"] }
     ];
 
     const defaultNames = [
@@ -1215,7 +1214,7 @@
       "Espíritu de Fuego", "Espíritu de Fuego Dorado", "Espíritu de Fuego Gomita", "Espíritu de Fuego Galaxia",
       "Espíritu Punk", "Espíritu Punk Dorado", "Espíritu Punk Gomita", "Espíritu Punk Galaxia",
       "Espíritu Pato", "Espíritu Pato Dorado", "Espíritu Pato Gomita", "Espíritu Pato Galaxia",
-      "Espíritu Rey", "Espíritu Rey Dorado", "Espíritu Rey Gomita", "Espíritu Rey Galaxia",
+      "Espíritu Monarca", "Espíritu Monarca Dorado", "Espíritu Monarca Gomita", "Espíritu Monarca Galaxia",
       "Espíritu Fantasma", "Espíritu Fantasma Dorado", "Espíritu Fantasma Gomita", "Espíritu Fantasma Galaxia",
       "Espíritu del Punto Cero", "Espíritu del Punto Cero Dorado", "Espíritu del Punto Cero Gomita", "Espíritu del Punto Cero Galaxia",
       "Espíritu de Aura", "Espíritu de Aura Dorado", "Espíritu de Aura Galaxia", "Espíritu de Aura Gomita",
@@ -1231,7 +1230,7 @@
       "Espíritu de Fuego Gema", "Espíritu de Fuego Holofoil",
       "Espíritu Punk Gema", "Espíritu Punk Holofoil",
       "Espíritu Pato Gema", "Espíritu Pato Holofoil",
-      "Espíritu Rey Gema", "Espíritu Rey Holofoil",
+      "Espíritu Monarca Gema", "Espíritu Monarca Holofoil",
       "Espíritu Fantasma Gema", "Espíritu Fantasma Holofoil",
       "Espíritu del Punto Cero Gema", "Espíritu del Punto Cero Holofoil",
       "Espíritu de Aura Gema", "Espíritu de Aura Holofoil",

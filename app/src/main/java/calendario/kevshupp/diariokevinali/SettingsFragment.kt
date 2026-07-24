@@ -706,7 +706,8 @@ class SettingsFragment : Fragment() {
                             } ?: run {
                                 Toast.makeText(requireContext(), "Por favor, selecciona primero una carpeta de sincronización", Toast.LENGTH_SHORT).show()
                             }
-                        }
+                        },
+                        coupleId = coupleId
                     )
                 }
             }

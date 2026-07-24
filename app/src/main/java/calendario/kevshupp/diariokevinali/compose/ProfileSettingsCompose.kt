@@ -704,7 +704,8 @@ fun SettingsScreen(
     onIncorrectPassword: () -> Unit = {},
     onTestFirestore: ( (String) -> Unit ) -> Unit = {},
     onTestGoogleDrive: ( (String) -> Unit ) -> Unit = {},
-    onRenamePhotosByDate: () -> Unit = {}
+    onRenamePhotosByDate: () -> Unit = {},
+    coupleId: String? = null
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val isMono = currentTheme == "Pixel Monocromático"
@@ -1162,6 +1163,7 @@ fun SettingsScreen(
                         googleAccountEmail = googleAccountEmail,
                         selectedFolderUri = selectedFolderUri,
                         syncState = syncState,
+                        coupleId = coupleId,
                         onTestFirestore = onTestFirestore,
                         onTestGoogleDrive = onTestGoogleDrive
                     )
@@ -1629,6 +1631,7 @@ fun AdvancedSettingsCompose(
     googleAccountEmail: String?,
     selectedFolderUri: String?,
     syncState: String,
+    coupleId: String?,
     onTestFirestore: ( (String) -> Unit ) -> Unit,
     onTestGoogleDrive: ( (String) -> Unit ) -> Unit
 ) {
@@ -1641,6 +1644,9 @@ fun AdvancedSettingsCompose(
     var driveTestResult by remember { mutableStateOf<String?>(null) }
     var isTestingFirestore by remember { mutableStateOf(false) }
     var isTestingDrive by remember { mutableStateOf(false) }
+
+    var isUpdatingSpirits by remember { mutableStateOf(false) }
+    var spiritsUpdateResult by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -1705,6 +1711,72 @@ fun AdvancedSettingsCompose(
                     firestoreTestResult = result
                     isTestingFirestore = false
                 }
+            }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 3. Spirits Categories Sorting Card
+        ConnectionCard(
+            title = "Espíritus - Base de Datos",
+            status = "ORDENAR",
+            statusColor = Color(0xFF7B1FA2),
+            details = listOf(
+                "Establece el orden de categorías oficial",
+                "Corrige IDs en la base de datos de Firestore"
+            ),
+            isDark = isDark,
+            textColor = textColor,
+            borderColor = borderColor,
+            testButtonText = "ACTUALIZAR ORDEN DE ESPÍRITUS 👾",
+            isTesting = isUpdatingSpirits,
+            testResult = spiritsUpdateResult,
+            onTest = {
+                if (coupleId.isNullOrEmpty()) {
+                    spiritsUpdateResult = "Error: coupleId no disponible."
+                    return@ConnectionCard
+                }
+                isUpdatingSpirits = true
+                spiritsUpdateResult = "Actualizando orden..."
+                
+                val defaultCategoriesList = listOf(
+                    mapOf("name" to "Espíritu de Batman", "spiritIds" to (98..104).map { String.format("%02d", it) }),
+                    mapOf("name" to "Espíritu de Agua", "spiritIds" to (1..4).map { String.format("%02d", it) } + listOf("66", "67", "112")),
+                    mapOf("name" to "Espíritu de Tierra", "spiritIds" to (9..12).map { String.format("%02d", it) } + listOf("70", "71", "114")),
+                    mapOf("name" to "Espíritu de Fuego", "spiritIds" to (18..21).map { String.format("%02d", it) } + listOf("74", "75", "116")),
+                    mapOf("name" to "Espíritu Pato", "spiritIds" to (26..29).map { String.format("%02d", it) } + listOf("78", "79", "118")),
+                    mapOf("name" to "Espíritu Fantasma", "spiritIds" to (34..37).map { String.format("%02d", it) } + listOf("82", "83")),
+                    mapOf("name" to "Espíritu Dormilón", "spiritIds" to (5..8).map { String.format("%02d", it) } + listOf("68", "69", "113")),
+                    mapOf("name" to "Espíritu Demoníaco", "spiritIds" to (14..17).map { String.format("%02d", it) } + listOf("72", "73", "115")),
+                    mapOf("name" to "Espíritu Punk", "spiritIds" to (22..25).map { String.format("%02d", it) } + listOf("76", "77", "117")),
+                    mapOf("name" to "Espíritu Monarca", "spiritIds" to (30..33).map { String.format("%02d", it) } + listOf("80", "81")),
+                    mapOf("name" to "Espíritu del Punto Cero", "spiritIds" to (38..41).map { String.format("%02d", it) } + listOf("84", "85")),
+                    mapOf("name" to "Espíritu Pescado", "spiritIds" to (62..65).map { String.format("%02d", it) } + listOf("96", "97")),
+                    mapOf("name" to "Espíritu Futbolero", "spiritIds" to (54..57).map { String.format("%02d", it) } + listOf("92", "93")),
+                    mapOf("name" to "Espíritu de Aura", "spiritIds" to (42..45).map { String.format("%02d", it) } + listOf("86", "87")),
+                    mapOf("name" to "Espíritu Jefe", "spiritIds" to (58..61).map { String.format("%02d", it) } + listOf("94", "95")),
+                    mapOf("name" to "Espíritu de la Parca", "spiritIds" to (50..53).map { String.format("%02d", it) } + listOf("90", "91")),
+                    mapOf("name" to "Espíritu de Viento", "spiritIds" to (105..111).map { String.format("%02d", it) }),
+                    mapOf("name" to "Espíritu de la Fundación", "spiritIds" to (46..49).map { String.format("%02d", it) } + listOf("88", "89")),
+                    mapOf("name" to "Espíritu Especial/Invitado", "spiritIds" to listOf("13") + (119..121).map { String.format("%02d", it) })
+                )
+                
+                val dbRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                dbRef.collection("fortnite_spirits").document(coupleId)
+                    .update(
+                        mapOf(
+                            "categories" to defaultCategoriesList,
+                            "schema_version" to 3
+                        )
+                    )
+                    .addOnSuccessListener {
+                        spiritsUpdateResult = "¡Orden actualizado en Firestore con éxito!"
+                        isUpdatingSpirits = false
+                    }
+                    .addOnFailureListener { err ->
+                        spiritsUpdateResult = "Error al actualizar: ${err.localizedMessage}"
+                        isUpdatingSpirits = false
+                    }
             }
         )
     }
