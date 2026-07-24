@@ -7,6 +7,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -457,64 +459,32 @@ fun SpiritsChecklistView(
 
                     val schemaVersion = (snapshot.get("schema_version") as? Number)?.toInt() ?: 1
 
-                    val isFromCache = snapshot.metadata.isFromCache
-
                     if (parsedSpiritsList.isEmpty()) {
-                        if (!isFromCache) {
-                            // New document or empty list, write default values to Firestore!
-                            val docRef = db.collection("fortnite_spirits").document(coupleId)
-                            val updates = hashMapOf<String, Any>(
-                                "categories" to defaultCategories.map { cat ->
-                                    hashMapOf("name" to cat.name, "spiritIds" to cat.spiritIds)
-                                },
-                                "spirits_list" to defaultSpiritsList,
-                                "schema_version" to 3
-                            )
-                            docRef.set(updates, SetOptions.merge())
-                        }
+                        // No realizar actualizaciones automáticas a Firestore en segundo plano (solo por acción humana)
                         categories = defaultCategories
                         spiritsList = defaultSpiritsList
                     } else if (schemaVersion < 3) {
-                        if (!isFromCache) {
-                            // Firestore document is outdated (schema_version < 3). Migrate it to 121!
-                            val migrateSelections = { oldList: List<String> ->
-                                oldList.map { id ->
-                                    val num = id.toIntOrNull() ?: return@map id
-                                    val newNum = when {
-                                        num in 117..119 -> num + 2
-                                        num in 110..116 -> num + 2
-                                        num in 104..109 -> num + 1
-                                        else -> num
-                                    }
-                                    String.format("%02d", newNum)
-                                }.distinct()
-                            }
-
-                            val migratedKevin = if (schemaVersion == 1) migrateSelections(kevinList) else kevinList
-                            val migratedAli = if (schemaVersion == 1) migrateSelections(aliList) else aliList
-                            val migratedKevinMastery = if (schemaVersion == 1) migrateSelections(kevinMastery) else kevinMastery
-                            val migratedAliMastery = if (schemaVersion == 1) migrateSelections(aliMastery) else aliMastery
-
-                            val docRef = db.collection("fortnite_spirits").document(coupleId)
-                            val updates = hashMapOf<String, Any>(
-                                "categories" to defaultCategories.map { cat ->
-                                    hashMapOf("name" to cat.name, "spiritIds" to cat.spiritIds)
-                                },
-                                "spirits_list" to defaultSpiritsList,
-                                "kevin_list" to migratedKevin,
-                                "ali_list" to migratedAli,
-                                "kevin_mastery" to migratedKevinMastery,
-                                "ali_mastery" to migratedAliMastery,
-                                "schema_version" to 3
-                            )
-                            docRef.update(updates)
-                            categories = defaultCategories
-                            spiritsList = defaultSpiritsList
-                        } else {
-                            // Cache is outdated, display temporarily but wait for server to migrate/load
-                            categories = parsedCategories.ifEmpty { defaultCategories }
-                            spiritsList = parsedSpiritsList
+                        // Migrar localmente en UI state pero sin realizar actualizaciones automáticas a Firestore
+                        val migrateSelections = { oldList: List<String> ->
+                            oldList.map { id ->
+                                val num = id.toIntOrNull() ?: return@map id
+                                val newNum = when {
+                                    num in 117..119 -> num + 2
+                                    num in 110..116 -> num + 2
+                                    num in 104..109 -> num + 1
+                                    else -> num
+                                }
+                                String.format("%02d", newNum)
+                            }.distinct()
                         }
+
+                        kevinList = if (schemaVersion == 1) migrateSelections(kevinList) else kevinList
+                        aliList = if (schemaVersion == 1) migrateSelections(aliList) else aliList
+                        kevinMastery = if (schemaVersion == 1) migrateSelections(kevinMastery) else kevinMastery
+                        aliMastery = if (schemaVersion == 1) migrateSelections(aliMastery) else aliMastery
+
+                        categories = parsedCategories.ifEmpty { defaultCategories }
+                        spiritsList = parsedSpiritsList
                     } else {
                         // Firestore document is up to date, use its values
                         categories = parsedCategories.ifEmpty { defaultCategories }
@@ -630,7 +600,10 @@ fun SpiritsChecklistView(
         } else {
             currentList + spiritId
         }
-        val updates = mutableMapOf<String, Any>(targetUserKey to newList)
+        val updates = mutableMapOf<String, Any>(
+            targetUserKey to newList,
+            "schema_version" to 3
+        )
         if (currentlyChecked) {
             val masteryKey = if (targetUserKey == "kevin_list") "kevin_mastery" else "ali_mastery"
             val currentMastery = if (targetUserKey == "kevin_list") kevinMastery else aliMastery
@@ -649,11 +622,15 @@ fun SpiritsChecklistView(
         } else {
             currentList + spiritId
         }
+        val updates = mapOf(
+            targetUserKey to newList,
+            "schema_version" to 3
+        )
         db.collection("fortnite_spirits").document(coupleId)
-            .set(mapOf(targetUserKey to newList), SetOptions.merge())
+            .set(updates, SetOptions.merge())
     }
 
-    var showAllList by remember { mutableStateOf(false) }
+    var viewMode by remember { mutableStateOf("grupos") } // "grupos", "lista", "fortnite"
     var expandedCategories by remember { mutableStateOf(emptySet<String>()) }
     var filterMode by remember { mutableStateOf("todos") }
     var showFiltersMenu by remember { mutableStateOf(false) }
@@ -768,12 +745,22 @@ fun SpiritsChecklistView(
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = if (showAllList) "[GRUPOS]" else "[LISTA]",
+                text = when (viewMode) {
+                    "grupos" -> "[GRUPOS]"
+                    "lista" -> "[LISTA]"
+                    else -> "[FORTNITE]"
+                },
                 fontFamily = Vt323,
                 fontSize = 18.sp,
                 color = textColor,
                 modifier = Modifier
-                    .clickable { showAllList = !showAllList }
+                    .clickable {
+                        viewMode = when (viewMode) {
+                            "grupos" -> "lista"
+                            "lista" -> "fortnite"
+                            else -> "grupos"
+                        }
+                    }
                     .padding(8.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -985,8 +972,63 @@ fun SpiritsChecklistView(
                         )
                     }
                 }
-            } else if (showAllList) {
-                val filteredSpirits = spiritsList.filter { matchesFilter(it) }
+            } else if (viewMode == "fortnite") {
+                val orderedIds = categories.flatMap { it.spiritIds }.distinct()
+                val sortedSpirits = orderedIds.filter { spiritsList.contains(it) } + spiritsList.filter { !orderedIds.contains(it) }
+                val filteredSpirits = sortedSpirits.filter { matchesFilter(it) }
+                val chunkedSpirits = filteredSpirits.chunked(3)
+                items(chunkedSpirits) { rowSpirits ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowSpirits.forEach { spiritId ->
+                            val nameIndex = spiritId.toInt() - 1
+                            val hasKevin = kevinList.contains(spiritId)
+                            val hasAli = aliList.contains(spiritId)
+                            val hasKevinMastery = kevinMastery.contains(spiritId)
+                            val hasAliMastery = aliMastery.contains(spiritId)
+                            val spiritResId = remember(spiritId, context) {
+                                val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
+                                if (id != 0) id else android.R.drawable.ic_menu_gallery
+                            }
+                            val currentName = customNames[spiritId] ?: spiritNames.getOrElse(nameIndex) { "Espíritu #$spiritId" }
+                            Box(modifier = Modifier.weight(1f)) {
+                                SpiritGridCard(
+                                    spiritId = spiritId,
+                                    spiritResId = spiritResId,
+                                    spiritName = currentName,
+                                    hasKevin = hasKevin,
+                                    hasAli = hasAli,
+                                    hasKevinMastery = hasKevinMastery,
+                                    hasAliMastery = hasAliMastery,
+                                    isKevin = isKevin,
+                                    isDark = isDark,
+                                    borderColor = borderColor,
+                                    textColor = textColor,
+                                    cardBg = cardBg,
+                                    isEditMode = isEditMode,
+                                    onEditName = {
+                                        editingSpiritId = spiritId
+                                        editingSpiritInitialName = currentName
+                                    },
+                                    onDeleteSpirit = {
+                                        deletingSpiritId = spiritId
+                                    },
+                                    onToggleCheck = onToggleCheck,
+                                    onToggleMastery = onToggleMastery
+                                )
+                            }
+                        }
+                        for (i in 0 until (3 - rowSpirits.size)) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            } else if (viewMode == "lista") {
+                val orderedIds = categories.flatMap { it.spiritIds }.distinct()
+                val sortedSpirits = orderedIds.filter { spiritsList.contains(it) } + spiritsList.filter { !orderedIds.contains(it) }
+                val filteredSpirits = sortedSpirits.filter { matchesFilter(it) }
                 items(filteredSpirits, key = { "spirit_$it" }) { spiritId ->
                     val nameIndex = spiritId.toInt() - 1
                     val hasKevin = kevinList.contains(spiritId)
@@ -2719,3 +2761,151 @@ data class AnimeItem(
     val nextEpisodeNum: Int? = null,
     val airingAt: Long? = null
 )
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun SpiritGridCard(
+    spiritId: String,
+    spiritResId: Int,
+    spiritName: String,
+    hasKevin: Boolean,
+    hasAli: Boolean,
+    hasKevinMastery: Boolean,
+    hasAliMastery: Boolean,
+    isKevin: Boolean,
+    isDark: Boolean,
+    borderColor: Color,
+    textColor: Color,
+    cardBg: Color,
+    isEditMode: Boolean = false,
+    onEditName: () -> Unit = {},
+    onDeleteSpirit: () -> Unit = {},
+    onToggleCheck: (String, Boolean, String) -> Unit,
+    onToggleMastery: (String, Boolean, String) -> Unit
+) {
+    val hasCurrent = if (isKevin) hasKevin else hasAli
+    val hasCurrentMastery = if (isKevin) hasKevinMastery else hasAliMastery
+    val currentListKey = if (isKevin) "kevin_list" else "ali_list"
+    val currentMasteryKey = if (isKevin) "kevin_mastery" else "ali_mastery"
+
+    val obtainedBg = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9)
+    val missingBg = if (isDark) Color(0xFF0F172A).copy(alpha = 0.5f) else Color(0xFFE2E8F0).copy(alpha = 0.5f)
+    val finalBg = if (hasCurrent) obtainedBg else missingBg
+
+    val cardBorderColor = if (hasCurrent) borderColor else borderColor.copy(alpha = 0.3f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.85f)
+            .border(2.dp, cardBorderColor)
+            .background(finalBg)
+            .combinedClickable(
+                onClick = {
+                    if (isEditMode) {
+                        onEditName()
+                    } else {
+                        onToggleCheck(spiritId, hasCurrent, currentListKey)
+                    }
+                },
+                onLongClick = {
+                    if (!isEditMode && hasCurrent) {
+                        onToggleMastery(spiritId, hasCurrentMastery, currentMasteryKey)
+                    }
+                }
+            )
+            .padding(4.dp)
+    ) {
+        // Indicators Row (Top)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Kevin indicator
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .background(if (hasKevin) Color(0xFF10B981) else Color.Gray.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "K",
+                        fontFamily = Vt323,
+                        fontSize = 11.sp,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                if (hasKevinMastery) {
+                    Spacer(modifier = Modifier.width(1.dp))
+                    Text(text = "👑", fontSize = 11.sp)
+                }
+            }
+
+            // Ali indicator
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (hasAliMastery) {
+                    Text(text = "👑", fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(1.dp))
+                }
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .background(if (hasAli) Color(0xFFEC4899) else Color.Gray.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "A",
+                        fontFamily = Vt323,
+                        fontSize = 11.sp,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Spirit Image (Center)
+        Image(
+            painter = painterResource(id = spiritResId),
+            contentDescription = spiritName,
+            modifier = Modifier
+                .size(72.dp)
+                .align(Alignment.Center)
+        )
+
+        // Delete button if in edit mode (Top Center)
+        if (isEditMode) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 18.dp)
+                    .size(20.dp)
+                    .background(Color.Red)
+                    .clickable { onDeleteSpirit() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "×", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
+        }
+
+        // Spirit Name (Bottom)
+        Text(
+            text = spiritName,
+            fontFamily = Vt323,
+            fontSize = 11.sp,
+            color = textColor,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 2.dp)
+        )
+    }
+}

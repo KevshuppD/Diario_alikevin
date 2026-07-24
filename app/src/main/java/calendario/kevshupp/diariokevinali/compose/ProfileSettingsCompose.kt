@@ -1669,7 +1669,8 @@ fun AdvancedSettingsCompose(
             statusColor = if (googleAccountEmail != null) Color(0xFF2E7D32) else Color(0xFFC62828),
             details = listOf(
                 "Cuenta: ${googleAccountEmail ?: "Ninguna"}",
-                "Carpeta Local: ${if (!selectedFolderUri.isNullOrEmpty()) "Seleccionada" else "No seleccionada"}"
+                "Carpeta Local: ${if (!selectedFolderUri.isNullOrEmpty()) "Seleccionada" else "No seleccionada"}",
+                "Sincronización: $syncState"
             ),
             isDark = isDark,
             textColor = textColor,
@@ -1696,7 +1697,7 @@ fun AdvancedSettingsCompose(
             statusColor = Color(0xFF2E7D32),
             details = listOf(
                 "Estado: Activo",
-                "Sincronización: $syncState"
+                "Persistencia Local: Habilitada"
             ),
             isDark = isDark,
             textColor = textColor,

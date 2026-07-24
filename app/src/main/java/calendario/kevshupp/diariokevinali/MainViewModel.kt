@@ -264,7 +264,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val hunger: Int,
         val cleanliness: Int,
         val sleepPercent: Int,
-        val nextDecayUpdate: Long
+        val nextDecayUpdate: Long,
+        val isSleeping: Boolean
     )
 
     private fun calculateDecay(p: Pet, now: Long): DecayedStats {
@@ -281,14 +282,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (hoursToDecay >= 1) {
             decayedHunger = Math.min(100, p.hunger + (hoursToDecay * 4).toInt())
             decayedCleanliness = Math.max(0, p.cleanliness - (hoursToDecay * 3).toInt())
-            if (p.isSleeping) {
-                decayedSleepPercent = Math.min(100, p.sleepPercent + (hoursToDecay * 15).toInt())
-            } else {
-                decayedSleepPercent = Math.max(0, p.sleepPercent - (hoursToDecay * 5).toInt())
+
+            val calendar = java.util.Calendar.getInstance()
+            for (h in 1..hoursToDecay) {
+                calendar.timeInMillis = lastDecay + h * 3600000L
+                val hourOfDay = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+                // Si la hora es de noche (00:00 - 08:00), recupera energía a 15%/h
+                if (hourOfDay in 0..7) {
+                    decayedSleepPercent = Math.min(100, decayedSleepPercent + 15)
+                } else {
+                    // Si el pet fue puesto a dormir manualmente (p.isSleeping), también recupera energía
+                    if (p.isSleeping) {
+                        decayedSleepPercent = Math.min(100, decayedSleepPercent + 15)
+                    } else {
+                        decayedSleepPercent = Math.max(0, decayedSleepPercent - 5)
+                    }
+                }
             }
             nextDecayUpdate += hoursToDecay * 3600000L
         }
-        return DecayedStats(decayedHunger, decayedCleanliness, decayedSleepPercent, nextDecayUpdate)
+
+        // Determinar si en el momento actual 'now' el pet debe estar durmiendo
+        val calendarNow = java.util.Calendar.getInstance().apply { timeInMillis = now }
+        val currentHour = calendarNow.get(java.util.Calendar.HOUR_OF_DAY)
+        val isNightTime = currentHour in 0..7
+
+        var isNowSleeping = isNightTime || p.isSleeping
+        var finalSleepPercent = decayedSleepPercent
+
+        // Despertar automáticamente si es de día, estaba durmiendo y la energía llegó al 100%
+        if (!isNightTime && p.isSleeping && decayedSleepPercent >= 100) {
+            isNowSleeping = false
+            finalSleepPercent = 100
+        }
+
+        return DecayedStats(decayedHunger, decayedCleanliness, finalSleepPercent, nextDecayUpdate, isNowSleeping)
     }
 
     private fun checkPetDecay(p: Pet) {
@@ -299,6 +327,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val newCleanliness = stats.cleanliness
         val newSleepPercent = stats.sleepPercent
         val nextDecayUpdate = stats.nextDecayUpdate
+        val isNowSleeping = stats.isSleeping
 
         val happinessDiff = now - p.lastInteraction
         val daysToDecayHappiness = happinessDiff / (1000L * 60L * 60L * 24L)
@@ -310,13 +339,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val decay = (daysToDecayHappiness * 20).toInt()
             newHappiness = Math.max(0, p.happiness - decay)
             lastInteractionCompensated += daysToDecayHappiness * 24L * 60L * 60L * 1000L
-        }
-
-        var isNowSleeping = p.isSleeping
-        var finalSleepPercent = newSleepPercent
-        if (p.isSleeping && newSleepPercent >= 100) {
-            isNowSleeping = false
-            finalSleepPercent = 100
         }
 
         var newStatus = p.status
@@ -331,7 +353,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val hasChanged = newHappiness != p.happiness ||
                 newHunger != p.hunger ||
                 newCleanliness != p.cleanliness ||
-                finalSleepPercent != p.sleepPercent ||
+                newSleepPercent != p.sleepPercent ||
                 newStatus != p.status ||
                 nextDecayUpdate != p.lastDecayUpdate ||
                 isNowSleeping != p.isSleeping
@@ -342,7 +364,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     "happiness", newHappiness,
                     "hunger", newHunger,
                     "cleanliness", newCleanliness,
-                    "sleepPercent", finalSleepPercent,
+                    "sleepPercent", newSleepPercent,
                     "status", newStatus,
                     "lastInteraction", lastInteractionCompensated,
                     "lastDecayUpdate", nextDecayUpdate,
@@ -419,7 +441,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "hunger", 0,
                 "cleanliness", currentCleanliness,
                 "sleepPercent", currentSleepPercent,
-                "status", if (p.isSleeping) Pet.STATUS_SLEEPING else Pet.STATUS_HAPPY
+                "status", if (stats.isSleeping) Pet.STATUS_SLEEPING else Pet.STATUS_HAPPY,
+                "isSleeping", stats.isSleeping
             )
             .addOnSuccessListener {
                 if (leveledUp) {
@@ -430,18 +453,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun feedPet(foodId: String, cost: Int, happinessGain: Int) {
         val p = _petState.value ?: return
+        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val isNightTime = currentHour in 0..7
+        if (p.isSleeping || isNightTime) {
+            toastMessage.value = "💤 ¡Thor está durmiendo!"
+            return
+        }
         if (p.lovePoints >= cost) {
             val now = System.currentTimeMillis()
             val stats = calculateDecay(p, now)
             val decayedCleanliness = stats.cleanliness
             val decayedSleepPercent = stats.sleepPercent
             val nextDecayUpdate = stats.nextDecayUpdate
+            val isNowSleeping = stats.isSleeping
 
             val currentHappiness = p.happiness
             val newHappiness = Math.min(100, currentHappiness + happinessGain)
-            var newStatus = p.status
-            if (newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
-                newStatus = Pet.STATUS_HAPPY
+            var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.status
+            if (!isNowSleeping) {
+                if (newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
+                    newStatus = Pet.STATUS_HAPPY
+                }
             }
 
             db.collection("pets").document(currentCoupleId)
@@ -453,7 +485,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     "cleanliness", decayedCleanliness,
                     "sleepPercent", decayedSleepPercent,
                     "lastInteraction", now,
-                    "lastDecayUpdate", nextDecayUpdate
+                    "lastDecayUpdate", nextDecayUpdate,
+                    "isSleeping", isNowSleeping
                 )
                 .addOnSuccessListener {
                     toastMessage.value = "¡Le has dado de comer a Thor! 💖 +$happinessGain% Felicidad"
@@ -465,6 +498,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rewardPet(points: Int, exp: Int) {
         val p = _petState.value ?: return
+        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val isNightTime = currentHour in 0..7
+        if (p.isSleeping || isNightTime) {
+            toastMessage.value = "💤 ¡Thor está durmiendo!"
+            return
+        }
         val now = System.currentTimeMillis()
         val today = dayFormat.format(Date(now))
         val currentDailyTaps = if (today == p.lastTapDate) p.dailyTapCount else 0
@@ -483,18 +522,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val decayedCleanliness = stats.cleanliness
         val decayedSleepPercent = stats.sleepPercent
         val nextDecayUpdate = stats.nextDecayUpdate
+        val isNowSleeping = stats.isSleeping
 
         var newExp = p.experience + exp
         var newLevel = p.level
         var newLovePoints = p.lovePoints + actualTapsAdded
         val newHappiness = Math.min(100, p.happiness + actualTapsAdded)
-
-        var isNowSleeping = p.isSleeping
-        var finalSleepPercent = decayedSleepPercent
-        if (p.isSleeping && decayedSleepPercent >= 100) {
-            isNowSleeping = false
-            finalSleepPercent = 100
-        }
 
         var newStatus = p.status
         if (isNowSleeping) {
@@ -526,7 +559,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "status", newStatus,
                 "hunger", 0,
                 "cleanliness", decayedCleanliness,
-                "sleepPercent", finalSleepPercent,
+                "sleepPercent", decayedSleepPercent,
                 "lastInteraction", now,
                 "lastDecayUpdate", nextDecayUpdate,
                 "isSleeping", isNowSleeping,
@@ -560,6 +593,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun togglePetSleep() {
         val p = _petState.value ?: return
+        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val isNightTime = currentHour in 0..7
+        if (isNightTime) {
+            toastMessage.value = "💤 Thor tiene que dormir durante la noche (00:00 - 08:00)."
+            return
+        }
+
         val dndActive = isDoNotDisturbActive()
         val targetSleepState = !p.isSleeping
 
@@ -622,20 +662,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun syncDndStateWithPet() {
         val p = _petState.value ?: return
         val dndActive = isDoNotDisturbActive()
-        if (dndActive) {
+        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val isNightTime = currentHour in 0..7
+
+        val shouldSleep = dndActive || isNightTime
+
+        if (shouldSleep) {
             if (!p.isSleeping) {
                 db.collection("pets").document(currentCoupleId)
                     .update(
                         "isSleeping", true,
                         "status", Pet.STATUS_SLEEPING,
-                        "dndTriggeredByUserId", currentUserId
+                        "dndTriggeredByUserId", if (dndActive) currentUserId else null
                     )
                     .addOnSuccessListener {
-                        toastMessage.value = "Thor se durmió porque activaste No Molestar 🌙"
+                        if (dndActive) {
+                            toastMessage.value = "Thor se durmió porque activaste No Molestar 🌙"
+                        }
                     }
             }
         } else {
-            if (p.isSleeping && currentUserId == p.dndTriggeredByUserId) {
+            if (p.isSleeping && (p.dndTriggeredByUserId == null || currentUserId == p.dndTriggeredByUserId)) {
                 val newHappiness = Math.min(100, p.happiness + 20)
                 val newStatus = if (newHappiness > 40) Pet.STATUS_HAPPY else Pet.STATUS_SAD
                 db.collection("pets").document(currentCoupleId)
@@ -647,7 +694,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         "dndTriggeredByUserId", null
                     )
                     .addOnSuccessListener {
-                        toastMessage.value = "¡Thor despertó al desactivar No Molestar! ☀️"
+                        toastMessage.value = "¡Thor despertó! ☀️"
                     }
             }
         }
@@ -655,7 +702,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun bathPet() {
         val p = _petState.value ?: return
-        if (p.isSleeping) {
+        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val isNightTime = currentHour in 0..7
+        if (p.isSleeping || isNightTime) {
             toastMessage.value = "💤 ¡Thor está durmiendo!"
             return
         }
@@ -669,6 +718,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val decayedHunger = stats.hunger
         val decayedSleepPercent = stats.sleepPercent
         val nextDecayUpdate = stats.nextDecayUpdate
+        val isNowSleeping = stats.isSleeping
 
         val newHappiness = Math.min(100, p.happiness + 10)
         var newExp = p.experience + 3
@@ -681,8 +731,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             newLovePoints += 50
             leveledUp = true
         }
-        var newStatus = p.status
-        if (newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
+        var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.status
+        if (!isNowSleeping && newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
             newStatus = Pet.STATUS_HAPPY
         }
         val showLevelUpToast = leveledUp
@@ -701,7 +751,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "hunger", decayedHunger,
                 "sleepPercent", decayedSleepPercent,
                 "lastInteraction", now,
-                "lastDecayUpdate", nextDecayUpdate
+                "lastDecayUpdate", nextDecayUpdate,
+                "isSleeping", isNowSleeping
             )
             .addOnSuccessListener {
                 toastMessage.value = "¡Thor ha quedado súper limpio! 🫧🚿"
@@ -713,6 +764,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun playBallPet(points: Int, happinessGain: Int) {
         val p = _petState.value ?: return
+        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val isNightTime = currentHour in 0..7
+        if (p.isSleeping || isNightTime) {
+            toastMessage.value = "💤 ¡Thor está durmiendo!"
+            return
+        }
         val now = System.currentTimeMillis()
         val today = dayFormat.format(Date(now))
         if (today == p.lastBallDate) {
@@ -725,6 +782,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val decayedCleanliness = stats.cleanliness
         val decayedSleepPercent = stats.sleepPercent
         val nextDecayUpdate = stats.nextDecayUpdate
+        val isNowSleeping = stats.isSleeping
 
         val newHappiness = Math.min(100, p.happiness + happinessGain)
         var newLovePoints = p.lovePoints + points
@@ -737,8 +795,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             newLovePoints += 50
             leveledUp = true
         }
-        var newStatus = p.status
-        if (newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
+        var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.status
+        if (!isNowSleeping && newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
             newStatus = Pet.STATUS_HAPPY
         }
         val showLevelUpToast = leveledUp
@@ -756,7 +814,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "cleanliness", decayedCleanliness,
                 "sleepPercent", decayedSleepPercent,
                 "lastInteraction", now,
-                "lastDecayUpdate", nextDecayUpdate
+                "lastDecayUpdate", nextDecayUpdate,
+                "isSleeping", isNowSleeping
             )
             .addOnSuccessListener {
                 toastMessage.value = "¡Jugaste a la pelota con Thor! ⚾"
@@ -768,6 +827,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun playMinigame(gameType: String, points: Int, exp: Int) {
         val p = _petState.value ?: return
+        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val isNightTime = currentHour in 0..7
+        if (p.isSleeping || isNightTime) {
+            toastMessage.value = "💤 ¡Thor está durmiendo!"
+            return
+        }
         val now = System.currentTimeMillis()
         val today = dayFormat.format(Date(now))
         val updateDateField = if ("memory" == gameType) "lastMemoryDate" else "lastSnakeDate"
@@ -785,13 +850,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val decayedCleanliness = stats.cleanliness
         val decayedSleepPercent = stats.sleepPercent
         val nextDecayUpdate = stats.nextDecayUpdate
+        val isNowSleeping = stats.isSleeping
 
         var newExp = p.experience + exp
         var newLevel = p.level
         var newLovePoints = p.lovePoints + points
         val newHappiness = Math.min(100, p.happiness + 15)
-        var newStatus = p.status
-        if (newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
+        var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.status
+        if (!isNowSleeping && newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
             newStatus = Pet.STATUS_HAPPY
         }
         var leveledUp = false
@@ -816,7 +882,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "sleepPercent", decayedSleepPercent,
                 updateDateField, today,
                 "lastInteraction", now,
-                "lastDecayUpdate", nextDecayUpdate
+                "lastDecayUpdate", nextDecayUpdate,
+                "isSleeping", isNowSleeping
             )
             .addOnSuccessListener {
                 toastMessage.value = "¡Premio reclamado! +$points ❤️ y +$exp EXP    "
