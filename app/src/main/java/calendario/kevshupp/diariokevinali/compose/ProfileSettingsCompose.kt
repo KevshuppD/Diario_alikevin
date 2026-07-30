@@ -1745,7 +1745,7 @@ fun AdvancedSettingsCompose(
                     mapOf("name" to "Espíritu de Agua", "spiritIds" to (1..4).map { String.format("%02d", it) } + listOf("66", "67", "112")),
                     mapOf("name" to "Espíritu de Tierra", "spiritIds" to (9..12).map { String.format("%02d", it) } + listOf("70", "71", "114")),
                     mapOf("name" to "Espíritu de Fuego", "spiritIds" to (18..21).map { String.format("%02d", it) } + listOf("74", "75", "116")),
-                    mapOf("name" to "Espíritu Pato", "spiritIds" to (26..29).map { String.format("%02d", it) } + listOf("78", "79", "118")),
+                    mapOf("name" to "Espíritu Pato", "spiritIds" to (26..29).map { String.format("%02d", it) } + listOf("78", "79", "118") + listOf("136", "137", "138", "139")),
                     mapOf("name" to "Espíritu Fantasma", "spiritIds" to (34..37).map { String.format("%02d", it) } + listOf("82", "83")),
                     mapOf("name" to "Espíritu Dormilón", "spiritIds" to (5..8).map { String.format("%02d", it) } + listOf("68", "69", "113")),
                     mapOf("name" to "Espíritu Demoníaco", "spiritIds" to (14..17).map { String.format("%02d", it) } + listOf("72", "73", "115")),
@@ -1756,20 +1756,24 @@ fun AdvancedSettingsCompose(
                     mapOf("name" to "Espíritu Futbolero", "spiritIds" to (54..57).map { String.format("%02d", it) } + listOf("92", "93")),
                     mapOf("name" to "Espíritu de Aura", "spiritIds" to (42..45).map { String.format("%02d", it) } + listOf("86", "87")),
                     mapOf("name" to "Espíritu Jefe", "spiritIds" to (58..61).map { String.format("%02d", it) } + listOf("94", "95")),
-                    mapOf("name" to "Espíritu de la Parca", "spiritIds" to (50..53).map { String.format("%02d", it) } + listOf("90", "91")),
+                    mapOf("name" to "Espíritu de la Parca", "spiritIds" to (50..53).map { String.format("%02d", it) } + listOf("90", "91") + listOf("134", "135")),
                     mapOf("name" to "Espíritu de Viento", "spiritIds" to (105..111).map { String.format("%02d", it) }),
                     mapOf("name" to "Espíritu de la Fundación", "spiritIds" to (46..49).map { String.format("%02d", it) } + listOf("88", "89")),
-                    mapOf("name" to "Espíritu Especial/Invitado", "spiritIds" to listOf("13") + (119..121).map { String.format("%02d", it) })
+                    mapOf("name" to "Espíritu de Llama", "spiritIds" to (122..126).map { String.format("%02d", it) }),
+                    mapOf("name" to "Espíritu de Bananín", "spiritIds" to (129..133).map { String.format("%02d", it) }),
+                    mapOf("name" to "Espíritu de Cubo", "spiritIds" to listOf("127", "128")),
+                    mapOf("name" to "Espíritu Especial/Invitado", "spiritIds" to listOf("13") + (119..121).map { String.format("%02d", it) } + listOf("140", "141"))
                 )
+                val fullSpiritsList = (1..141).map { String.format("%02d", it) }
                 
                 val dbRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val updates = mapOf(
+                    "categories" to defaultCategoriesList,
+                    "spirits_list" to fullSpiritsList,
+                    "schema_version" to 4
+                )
                 dbRef.collection("fortnite_spirits").document(coupleId)
-                    .update(
-                        mapOf(
-                            "categories" to defaultCategoriesList,
-                            "schema_version" to 3
-                        )
-                    )
+                    .set(updates, com.google.firebase.firestore.SetOptions.merge())
                     .addOnSuccessListener {
                         spiritsUpdateResult = "¡Orden actualizado en Firestore con éxito!"
                         isUpdatingSpirits = false

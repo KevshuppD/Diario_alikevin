@@ -358,6 +358,29 @@ fun MiscGridView(
     }
 }
 
+private fun mergeCategories(
+    existing: List<SpiritCategory>,
+    defaults: List<SpiritCategory>,
+    newSpiritIds: List<String>
+): List<SpiritCategory> {
+    val assignedIds = existing.flatMap { it.spiritIds }.toSet()
+    val result = existing.map { cat ->
+        val defaultCat = defaults.find { it.name == cat.name }
+        val toAdd = defaultCat?.spiritIds?.filter { it in newSpiritIds && !assignedIds.contains(it) } ?: emptyList()
+        SpiritCategory(cat.name, cat.spiritIds + toAdd)
+    }.toMutableList()
+    
+    defaults.forEach { defaultCat ->
+        if (result.none { it.name == defaultCat.name }) {
+            val filteredIds = defaultCat.spiritIds.filter { it in newSpiritIds && !assignedIds.contains(it) }
+            if (filteredIds.isNotEmpty()) {
+                result.add(SpiritCategory(defaultCat.name, filteredIds))
+            }
+        }
+    }
+    return result
+}
+
 @Composable
 fun SpiritsChecklistView(
     theme: String,
@@ -384,7 +407,7 @@ fun SpiritsChecklistView(
             SpiritCategory("Espíritu de Agua", (1..4).map { String.format("%02d", it) } + listOf("66", "67", "112")),
             SpiritCategory("Espíritu de Tierra", (9..12).map { String.format("%02d", it) } + listOf("70", "71", "114")),
             SpiritCategory("Espíritu de Fuego", (18..21).map { String.format("%02d", it) } + listOf("74", "75", "116")),
-            SpiritCategory("Espíritu Pato", (26..29).map { String.format("%02d", it) } + listOf("78", "79", "118")),
+            SpiritCategory("Espíritu Pato", (26..29).map { String.format("%02d", it) } + listOf("78", "79", "118") + listOf("136", "137", "138", "139")),
             SpiritCategory("Espíritu Fantasma", (34..37).map { String.format("%02d", it) } + listOf("82", "83")),
             SpiritCategory("Espíritu Dormilón", (5..8).map { String.format("%02d", it) } + listOf("68", "69", "113")),
             SpiritCategory("Espíritu Demoníaco", (14..17).map { String.format("%02d", it) } + listOf("72", "73", "115")),
@@ -395,13 +418,16 @@ fun SpiritsChecklistView(
             SpiritCategory("Espíritu Futbolero", (54..57).map { String.format("%02d", it) } + listOf("92", "93")),
             SpiritCategory("Espíritu de Aura", (42..45).map { String.format("%02d", it) } + listOf("86", "87")),
             SpiritCategory("Espíritu Jefe", (58..61).map { String.format("%02d", it) } + listOf("94", "95")),
-            SpiritCategory("Espíritu de la Parca", (50..53).map { String.format("%02d", it) } + listOf("90", "91")),
+            SpiritCategory("Espíritu de la Parca", (50..53).map { String.format("%02d", it) } + listOf("90", "91") + listOf("134", "135")),
             SpiritCategory("Espíritu de Viento", (105..111).map { String.format("%02d", it) }),
             SpiritCategory("Espíritu de la Fundación", (46..49).map { String.format("%02d", it) } + listOf("88", "89")),
-            SpiritCategory("Espíritu Especial/Invitado", listOf("13") + (119..121).map { String.format("%02d", it) })
+            SpiritCategory("Espíritu de Llama", (122..126).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu de Bananín", (129..133).map { String.format("%02d", it) }),
+            SpiritCategory("Espíritu de Cubo", listOf("127", "128")),
+            SpiritCategory("Espíritu Especial/Invitado", listOf("13") + (119..121).map { String.format("%02d", it) } + listOf("140", "141"))
         )
     }
-    val defaultSpiritsList = remember { (1..121).map { String.format("%02d", it) } }
+    val defaultSpiritsList = remember { (1..141).map { String.format("%02d", it) } }
 
     var categories by remember { mutableStateOf(defaultCategories) }
     var spiritsList by remember { mutableStateOf(defaultSpiritsList) }
@@ -457,38 +483,70 @@ fun SpiritsChecklistView(
                         SpiritCategory(name, spiritIds)
                     } ?: emptyList()
 
-                    val schemaVersion = (snapshot.get("schema_version") as? Number)?.toInt() ?: 1
+                    var schemaVersion = (snapshot.get("schema_version") as? Number)?.toInt() ?: 1
 
                     if (parsedSpiritsList.isEmpty()) {
-                        // No realizar actualizaciones automáticas a Firestore en segundo plano (solo por acción humana)
                         categories = defaultCategories
                         spiritsList = defaultSpiritsList
-                    } else if (schemaVersion < 3) {
-                        // Migrar localmente en UI state pero sin realizar actualizaciones automáticas a Firestore
-                        val migrateSelections = { oldList: List<String> ->
-                            oldList.map { id ->
-                                val num = id.toIntOrNull() ?: return@map id
-                                val newNum = when {
-                                    num in 117..119 -> num + 2
-                                    num in 110..116 -> num + 2
-                                    num in 104..109 -> num + 1
-                                    else -> num
-                                }
-                                String.format("%02d", newNum)
-                            }.distinct()
+                        val isFromCache = snapshot.metadata.isFromCache
+                        if (!isFromCache) {
+                            val categoriesMap = defaultCategories.map {
+                                mapOf("name" to it.name, "spiritIds" to it.spiritIds)
+                            }
+                            val updates = mapOf(
+                                "categories" to categoriesMap,
+                                "spirits_list" to defaultSpiritsList,
+                                "schema_version" to 4
+                            )
+                            db.collection("fortnite_spirits").document(coupleId)
+                                .set(updates, SetOptions.merge())
+                        }
+                    } else {
+                        // Apply selection migration if version is 1
+                        if (schemaVersion == 1) {
+                            val migrateSelections = { oldList: List<String> ->
+                                oldList.map { id ->
+                                    val num = id.toIntOrNull() ?: return@map id
+                                    val newNum = when {
+                                        num in 117..119 -> num + 2
+                                        num in 110..116 -> num + 2
+                                        num in 104..109 -> num + 1
+                                        else -> num
+                                    }
+                                    String.format("%02d", newNum)
+                                }.distinct()
+                            }
+                            kevinList = migrateSelections(kevinList)
+                            aliList = migrateSelections(aliList)
+                            kevinMastery = migrateSelections(kevinMastery)
+                            aliMastery = migrateSelections(aliMastery)
+                            schemaVersion = 3 // Promotion to base v3 for local logic
                         }
 
-                        kevinList = if (schemaVersion == 1) migrateSelections(kevinList) else kevinList
-                        aliList = if (schemaVersion == 1) migrateSelections(aliList) else aliList
-                        kevinMastery = if (schemaVersion == 1) migrateSelections(kevinMastery) else kevinMastery
-                        aliMastery = if (schemaVersion == 1) migrateSelections(aliMastery) else aliMastery
-
-                        categories = parsedCategories.ifEmpty { defaultCategories }
-                        spiritsList = parsedSpiritsList
-                    } else {
-                        // Firestore document is up to date, use its values
-                        categories = parsedCategories.ifEmpty { defaultCategories }
-                        spiritsList = parsedSpiritsList
+                        if (schemaVersion < 4) {
+                            val baseCategories = parsedCategories.ifEmpty { defaultCategories }
+                            val mergedCategories = mergeCategories(baseCategories, defaultCategories, (122..141).map { String.format("%02d", it) })
+                            categories = mergedCategories
+                            spiritsList = defaultSpiritsList
+                            
+                            val isFromCache = snapshot.metadata.isFromCache
+                            if (!isFromCache) {
+                                val categoriesMap = mergedCategories.map {
+                                    mapOf("name" to it.name, "spiritIds" to it.spiritIds)
+                                }
+                                val updates = mapOf(
+                                    "categories" to categoriesMap,
+                                    "spirits_list" to defaultSpiritsList,
+                                    "schema_version" to 4
+                                )
+                                db.collection("fortnite_spirits").document(coupleId)
+                                    .set(updates, SetOptions.merge())
+                            }
+                        } else {
+                            // Firestore document is up to date, use its values
+                            categories = parsedCategories.ifEmpty { defaultCategories }
+                            spiritsList = parsedSpiritsList
+                        }
                     }
                 } else {
                     kevinList = emptyList()
@@ -533,7 +591,7 @@ fun SpiritsChecklistView(
         val updates = mapOf(
             "custom_names" to newCustomNames,
             "categories" to categoriesMap,
-            "schema_version" to 3
+            "schema_version" to 4
         )
         db.collection("fortnite_spirits").document(coupleId)
             .set(updates, SetOptions.merge())
@@ -546,7 +604,7 @@ fun SpiritsChecklistView(
             customCategories + (originalName to newName)
         }
         db.collection("fortnite_spirits").document(coupleId)
-            .set(mapOf("custom_categories" to newCustomCategories, "schema_version" to 3), SetOptions.merge())
+            .set(mapOf("custom_categories" to newCustomCategories, "schema_version" to 4), SetOptions.merge())
     }
 
     val onDeleteSpirit: (String) -> Unit = { spiritId ->
@@ -571,7 +629,7 @@ fun SpiritsChecklistView(
             "ali_list" to newAliList,
             "kevin_mastery" to newKevinMastery,
             "ali_mastery" to newAliMastery,
-            "schema_version" to 3
+            "schema_version" to 4
         )
         db.collection("fortnite_spirits").document(coupleId)
             .set(updates, SetOptions.merge())
@@ -586,7 +644,7 @@ fun SpiritsChecklistView(
         val updates = mapOf(
             "categories" to categoriesMap,
             "custom_categories" to newCustomCategories,
-            "schema_version" to 3
+            "schema_version" to 4
         )
         db.collection("fortnite_spirits").document(coupleId)
             .set(updates, SetOptions.merge())
@@ -602,7 +660,7 @@ fun SpiritsChecklistView(
         }
         val updates = mutableMapOf<String, Any>(
             targetUserKey to newList,
-            "schema_version" to 3
+            "schema_version" to 4
         )
         if (currentlyChecked) {
             val masteryKey = if (targetUserKey == "kevin_list") "kevin_mastery" else "ali_mastery"
@@ -624,7 +682,7 @@ fun SpiritsChecklistView(
         }
         val updates = mapOf(
             targetUserKey to newList,
-            "schema_version" to 3
+            "schema_version" to 4
         )
         db.collection("fortnite_spirits").document(coupleId)
             .set(updates, SetOptions.merge())
@@ -709,7 +767,14 @@ fun SpiritsChecklistView(
             // Fila 11 (Cubo)
             "Espíritu de Agua Cubo", "Espíritu Dormilón Cubo", "Espíritu de Tierra Cubo", "Espíritu Demoníaco Cubo", "Espíritu de Fuego Cubo", "Espíritu Punk Cubo", "Espíritu Pato Cubo",
             // Fila 12 (Especiales / Invitados)
-            "Espíritu Pollo", "Espíritu de Vini Jr.", "Espíritu de la Fundación Especial"
+            "Espíritu Pollo", "Espíritu de Vini Jr.", "Espíritu de la Fundación Especial",
+            // Nuevos Espíritus (122..141)
+            "Espíritu de Llama", "Espíritu de Llama Dorado", "Espíritu de Llama Gomita", "Espíritu de Llama Galaxia", "Espíritu de Llama Gema",
+            "Espíritu de Cubo Arcoíris", "Espíritu de Cubo Galaxia Oscura",
+            "Espíritu de Bananín", "Espíritu de Bananín Dorado", "Espíritu de Bananín Gomita", "Espíritu de Bananín Arcoíris", "Espíritu de Bananín Galaxia",
+            "Espíritu de la Parca Arcoíris", "Espíritu de la Parca Gema",
+            "Espíritu de Tierra Quack", "Espíritu de Fuego Quack", "Espíritu de Agua Quack", "Espíritu de Punto Cero Quack",
+            "Espíritu de John Wick", "Espíritu de Ironmouse"
         )
     }
 

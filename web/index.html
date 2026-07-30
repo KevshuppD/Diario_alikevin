@@ -1054,15 +1054,15 @@
         <div class="stats-container">
           <div class="stat-pill kevin">
             <span class="stat-label">🔵 Kevin:</span>
-            <span class="stat-val" id="stat-kevin">0 / 121</span>
+            <span class="stat-val" id="stat-kevin">0 / 141</span>
           </div>
           <div class="stat-pill ali">
             <span class="stat-label">🔴 Ali:</span>
-            <span class="stat-val" id="stat-ali">0 / 121</span>
+            <span class="stat-val" id="stat-ali">0 / 141</span>
           </div>
           <div class="stat-pill both">
             <span class="stat-label">💜 Ambos:</span>
-            <span class="stat-val" id="stat-both">0 / 121</span>
+            <span class="stat-val" id="stat-both">0 / 141</span>
           </div>
         </div>
 
@@ -1181,14 +1181,14 @@
     let firestoreUnsubscribe = null;
 
     // Default configuration for resetting/migration
-    const defaultSpiritsList = Array.from({length: 121}, (_, i) => String(i + 1).padStart(2, '0'));
+    const defaultSpiritsList = Array.from({length: 141}, (_, i) => String(i + 1).padStart(2, '0'));
     
     const defaultCategories = [
       { name: "Espíritu de Batman", spiritIds: ["98", "99", "100", "101", "102", "103", "104"] },
       { name: "Espíritu de Agua", spiritIds: ["01", "02", "03", "04", "66", "67", "112"] },
       { name: "Espíritu de Tierra", spiritIds: ["09", "10", "11", "12", "70", "71", "114"] },
       { name: "Espíritu de Fuego", spiritIds: ["18", "19", "20", "21", "74", "75", "116"] },
-      { name: "Espíritu Pato", spiritIds: ["26", "27", "28", "29", "78", "79", "118"] },
+      { name: "Espíritu Pato", spiritIds: ["26", "27", "28", "29", "78", "79", "118", "136", "137", "138", "139"] },
       { name: "Espíritu Fantasma", spiritIds: ["34", "35", "36", "37", "82", "83"] },
       { name: "Espíritu Dormilón", spiritIds: ["05", "06", "07", "08", "68", "69", "113"] },
       { name: "Espíritu Demoníaco", spiritIds: ["14", "15", "16", "17", "72", "73", "115"] },
@@ -1199,10 +1199,13 @@
       { name: "Espíritu Futbolero", spiritIds: ["54", "55", "56", "57", "92", "93"] },
       { name: "Espíritu de Aura", spiritIds: ["42", "43", "44", "45", "86", "87"] },
       { name: "Espíritu Jefe", spiritIds: ["58", "59", "60", "61", "94", "95"] },
-      { name: "Espíritu de la Parca", spiritIds: ["50", "51", "52", "53", "90", "91"] },
+      { name: "Espíritu de la Parca", spiritIds: ["50", "51", "52", "53", "90", "91", "134", "135"] },
       { name: "Espíritu de Viento", spiritIds: ["105", "106", "107", "108", "109", "110", "111"] },
       { name: "Espíritu de la Fundación", spiritIds: ["46", "47", "48", "49", "88", "89"] },
-      { name: "Espíritu Especial/Invitado", spiritIds: ["13", "119", "120", "121"] }
+      { name: "Espíritu de Llama", spiritIds: ["122", "123", "124", "125", "126"] },
+      { name: "Espíritu de Bananín", spiritIds: ["129", "130", "131", "132", "133"] },
+      { name: "Espíritu de Cubo", spiritIds: ["127", "128"] },
+      { name: "Espíritu Especial/Invitado", spiritIds: ["13", "119", "120", "121", "140", "141"] }
     ];
 
     const defaultNames = [
@@ -1242,7 +1245,13 @@
       "Espíritu de Batman", "Espíritu de Batman Dorado", "Espíritu de Batman Gomita", "Espíritu de Batman Galaxia", "Espíritu de Batman Gema", "Espíritu de Batman Holofoil", "Espíritu de Batman Cubo",
       "Espíritu de Viento", "Espíritu de Viento Dorado", "Espíritu de Viento Gomita", "Espíritu de Viento Galaxia", "Espíritu de Viento Gema", "Espíritu de Viento Holofoil", "Espíritu de Viento Cubo",
       "Espíritu de Agua Cubo", "Espíritu Dormilón Cubo", "Espíritu de Tierra Cubo", "Espíritu Demoníaco Cubo", "Espíritu de Fuego Cubo", "Espíritu Punk Cubo", "Espíritu Pato Cubo",
-      "Espíritu Pollo", "Espíritu de Vini Jr.", "Espíritu de la Fundación Especial"
+      "Espíritu Pollo", "Espíritu de Vini Jr.", "Espíritu de la Fundación Especial",
+      "Espíritu de Llama", "Espíritu de Llama Dorado", "Espíritu de Llama Gomita", "Espíritu de Llama Galaxia", "Espíritu de Llama Gema",
+      "Espíritu de Cubo Arcoíris", "Espíritu de Cubo Galaxia Oscura",
+      "Espíritu de Bananín", "Espíritu de Bananín Dorado", "Espíritu de Bananín Gomita", "Espíritu de Bananín Arcoíris", "Espíritu de Bananín Galaxia",
+      "Espíritu de la Parca Arcoíris", "Espíritu de la Parca Gema",
+      "Espíritu de Tierra Quack", "Espíritu de Fuego Quack", "Espíritu de Agua Quack", "Espíritu de Punto Cero Quack",
+      "Espíritu de John Wick", "Espíritu de Ironmouse"
     ];
 
     const spiritTypes = [
@@ -1487,7 +1496,7 @@
         });
       });
 
-      const totalRegistered = assignedIds.size > 0 ? assignedIds.size : 118;
+      const totalRegistered = assignedIds.size > 0 ? assignedIds.size : 138;
       
       const totalKevin = kevinList.filter(id => assignedIds.has(id)).length;
       const totalAli = aliList.filter(id => assignedIds.has(id)).length;
@@ -2080,7 +2089,7 @@
           "ali_list": aliList,
           "kevin_mastery": kevinMastery,
           "ali_mastery": aliMastery,
-          "schema_version": 3
+          "schema_version": 4
         };
 
         db.collection("fortnite_spirits").doc(coupleId).set(updates, { merge: true })
@@ -2171,7 +2180,7 @@
         "spirits_list": spiritsList,
         "custom_names": customNames,
         "custom_categories": customCategories,
-        "schema_version": 3
+        "schema_version": 4
       };
 
       db.collection("fortnite_spirits").doc(coupleId).set(updates, { merge: true })
