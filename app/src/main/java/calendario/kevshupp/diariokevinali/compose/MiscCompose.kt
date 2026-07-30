@@ -498,19 +498,6 @@ fun SpiritsChecklistView(
                     if (parsedSpiritsList.isEmpty()) {
                         categories = defaultCategories
                         spiritsList = defaultSpiritsList
-                        val isFromCache = snapshot.metadata.isFromCache
-                        if (!isFromCache) {
-                            val categoriesMap = defaultCategories.map {
-                                mapOf("name" to it.name, "spiritIds" to it.spiritIds)
-                            }
-                            val updates = mapOf(
-                                "categories" to categoriesMap,
-                                "spirits_list" to defaultSpiritsList,
-                                "schema_version" to 4
-                            )
-                            db.collection("fortnite_spirits").document(coupleId)
-                                .set(updates, SetOptions.merge())
-                        }
                     } else {
                         // Apply selection migration if version is 1
                         if (schemaVersion == 1) {
@@ -538,20 +525,6 @@ fun SpiritsChecklistView(
                             val mergedCategories = mergeCategories(baseCategories, defaultCategories, (122..141).map { String.format("%02d", it) })
                             categories = mergedCategories
                             spiritsList = defaultSpiritsList
-                            
-                            val isFromCache = snapshot.metadata.isFromCache
-                            if (!isFromCache) {
-                                val categoriesMap = mergedCategories.map {
-                                    mapOf("name" to it.name, "spiritIds" to it.spiritIds)
-                                }
-                                val updates = mapOf(
-                                    "categories" to categoriesMap,
-                                    "spirits_list" to defaultSpiritsList,
-                                    "schema_version" to 4
-                                )
-                                db.collection("fortnite_spirits").document(coupleId)
-                                    .set(updates, SetOptions.merge())
-                            }
                         } else {
                             // Firestore document is up to date, use its values
                             categories = parsedCategories.ifEmpty { defaultCategories }
@@ -910,20 +883,7 @@ fun SpiritsChecklistView(
                             showFiltersMenu = false
                         }
                     )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = if (isEditMode) "✓ MODO EDICIÓN" else "MODO EDICIÓN",
-                                fontFamily = Vt323,
-                                fontSize = 16.sp,
-                                color = textColor
-                            )
-                        },
-                        onClick = {
-                            isEditMode = !isEditMode
-                            showFiltersMenu = false
-                        }
-                    )
+
                 }
             }
         }

@@ -996,6 +996,168 @@
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
       }
     }
+
+    /* DB Inspector Styles */
+    .db-inspector-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+    .db-inspector-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .db-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .db-stat-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .db-stat-number {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent-color);
+      text-shadow: 0 0 10px var(--accent-glow);
+    }
+    .db-stat-name {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .db-raw-json-container {
+      background: #06070a;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      color: #39ff14; /* Neon green terminal look */
+      overflow-x: auto;
+      max-height: 500px;
+      white-space: pre-wrap;
+    }
+    .db-action-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-color);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .db-action-btn:hover {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+    /* Custom dialog modal */
+    #custom-dialog-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    #custom-dialog-overlay.show {
+      display: flex;
+    }
+    #custom-dialog-box {
+      background: #181924;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 28px 28px 22px;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      animation: dialogPop 0.15s ease;
+    }
+    @keyframes dialogPop {
+      from { transform: scale(0.92); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+    #custom-dialog-icon {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+    #custom-dialog-msg {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-color);
+      margin-bottom: 20px;
+    }
+    #custom-dialog-input {
+      display: none;
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: #12131a;
+      color: #fff;
+      border: 1px solid var(--card-border);
+      font-size: 14px;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+    }
+    #custom-dialog-input:focus { outline: none; border-color: var(--accent-color); }
+    #custom-dialog-btns {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    @media (max-width: 768px) {
+      .config-grid-layout {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+      }
+    }
+    .draggable-config-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      cursor: grab;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .draggable-config-row:hover:not(.unmovable) {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .draggable-config-row:active:not(.unmovable) {
+      cursor: grabbing;
+    }
+    .draggable-config-row.unmovable {
+      cursor: default;
+    }
   </style>
 </head>
 <body>
@@ -1016,6 +1178,8 @@
       <div class="mode-switch">
         <button id="btn-mode-normal" class="mode-btn active" onclick="setMode('normal')">👁️ Modo Normal</button>
         <button id="btn-mode-edit" class="mode-btn" onclick="setMode('edit')">✏️ Modo Edición</button>
+        <button id="btn-mode-db" class="mode-btn" onclick="setMode('db')">📂 Base de Datos</button>
+        <button id="btn-mode-config" class="mode-btn" onclick="setMode('config')">🏷️ Tipos y Categorías</button>
       </div>
 
       <!-- Logged User Badge -->
@@ -1092,6 +1256,7 @@
         <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px;">Estructura de Categorías en Firestore</h2>
         <div style="display: flex; gap: 10px;">
           <button class="btn btn-secondary" id="btn-add-category">Nueva Categoría</button>
+          <button class="btn btn-secondary" onclick="openNewSpiritModal()">Nuevo Espíritu</button>
           <button class="btn btn-danger" id="btn-reset">Restablecer por Defecto</button>
           <button class="btn btn-success" id="btn-save">Guardar Cambios</button>
         </div>
@@ -1100,6 +1265,16 @@
       <!-- Categories Container -->
       <div class="categories-list" id="categories-container">
         <!-- Rendered dynamically -->
+      </div>
+
+      <!-- DB Inspector Container -->
+      <div class="db-inspector-area" id="db-inspector-container" style="display: none; margin-top: 20px;">
+        <!-- Dynamic DB view here -->
+      </div>
+
+      <!-- Configuration / Types and Categories Manager Container -->
+      <div class="db-inspector-area" id="config-container" style="display: none; margin-top: 20px;">
+        <!-- Dynamic Config editor here -->
       </div>
     </div>
   </div>
@@ -1143,10 +1318,70 @@
     </div>
   </div>
 
+  <!-- Modal for Creating New Spirit in Edit Mode -->
+  <div class="modal-overlay" id="new-spirit-modal">
+    <div class="modal-content">
+      <h3>👾 Crear Nuevo Espíritu</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Completa los detalles para añadir un nuevo espíritu a la colección:</p>
+      
+      <div style="margin-bottom: 12px;">
+        <label for="new-spirit-id" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">ID del Espíritu (Ej: 142)</label>
+        <input type="text" id="new-spirit-id" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label for="new-spirit-category" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">Categoría</label>
+        <select id="new-spirit-category" onchange="onNewSpiritFieldsChange()" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+        </select>
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label for="new-spirit-type" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">Tipo / Variante</label>
+        <select id="new-spirit-type" onchange="onNewSpiritFieldsChange()" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+          <option value="Normal">Normal</option>
+          <option value="Dorado">Dorado</option>
+          <option value="Gomita">Gomita</option>
+          <option value="Galaxia">Galaxia</option>
+          <option value="Gema">Gema</option>
+          <option value="Holofoil">Holofoil</option>
+          <option value="Cubo">Cubo</option>
+          <option value="Arcoíris">Arcoíris</option>
+          <option value="Quack">Quack</option>
+          <option value="Otro">Otro (Escribir personalizado...)</option>
+        </select>
+      </div>
+
+      <div id="new-spirit-custom-type-container" style="margin-bottom: 12px; display: none;">
+        <label for="new-spirit-custom-type" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">Escribe la variante/tipo personalizado</label>
+        <input type="text" id="new-spirit-custom-type" oninput="onNewSpiritFieldsChange()" placeholder="Ej: John Wick, Bananín Dorado" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label for="new-spirit-name" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">Nombre del Espíritu</label>
+        <input type="text" id="new-spirit-name" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closeNewSpiritModal()">Cancelar</button>
+        <button class="btn" onclick="submitNewSpirit()">Crear Espíritu</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Banner -->
   <div class="toast-banner" id="toast-banner">
     <span id="toast-icon">✓</span>
     <span id="toast-msg">Mensaje de alerta</span>
+  </div>
+
+  <!-- Custom Dialog Modal (replaces alert/confirm/prompt) -->
+  <div id="custom-dialog-overlay">
+    <div id="custom-dialog-box">
+      <div id="custom-dialog-icon"></div>
+      <div id="custom-dialog-msg"></div>
+      <input type="text" id="custom-dialog-input" placeholder="">
+      <div id="custom-dialog-btns"></div>
+    </div>
   </div>
 
   <script>
@@ -1254,14 +1489,18 @@
       "Espíritu de John Wick", "Espíritu de Ironmouse"
     ];
 
-    const spiritTypes = [
+    let spiritTypes = [
       { name: "Normal", suffix: "" },
       { name: "Dorado", suffix: " Dorado" },
       { name: "Gomita", suffix: " Gomita" },
       { name: "Galaxia", suffix: " Galaxia" },
       { name: "Gema", suffix: " Gema" },
       { name: "Holofoil", suffix: " Holofoil" },
-      { name: "Cubo", suffix: " Cubo" }
+      { name: "Cubo", suffix: " Cubo" },
+      { name: "Arcoíris", suffix: " Arcoíris" },
+      { name: "Quack", suffix: " Quack" },
+      { name: "Galaxia Oscura", suffix: " Galaxia Oscura" },
+      { name: "Especial", suffix: " Especial" }
     ];
 
     // 3. User Authentication
@@ -1333,12 +1572,23 @@
       currentMode = mode;
       document.getElementById("btn-mode-normal").classList.toggle("active", mode === "normal");
       document.getElementById("btn-mode-edit").classList.toggle("active", mode === "edit");
+      document.getElementById("btn-mode-db").classList.toggle("active", mode === "db");
+      document.getElementById("btn-mode-config").classList.toggle("active", mode === "config");
 
-      document.getElementById("sidebar").classList.toggle("hidden", mode === "normal");
+      document.getElementById("sidebar").classList.toggle("hidden", mode !== "edit");
       document.getElementById("normal-toolbar").style.display = mode === "normal" ? "flex" : "none";
       document.getElementById("edit-actions-bar").style.display = mode === "edit" ? "flex" : "none";
+      document.getElementById("categories-container").style.display = (mode !== "db" && mode !== "config") ? "flex" : "none";
+      document.getElementById("db-inspector-container").style.display = mode === "db" ? "block" : "none";
+      document.getElementById("config-container").style.display = mode === "config" ? "block" : "none";
 
-      renderWorkspace();
+      if (mode === "db") {
+        renderDbInspector();
+      } else if (mode === "config") {
+        renderConfigEditor();
+      } else {
+        renderWorkspace();
+      }
     };
 
     window.setFilter = function(filterName, btnEl) {
@@ -1433,16 +1683,35 @@
         .onSnapshot(doc => {
           if (doc.exists) {
             const data = doc.data();
+            window.rawFirestoreData = data;
             kevinList = data.kevin_list || [];
             aliList = data.ali_list || [];
             kevinMastery = data.kevin_mastery || [];
             aliMastery = data.ali_mastery || [];
 
             // Prevent snapshot from overwriting un-saved local edits while in Edit Mode
-            if (currentMode !== "edit") {
+            if (currentMode !== "edit" && currentMode !== "config") {
               customNames = data.custom_names || {};
               customCategories = data.custom_categories || {};
               
+              if (data.spirit_types && Array.isArray(data.spirit_types)) {
+                spiritTypes = data.spirit_types;
+              } else {
+                spiritTypes = [
+                  { name: "Normal", suffix: "" },
+                  { name: "Dorado", suffix: " Dorado" },
+                  { name: "Gomita", suffix: " Gomita" },
+                  { name: "Galaxia", suffix: " Galaxia" },
+                  { name: "Gema", suffix: " Gema" },
+                  { name: "Holofoil", suffix: " Holofoil" },
+                  { name: "Cubo", suffix: " Cubo" },
+                  { name: "Arcoíris", suffix: " Arcoíris" },
+                  { name: "Quack", suffix: " Quack" },
+                  { name: "Galaxia Oscura", suffix: " Galaxia Oscura" },
+                  { name: "Especial", suffix: " Especial" }
+                ];
+              }
+
               const dbCategories = data.categories || [];
               categories = dbCategories.map(cat => ({
                 name: cat.name,
@@ -1467,7 +1736,7 @@
             aliList = [];
             kevinMastery = [];
             aliMastery = [];
-            if (currentMode !== "edit") {
+            if (currentMode !== "edit" && currentMode !== "config") {
               spiritsList = [...defaultSpiritsList];
               categories = JSON.parse(JSON.stringify(defaultCategories));
               customNames = {};
@@ -1476,7 +1745,9 @@
           }
           updateStats();
           renderGallery();
-          if (currentMode !== "edit") {
+          if (currentMode === "db") {
+            renderDbInspector();
+          } else if (currentMode !== "edit") {
             renderWorkspace();
           }
         }, err => {
@@ -2051,7 +2322,7 @@
     };
 
     window.permanentlyDeleteSpirit = function(spiritId) {
-      if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el espíritu ID ${spiritId}? Se quitará de todas las categorías y se borrará también su archivo de imagen en tu PC.`)) {
+      customConfirm(`¿Eliminar permanentemente el espíritu ID ${spiritId}? Se quitará de todas las categorías y se borrará su imagen.`, "⚠️", () => {
         // 1. Remove spiritId from spiritsList master array
         spiritsList = spiritsList.filter(id => id !== spiritId);
 
@@ -2116,14 +2387,14 @@
         .catch(err => {
           console.warn("No se pudo conectar al servidor local para borrar el archivo físico:", err);
         });
-      }
+      });
     };
 
     window.deleteCategory = function(index) {
-      if (confirm(`¿Eliminar la categoría "${categories[index].name}"? Los espíritus asignados a ella pasarán a "Sueltos".`)) {
+      customConfirm(`¿Eliminar la categoría "${categories[index].name}"? Los espíritus asignados pasarán a "Sueltos".`, "🗑️", () => {
         categories.splice(index, 1);
         renderWorkspace();
-      }
+      });
     };
 
     // Mobile assignment modal
@@ -2180,10 +2451,15 @@
         "spirits_list": spiritsList,
         "custom_names": customNames,
         "custom_categories": customCategories,
+        "kevin_list": kevinList,
+        "ali_list": aliList,
+        "kevin_mastery": kevinMastery,
+        "ali_mastery": aliMastery,
+        "spirit_types": spiritTypes,
         "schema_version": 4
       };
 
-      db.collection("fortnite_spirits").doc(coupleId).set(updates, { merge: true })
+      db.collection("fortnite_spirits").doc(coupleId).set(updates)
         .then(() => {
           showToast("¡Base de datos actualizada con éxito en la nube! 🚀", false);
         })
@@ -2194,7 +2470,7 @@
     });
 
     document.getElementById("btn-reset").addEventListener("click", () => {
-      if (confirm("¿Estás seguro de que deseas restablecer todos los espíritus y categorías a sus valores por defecto? Se perderán las personalizaciones actuales de nombres y ordenación.")) {
+      customConfirm("¿Restablecer todos los espíritus y categorías a sus valores por defecto? Se perderán personalizaciones de nombres y ordenación.", "⚠️", () => {
         spiritsList = [...defaultSpiritsList];
         categories = JSON.parse(JSON.stringify(defaultCategories));
         customNames = {};
@@ -2202,20 +2478,21 @@
         renderGallery();
         renderWorkspace();
         showToast("Restablecido a valores por defecto locales. Haz clic en Guardar para subir a Firestore.", false);
-      }
+      });
     });
 
     document.getElementById("btn-add-category").addEventListener("click", () => {
-      const name = prompt("Ingresa el nombre de la nueva categoría:");
-      if (name && name.trim()) {
+      customPrompt("Ingresa el nombre de la nueva categoría:", "📁", (name) => {
+        if (!name || !name.trim()) return;
         const cleanName = name.trim();
         if (categories.some(c => c.name === cleanName)) {
-          alert("Ya existe una categoría con ese nombre.");
+          customAlert("Ya existe una categoría con ese nombre.", "⚠️");
           return;
         }
         categories.push({ name: cleanName, spiritIds: [] });
         renderWorkspace();
-      }
+        showToast(`Categoría "${cleanName}" creada localmente. Haz clic en 'Guardar Cambios' para subir a Firestore.`, false);
+      });
     });
 
     // 10. Toast Utility
@@ -2234,6 +2511,620 @@
         banner.classList.remove("show");
       }, 4000);
     }
+
+    // 10b. DB Inspector Renderer
+    function renderDbInspector() {
+      const container = document.getElementById("db-inspector-container");
+      if (!container) return;
+
+      const data = window.rawFirestoreData || null;
+
+      if (!data) {
+        container.innerHTML = `
+          <div class="db-inspector-card">
+            <div class="db-inspector-title">📂 Base de Datos de Firestore (Vacía / No cargada)</div>
+            <p style="color: var(--text-muted);">No hay datos cargados para el coupleId: <strong>${coupleId}</strong>.</p>
+            <p style="color: var(--text-muted);">Por favor, asegúrate de hacer clic en "Cargar" en el panel superior.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const rawJson = JSON.stringify(data, null, 2);
+      
+      // Calculate statistics
+      const totalSpirits = Array.isArray(data.spirits_list) ? data.spirits_list.length : 0;
+      const customNamesCount = data.custom_names ? Object.keys(data.custom_names).length : 0;
+      const customCategoriesCount = data.custom_categories ? Object.keys(data.custom_categories).length : 0;
+      const categoriesCount = Array.isArray(data.categories) ? data.categories.length : 0;
+      const kevinSpiritsCount = Array.isArray(data.kevin_list) ? data.kevin_list.length : 0;
+      const aliSpiritsCount = Array.isArray(data.ali_list) ? data.ali_list.length : 0;
+      const kevinMasteryCount = Array.isArray(data.kevin_mastery) ? data.kevin_mastery.length : 0;
+      const aliMasteryCount = Array.isArray(data.ali_mastery) ? data.ali_mastery.length : 0;
+      const schemaVersion = data.schema_version !== undefined ? data.schema_version : "Desconocido";
+
+      container.innerHTML = `
+        <div class="db-inspector-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+            <div class="db-inspector-title" style="margin-bottom: 0;">
+              <span>📂</span> Inspector de Base de Datos (Documento: <span style="color: var(--accent-color);">${coupleId}</span>)
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="db-action-btn" onclick="copyDbJson()">
+                <span>📋</span> Copiar JSON
+              </button>
+              <button class="db-action-btn" onclick="downloadDbJson()">
+                <span>💾</span> Descargar JSON
+              </button>
+              <button class="db-action-btn" onclick="document.getElementById('db-upload-input').click()">
+                <span>📤</span> Importar JSON
+              </button>
+              <input type="file" id="db-upload-input" style="display: none;" accept=".json" onchange="uploadDbJson(event)">
+            </div>
+          </div>
+
+          <div class="db-stats-grid">
+            <div class="db-stat-box">
+              <div class="db-stat-number">${schemaVersion}</div>
+              <div class="db-stat-name">Esquema Versión</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number">${totalSpirits}</div>
+              <div class="db-stat-name">Total Espíritus</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number">${categoriesCount}</div>
+              <div class="db-stat-name">Categorías</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number">${customNamesCount}</div>
+              <div class="db-stat-name">Nombres Modif.</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number">${customCategoriesCount}</div>
+              <div class="db-stat-name">Cat. Modif.</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number" style="color: var(--kevin-color);">${kevinSpiritsCount}</div>
+              <div class="db-stat-name">Espíritus Kevin</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number" style="color: var(--ali-color);">${aliSpiritsCount}</div>
+              <div class="db-stat-name">Espíritus Ali</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number" style="color: var(--kevin-color); text-shadow: 0 0 10px rgba(59, 130, 246, 0.4);">${kevinMasteryCount}</div>
+              <div class="db-stat-name">Maestría Kevin</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number" style="color: var(--ali-color); text-shadow: 0 0 10px rgba(236, 72, 153, 0.4);">${aliMasteryCount}</div>
+              <div class="db-stat-name">Maestría Ali</div>
+            </div>
+          </div>
+
+          <h3 style="font-family: 'Outfit', sans-serif; font-size: 16px; margin-bottom: 10px; color: var(--text-color);">JSON en tiempo real desde Firestore:</h3>
+          <pre class="db-raw-json-container"><code id="db-json-code">${escapeHtml(rawJson)}</code></pre>
+        </div>
+      `;
+    }
+
+    // Helper to escape HTML characters
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Global copy function
+    window.copyDbJson = function() {
+      const codeEl = document.getElementById("db-json-code");
+      if (codeEl) {
+        navigator.clipboard.writeText(codeEl.textContent)
+          .then(() => showToast("¡JSON copiado al portapapeles! 📋", false))
+          .catch(() => showToast("Error al copiar el JSON", true));
+      }
+    };
+
+    // Download JSON function
+    window.downloadDbJson = function() {
+      if (!window.rawFirestoreData) {
+        showToast("No hay datos disponibles para descargar", true);
+        return;
+      }
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.rawFirestoreData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `diario_espiritus_${coupleId}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast("¡JSON descargado con éxito! 💾", false);
+    };
+
+    // Import JSON function
+    window.uploadDbJson = function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsedData = JSON.parse(e.target.result);
+          
+          // Basic validation
+          if (!parsedData.categories || !Array.isArray(parsedData.categories)) {
+            customAlert("El archivo JSON no es válido. Debe contener un arreglo de 'categories'.", "❌");
+            return;
+          }
+          if (!parsedData.spirits_list || !Array.isArray(parsedData.spirits_list)) {
+            customAlert("El archivo JSON no es válido. Debe contener un arreglo de 'spirits_list'.", "❌");
+            return;
+          }
+
+          customConfirm("¿Importar este JSON? Se reemplazarán las categorías, espíritus y estados de obtención actuales en Firestore.", "📤", () => {
+            parsedData.schema_version = 4;
+            db.collection("fortnite_spirits").doc(coupleId).set(parsedData)
+              .then(() => {
+                showToast("¡Base de datos importada con éxito! 🚀", false);
+              })
+              .catch(err => {
+                console.error("Error al importar JSON:", err);
+                showToast("Error al subir el JSON a Firestore", true);
+              });
+          });
+        } catch (err) {
+          customAlert("Error al parsear el archivo JSON: " + err.message, "❌");
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = "";
+    };
+
+    // Open New Spirit Modal
+    window.openNewSpiritModal = function() {
+      let maxIdNum = 0;
+      const activeList = spiritsList.length > 0 ? spiritsList : defaultSpiritsList;
+      activeList.forEach(id => {
+        const num = parseInt(id);
+        if (!isNaN(num) && num > maxIdNum) {
+          maxIdNum = num;
+        }
+      });
+      const nextId = String(maxIdNum + 1).padStart(2, '0');
+      document.getElementById("new-spirit-id").value = nextId;
+
+      const categorySelect = document.getElementById("new-spirit-category");
+      if (categorySelect) {
+        categorySelect.innerHTML = "";
+        categories.forEach(cat => {
+          const opt = document.createElement("option");
+          opt.value = cat.name;
+          opt.textContent = customCategories[cat.name] || cat.name;
+          categorySelect.appendChild(opt);
+        });
+      }
+
+      document.getElementById("new-spirit-type").value = "Normal";
+      document.getElementById("new-spirit-custom-type").value = "";
+      document.getElementById("new-spirit-custom-type-container").style.display = "none";
+      
+      onNewSpiritFieldsChange();
+
+      document.getElementById("new-spirit-modal").classList.add("show");
+    };
+
+    // Close New Spirit Modal
+    window.closeNewSpiritModal = function() {
+      document.getElementById("new-spirit-modal").classList.remove("show");
+    };
+
+    // Handle fields change to auto-update generated name
+    window.onNewSpiritFieldsChange = function() {
+      const categorySelect = document.getElementById("new-spirit-category");
+      if (!categorySelect) return;
+      const catName = categorySelect.value;
+      const catDisplayName = customCategories[catName] || catName;
+
+      const typeSelect = document.getElementById("new-spirit-type");
+      const customTypeContainer = document.getElementById("new-spirit-custom-type-container");
+      
+      let typeVal = typeSelect.value;
+      if (typeVal === "Otro") {
+        customTypeContainer.style.display = "block";
+        typeVal = document.getElementById("new-spirit-custom-type").value.trim();
+      } else {
+        customTypeContainer.style.display = "none";
+      }
+
+      const nameInput = document.getElementById("new-spirit-name");
+      if (nameInput) {
+        if (!typeVal || typeVal === "Normal") {
+          nameInput.value = catDisplayName;
+        } else {
+          nameInput.value = `${catDisplayName} ${typeVal}`;
+        }
+      }
+    };
+
+    // Submit New Spirit to local state
+    window.submitNewSpirit = function() {
+      const idInput = document.getElementById("new-spirit-id");
+      const nameInput = document.getElementById("new-spirit-name");
+      const categorySelect = document.getElementById("new-spirit-category");
+      
+      if (!idInput || !nameInput || !categorySelect) return;
+
+      const id = idInput.value.trim();
+      const name = nameInput.value.trim();
+      const catName = categorySelect.value;
+
+      if (!id) {
+        customAlert("Por favor ingresa un ID válido.", "⚠️");
+        return;
+      }
+      if (!name) {
+        customAlert("Por favor ingresa un nombre para el espíritu.", "⚠️");
+        return;
+      }
+
+      const activeList = spiritsList.length > 0 ? spiritsList : defaultSpiritsList;
+      if (activeList.includes(id)) {
+        customAlert(`El espíritu con ID #${id} ya existe en la base de datos.`, "⚠️");
+        return;
+      }
+
+      if (spiritsList.length === 0) {
+        spiritsList = [...defaultSpiritsList];
+      }
+      spiritsList.push(id);
+      
+      const targetCat = categories.find(c => c.name === catName);
+      if (targetCat) {
+        targetCat.spiritIds.push(id);
+      }
+
+      customNames[id] = name;
+
+      closeNewSpiritModal();
+
+      renderWorkspace();
+      renderGallery();
+      showToast(`Local: Espíritu #${id} (${name}) creado en "${customCategories[catName] || catName}". Recuerda presionar 'Guardar Cambios' para subirlo a Firestore.`, false);
+    };
+    // Render configuration screen
+    function renderConfigEditor() {
+      const container = document.getElementById("config-container");
+      if (!container) return;
+
+      let categoriesHtml = "";
+      categories.forEach((cat, index) => {
+        const catDisplayName = customCategories[cat.name] || cat.name;
+        categoriesHtml += `
+          <div class="draggable-config-row" draggable="true" ondragstart="onConfigCategoryDragStart(event, ${index})" ondragover="onConfigCategoryDragOver(event)" ondrop="onConfigCategoryDrop(event, ${index})" ondragend="onConfigCategoryDragEnd(event)">
+            <span style="color: var(--text-muted); cursor: grab; font-size: 14px; user-select: none; margin-right: 4px;">⋮⋮</span>
+            <span style="font-family: monospace; color: var(--text-muted); font-size: 13px; margin-right: 4px;">#${String(index + 1).padStart(2, '0')}</span>
+            <input type="text" value="${catDisplayName}" onchange="updateConfigCategoryName(${index}, this.value)" style="flex: 1; padding: 6px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px; cursor: text;">
+            <span class="badge" style="background: rgba(255, 255, 255, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">${cat.spiritIds.length} esp.</span>
+            <button class="remove-btn" onclick="deleteConfigCategory(${index})" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;">🗑</button>
+          </div>
+        `;
+      });
+
+      let typesHtml = "";
+      spiritTypes.forEach((t, index) => {
+        const isNormal = t.name === "Normal";
+        typesHtml += `
+          <div class="draggable-config-row ${isNormal ? 'unmovable' : ''}" draggable="${!isNormal}" ondragstart="onConfigTypeDragStart(event, ${index})" ondragover="onConfigTypeDragOver(event)" ondrop="onConfigTypeDrop(event, ${index})" ondragend="onConfigTypeDragEnd(event)">
+            <span style="color: var(--text-muted); cursor: ${isNormal ? 'default' : 'grab'}; font-size: 14px; user-select: none; margin-right: 4px; opacity: ${isNormal ? 0.2 : 1};">⋮⋮</span>
+            <input type="text" value="${t.name}" onchange="updateConfigTypeName(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Nombre (Ej: Dorado)" style="flex: 1; padding: 6px; border-radius: 6px; background: ${isNormal ? '#1b1d24' : '#12131a'}; color: ${isNormal ? '#888' : '#fff'}; border: 1px solid var(--card-border); font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+            <input type="text" value="${t.suffix}" onchange="updateConfigTypeSuffix(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Sufijo (Ej:  Dorado)" style="flex: 1; padding: 6px; border-radius: 6px; background: ${isNormal ? '#1b1d24' : '#12131a'}; color: ${isNormal ? '#888' : '#fff'}; border: 1px solid var(--card-border); font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+            <button class="remove-btn" onclick="deleteConfigType(${index})" ${isNormal ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : 'style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;"'}>🗑</button>
+          </div>
+        `;
+      });
+
+      container.innerHTML = `
+        <div class="db-inspector-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 10px;">
+            <div class="db-inspector-title" style="margin-bottom: 0;">
+              <span>🏷️</span> Gestión de Tipos y Categorías
+            </div>
+            <button class="btn btn-success" onclick="saveConfigToFirestore()">
+              <span>💾</span> Guardar Configuración en Firestore
+            </button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px;" class="config-grid-layout">
+            
+            <!-- Column 1: Categories -->
+            <div style="display: flex; flex-direction: column;">
+              <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; margin-bottom: 12px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+                <span>📁</span> Categorías de Espíritus
+              </h3>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Edita los nombres de las categorías o elimínalas. Los espíritus de las categorías eliminadas quedarán sueltos.</p>
+              
+              <div style="max-height: 500px; overflow-y: auto; padding-right: 8px; margin-bottom: 16px;">
+                ${categoriesHtml}
+              </div>
+
+              <!-- Add Category Form -->
+              <div style="display: flex; gap: 10px; margin-top: auto; padding: 12px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
+                <input type="text" id="config-add-category-input" placeholder="Nueva Categoría (Ej: Espíritu de Viento)" style="flex: 1; padding: 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px;">
+                <button class="btn" onclick="addConfigCategory()" style="padding: 8px 16px; font-size: 13px;">Agregar</button>
+              </div>
+            </div>
+
+            <!-- Column 2: Types -->
+            <div style="display: flex; flex-direction: column;">
+              <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; margin-bottom: 12px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+                <span>✨</span> Tipos / Variantes de Espíritus
+              </h3>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Configura los tipos disponibles (ej. Dorado, Gomita). El sufijo se agregará automáticamente al nombre generado.</p>
+              
+              <div style="max-height: 500px; overflow-y: auto; padding-right: 8px; margin-bottom: 16px;">
+                <div style="display: flex; gap: 10px; padding: 4px 8px; margin-bottom: 8px; font-size: 11px; color: var(--text-muted); font-weight: 600;">
+                  <div style="flex: 1;">Nombre del Tipo</div>
+                  <div style="flex: 1;">Sufijo (Ej: " Dorado")</div>
+                  <div style="width: 32px;"></div>
+                </div>
+                ${typesHtml}
+              </div>
+
+              <!-- Add Type Form -->
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding: 12px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
+                <div style="display: flex; gap: 10px;">
+                  <input type="text" id="config-add-type-name" placeholder="Nombre (Ej: Quack)" style="flex: 1; padding: 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px;">
+                  <input type="text" id="config-add-type-suffix" placeholder="Sufijo (Ej:  Quack)" style="flex: 1; padding: 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px;">
+                </div>
+                <button class="btn" onclick="addConfigType()" style="width: 100%; padding: 8px; font-size: 13px;">Agregar Nuevo Tipo</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+    }
+
+    // Category drag and drop handlers
+    let draggedCategoryIndex = null;
+    
+    window.onConfigCategoryDragStart = function(event, index) {
+      draggedCategoryIndex = index;
+      event.dataTransfer.effectAllowed = "move";
+      event.target.style.opacity = "0.5";
+    };
+
+    window.onConfigCategoryDragOver = function(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    };
+
+    window.onConfigCategoryDrop = function(event, targetIndex) {
+      event.preventDefault();
+      if (draggedCategoryIndex === null || draggedCategoryIndex === targetIndex) return;
+      
+      const item = categories.splice(draggedCategoryIndex, 1)[0];
+      categories.splice(targetIndex, 0, item);
+      
+      draggedCategoryIndex = null;
+      renderConfigEditor();
+      showToast("Orden de categoría actualizado por arrastre.", false);
+    };
+
+    window.onConfigCategoryDragEnd = function(event) {
+      event.target.style.opacity = "1";
+    };
+
+    // Type drag and drop handlers
+    let draggedTypeIndex = null;
+    
+    window.onConfigTypeDragStart = function(event, index) {
+      if (index === 0) { // Normal is not draggable
+        event.preventDefault();
+        return;
+      }
+      draggedTypeIndex = index;
+      event.dataTransfer.effectAllowed = "move";
+      event.target.style.opacity = "0.5";
+    };
+
+    window.onConfigTypeDragOver = function(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    };
+
+    window.onConfigTypeDrop = function(event, targetIndex) {
+      event.preventDefault();
+      if (targetIndex === 0) return; // Cannot drop on Normal index
+      if (draggedTypeIndex === null || draggedTypeIndex === targetIndex) return;
+      
+      const item = spiritTypes.splice(draggedTypeIndex, 1)[0];
+      spiritTypes.splice(targetIndex, 0, item);
+      
+      draggedTypeIndex = null;
+      renderConfigEditor();
+      showToast("Orden de tipo actualizado por arrastre.", false);
+    };
+
+    window.onConfigTypeDragEnd = function(event) {
+      event.target.style.opacity = "1";
+    };
+
+    window.updateConfigCategoryName = function(index, newValue) {
+      const cleanVal = newValue.trim();
+      if (!cleanVal) return;
+      
+      const originalName = categories[index].name;
+      customCategories[originalName] = cleanVal;
+      showToast(`Nombre personalizado cambiado a "${cleanVal}"`, false);
+    };
+
+    window.deleteConfigCategory = function(index) {
+      const cat = categories[index];
+      const displayName = customCategories[cat.name] || cat.name;
+      const msg = cat.spiritIds.length > 0
+        ? `La categoría "${displayName}" tiene ${cat.spiritIds.length} espíritus. Si la eliminas, quedarán sueltos. ¿Continuar?`
+        : `¿Eliminar la categoría vacía "${displayName}"?`;
+
+      customConfirm(msg, "🗑️", () => {
+        categories.splice(index, 1);
+        renderConfigEditor();
+        showToast(`Categoría "${displayName}" eliminada de la configuración.`, false);
+      });
+    };
+
+    window.addConfigCategory = function() {
+      const input = document.getElementById("config-add-category-input");
+      if (!input) return;
+      const name = input.value.trim();
+      if (!name) {
+        customAlert("Por favor ingresa un nombre válido para la categoría.", "⚠️");
+        return;
+      }
+
+      if (categories.some(c => c.name === name)) {
+        customAlert("Ya existe una categoría con ese nombre.", "⚠️");
+        return;
+      }
+
+      categories.push({ name: name, spiritIds: [] });
+      input.value = "";
+      renderConfigEditor();
+      showToast(`Categoría "${name}" agregada localmente.`, false);
+    };
+
+    window.updateConfigTypeName = function(index, newValue) {
+      const cleanVal = newValue.trim();
+      if (!cleanVal) return;
+      spiritTypes[index].name = cleanVal;
+    };
+
+    window.updateConfigTypeSuffix = function(index, newValue) {
+      spiritTypes[index].suffix = newValue;
+    };
+
+    window.deleteConfigType = function(index) {
+      const t = spiritTypes[index];
+      customConfirm(`¿Eliminar el tipo "${t.name}"?`, "🗑️", () => {
+        spiritTypes.splice(index, 1);
+        renderConfigEditor();
+        showToast(`Tipo "${t.name}" eliminado de la configuración.`, false);
+      });
+    };
+
+    window.addConfigType = function() {
+      const nameInput = document.getElementById("config-add-type-name");
+      const suffixInput = document.getElementById("config-add-type-suffix");
+      if (!nameInput || !suffixInput) return;
+
+      const name = nameInput.value.trim();
+      const suffix = suffixInput.value;
+
+      if (!name) {
+        customAlert("Por favor ingresa un nombre para el tipo.", "⚠️");
+        return;
+      }
+
+      if (spiritTypes.some(t => t.name === name)) {
+        customAlert("Ya existe un tipo con ese nombre.", "⚠️");
+        return;
+      }
+
+      spiritTypes.push({ name: name, suffix: suffix });
+      nameInput.value = "";
+      suffixInput.value = "";
+      renderConfigEditor();
+      showToast(`Tipo "${name}" agregado localmente.`, false);
+    };
+
+    window.saveConfigToFirestore = function() {
+      const categoriesMap = categories.map(cat => ({
+        name: cat.name,
+        spiritIds: cat.spiritIds
+      }));
+
+      const updates = {
+        "categories": categoriesMap,
+        "custom_categories": customCategories,
+        "spirit_types": spiritTypes,
+        "schema_version": 4
+      };
+
+      db.collection("fortnite_spirits").doc(coupleId).set(updates, { merge: true })
+        .then(() => {
+          showToast("¡Tipos y Categorías guardados en Firestore con éxito! 🚀", false);
+        })
+        .catch(err => {
+          console.error("Error al guardar configuración:", err);
+          showToast("Error al guardar en Firestore", true);
+        });
+    };
+    // ---- Custom dialog system (replaces native alert/confirm/prompt) ----
+    function _showDialog(icon, msg, inputVisible, inputPlaceholder, buttons) {
+      document.getElementById("custom-dialog-icon").textContent = icon;
+      document.getElementById("custom-dialog-msg").textContent = msg;
+      const inputEl = document.getElementById("custom-dialog-input");
+      if (inputVisible) {
+        inputEl.style.display = "block";
+        inputEl.value = "";
+        inputEl.placeholder = inputPlaceholder || "";
+        setTimeout(() => inputEl.focus(), 80);
+      } else {
+        inputEl.style.display = "none";
+      }
+      const btnsEl = document.getElementById("custom-dialog-btns");
+      btnsEl.innerHTML = "";
+      buttons.forEach(b => {
+        const btn = document.createElement("button");
+        btn.textContent = b.label;
+        btn.className = b.primary ? "btn" : "btn btn-secondary";
+        if (b.danger) { btn.style.background = "rgba(239,68,68,0.15)"; btn.style.borderColor = "#ef4444"; btn.style.color = "#ef4444"; }
+        btn.onclick = () => {
+          document.getElementById("custom-dialog-overlay").classList.remove("show");
+          if (b.action) b.action(inputEl.value);
+        };
+        btnsEl.appendChild(btn);
+      });
+      // Close on Enter for single-button or confirm dialogs
+      inputEl.onkeydown = (e) => {
+        if (e.key === "Enter") {
+          const primary = buttons.find(b => b.primary);
+          if (primary) {
+            document.getElementById("custom-dialog-overlay").classList.remove("show");
+            if (primary.action) primary.action(inputEl.value);
+          }
+        }
+      };
+      document.getElementById("custom-dialog-overlay").classList.add("show");
+    }
+
+    window.customAlert = function(msg, icon = "ℹ️") {
+      _showDialog(icon, msg, false, "", [
+        { label: "Aceptar", primary: true, action: null }
+      ]);
+    };
+
+    window.customConfirm = function(msg, icon = "❓", onConfirm) {
+      _showDialog(icon, msg, false, "", [
+        { label: "Cancelar", primary: false, action: null },
+        { label: "Confirmar", primary: true, danger: false, action: () => { if (onConfirm) onConfirm(); } }
+      ]);
+    };
+
+    window.customPrompt = function(msg, icon = "✏️", onConfirm) {
+      _showDialog(icon, msg, true, "", [
+        { label: "Cancelar", primary: false, action: null },
+        { label: "Aceptar", primary: true, action: (val) => { if (onConfirm) onConfirm(val); } }
+      ]);
+    };
+
+    // Close overlay on background click
+    document.getElementById("custom-dialog-overlay").addEventListener("click", function(e) {
+      if (e.target === this) this.classList.remove("show");
+    });
 
     // 11. Initializer
     window.addEventListener("DOMContentLoaded", () => {

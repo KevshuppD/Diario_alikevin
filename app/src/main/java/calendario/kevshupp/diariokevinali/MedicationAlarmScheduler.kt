@@ -62,6 +62,7 @@ object MedicationAlarmScheduler {
             putExtra("enableAlarm", med.enableAlarm)
             putExtra("durationDays", durationDays)
             putExtra("startDate", med.startDate)
+            putExtra("alarmSoundUri", med.alarmSoundUri)
         }
 
         val requestCode = abs(med.id.hashCode() + timeStr.hashCode())
@@ -118,7 +119,9 @@ object MedicationAlarmScheduler {
                             selectedTimes = (map["selectedTimes"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList(),
                             enableReminder = map["enableReminder"] as? Boolean ?: false,
                             enableAlarm = map["enableAlarm"] as? Boolean ?: false,
-                            startDate = (map["startDate"] as? Number)?.toLong() ?: System.currentTimeMillis()
+                            startDate = (map["startDate"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+                            alarmSoundUri = map["alarmSoundUri"]?.toString(),
+                            alarmSoundName = map["alarmSoundName"]?.toString()
                         )
                     } ?: emptyList()
 

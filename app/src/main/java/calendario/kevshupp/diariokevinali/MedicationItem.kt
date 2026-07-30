@@ -9,5 +9,7 @@ data class MedicationItem(
     val selectedTimes: List<String> = emptyList(), // e.g., ["09:00", "21:00"]
     val enableReminder: Boolean = false,
     val enableAlarm: Boolean = false,
-    val startDate: Long = System.currentTimeMillis()
+    val startDate: Long = System.currentTimeMillis(),
+    val alarmSoundUri: String? = null,
+    val alarmSoundName: String? = null
 )

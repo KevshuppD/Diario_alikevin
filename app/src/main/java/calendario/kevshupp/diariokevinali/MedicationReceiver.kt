@@ -7,6 +7,9 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import java.util.Calendar
@@ -20,9 +23,10 @@ class MedicationReceiver : BroadcastReceiver() {
         val enableAlarm = intent.getBooleanExtra("enableAlarm", false)
         val durationDays = intent.getIntExtra("durationDays", -1)
         val startDate = intent.getLongExtra("startDate", 0L)
+        val alarmSoundUri = intent.getStringExtra("alarmSoundUri")
 
         // Show medication notification
-        showMedicationNotification(context, name, targetTime, enableAlarm)
+        showMedicationNotification(context, medicationId, name, targetTime, enableAlarm, alarmSoundUri)
 
         // Reschedule for the next day
         val nextCalendar = Calendar.getInstance().apply {
@@ -54,6 +58,7 @@ class MedicationReceiver : BroadcastReceiver() {
             putExtra("enableAlarm", enableAlarm)
             putExtra("durationDays", durationDays)
             putExtra("startDate", startDate)
+            putExtra("alarmSoundUri", alarmSoundUri)
         }
         val requestCode = abs(medicationId.hashCode() + targetTime.hashCode())
         val pendingIntent = PendingIntent.getBroadcast(
@@ -70,18 +75,50 @@ class MedicationReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun showMedicationNotification(context: Context, name: String, targetTime: String, isAlarm: Boolean) {
+    private fun showMedicationNotification(
+        context: Context,
+        medicationId: String,
+        name: String,
+        targetTime: String,
+        isAlarm: Boolean,
+        alarmSoundUri: String?
+    ) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = if (isAlarm) "medication_alarms" else "medication_reminders"
-        val channelName = if (isAlarm) "Alarmas de Medicamentos 🔔" else "Recordatorios de Medicamentos ⏰"
+        
+        val channelId = if (isAlarm) {
+            if (!alarmSoundUri.isNullOrEmpty()) {
+                "med_alarm_${medicationId}_${abs(alarmSoundUri.hashCode())}"
+            } else {
+                "medication_alarms"
+            }
+        } else {
+            "medication_reminders"
+        }
+        
+        val channelName = if (isAlarm) {
+            if (!alarmSoundUri.isNullOrEmpty()) "Alarma de $name 🔔" else "Alarmas de Medicamentos 🔔"
+        } else {
+            "Recordatorios de Medicamentos ⏰"
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val importance = if (isAlarm) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT
             val channel = NotificationChannel(channelId, channelName, importance).apply {
-                description = "Notificaciones para la toma de tus medicamentos"
+                description = "Notificaciones para la toma de tu medicamento: $name"
                 if (isAlarm) {
                     enableVibration(true)
                     vibrationPattern = longArrayOf(0, 500, 200, 500, 200, 500)
+                    
+                    val uri = if (!alarmSoundUri.isNullOrEmpty()) {
+                        Uri.parse(alarmSoundUri)
+                    } else {
+                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    }
+                    val audioAttributes = AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .build()
+                    setSound(uri, audioAttributes)
                 }
             }
             notificationManager.createNotificationChannel(channel)
@@ -103,9 +140,19 @@ class MedicationReceiver : BroadcastReceiver() {
             .setContentText("Toma: $name ($targetTime)")
             .setAutoCancel(true)
             .setPriority(if (isAlarm) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setContentIntent(pendingIntent)
             .setCategory(if (isAlarm) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
+
+        if (isAlarm) {
+            val uri = if (!alarmSoundUri.isNullOrEmpty()) {
+                Uri.parse(alarmSoundUri)
+            } else {
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            }
+            builder.setSound(uri)
+        } else {
+            builder.setDefaults(NotificationCompat.DEFAULT_ALL)
+        }
 
         notificationManager.notify(abs(name.hashCode() + targetTime.hashCode()), builder.build())
     }

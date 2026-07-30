@@ -33,6 +33,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
+import android.media.RingtoneManager
+import android.net.Uri
+import android.content.Intent
 
 @Composable
 fun MedsDashboardView(
@@ -86,7 +92,9 @@ fun MedsDashboardView(
                             selectedTimes = (map["selectedTimes"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList(),
                             enableReminder = map["enableReminder"] as? Boolean ?: false,
                             enableAlarm = map["enableAlarm"] as? Boolean ?: false,
-                            startDate = (map["startDate"] as? Number)?.toLong() ?: System.currentTimeMillis()
+                            startDate = (map["startDate"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+                            alarmSoundUri = map["alarmSoundUri"]?.toString(),
+                            alarmSoundName = map["alarmSoundName"]?.toString()
                         )
                     } ?: emptyList()
                 } else {
@@ -218,6 +226,7 @@ fun MedsDashboardView(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(medsList) { med ->
+                            val canEdit = med.createdBy.isBlank() || med.createdBy.equals(currentUserName, ignoreCase = true)
                             MedicationCard(
                                 med = med,
                                 theme = theme,
@@ -225,6 +234,7 @@ fun MedsDashboardView(
                                 borderColor = borderColor,
                                 cardBg = boxBackground,
                                 accentColor = accentColor,
+                                canEdit = canEdit,
                                 onEdit = {
                                     editingMedication = med
                                     showAddDialog = true
@@ -301,6 +311,7 @@ fun MedicationCard(
     borderColor: Color,
     cardBg: Color,
     accentColor: Color,
+    canEdit: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -339,21 +350,23 @@ fun MedicationCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                Row {
-                    Text(
-                        text = "✏️",
-                        fontSize = 20.sp,
-                        modifier = Modifier
-                            .clickable { onEdit() }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                    Text(
-                        text = "🗑️",
-                        fontSize = 20.sp,
-                        modifier = Modifier
-                            .clickable { onDelete() }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                if (canEdit) {
+                    Row {
+                        Text(
+                            text = "✏️",
+                            fontSize = 20.sp,
+                            modifier = Modifier
+                                .clickable { onEdit() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                        Text(
+                            text = "🗑️",
+                            fontSize = 20.sp,
+                            modifier = Modifier
+                                .clickable { onDelete() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
 
@@ -444,7 +457,11 @@ fun MedicationCard(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = if (med.enableAlarm) "🔔 Alarma" else "❌ Sin alarma",
+                        text = if (med.enableAlarm) {
+                            "🔔 Alarma (${med.alarmSoundName ?: "Predeterminada"})"
+                        } else {
+                            "❌ Sin alarma"
+                        },
                         fontFamily = Vt323,
                         fontSize = 15.sp,
                         color = if (med.enableAlarm) textColor else textColor.copy(alpha = 0.6f)
@@ -483,8 +500,39 @@ fun AddEditMedicationDialog(
     var selectedTimes by remember { mutableStateOf(medication?.selectedTimes ?: emptyList()) }
     var enableReminder by remember { mutableStateOf(medication?.enableReminder ?: true) }
     var enableAlarm by remember { mutableStateOf(medication?.enableAlarm ?: false) }
+    
+    var alarmSoundUriState by remember { mutableStateOf(medication?.alarmSoundUri ?: "") }
+    var alarmSoundNameState by remember { mutableStateOf(medication?.alarmSoundName ?: "") }
 
     val dialogBg = if (theme == "Pixel Oscuro") Color(0xFF1E1E1E) else Color(0xFFF5E6BE)
+
+    // Helper to get ringtone display name
+    fun getRingtoneName(ctx: Context, uriString: String?): String {
+        if (uriString.isNullOrEmpty()) return "Predeterminado"
+        val uri = try {
+            Uri.parse(uriString)
+        } catch (e: Exception) {
+            return "Predeterminado"
+        }
+        return try {
+            val ringtone = RingtoneManager.getRingtone(ctx, uri)
+            ringtone?.getTitle(ctx) ?: "Predeterminado"
+        } catch (e: Exception) {
+            uri.lastPathSegment ?: "Sonido de alarma"
+        }
+    }
+
+    val ringtonePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            if (uri != null) {
+                alarmSoundUriState = uri.toString()
+                alarmSoundNameState = getRingtoneName(context, uri.toString())
+            }
+        }
+    }
 
     // Time picker dialog launcher helper
     val showTimePicker = {
@@ -760,6 +808,55 @@ fun AddEditMedicationDialog(
                         )
                     }
 
+                    if (enableAlarm) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(2.dp, borderColor)
+                                .background(boxBackground)
+                                .clickable {
+                                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Seleccionar sonido de alarma")
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                        if (alarmSoundUriState.isNotEmpty()) {
+                                            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(alarmSoundUriState))
+                                        }
+                                    }
+                                    ringtonePickerLauncher.launch(intent)
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = "🎵 SONIDO DE ALARMA:",
+                                    fontFamily = Vt323,
+                                    fontSize = 15.sp,
+                                    color = accentColor,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = alarmSoundNameState.ifEmpty { "Predeterminado" },
+                                    fontFamily = Vt323,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor
+                                )
+                            }
+                            Text(
+                                text = "▶",
+                                fontFamily = Vt323,
+                                fontSize = 18.sp,
+                                color = textColor
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
@@ -786,7 +883,9 @@ fun AddEditMedicationDialog(
                                 selectedTimes = selectedTimes,
                                 enableReminder = enableReminder,
                                 enableAlarm = enableAlarm,
-                                startDate = medication?.startDate ?: System.currentTimeMillis()
+                                startDate = medication?.startDate ?: System.currentTimeMillis(),
+                                alarmSoundUri = alarmSoundUriState.ifEmpty { null },
+                                alarmSoundName = alarmSoundNameState.ifEmpty { null }
                             )
                             onSave(medItem)
                         }
