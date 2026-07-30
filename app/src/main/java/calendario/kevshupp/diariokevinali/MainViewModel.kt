@@ -77,6 +77,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         listenPet()
         listenMessagesFromFirestore()
         listenCalendar()
+        MedicationAlarmScheduler.rescheduleAllAlarmsFromFirestore(app, currentCoupleId)
     }
 
     fun stopAllListeners() {

@@ -61,7 +61,7 @@ fun MiscScreen(
     val borderColor = if (isDark) Color(0xFF91465F) else if (isMono) Color.Black else Color(0xFF4A2511)
     val cardBg = if (isDark) Color(0xFF1E1E1E) else if (isMono) Color.White else Color(0xFFFFFBEA)
     
-    // View state: "grid", "checklist", "anime"
+    // View state: "grid", "checklist", "anime", "meds"
     var currentView by remember { mutableStateOf("grid") }
 
     if (currentView == "grid") {
@@ -72,7 +72,8 @@ fun MiscScreen(
             cardBg = cardBg,
             onBack = onBack,
             onSelectSpirits = { currentView = "checklist" },
-            onSelectAnime = { currentView = "anime" }
+            onSelectAnime = { currentView = "anime" },
+            onSelectMeds = { currentView = "meds" }
         )
     } else if (currentView == "checklist") {
         SpiritsChecklistView(
@@ -82,8 +83,16 @@ fun MiscScreen(
             cardBg = cardBg,
             onBack = { currentView = "grid" }
         )
-    } else {
+    } else if (currentView == "anime") {
         AnimeDashboardView(
+            theme = theme,
+            textColor = textColor,
+            borderColor = borderColor,
+            cardBg = cardBg,
+            onBack = { currentView = "grid" }
+        )
+    } else {
+        MedsDashboardView(
             theme = theme,
             textColor = textColor,
             borderColor = borderColor,
@@ -101,7 +110,8 @@ fun MiscGridView(
     cardBg: Color,
     onBack: () -> Unit,
     onSelectSpirits: () -> Unit,
-    onSelectAnime: () -> Unit
+    onSelectAnime: () -> Unit,
+    onSelectMeds: () -> Unit
 ) {
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
@@ -256,16 +266,14 @@ fun MiscGridView(
                 }
             }
 
-            // Fourth item: placeholder for future activities (locked)
+            // Fourth item: Medicamentos
             item {
                 Box(
                     modifier = Modifier
                         .aspectRatio(1f)
-                        .border(
-                            width = 2.dp,
-                            color = borderColor.copy(alpha = 0.4f)
-                        )
-                        .background(cardBg.copy(alpha = 0.5f))
+                        .border(3.dp, borderColor)
+                        .background(cardBg)
+                        .clickable { onSelectMeds() }
                         .padding(12.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -274,17 +282,19 @@ fun MiscGridView(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "🔒",
-                            fontSize = 32.sp,
+                            text = "💊",
+                            fontSize = 44.sp,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Bloqueado",
+                            text = "Medicamentos",
                             fontFamily = Vt323,
-                            fontSize = 16.sp,
-                            color = textColor.copy(alpha = 0.5f),
-                            textAlign = TextAlign.Center
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 22.sp
                         )
                     }
                 }

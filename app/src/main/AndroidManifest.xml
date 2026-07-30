@@ -69,6 +69,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".MedicationReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".LastMessageWidget"
             android:exported="true">
             <intent-filter>
