@@ -530,8 +530,7 @@ fun MessageCard(
             ) {
                 IconButton(
                     onClick = onLike,
-                    modifier = Modifier.size(32.dp),
-                    enabled = message.authorId != currentUserId
+                    modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
                         painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_heart_pixel),
