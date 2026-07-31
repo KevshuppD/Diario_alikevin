@@ -1864,9 +1864,22 @@ fun SpiritRow(
                 .background(if (isDark) Color(0xFF121212) else Color(0xFFFFFDF5)),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(id = spiritResId),
+            val formattedId = remember(spiritId) {
+                val num = spiritId.toIntOrNull()
+                if (num != null) String.format("%02d", num) else spiritId
+            }
+            val cloudinaryUrl = remember(formattedId) {
+                try {
+                    com.cloudinary.android.MediaManager.get().url().generate("spirits/ic_spirit_$formattedId")
+                } catch (e: Exception) {
+                    "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_$formattedId.png"
+                }
+            }
+            AsyncImage(
+                model = cloudinaryUrl,
                 contentDescription = "Espíritu $spiritId",
+                placeholder = if (spiritResId != 0) painterResource(id = spiritResId) else null,
+                error = if (spiritResId != 0) painterResource(id = spiritResId) else null,
                 modifier = Modifier.size(64.dp)
             )
         }
@@ -2905,9 +2918,22 @@ fun SpiritGridCard(
         }
 
         // Spirit Image (Center)
-        Image(
-            painter = painterResource(id = spiritResId),
+        val formattedId = remember(spiritId) {
+            val num = spiritId.toIntOrNull()
+            if (num != null) String.format("%02d", num) else spiritId
+        }
+        val cloudinaryUrl = remember(formattedId) {
+            try {
+                com.cloudinary.android.MediaManager.get().url().generate("spirits/ic_spirit_$formattedId")
+            } catch (e: Exception) {
+                "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_$formattedId.png"
+            }
+        }
+        AsyncImage(
+            model = cloudinaryUrl,
             contentDescription = spiritName,
+            placeholder = if (spiritResId != 0) painterResource(id = spiritResId) else null,
+            error = if (spiritResId != 0) painterResource(id = spiritResId) else null,
             modifier = Modifier
                 .size(72.dp)
                 .align(Alignment.Center)
