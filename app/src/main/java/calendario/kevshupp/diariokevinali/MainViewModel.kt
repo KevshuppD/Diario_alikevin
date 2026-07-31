@@ -973,7 +973,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         android.util.Log.d("DIARIO_DEBUG", "toggleLikeMessage llamado para msgId: ${msg.messageId}, liked actual: ${msg.liked}")
         val newLiked = !msg.liked
         msg.liked = newLiked
-        db.collection("messages").document(msg.messageId ?: "").update("liked", newLiked)
+        val updates = mapOf(
+            "liked" to newLiked,
+            "isLiked" to newLiked
+        )
+        db.collection("messages").document(msg.messageId ?: "").update(updates)
             .addOnSuccessListener {
                 android.util.Log.d("DIARIO_DEBUG", "toggleLikeMessage Firestore EXITO, nuevo liked: $newLiked")
             }
