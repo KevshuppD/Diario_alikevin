@@ -1356,9 +1356,14 @@
         <input type="text" id="new-spirit-custom-type" oninput="onNewSpiritFieldsChange()" placeholder="Ej: John Wick, Bananín Dorado" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
       </div>
 
-      <div style="margin-bottom: 16px;">
+      <div style="margin-bottom: 12px;">
         <label for="new-spirit-name" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">Nombre del Espíritu</label>
         <input type="text" id="new-spirit-name" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label for="new-spirit-image-file" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">Imagen del Espíritu (Opcional - Subirá a Cloudinary)</label>
+        <input type="file" id="new-spirit-image-file" accept="image/*" style="width: 100%; padding: 6px; border-radius: 8px; font-size: 13px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
       </div>
 
       <div style="display: flex; gap: 8px; justify-content: flex-end;">
@@ -2783,11 +2788,12 @@
       }
     };
 
-    // Submit New Spirit to local state
+    // Submit New Spirit to local state & Firestore
     window.submitNewSpirit = function() {
       const idInput = document.getElementById("new-spirit-id");
       const nameInput = document.getElementById("new-spirit-name");
       const categorySelect = document.getElementById("new-spirit-category");
+      const fileInput = document.getElementById("new-spirit-image-file");
       
       if (!idInput || !nameInput || !categorySelect) return;
 
@@ -2822,11 +2828,49 @@
 
       customNames[id] = name;
 
-      closeNewSpiritModal();
+      const finalizeCreate = () => {
+        closeNewSpiritModal();
+        renderWorkspace();
+        renderGallery();
+        saveChangesToFirestore();
+        showToast(`¡Espíritu #${id} (${name}) creado y guardado en Firestore con éxito! 🚀🎉`, false);
+      };
 
-      renderWorkspace();
-      renderGallery();
-      showToast(`Local: Espíritu #${id} (${name}) creado en "${customCategories[catName] || catName}". Recuerda presionar 'Guardar Cambios' para subirlo a Firestore.`, false);
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        showToast("Subiendo imagen a Cloudinary... ⏳", false);
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          fetch('/api/upload-spirit-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              spiritId: id,
+              imageBase64: e.target.result
+            })
+          })
+          .then(r => r.json())
+          .then(res => {
+            if (res.success && res.url) {
+              customImages[id] = res.url;
+              imageCacheBusters[id] = Date.now();
+            } else {
+              const formattedId = String(id).padStart(2, '0');
+              customImages[id] = `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+            }
+            finalizeCreate();
+          })
+          .catch(() => {
+            const formattedId = String(id).padStart(2, '0');
+            customImages[id] = `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+            finalizeCreate();
+          });
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+      } else {
+        const formattedId = String(id).padStart(2, '0');
+        customImages[id] = `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+        finalizeCreate();
+      }
     };
     // Render configuration screen
     function renderConfigEditor() {

@@ -451,6 +451,7 @@ fun SpiritsChecklistView(
 
     var customNames by remember { mutableStateOf(emptyMap<String, String>()) }
     var customCategories by remember { mutableStateOf(emptyMap<String, String>()) }
+    var customImages by remember { mutableStateOf(emptyMap<String, String>()) }
     var isEditMode by remember { mutableStateOf(false) }
 
     var editingSpiritId by remember { mutableStateOf<String?>(null) }
@@ -479,8 +480,10 @@ fun SpiritsChecklistView(
 
                     val cNames = snapshot.get("custom_names") as? Map<*, *>
                     val cCategories = snapshot.get("custom_categories") as? Map<*, *>
+                    val cImages = snapshot.get("custom_images") as? Map<*, *>
                     customNames = cNames?.entries?.associate { it.key.toString() to it.value.toString() } ?: emptyMap()
                     customCategories = cCategories?.entries?.associate { it.key.toString() to it.value.toString() } ?: emptyMap()
+                    customImages = cImages?.entries?.associate { it.key.toString() to it.value.toString() } ?: emptyMap()
 
                     val dbSpiritsList = snapshot.get("spirits_list") as? List<*>
                     val parsedSpiritsList = dbSpiritsList?.filterIsInstance<String>() ?: emptyList()
@@ -1051,7 +1054,8 @@ fun SpiritsChecklistView(
                                         deletingSpiritId = spiritId
                                     },
                                     onToggleCheck = onToggleCheck,
-                                    onToggleMastery = onToggleMastery
+                                    onToggleMastery = onToggleMastery,
+                                    customImageUrl = customImages[spiritId]
                                 )
                             }
                         }
@@ -1097,7 +1101,8 @@ fun SpiritsChecklistView(
                             deletingSpiritId = spiritId
                         },
                         onToggleCheck = onToggleCheck,
-                        onToggleMastery = onToggleMastery
+                        onToggleMastery = onToggleMastery,
+                        customImageUrl = customImages[spiritId]
                     )
                 }
             } else {
@@ -1847,7 +1852,8 @@ fun SpiritRow(
     onEditName: () -> Unit = {},
     onDeleteSpirit: () -> Unit = {},
     onToggleCheck: (String, Boolean, String) -> Unit,
-    onToggleMastery: (String, Boolean, String) -> Unit
+    onToggleMastery: (String, Boolean, String) -> Unit,
+    customImageUrl: String? = null
 ) {
     Row(
         modifier = Modifier
@@ -1868,15 +1874,19 @@ fun SpiritRow(
                 val num = spiritId.toIntOrNull()
                 if (num != null) String.format("%02d", num) else spiritId
             }
-            val cloudinaryUrl = remember(formattedId) {
-                try {
-                    com.cloudinary.android.MediaManager.get().url().generate("spirits/ic_spirit_$formattedId")
-                } catch (e: Exception) {
-                    "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_$formattedId.png"
+            val spiritImageUrl = remember(spiritId, customImageUrl, formattedId) {
+                if (!customImageUrl.isNullOrBlank()) {
+                    customImageUrl
+                } else {
+                    try {
+                        com.cloudinary.android.MediaManager.get().url().generate("spirits/ic_spirit_$formattedId")
+                    } catch (e: Exception) {
+                        "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_$formattedId.png"
+                    }
                 }
             }
             AsyncImage(
-                model = cloudinaryUrl,
+                model = spiritImageUrl,
                 contentDescription = "Espíritu $spiritId",
                 placeholder = if (spiritResId != 0) painterResource(id = spiritResId) else null,
                 error = if (spiritResId != 0) painterResource(id = spiritResId) else null,
@@ -2829,7 +2839,8 @@ fun SpiritGridCard(
     onEditName: () -> Unit = {},
     onDeleteSpirit: () -> Unit = {},
     onToggleCheck: (String, Boolean, String) -> Unit,
-    onToggleMastery: (String, Boolean, String) -> Unit
+    onToggleMastery: (String, Boolean, String) -> Unit,
+    customImageUrl: String? = null
 ) {
     val hasCurrent = if (isKevin) hasKevin else hasAli
     val hasCurrentMastery = if (isKevin) hasKevinMastery else hasAliMastery
@@ -2922,15 +2933,19 @@ fun SpiritGridCard(
             val num = spiritId.toIntOrNull()
             if (num != null) String.format("%02d", num) else spiritId
         }
-        val cloudinaryUrl = remember(formattedId) {
-            try {
-                com.cloudinary.android.MediaManager.get().url().generate("spirits/ic_spirit_$formattedId")
-            } catch (e: Exception) {
-                "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_$formattedId.png"
+        val spiritImageUrl = remember(spiritId, customImageUrl, formattedId) {
+            if (!customImageUrl.isNullOrBlank()) {
+                customImageUrl
+            } else {
+                try {
+                    com.cloudinary.android.MediaManager.get().url().generate("spirits/ic_spirit_$formattedId")
+                } catch (e: Exception) {
+                    "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_$formattedId.png"
+                }
             }
         }
         AsyncImage(
-            model = cloudinaryUrl,
+            model = spiritImageUrl,
             contentDescription = spiritName,
             placeholder = if (spiritResId != 0) painterResource(id = spiritResId) else null,
             error = if (spiritResId != 0) painterResource(id = spiritResId) else null,
