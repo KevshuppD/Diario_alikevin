@@ -86,7 +86,7 @@ Publicaciones en la pantalla de inicio:
 - `content: String?` (Texto principal de la carta).
 - `imageUrls: MutableList<String>?` (Direcciones de Cloudinary para fotos adjuntas).
 - `timestamp: Long` (Fecha de publicación).
-- `isLiked: Boolean` (Estado de favorito de la carta).
+- `liked: Boolean` (Estado de favorito de la carta mapeado a Firestore. Kotlin expone la propiedad delegada compatible `isLiked` y la de respaldo `isLikedFallback` para soportar esquemas antiguos).
 - `type: String?` (`MESSAGE` o `ALBUM` si tiene imágenes).
 
 ### C. Recetas (`Recipe.kt`)
