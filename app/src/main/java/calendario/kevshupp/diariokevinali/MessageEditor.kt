@@ -33,7 +33,7 @@ class MessageEditor(
     private val coupleId: String,
     private val userId: String,
     private val userName: String,
-    private val userImageUri: String
+    private val userImageUri: String?
 ) {
     private var currentSelectedImageUrl: String? = null
     private var currentTheme = "Pixel Claro"
