@@ -675,7 +675,6 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         .clickable { isClicked = true }
                         .padding(4.dp)
                 ) {
-                    // Imagen de la mascota animada con el accesorio ya integrado (comprobando si duerme)
                     val thorImageRes = when {
                         pet.isSleeping -> R.drawable.ic_thor_sleep
                         else -> when (pet.equippedAccessory) {
@@ -693,9 +692,31 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         }
                     }
                     
-                    Image(
-                        painter = painterResource(id = thorImageRes), 
+                    val publicId = when {
+                        pet.isSleeping -> "spirits/ic_thor_sleep"
+                        else -> {
+                            val acc = pet.equippedAccessory
+                            if (acc.isNullOrBlank() || acc == "none") {
+                                "spirits/ic_thor_base_trans"
+                            } else {
+                                "spirits/ic_thor_$acc"
+                            }
+                        }
+                    }
+
+                    val cloudinaryUrl = remember(publicId) {
+                        try {
+                            com.cloudinary.android.MediaManager.get().url().generate(publicId)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    
+                    AsyncImage(
+                        model = cloudinaryUrl,
                         contentDescription = null,
+                        placeholder = painterResource(id = thorImageRes),
+                        error = painterResource(id = thorImageRes),
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer(
