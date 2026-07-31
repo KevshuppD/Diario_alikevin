@@ -1726,7 +1726,7 @@ fun AdvancedSettingsCompose(
             statusColor = if (spiritsUpdateResult?.contains("exitosa") == true) Color(0xFF2E7D32) else Color(0xFFE65100),
             details = listOf(
                 "Nube de Destino: Cloudinary (dhaqjw7se)",
-                "Espíritus a migrar: 12 sprites"
+                "Espíritus a migrar: 150+ sprites (coleccionables, mascota, accesorios y fondos)"
             ),
             isDark = isDark,
             textColor = textColor,

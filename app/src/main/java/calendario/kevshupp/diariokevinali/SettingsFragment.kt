@@ -706,20 +706,22 @@ class SettingsFragment : Fragment() {
                             if (coupleId.isNullOrEmpty()) {
                                 callback("Error: coupleId no configurado")
                             } else {
-                                val spirits = listOf(
-                                    "ic_thor_sleep" to R.drawable.ic_thor_sleep,
-                                    "ic_thor_base_trans" to R.drawable.ic_thor_base_trans,
-                                    "ic_thor_collar" to R.drawable.ic_thor_collar,
-                                    "ic_thor_mustache" to R.drawable.ic_thor_mustache,
-                                    "ic_thor_balloon" to R.drawable.ic_thor_balloon,
-                                    "ic_thor_bow" to R.drawable.ic_thor_bow,
-                                    "ic_thor_hat" to R.drawable.ic_thor_hat,
-                                    "ic_thor_bandana" to R.drawable.ic_thor_bandana,
-                                    "ic_thor_glasses" to R.drawable.ic_thor_glasses,
-                                    "ic_thor_crown" to R.drawable.ic_thor_crown,
-                                    "ic_thor_banana" to R.drawable.ic_thor_banana,
-                                    "ic_thor_socks" to R.drawable.ic_thor_socks
-                                )
+                                val spirits = mutableListOf<Pair<String, Int>>()
+                                for (field in R.drawable::class.java.fields) {
+                                    try {
+                                        val name = field.name
+                                        if (name.startsWith("ic_spirit_") || name.startsWith("bg_thor_") || name.startsWith("ic_thor_") || name.startsWith("ic_acc_")) {
+                                            val resId = field.getInt(null)
+                                            spirits.add(name to resId)
+                                        }
+                                    } catch (e: Exception) {
+                                        // Ignore
+                                    }
+                                }
+
+                                if (spirits.isEmpty()) {
+                                    callback("No se encontraron espíritus para migrar")
+                                } else {
 
                                 var successCount = 0
                                 var failCount = 0
@@ -731,17 +733,19 @@ class SettingsFragment : Fragment() {
                                             val petDocRef = db.collection("pets").document(coupleId)
                                             val petUpdates = mapOf(
                                                 "spiritCloudName" to "dhaqjw7se",
-                                                "spiritBaseUrl" to "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/"
+                                                "spiritBaseUrl" to "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/",
+                                                "spiritsMigrated" to true,
+                                                "spiritsMigratedCount" to spirits.size
                                             )
-                                            petDocRef.update(petUpdates)
+                                            petDocRef.set(petUpdates, com.google.firebase.firestore.SetOptions.merge())
                                                 .addOnSuccessListener {
-                                                    callback("Migración exitosa 🎉")
+                                                    callback("¡Migración exitosa! (${spirits.size} elementos) 🎉")
                                                 }
                                                 .addOnFailureListener { e ->
                                                     callback("Imágenes subidas pero error en DB: ${e.message}")
                                                 }
                                         } else {
-                                            callback("Subida parcial: $successCount OK, $failCount fallidos")
+                                            callback("Subida parcial: $successCount OK, $failCount fallidos de ${spirits.size}")
                                         }
                                     }
                                 }
@@ -771,7 +775,8 @@ class SettingsFragment : Fragment() {
                                         .dispatch()
                                 }
                             }
-                        },
+                        }
+                    },
                         onRenamePhotosByDate = {
                             selectedFolderUri?.let { uriStr ->
                                 renamePhotosByDate(uriStr)
