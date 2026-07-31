@@ -18,9 +18,7 @@ data class Message @JvmOverloads constructor(
     var title: String? = null,
     var imageUrls: MutableList<String>? = mutableListOf(),
     var timestamp: Long = 0,
-    @get:PropertyName("liked")
-    @set:PropertyName("liked")
-    var isLiked: Boolean = false,
+    var liked: Boolean = false,
     var type: String? = TYPE_MESSAGE
 ) {
     constructor(
@@ -32,10 +30,10 @@ data class Message @JvmOverloads constructor(
         content: String?,
         imageUrls: MutableList<String>?,
         timestamp: Long,
-        isLiked: Boolean
+        liked: Boolean
     ) : this(
         messageId, partnerId, authorId, authorName, authorImageUrl,
-        content, null, imageUrls ?: mutableListOf(), timestamp, isLiked,
+        content, null, imageUrls ?: mutableListOf(), timestamp, liked,
         if ((imageUrls?.size ?: 0) > 1) TYPE_ALBUM else TYPE_MESSAGE
     )
 
@@ -53,12 +51,18 @@ data class Message @JvmOverloads constructor(
             value?.let { imageUrls?.add(it) }
         }
 
+    var isLiked: Boolean
+        @Exclude get() = liked
+        @JvmName("setIsLiked") set(value) {
+            liked = value
+        }
+
     @get:PropertyName("isLiked")
     @set:PropertyName("isLiked")
     var isLikedFallback: Boolean
-        @Exclude get() = isLiked
+        @Exclude get() = liked
         set(value) {
-            isLiked = value
+            liked = value
         }
 
     // Inicialización para ajustar el tipo basado en las imágenes (copiado de la lógica Java)
