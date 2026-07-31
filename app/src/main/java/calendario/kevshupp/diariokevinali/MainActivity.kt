@@ -373,7 +373,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         updateManager.checkForUpdates(object : UpdateManager.UpdateCallback {
             override fun onUpdateAvailable(url: String) { showUpdateDialog(url) }
             override fun onNoUpdate() {}
-            override fun onDownloadProgress(p: Int) { runOnUiThread { downloadProgressBar.progress = p } }
+            override fun onDownloadProgress(progress: Int) { runOnUiThread { downloadProgressBar.progress = progress } }
             override fun onDownloadComplete() { runOnUiThread { downloadProgressContainer.visibility = View.GONE; updateManager.installApk() } }
         })
     }
@@ -409,10 +409,10 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                 overlayMessageState.value = "Descargando actualización..."
                 isUploadingState.value = true
                 updateManager.downloadUpdate(url, object : UpdateManager.UpdateCallback {
-                    override fun onUpdateAvailable(u: String) {}
+                    override fun onUpdateAvailable(url: String) {}
                     override fun onNoUpdate() {}
-                    override fun onDownloadProgress(p: Int) { 
-                        runOnUiThread { overlayMessageState.value = "Descargando actualización: $p%" } 
+                    override fun onDownloadProgress(progress: Int) { 
+                        runOnUiThread { overlayMessageState.value = "Descargando actualización: $progress%" } 
                     }
                     override fun onDownloadComplete() { runOnUiThread { isUploadingState.value = false; updateManager.installApk() } }
                 })
@@ -992,7 +992,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         
         val msg = Message(UUID.randomUUID().toString(), currentCoupleId, currentUserId, currentUserName, currentUserImageUri, txt, imgs, System.currentTimeMillis(), false)
         
-        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator?
+        val vibrator = getSystemService(Vibrator::class.java)
         vibrator?.vibrate(VibrationEffect.createOneShot(70, VibrationEffect.DEFAULT_AMPLITUDE))
 
         saveMessageToFirestore(msg)
@@ -1441,11 +1441,11 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         etMessage.setHintTextColor(etHint)
     }
 
-    override fun pickImage(code: Int) {
-        currentCropType = code
+    override fun pickImage(requestCode: Int) {
+        currentCropType = requestCode
         val i = Intent(Intent.ACTION_GET_CONTENT).apply {
             type = "image/*"
-            if (code == PICK_IMAGE_ALBUM) putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            if (requestCode == PICK_IMAGE_ALBUM) putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
         }
         pickImageLauncher.launch(Intent.createChooser(i, "Selecciona imágenes"))
     }
