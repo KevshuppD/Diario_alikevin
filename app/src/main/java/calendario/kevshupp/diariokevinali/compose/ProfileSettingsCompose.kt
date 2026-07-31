@@ -704,6 +704,7 @@ fun SettingsScreen(
     onIncorrectPassword: () -> Unit = {},
     onTestFirestore: ( (String) -> Unit ) -> Unit = {},
     onTestGoogleDrive: ( (String) -> Unit ) -> Unit = {},
+    onMigrateSpirits: ( (String) -> Unit ) -> Unit = {},
     onRenamePhotosByDate: () -> Unit = {},
     coupleId: String? = null
 ) {
@@ -1165,7 +1166,8 @@ fun SettingsScreen(
                         syncState = syncState,
                         coupleId = coupleId,
                         onTestFirestore = onTestFirestore,
-                        onTestGoogleDrive = onTestGoogleDrive
+                        onTestGoogleDrive = onTestGoogleDrive,
+                        onMigrateSpirits = onMigrateSpirits
                     )
                 }
             }
@@ -1633,7 +1635,8 @@ fun AdvancedSettingsCompose(
     syncState: String,
     coupleId: String?,
     onTestFirestore: ( (String) -> Unit ) -> Unit,
-    onTestGoogleDrive: ( (String) -> Unit ) -> Unit
+    onTestGoogleDrive: ( (String) -> Unit ) -> Unit,
+    onMigrateSpirits: ( (String) -> Unit ) -> Unit
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val textColor = if (isDark) Color.White else Color(0xFF4A2511)
@@ -1715,7 +1718,31 @@ fun AdvancedSettingsCompose(
             }
         )
 
+        Spacer(modifier = Modifier.height(16.dp))
 
+        ConnectionCard(
+            title = "Migración de Espíritus",
+            status = if (spiritsUpdateResult?.contains("exitosa") == true) "COMPLETADO" else "PENDIENTE",
+            statusColor = if (spiritsUpdateResult?.contains("exitosa") == true) Color(0xFF2E7D32) else Color(0xFFE65100),
+            details = listOf(
+                "Nube de Destino: Cloudinary (dhaqjw7se)",
+                "Espíritus a migrar: 12 sprites"
+            ),
+            isDark = isDark,
+            textColor = textColor,
+            borderColor = borderColor,
+            testButtonText = "SUBIR ESPÍRITUS A CLOUDINARY 📤",
+            isTesting = isUpdatingSpirits,
+            testResult = spiritsUpdateResult,
+            onTest = {
+                isUpdatingSpirits = true
+                spiritsUpdateResult = "Iniciando subida de imágenes..."
+                onMigrateSpirits { result ->
+                    spiritsUpdateResult = result
+                    isUpdatingSpirits = false
+                }
+            }
+        )
     }
 }
 

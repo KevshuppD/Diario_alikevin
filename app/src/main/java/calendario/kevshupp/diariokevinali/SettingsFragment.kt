@@ -700,6 +700,78 @@ class SettingsFragment : Fragment() {
                                 }
                             }
                         },
+                        onMigrateSpirits = { callback ->
+                            val context = requireContext()
+                            val coupleId = prefs?.getString("coupleId", null)
+                            if (coupleId.isNullOrEmpty()) {
+                                callback("Error: coupleId no configurado")
+                            } else {
+                                val spirits = listOf(
+                                    "ic_thor_sleep" to R.drawable.ic_thor_sleep,
+                                    "ic_thor_base_trans" to R.drawable.ic_thor_base_trans,
+                                    "ic_thor_collar" to R.drawable.ic_thor_collar,
+                                    "ic_thor_mustache" to R.drawable.ic_thor_mustache,
+                                    "ic_thor_balloon" to R.drawable.ic_thor_balloon,
+                                    "ic_thor_bow" to R.drawable.ic_thor_bow,
+                                    "ic_thor_hat" to R.drawable.ic_thor_hat,
+                                    "ic_thor_bandana" to R.drawable.ic_thor_bandana,
+                                    "ic_thor_glasses" to R.drawable.ic_thor_glasses,
+                                    "ic_thor_crown" to R.drawable.ic_thor_crown,
+                                    "ic_thor_banana" to R.drawable.ic_thor_banana,
+                                    "ic_thor_socks" to R.drawable.ic_thor_socks
+                                )
+
+                                var successCount = 0
+                                var failCount = 0
+
+                                fun checkCompletion() {
+                                    if (successCount + failCount == spirits.size) {
+                                        if (failCount == 0) {
+                                            val db = FirebaseFirestore.getInstance()
+                                            val petDocRef = db.collection("pets").document(coupleId)
+                                            val petUpdates = mapOf(
+                                                "spiritCloudName" to "dhaqjw7se",
+                                                "spiritBaseUrl" to "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/"
+                                            )
+                                            petDocRef.update(petUpdates)
+                                                .addOnSuccessListener {
+                                                    callback("Migración exitosa 🎉")
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    callback("Imágenes subidas pero error en DB: ${e.message}")
+                                                }
+                                        } else {
+                                            callback("Subida parcial: $successCount OK, $failCount fallidos")
+                                        }
+                                    }
+                                }
+
+                                for (spirit in spirits) {
+                                    val publicId = "spirits/${spirit.first}"
+                                    val resId = spirit.second
+                                    val resourceUri = android.net.Uri.parse("android.resource://${context.packageName}/$resId")
+
+                                    com.cloudinary.android.MediaManager.get().upload(resourceUri)
+                                        .option("public_id", publicId)
+                                        .option("overwrite", true)
+                                        .callback(object : com.cloudinary.android.callback.UploadCallback {
+                                            override fun onStart(requestId: String) {}
+                                            override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
+                                            override fun onSuccess(requestId: String, resultData: Map<*, *>) {
+                                                successCount++
+                                                checkCompletion()
+                                            }
+                                            override fun onError(requestId: String, error: com.cloudinary.android.callback.ErrorInfo) {
+                                                Log.e("MigrateSpirits", "Error subiendo ${spirit.first}: ${error.description}")
+                                                failCount++
+                                                checkCompletion()
+                                            }
+                                            override fun onReschedule(requestId: String, error: com.cloudinary.android.callback.ErrorInfo) {}
+                                        })
+                                        .dispatch()
+                                }
+                            }
+                        },
                         onRenamePhotosByDate = {
                             selectedFolderUri?.let { uriStr ->
                                 renamePhotosByDate(uriStr)
