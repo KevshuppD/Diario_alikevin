@@ -622,7 +622,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             msg -> { viewModel.deleteMessage(msg); return kotlin.Unit.INSTANCE; },
             msg -> {
                 viewModel.toggleLikeMessage(msg);
-                if (!msg.isLiked()) {
+                if (msg.isLiked()) {
                     String letterTitle = msg.getTitle();
                     if (letterTitle == null || letterTitle.trim().isEmpty()) {
                         letterTitle = "una carta";

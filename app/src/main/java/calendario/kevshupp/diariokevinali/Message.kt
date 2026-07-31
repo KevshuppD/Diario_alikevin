@@ -1,6 +1,7 @@
 package calendario.kevshupp.diariokevinali
 
 import com.google.firebase.firestore.Exclude
+import com.google.firebase.firestore.PropertyName
 import androidx.compose.runtime.Stable
 
 /**
@@ -17,6 +18,8 @@ data class Message @JvmOverloads constructor(
     var title: String? = null,
     var imageUrls: MutableList<String>? = mutableListOf(),
     var timestamp: Long = 0,
+    @get:PropertyName("liked")
+    @set:PropertyName("liked")
     var isLiked: Boolean = false,
     var type: String? = TYPE_MESSAGE
 ) {
@@ -48,6 +51,14 @@ data class Message @JvmOverloads constructor(
             if (imageUrls == null) imageUrls = mutableListOf()
             imageUrls?.clear()
             value?.let { imageUrls?.add(it) }
+        }
+
+    @get:PropertyName("isLiked")
+    @set:PropertyName("isLiked")
+    var isLikedFallback: Boolean
+        @Exclude get() = isLiked
+        set(value) {
+            isLiked = value
         }
 
     // Inicialización para ajustar el tipo basado en las imágenes (copiado de la lógica Java)
