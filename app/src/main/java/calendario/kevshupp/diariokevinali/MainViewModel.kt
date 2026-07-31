@@ -970,10 +970,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleLikeMessage(msg: Message) {
-        val newLiked = !msg.isLiked
-        msg.isLiked = newLiked
+        val newLiked = !msg.liked
+        msg.liked = newLiked
         db.collection("messages").document(msg.messageId ?: "").update("liked", newLiked)
-        _messagesState.value = ArrayList(_messagesState.value ?: emptyList())
+        
+        // Crear una nueva lista con una copia de la carta modificada para que Compose note el cambio de referencia y recomponga al instante
+        val updatedList = (_messagesState.value ?: emptyList()).map {
+            if (it.messageId == msg.messageId) it.copy(liked = newLiked) else it
+        }
+        _messagesState.value = ArrayList(updatedList)
     }
 
     // --- ENLACE CON ACTIVIDAD PARA COMPATIBILIDAD ---
