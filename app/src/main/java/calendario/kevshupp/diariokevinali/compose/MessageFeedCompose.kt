@@ -218,6 +218,7 @@ fun MessageFeedScreen(
             ) { message ->
                 MessageCard(
                     message = message,
+                    isLiked = message.isLiked,
                     currentUserId = currentUserId,
                     theme = theme,
                     dateFormat = dateFormat,
@@ -325,6 +326,7 @@ fun MessageFeedScreen(
 @Composable
 fun MessageCard(
     message: Message,
+    isLiked: Boolean,
     currentUserId: String,
     theme: String,
     dateFormat: SimpleDateFormat,
@@ -333,6 +335,7 @@ fun MessageCard(
     onDelete: () -> Unit,
     onLike: () -> Unit
 ) {
+    android.util.Log.d("DIARIO_DEBUG", "MessageCard msgId: ${message.messageId}, parameter isLiked: $isLiked, liked: ${message.liked}")
     val isDark = remember(theme) { theme == "Pixel Oscuro" }
     val isMono = remember(theme) { theme == "Pixel Monocromático" }
     
@@ -535,7 +538,7 @@ fun MessageCard(
                     Icon(
                         painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_heart_pixel),
                         contentDescription = "Like",
-                        tint = if (message.isLiked) Color(0xFFFF4081) else Color.Gray,
+                        tint = if (isLiked) Color(0xFFFF4081) else Color.Gray,
                         modifier = Modifier.size(24.dp)
                     )
                 }

@@ -229,6 +229,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 for (doc in value) {
                     val m = doc.toObject(Message::class.java)
                     m.messageId = doc.id
+                    android.util.Log.d("DIARIO_DEBUG", "MainViewModel listener: cargado msgId: ${m.messageId}, liked: ${m.liked}, isLiked: ${m.isLiked}")
                     val content = m.content
                     if (content == null || !content.startsWith("[ALBUM]")) {
                         newMessages.add(m)

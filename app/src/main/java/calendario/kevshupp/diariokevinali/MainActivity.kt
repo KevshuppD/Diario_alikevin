@@ -559,6 +559,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         }
         viewModel.messagesState.observe(this) { list ->
             if (list != null) {
+                android.util.Log.d("DIARIO_DEBUG", "MainActivity LiveData messagesState observer: recibido ${list.size} mensajes")
                 messagesState.value = list
             }
         }
@@ -690,6 +691,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                 for (doc in value) {
                     val m = doc.toObject(Message::class.java)
                     m.messageId = doc.id
+                    android.util.Log.d("DIARIO_DEBUG", "SnapshotListener: cargado msgId: ${m.messageId}, liked: ${m.liked}, isLiked: ${m.isLiked}")
                     if (m.content == null || !m.content!!.startsWith("[ALBUM]")) {
                         newMessages.add(m)
                     }
