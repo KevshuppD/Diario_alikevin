@@ -622,6 +622,7 @@ public class MainActivity extends AppCompatActivity implements AppNavigation {
             },
             msg -> { viewModel.deleteMessage(msg); return kotlin.Unit.INSTANCE; },
             msg -> {
+                android.util.Log.d("DIARIO_DEBUG", "MainActivity onLikeClick recibido para msgId: " + msg.getMessageId() + ", liked actual: " + msg.isLiked());
                 viewModel.toggleLikeMessage(msg);
                 if (msg.isLiked()) {
                     String letterTitle = msg.getTitle();

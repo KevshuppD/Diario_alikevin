@@ -970,9 +970,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleLikeMessage(msg: Message) {
+        android.util.Log.d("DIARIO_DEBUG", "toggleLikeMessage llamado para msgId: ${msg.messageId}, liked actual: ${msg.liked}")
         val newLiked = !msg.liked
         msg.liked = newLiked
         db.collection("messages").document(msg.messageId ?: "").update("liked", newLiked)
+            .addOnSuccessListener {
+                android.util.Log.d("DIARIO_DEBUG", "toggleLikeMessage Firestore EXITO, nuevo liked: $newLiked")
+            }
+            .addOnFailureListener { e ->
+                android.util.Log.e("DIARIO_DEBUG", "toggleLikeMessage Firestore ERROR", e)
+            }
         
         // Crear una nueva lista con una copia de la carta modificada para que Compose note el cambio de referencia y recomponga al instante
         val updatedList = (_messagesState.value ?: emptyList()).map {
