@@ -98,6 +98,7 @@ import calendario.kevshupp.diariokevinali.compose.MessageFeedComposeKt;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelProvider;
 
+@SuppressWarnings("deprecation")
 public class MainActivity extends AppCompatActivity implements AppNavigation {
 
     private static final int PICK_IMAGE_PROFILE = 1;

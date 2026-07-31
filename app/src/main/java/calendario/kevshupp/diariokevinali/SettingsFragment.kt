@@ -22,7 +22,6 @@ import calendario.kevshupp.diariokevinali.compose.SettingsScreen
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -31,6 +30,7 @@ import com.google.api.services.drive.DriveScopes
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.FirebaseFirestore
 
+@Suppress("DEPRECATION")
 class SettingsFragment : Fragment() {
     private var theme: String = "Pixel Claro"
 
@@ -545,7 +545,7 @@ class SettingsFragment : Fragment() {
                             lifecycleScope.launch(Dispatchers.IO) {
                                 try {
                                     val actPrefs = context.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
-                                    val account = GoogleSignIn.getLastSignedInAccount(context)
+                                    val account = com.google.android.gms.auth.api.signin.GoogleSignIn.getLastSignedInAccount(context)
                                     if (account == null) {
                                         withContext(Dispatchers.Main) {
                                             Toast.makeText(context, "Error: No hay cuenta vinculada", Toast.LENGTH_LONG).show()
@@ -659,7 +659,7 @@ class SettingsFragment : Fragment() {
                             val context = requireContext()
                             lifecycleScope.launch(Dispatchers.IO) {
                                 try {
-                                    val account = GoogleSignIn.getLastSignedInAccount(context)
+                                    val account = com.google.android.gms.auth.api.signin.GoogleSignIn.getLastSignedInAccount(context)
                                     if (account == null) {
                                         withContext(Dispatchers.Main) {
                                             callback("Error: Cuenta de Google no vinculada")

@@ -39,6 +39,7 @@ import android.app.Activity
 import android.media.RingtoneManager
 import android.net.Uri
 import android.content.Intent
+import androidx.core.content.IntentCompat
 
 @Composable
 fun MedsDashboardView(
@@ -526,7 +527,7 @@ fun AddEditMedicationDialog(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val uri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            val uri = result.data?.let { IntentCompat.getParcelableExtra(it, RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java) }
             if (uri != null) {
                 alarmSoundUriState = uri.toString()
                 alarmSoundNameState = getRingtoneName(context, uri.toString())

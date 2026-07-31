@@ -12,7 +12,6 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.tasks.Tasks
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
@@ -32,6 +31,7 @@ import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.atomic.AtomicInteger
 
 
+@Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
 class SyncDriveWorker(
     context: Context,
     params: WorkerParameters
@@ -70,7 +70,7 @@ class SyncDriveWorker(
         }
 
         // 1. Obtener la cuenta de Google vinculada
-        val account = GoogleSignIn.getLastSignedInAccount(applicationContext)
+        val account = com.google.android.gms.auth.api.signin.GoogleSignIn.getLastSignedInAccount(applicationContext)
         if (account == null) {
             Log.e(TAG, "No hay cuenta de Google vinculada para la sincronización.")
             SyncScheduler.cancelSync(applicationContext)
