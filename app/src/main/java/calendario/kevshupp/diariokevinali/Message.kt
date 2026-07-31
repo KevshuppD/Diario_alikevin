@@ -51,16 +51,12 @@ data class Message @JvmOverloads constructor(
             value?.let { imageUrls?.add(it) }
         }
 
-    var isLiked: Boolean
-        @Exclude get() = liked
-        @JvmName("setIsLiked") set(value) {
-            liked = value
-        }
-
+    @get:JvmName("getIsLikedProp")
+    @set:JvmName("setIsLikedProp")
     @get:PropertyName("isLiked")
     @set:PropertyName("isLiked")
-    var isLikedFallback: Boolean
-        @Exclude get() = liked
+    var isLiked: Boolean
+        get() = liked
         set(value) {
             liked = value
         }
