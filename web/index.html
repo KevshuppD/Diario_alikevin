@@ -1828,8 +1828,14 @@
                 ];
               }
 
-              const dbCategories = data.categories || [];
-              categories = dbCategories.map(cat => ({
+              const dbCategoriesData = data.categories || [];
+              let dbCategoriesList = [];
+              if (Array.isArray(dbCategoriesData)) {
+                dbCategoriesList = dbCategoriesData;
+              } else if (typeof dbCategoriesData === 'object' && dbCategoriesData !== null) {
+                dbCategoriesList = Object.values(dbCategoriesData);
+              }
+              categories = dbCategoriesList.map(cat => ({
                 name: cat.name,
                 spiritIds: cat.spiritIds || []
               }));
@@ -2645,12 +2651,12 @@
 
     // 10b. Guardar en Firestore y retornar Promise
     function saveChangesToFirestoreAsync() {
-      const categoriesMap = {};
-      categories.forEach(cat => {
-        categoriesMap[cat.name] = { name: cat.name, spiritIds: cat.spiritIds };
-      });
+      const categoriesList = categories.map(cat => ({
+        name: cat.name,
+        spiritIds: cat.spiritIds || []
+      }));
       const updates = {
-        "categories": categoriesMap,
+        "categories": categoriesList,
         "spirits_list": spiritsList,
         "custom_names": customNames,
         "custom_categories": customCategories,
