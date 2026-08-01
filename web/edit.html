@@ -1567,9 +1567,10 @@
         <button class="btn btn-secondary" onclick="resetStudioCanvas()" style="font-size: 12px; padding: 6px 12px;">
           <span>🔄</span> Restablecer
         </button>
-        <div style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px; color: var(--text-muted);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 12px; color: var(--text-muted);">
           <span>Tolerancia varita:</span>
-          <input type="range" id="studio-threshold" min="5" max="80" value="30" style="width: 80px;">
+          <input type="range" id="studio-threshold" min="5" max="100" value="35" oninput="onStudioThresholdChange(this.value)" style="width: 90px;">
+          <span id="studio-threshold-val" style="font-weight: 700; color: #e040fb; min-width: 24px;">35</span>
         </div>
       </div>
 
@@ -3964,21 +3965,48 @@
       tempImg.src = studioCanvas.toDataURL();
     }
 
-    window.removeStudioBackground = function() {
-      if (!studioCanvas || !studioCtx) return;
+    let studioBackgroundProcessed = false;
+    let studioThrottledRaf = false;
+
+    window.onStudioThresholdChange = function(val) {
+      const valEl = document.getElementById("studio-threshold-val");
+      if (valEl) valEl.textContent = val;
+
+      if (!studioThrottledRaf) {
+        studioThrottledRaf = true;
+        requestAnimationFrame(() => {
+          removeStudioBackground(true);
+          studioThrottledRaf = false;
+        });
+      }
+    };
+
+    window.removeStudioBackground = function(isSilent = false) {
+      if (!studioOriginalImg || !studioCanvas || !studioCtx) return;
+
       const w = studioCanvas.width;
       const h = studioCanvas.height;
-      const imgData = studioCtx.getImageData(0, 0, w, h);
+
+      // Trabajar siempre desde la imagen base limpia original (o recortada)
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = w;
+      tempCanvas.height = h;
+      const tempCtx = tempCanvas.getContext("2d");
+      tempCtx.drawImage(studioOriginalImg, 0, 0);
+
+      const imgData = tempCtx.getImageData(0, 0, w, h);
       const data = imgData.data;
 
-      const threshold = parseInt(document.getElementById("studio-threshold").value) || 30;
+      const threshold = parseInt(document.getElementById("studio-threshold").value) || 35;
+      const featherRange = 18; // Rango de transición suavizada de bordes
 
-      // Muestrear el color de las esquinas superiores e inferiores como color de fondo a eliminar
+      // Muestrear esquinas y borde superior/inferior para identificar colores de fondo
       const cornerSamples = [
         [data[0], data[1], data[2]],
         [data[(w - 1) * 4], data[(w - 1) * 4 + 1], data[(w - 1) * 4 + 2]],
         [data[((h - 1) * w) * 4], data[((h - 1) * w) * 4 + 1], data[((h - 1) * w) * 4 + 2]],
-        [255, 255, 255] // También incluir blanco puro por defecto
+        [data[((h - 1) * w + w - 1) * 4], data[((h - 1) * w + w - 1) * 4 + 1], data[((h - 1) * w + w - 1) * 4 + 2]],
+        [255, 255, 255] // Blanco puro por defecto
       ];
 
       for (let i = 0; i < data.length; i += 4) {
@@ -3986,27 +4014,39 @@
         const g = data[i + 1];
         const b = data[i + 2];
 
-        // Comprobar si el píxel se parece a algún color de fondo de las esquinas o es blanco/claro
-        let isBackground = false;
+        let minDistance = Infinity;
         for (const sample of cornerSamples) {
           const dist = Math.sqrt(
             Math.pow(r - sample[0], 2) +
             Math.pow(g - sample[1], 2) +
             Math.pow(b - sample[2], 2)
           );
-          if (dist <= threshold) {
-            isBackground = true;
-            break;
+          if (dist < minDistance) {
+            minDistance = dist;
           }
         }
 
-        if (isBackground) {
-          data[i + 3] = 0; // Transparencia total
+        if (minDistance <= threshold) {
+          // Fondo completo
+          data[i + 3] = 0;
+        } else if (minDistance <= threshold + featherRange) {
+          // Borde con transición de opacidad (Alpha Feathering / Anti-Aliasing)
+          const alphaRatio = (minDistance - threshold) / featherRange;
+          data[i + 3] = Math.round(data[i + 3] * alphaRatio);
+          
+          // Descontaminar borde halo blanco
+          data[i] = Math.max(0, data[i] - Math.round((255 - data[i]) * (1 - alphaRatio)));
+          data[i + 1] = Math.max(0, data[i + 1] - Math.round((255 - data[i + 1]) * (1 - alphaRatio)));
+          data[i + 2] = Math.max(0, data[i + 2] - Math.round((255 - data[i + 2]) * (1 - alphaRatio)));
         }
       }
 
       studioCtx.putImageData(imgData, 0, 0);
-      showToast("Fondo eliminado con éxito 🪄✨", false);
+      studioBackgroundProcessed = true;
+
+      if (!isSilent) {
+        showToast("Fondo eliminado con bordes suavizados 🪄✨", false);
+      }
     };
 
     window.saveStudioProcessedImage = async function() {
