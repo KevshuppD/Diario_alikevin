@@ -1834,12 +1834,19 @@
               if (Array.isArray(dbCategoriesData)) {
                 dbCategoriesList = dbCategoriesData;
               } else if (typeof dbCategoriesData === 'object' && dbCategoriesData !== null) {
-                dbCategoriesList = Object.values(dbCategoriesData);
+                dbCategoriesList = Object.entries(dbCategoriesData).map(([key, cat], idx) => ({
+                  ...cat,
+                  order: cat.order !== undefined ? cat.order : (cat.index !== undefined ? cat.index : idx)
+                })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
               }
               categories = dbCategoriesList.map(cat => ({
                 name: cat.name,
-                spiritIds: cat.spiritIds || []
+                spiritIds: cat.spiritIds || [],
+                ...(cat.order !== undefined ? { order: cat.order } : {})
               }));
+              if (dbCategoriesList.some(c => c.order !== undefined)) {
+                categories.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+              }
 
               if (categories.length === 0) {
                 categories = JSON.parse(JSON.stringify(defaultCategories));
@@ -2652,9 +2659,10 @@
 
     // 10b. Guardar en Firestore y retornar Promise
     function saveChangesToFirestoreAsync() {
-      const categoriesList = categories.map(cat => ({
+      const categoriesList = categories.map((cat, idx) => ({
         name: cat.name,
-        spiritIds: cat.spiritIds || []
+        spiritIds: cat.spiritIds || [],
+        order: cat.order !== undefined ? cat.order : idx
       }));
       const updates = {
         "categories": categoriesList,
