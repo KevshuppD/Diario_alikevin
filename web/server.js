@@ -6,20 +6,30 @@ require('dotenv').config();
 const app = express();
 app.use(express.json({ limit: '20mb' }));
 
-// Configura Cloudinary (usa .env en local, variables de entorno en Vercel)
+const isProduction = process.env.NODE_ENV === 'production';
+const distDir = isProduction && require('fs').existsSync(path.join(__dirname, 'dist'))
+  ? path.join(__dirname, 'dist')
+  : __dirname;
+
+console.log(`📌 Modo de ejecución: ${isProduction ? 'PRODUCTION (Build / Release)' : 'DEVELOPMENT (Dev / Debug)'}`);
+console.log(`📁 Sirviendo archivos desde: ${distDir}`);
+
+// Configura Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Sirve los archivos estáticos de la carpeta web/
-app.use(express.static(__dirname));
+// Rutas limpias sin extensión .html
+app.get('/', (req, res) => res.sendFile(path.join(distDir, 'normal.html')));
+app.get('/normal', (req, res) => res.sendFile(path.join(distDir, 'normal.html')));
+app.get('/edit', (req, res) => res.sendFile(path.join(distDir, 'edit.html')));
+app.get('/db', (req, res) => res.sendFile(path.join(distDir, 'db.html')));
+app.get('/config', (req, res) => res.sendFile(path.join(distDir, 'config.html')));
 
-// Redirige la raíz al index.html
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+// Sirve los archivos estáticos
+app.use(express.static(distDir));
 
 // API: Subir imagen de espíritu a Cloudinary
 app.post('/api/upload-spirit-image', async (req, res) => {
@@ -42,6 +52,52 @@ app.post('/api/upload-spirit-image', async (req, res) => {
     return res.json({ success: true, url: result.secure_url, publicId });
   } catch (error) {
     console.error('❌ Error al subir a Cloudinary:', error.message);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// API: Eliminar imágenes no utilizadas de Cloudinary
+app.post('/api/clean-unused-cloudinary', async (req, res) => {
+  const { activeUrls } = req.body;
+
+  if (!Array.isArray(activeUrls)) {
+    return res.status(400).json({ success: false, error: 'activeUrls debe ser un arreglo' });
+  }
+
+  try {
+    const resourcesResult = await cloudinary.api.resources({
+      type: 'upload',
+      prefix: 'spirits/',
+      max_results: 500
+    });
+
+    const activeSet = new Set(activeUrls);
+    const toDelete = [];
+
+    resourcesResult.resources.forEach(resItem => {
+      const isUsedUrl = activeSet.has(resItem.secure_url) || activeSet.has(resItem.url);
+      const isUsedPublicId = activeSet.has(resItem.public_id);
+      
+      if (!isUsedUrl && !isUsedPublicId) {
+        toDelete.push(resItem.public_id);
+      }
+    });
+
+    if (toDelete.length === 0) {
+      return res.json({ success: true, deletedCount: 0, message: 'No hay imágenes huérfanas o sin usar en Cloudinary.' });
+    }
+
+    const deleteResult = await cloudinary.api.delete_resources(toDelete);
+    console.log(`🗑️ Eliminadas ${toDelete.length} imágenes huérfanas de Cloudinary:`, toDelete);
+
+    return res.json({
+      success: true,
+      deletedCount: toDelete.length,
+      deletedPublicIds: toDelete,
+      result: deleteResult
+    });
+  } catch (error) {
+    console.error('❌ Error al limpiar Cloudinary:', error.message);
     return res.status(500).json({ success: false, error: error.message });
   }
 });

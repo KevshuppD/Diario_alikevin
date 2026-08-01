@@ -114,6 +114,18 @@ Documentos guardados en `pets/<coupleId>/drive_sync_metadata/`:
 - `sincronizadoPor: String` (UID del usuario).
 - `eliminado: Boolean` (Marca *tombstone* de borrado bidireccional).
 
+### F. Colección de Espíritus Fortnite (`fortnite_spirits/<coupleId>`)
+Documento único en Firestore que almacena el progreso, catálogo y estado completo de espíritus:
+- `schema_version: Int` (Versión del esquema, actualmente `4`).
+- `categories: Map<String, SpiritCategory>` u `Array` (Estructura de categorías. Cada clave es el nombre de la categoría y contiene `{ name: String, spiritIds: List<String> }`).
+- `spirits_list: List<String>` (Lista de IDs registrados en el sistema, ej: `["01", "02", ..., "145", "146"]`).
+- `kevin_list: List<String>` / `ali_list: List<String>` (Espíritus obtenidos por Kevin y Ali).
+- `kevin_mastery: List<String>` / `ali_mastery: List<String>` (Espíritus con maestría completada por Kevin y Ali).
+- `custom_names: Map<String, String>` (Renombrados de espíritus por ID, ej: `{ "13": "Cacahuete", "119": "Pollo" }`).
+- `custom_categories: Map<String, String>` (Alias personalizados para nombres de categorías).
+- `custom_images: Map<String, String>` (URLs personalizadas de Cloudinary para imágenes de espíritus, ej: `{ "143": "https://..." }`).
+- `spirit_types: List<Map<String, String>>` (Tipos o variantes de espíritus, ej: `{ name: "Dorado", suffix: " Dorado" }`).
+
 ---
 
 ## 5. El Sistema de Gamificación de "Thor"
