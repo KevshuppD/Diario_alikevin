@@ -1,0 +1,8 @@
+{
+  "name": "diario-alikevin-web",
+  "version": "1.0.0",
+  "description": "Web del Diario AliKevin - desplegado en Vercel",
+  "dependencies": {
+    "cloudinary": "^2.0.0"
+  }
+}
