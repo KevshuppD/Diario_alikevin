@@ -33,6 +33,7 @@ import com.google.firebase.firestore.SetOptions
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import calendario.kevshupp.diariokevinali.MedicationItem
 
 data class MedicalData(
     val bloodType: String = "",
@@ -235,6 +236,9 @@ fun MedicalEmergencyDialog(
     val bloodTypesList = listOf("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Desconocido")
     var showBloodDropdown by remember { mutableStateOf(false) }
 
+    // Medicamentos activos del módulo Misc → Medicamentos (cargados en tiempo real)
+    var activeMeds by remember { mutableStateOf(emptyList<MedicationItem>()) }
+
     // Escuchar Firestore en tiempo real
     DisposableEffect(coupleId, currentUserId) {
         if (coupleId.isNullOrEmpty()) {
@@ -281,6 +285,36 @@ fun MedicalEmergencyDialog(
         onDispose {
             listener.remove()
         }
+    }
+
+    // Cargar medicamentos activos desde la colección medications
+    DisposableEffect(coupleId) {
+        if (coupleId.isNullOrEmpty()) return@DisposableEffect onDispose { }
+        val db = FirebaseFirestore.getInstance()
+        val medsListener = db.collection("medications").document(coupleId)
+            .addSnapshotListener { snap, _ ->
+                if (snap != null && snap.exists()) {
+                    val list = snap.get("meds") as? List<*>
+                    activeMeds = list?.mapNotNull { itemMap ->
+                        val map = itemMap as? Map<*, *> ?: return@mapNotNull null
+                        MedicationItem(
+                            id = map["id"]?.toString() ?: "",
+                            name = map["name"]?.toString() ?: "",
+                            createdBy = map["createdBy"]?.toString() ?: "",
+                            durationDays = (map["durationDays"] as? Number)?.toInt(),
+                            selectedTimes = (map["selectedTimes"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList(),
+                            enableReminder = map["enableReminder"] as? Boolean ?: false,
+                            enableAlarm = map["enableAlarm"] as? Boolean ?: false,
+                            startDate = (map["startDate"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+                            alarmSoundUri = map["alarmSoundUri"]?.toString(),
+                            alarmSoundName = map["alarmSoundName"]?.toString()
+                        )
+                    } ?: emptyList()
+                } else {
+                    activeMeds = emptyList()
+                }
+            }
+        onDispose { medsListener.remove() }
     }
 
     fun saveMedicalData() {
@@ -568,6 +602,67 @@ fun MedicalEmergencyDialog(
                                         cursorColor = textColor
                                     )
                                 )
+
+                                // Medicamentos activos del módulo Misc (sincronizados con Firestore)
+                                if (activeMeds.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "📋 Activos en la app:",
+                                        fontFamily = Vt323,
+                                        fontSize = 16.sp,
+                                        color = textColor.copy(alpha = 0.7f)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    activeMeds.forEach { med ->
+                                        val isMyMed = med.createdBy.equals(currentUserName, ignoreCase = true) ||
+                                            med.createdBy.equals(currentUserId, ignoreCase = true) ||
+                                            med.createdBy.isBlank()
+                                        val medBg = if (isMyMed) {
+                                            if (isDark) Color(0xFF1E3A2F) else Color(0xFFDCFCE7)
+                                        } else {
+                                            if (isDark) Color(0xFF1E2A3A) else Color(0xFFDBEAFE)
+                                        }
+                                        val medBorder = if (isMyMed) {
+                                            if (isDark) Color(0xFF4ADE80) else Color(0xFF16A34A)
+                                        } else {
+                                            if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
+                                        }
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 2.dp)
+                                                .border(1.dp, medBorder)
+                                                .background(medBg)
+                                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "💊 ${med.name}",
+                                                    fontFamily = Vt323,
+                                                    fontSize = 17.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = textColor
+                                                )
+                                                if (med.selectedTimes.isNotEmpty()) {
+                                                    Text(
+                                                        text = med.selectedTimes.joinToString(" · "),
+                                                        fontFamily = Vt323,
+                                                        fontSize = 14.sp,
+                                                        color = textColor.copy(alpha = 0.7f)
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                text = if (isMyMed) "Mío" else "Pareja",
+                                                fontFamily = Vt323,
+                                                fontSize = 13.sp,
+                                                color = medBorder
+                                            )
+                                        }
+                                    }
+                                }
 
                                 Spacer(modifier = Modifier.height(10.dp))
 

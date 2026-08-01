@@ -24,11 +24,26 @@ class MedicationReceiver : BroadcastReceiver() {
         val durationDays = intent.getIntExtra("durationDays", -1)
         val startDate = intent.getLongExtra("startDate", 0L)
         val alarmSoundUri = intent.getStringExtra("alarmSoundUri")
+        val createdBy = intent.getStringExtra("createdBy") ?: ""
 
-        // Show medication notification
-        showMedicationNotification(context, medicationId, name, targetTime, enableAlarm, alarmSoundUri)
+        // Determinar si este dispositivo es el dueño del medicamento
+        val prefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+        val currentUserName = prefs.getString("userName", "") ?: ""
+        val currentUserId = prefs.getString("userId", "") ?: ""
+        // El dueño es quien creó el medicamento (comparamos por nombre de usuario guardado en createdBy)
+        val isOwner = createdBy.isBlank() ||
+            createdBy.equals(currentUserName, ignoreCase = true) ||
+            createdBy.equals(currentUserId, ignoreCase = true)
 
-        // Reschedule for the next day
+        // Mostrar notificación: con sonido/alarma si es el dueño, silenciosa si es la pareja
+        showMedicationNotification(
+            context, medicationId, name, targetTime,
+            enableAlarm = enableAlarm && isOwner,   // alarma fuerte solo al dueño
+            alarmSoundUri = if (isOwner) alarmSoundUri else null,
+            isOwner = isOwner
+        )
+
+        // Reagendar para el día siguiente
         val nextCalendar = Calendar.getInstance().apply {
             timeInMillis = System.currentTimeMillis()
             val timeParts = targetTime.split(":")
@@ -38,18 +53,16 @@ class MedicationReceiver : BroadcastReceiver() {
             set(Calendar.MINUTE, minute)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-            // Add 1 day for tomorrow
             add(Calendar.DAY_OF_YEAR, 1)
         }
 
-        // Verify duration limit
+        // Verificar límite de duración
         val durationMs = if (durationDays > 0) durationDays * 24L * 60 * 60 * 1000 else null
         if (durationMs != null && nextCalendar.timeInMillis > startDate + durationMs) {
-            // Already expired, do not reschedule
             return
         }
 
-        // Reschedule alarm
+        // Reagendar alarma
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val nextIntent = Intent(context, MedicationReceiver::class.java).apply {
             putExtra("medicationId", medicationId)
@@ -59,6 +72,7 @@ class MedicationReceiver : BroadcastReceiver() {
             putExtra("durationDays", durationDays)
             putExtra("startDate", startDate)
             putExtra("alarmSoundUri", alarmSoundUri)
+            putExtra("createdBy", createdBy)
         }
         val requestCode = abs(medicationId.hashCode() + targetTime.hashCode())
         val pendingIntent = PendingIntent.getBroadcast(
@@ -80,45 +94,63 @@ class MedicationReceiver : BroadcastReceiver() {
         medicationId: String,
         name: String,
         targetTime: String,
-        isAlarm: Boolean,
-        alarmSoundUri: String?
+        enableAlarm: Boolean,
+        alarmSoundUri: String?,
+        isOwner: Boolean
     ) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        val channelId = if (isAlarm) {
-            if (!alarmSoundUri.isNullOrEmpty()) {
+
+        // Canal silencioso para la pareja (solo aviso visual)
+        // Canal con sonido/vibración para el dueño
+        val channelId: String
+        val channelName: String
+        val importance: Int
+
+        if (!isOwner) {
+            // Pareja: notificación silenciosa informativa
+            channelId = "med_partner_silent"
+            channelName = "Recordatorios de pareja 👫"
+            importance = NotificationManager.IMPORTANCE_LOW
+        } else if (enableAlarm) {
+            // Dueño con alarma activada: sonido fuerte
+            channelId = if (!alarmSoundUri.isNullOrEmpty()) {
                 "med_alarm_${medicationId}_${abs(alarmSoundUri.hashCode())}"
             } else {
                 "medication_alarms"
             }
+            channelName = if (!alarmSoundUri.isNullOrEmpty()) "Alarma de $name 🔔" else "Alarmas de Medicamentos 🔔"
+            importance = NotificationManager.IMPORTANCE_HIGH
         } else {
-            "medication_reminders"
-        }
-        
-        val channelName = if (isAlarm) {
-            if (!alarmSoundUri.isNullOrEmpty()) "Alarma de $name 🔔" else "Alarmas de Medicamentos 🔔"
-        } else {
-            "Recordatorios de Medicamentos ⏰"
+            // Dueño sin alarma: recordatorio normal
+            channelId = "medication_reminders"
+            channelName = "Recordatorios de Medicamentos ⏰"
+            importance = NotificationManager.IMPORTANCE_DEFAULT
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val importance = if (isAlarm) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT
             val channel = NotificationChannel(channelId, channelName, importance).apply {
-                description = "Notificaciones para la toma de tu medicamento: $name"
-                if (isAlarm) {
-                    enableVibration(true)
-                    vibrationPattern = longArrayOf(0, 500, 200, 500, 200, 500)
-                    
-                    val uri = if (!alarmSoundUri.isNullOrEmpty()) {
-                        Uri.parse(alarmSoundUri)
-                    } else {
-                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                description = "Notificaciones para la toma de: $name"
+                when {
+                    !isOwner -> {
+                        // Sin sonido ni vibración para la pareja
+                        setSound(null, null)
+                        enableVibration(false)
                     }
-                    val audioAttributes = AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .build()
-                    setSound(uri, audioAttributes)
+                    enableAlarm -> {
+                        enableVibration(true)
+                        vibrationPattern = longArrayOf(0, 500, 200, 500, 200, 500)
+                        val uri = if (!alarmSoundUri.isNullOrEmpty()) {
+                            Uri.parse(alarmSoundUri)
+                        } else {
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                        }
+                        val audioAttributes = AudioAttributes.Builder()
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .build()
+                        setSound(uri, audioAttributes)
+                    }
+                    // reminder sin alarma: usa el sonido por defecto del canal
                 }
             }
             notificationManager.createNotificationChannel(channel)
@@ -134,24 +166,44 @@ class MedicationReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Título diferente para la pareja
+        val title = if (isOwner) "¡Hora de tu medicamento! 💊" else "Recordatorio de medicamento 👫"
+        val body = if (isOwner) "Toma: $name ($targetTime)" else "Tu pareja debe tomar: $name ($targetTime)"
+
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("¡Hora de tu medicamento! 💊")
-            .setContentText("Toma: $name ($targetTime)")
+            .setContentTitle(title)
+            .setContentText(body)
             .setAutoCancel(true)
-            .setPriority(if (isAlarm) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(
+                when {
+                    !isOwner -> NotificationCompat.PRIORITY_LOW
+                    enableAlarm -> NotificationCompat.PRIORITY_HIGH
+                    else -> NotificationCompat.PRIORITY_DEFAULT
+                }
+            )
             .setContentIntent(pendingIntent)
-            .setCategory(if (isAlarm) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
+            .setCategory(
+                when {
+                    !isOwner -> NotificationCompat.CATEGORY_STATUS
+                    enableAlarm -> NotificationCompat.CATEGORY_ALARM
+                    else -> NotificationCompat.CATEGORY_REMINDER
+                }
+            )
 
-        if (isAlarm) {
+        if (isOwner && enableAlarm) {
             val uri = if (!alarmSoundUri.isNullOrEmpty()) {
                 Uri.parse(alarmSoundUri)
             } else {
                 RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             }
             builder.setSound(uri)
-        } else {
+        } else if (isOwner) {
             builder.setDefaults(NotificationCompat.DEFAULT_ALL)
+        } else {
+            // Pareja: sin sonido
+            builder.setDefaults(0)
+            builder.setSound(null)
         }
 
         notificationManager.notify(abs(name.hashCode() + targetTime.hashCode()), builder.build())

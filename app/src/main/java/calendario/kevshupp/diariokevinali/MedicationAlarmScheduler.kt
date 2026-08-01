@@ -63,6 +63,7 @@ object MedicationAlarmScheduler {
             putExtra("durationDays", durationDays)
             putExtra("startDate", med.startDate)
             putExtra("alarmSoundUri", med.alarmSoundUri)
+            putExtra("createdBy", med.createdBy)
         }
 
         val requestCode = abs(med.id.hashCode() + timeStr.hashCode())
