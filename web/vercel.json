@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/upload-spirit-image.js": {
+      "maxDuration": 30
+    }
+  }
+}

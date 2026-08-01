@@ -1,6 +1,5 @@
 const cloudinary = require('cloudinary').v2;
 
-// Configura Cloudinary usando variables de entorno de Vercel
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -8,7 +7,7 @@ cloudinary.config({
 });
 
 module.exports = async function handler(req, res) {
-  // Permite CORS para el frontend
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -21,7 +20,13 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
-  const { spiritId, imageBase64 } = req.body;
+  // Verifica que las variables de entorno estén cargadas
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    console.error('❌ Faltan variables de entorno de Cloudinary');
+    return res.status(500).json({ success: false, error: 'Configuración de Cloudinary incompleta en el servidor' });
+  }
+
+  const { spiritId, imageBase64 } = req.body || {};
 
   if (!spiritId || !imageBase64) {
     return res.status(400).json({ success: false, error: 'Faltan spiritId o imageBase64' });
@@ -31,18 +36,18 @@ module.exports = async function handler(req, res) {
   const publicId = `spirits/ic_spirit_${twoDigitId}`;
 
   try {
+    console.log(`📤 Subiendo espíritu ${twoDigitId} a Cloudinary...`);
+
     const result = await cloudinary.uploader.upload(imageBase64, {
       public_id: publicId,
       overwrite: true,
+      resource_type: 'image',
     });
 
-    return res.status(200).json({
-      success: true,
-      url: result.secure_url,
-      publicId: publicId,
-    });
+    console.log(`✅ Subida exitosa: ${result.secure_url}`);
+    return res.status(200).json({ success: true, url: result.secure_url, publicId });
   } catch (error) {
-    console.error('Error al subir a Cloudinary:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    console.error('❌ Error Cloudinary:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error desconocido al subir imagen' });
   }
 };
