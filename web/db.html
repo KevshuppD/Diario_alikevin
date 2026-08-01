@@ -11,6 +11,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=VT323&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   
+  <!-- Prefetch HTML Modes for instant transitions -->
+  <link rel="prefetch" href="/normal" as="document">
+  <link rel="prefetch" href="/edit" as="document">
+  <link rel="prefetch" href="/db" as="document">
+  <link rel="prefetch" href="/config" as="document">
+  
   <!-- Firebase Compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -1237,10 +1243,10 @@
     <div class="header-controls">
       <!-- Mode Toggle Pill -->
       <div class="mode-switch">
-        <a href="normal" id="btn-mode-normal" class="mode-btn" style="text-decoration: none;">👁️ Modo Normal</a>
-        <a href="edit" id="btn-mode-edit" class="mode-btn" style="text-decoration: none;">✏️ Modo Edición</a>
-        <a href="db" id="btn-mode-db" class="mode-btn active" style="text-decoration: none;">📂 Base de Datos</a>
-        <a href="config" id="btn-mode-config" class="mode-btn" style="text-decoration: none;">🏷️ Tipos y Categorías</a>
+        <button type="button" id="btn-mode-normal" class="mode-btn" onclick="switchModeSPA('normal')">👁️ Modo Normal</button>
+        <button type="button" id="btn-mode-edit" class="mode-btn" onclick="switchModeSPA('edit')">✏️ Modo Edición</button>
+        <button type="button" id="btn-mode-db" class="mode-btn active" onclick="switchModeSPA('db')">📂 Base de Datos</button>
+        <button type="button" id="btn-mode-config" class="mode-btn" onclick="switchModeSPA('config')">🏷️ Tipos y Categorías</button>
       </div>
 
       <!-- Logged User Badge -->
@@ -1314,7 +1320,12 @@
 
       <!-- Action buttons bar for Edition Mode -->
       <div class="actions-bar" id="edit-actions-bar" style="display: none;">
-        <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px;">Estructura de Categorías en Firestore</h2>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn btn-secondary" id="btn-toggle-gallery" onclick="toggleGalleryDrawer()" style="border-color: var(--accent-color); color: #e040fb;">
+            <span>🖼️</span> <span id="btn-gallery-label">Mostrar Galería</span>
+          </button>
+          <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px;">Estructura de Categorías en Firestore</h2>
+        </div>
         <div style="display: flex; gap: 10px;">
           <button class="btn btn-secondary" id="btn-add-category">Nueva Categoría</button>
           <button class="btn btn-secondary" onclick="openNewSpiritModal()">Nuevo Espíritu</button>
@@ -1445,6 +1456,16 @@
 
 
       <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border); padding: 14px; border-radius: 10px; margin-bottom: 16px;">
+        <h4 style="font-size: 14px; margin-bottom: 6px; color: #f3f4f6;">💾 Protección de Caché Local</h4>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+          Solicita al navegador marcar la app como <strong>Persistente</strong> para evitar el borrado automático de la caché.
+        </p>
+        <button class="btn btn-secondary" onclick="openPersistentStorageModalManual()" style="width: 100%; justify-content: center; font-size: 13px; border-color: #10b981; color: #10b981;">
+          <span>🛡️</span> Abrir Asistente de Almacenamiento Persistente
+        </button>
+      </div>
+
+      <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border); padding: 14px; border-radius: 10px; margin-bottom: 16px;">
         <h4 style="font-size: 14px; margin-bottom: 6px; color: #f3f4f6;">🧹 Mantenimiento de Almacenamiento</h4>
         <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;">
           Escanea tu cuenta de Cloudinary y elimina permanentemente aquellas imágenes en la carpeta <code>spirits/</code> que no estén asignadas a ningún espíritu o configuración en la app.
@@ -1456,6 +1477,33 @@
 
       <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; border-top: 1px solid var(--card-border); padding-top: 10px;">
         <button class="btn btn-secondary" onclick="closeCloudinarySettingsModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para Solicitar Almacenamiento Persistente -->
+  <div class="modal-overlay" id="persistent-storage-modal">
+    <div class="modal-content" style="max-width: 480px; border-color: rgba(16, 185, 129, 0.4);">
+      <h3 style="display: flex; align-items: center; gap: 8px; font-family: 'Outfit', sans-serif; color: #10b981;">
+        💾 Activar Almacenamiento Persistente
+      </h3>
+      <p style="font-size: 13.5px; color: var(--text-color); margin: 12px 0; line-height: 1.5;">
+        Para garantizar la máxima velocidad a 100 Hz y evitar que el navegador elimine la caché local de tu colección de espíritus y tu sesión, se recomienda activar el <strong>Almacenamiento Persistente</strong>.
+      </p>
+
+      <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 12px 14px; border-radius: 10px; margin-bottom: 16px;">
+        <ul style="font-size: 12.5px; color: #9ca3af; padding-left: 18px; margin: 0; line-height: 1.6;">
+          <li>⚡ Carga instantánea de imágenes y datos de Firestore en 0ms.</li>
+          <li>🛡️ Protección anti-borrado automático de la caché si el disco se llena.</li>
+          <li>🔑 Tu inicio de sesión se mantendrá siempre guardado.</li>
+        </ul>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closePersistentStorageModal()" style="font-size: 13px;">Omitir por ahora</button>
+        <button class="btn btn-success" onclick="requestPersistentStoragePermission()" style="font-size: 13px;">
+          <span>✅</span> Activar Almacenamiento Protegido
+        </button>
       </div>
     </div>
   </div>
@@ -1754,7 +1802,39 @@
       document.getElementById("login-modal").classList.add("show");
     }
 
-    // 4. Mode Switching
+    // 4. Mode Switching (Instant 0ms SPA Client Routing)
+    window.switchModeSPA = function(mode) {
+      if (currentMode === mode) return;
+      window.history.pushState({ mode }, '', `/${mode}`);
+      setMode(mode);
+    };
+
+    window.addEventListener('popstate', (e) => {
+      const pageName = window.location.pathname.split('/').pop().replace('.html', '');
+      let mode = "normal";
+      if (pageName === "edit") mode = "edit";
+      else if (pageName === "db") mode = "db";
+      else if (pageName === "config") mode = "config";
+      setMode(mode);
+    });
+
+    let isGalleryOpen = false;
+
+    window.toggleGalleryDrawer = function() {
+      isGalleryOpen = !isGalleryOpen;
+      const sidebar = document.getElementById("sidebar");
+      const label = document.getElementById("btn-gallery-label");
+      
+      if (isGalleryOpen) {
+        sidebar.classList.remove("hidden");
+        if (label) label.textContent = "Ocultar Galería";
+        renderGallery();
+      } else {
+        sidebar.classList.add("hidden");
+        if (label) label.textContent = "Mostrar Galería";
+      }
+    };
+
     window.setMode = function(mode) {
       currentMode = mode;
       document.getElementById("btn-mode-normal").classList.toggle("active", mode === "normal");
@@ -1762,7 +1842,8 @@
       document.getElementById("btn-mode-db").classList.toggle("active", mode === "db");
       document.getElementById("btn-mode-config").classList.toggle("active", mode === "config");
 
-      document.getElementById("sidebar").classList.toggle("hidden", mode !== "edit");
+      // La galería permanece oculta por defecto al entrar a Edit Mode para máxima velocidad
+      document.getElementById("sidebar").classList.toggle("hidden", !isGalleryOpen || mode !== "edit");
       document.getElementById("normal-toolbar").style.display = mode === "normal" ? "flex" : "none";
       document.getElementById("edit-actions-bar").style.display = mode === "edit" ? "flex" : "none";
       document.getElementById("categories-container").style.display = (mode !== "db" && mode !== "config") ? "flex" : "none";
@@ -1775,6 +1856,9 @@
         renderConfigEditor();
       } else {
         renderWorkspace();
+        if (mode === "edit" && isGalleryOpen) {
+          renderGallery();
+        }
       }
     };
 
@@ -3565,7 +3649,49 @@
       checkSession();
       listenFirestore();
       setMode(currentMode);
+      checkPersistentStorageStatus();
     });
+
+    window.checkPersistentStorageStatus = function() {
+      if (navigator.storage && navigator.storage.persisted) {
+        navigator.storage.persisted().then(isPersisted => {
+          if (!isPersisted && localStorage.getItem("persistent_storage_dismissed") !== "true") {
+            setTimeout(() => {
+              const modal = document.getElementById("persistent-storage-modal");
+              if (modal) modal.classList.add("show");
+            }, 1200);
+          }
+        });
+      }
+    };
+
+    window.openPersistentStorageModalManual = function() {
+      closeCloudinarySettingsModal();
+      const modal = document.getElementById("persistent-storage-modal");
+      if (modal) modal.classList.add("show");
+    };
+
+    window.closePersistentStorageModal = function() {
+      localStorage.setItem("persistent_storage_dismissed", "true");
+      const modal = document.getElementById("persistent-storage-modal");
+      if (modal) modal.classList.remove("show");
+    };
+
+    window.requestPersistentStoragePermission = function() {
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().then(granted => {
+          closePersistentStorageModal();
+          if (granted) {
+            showToast("¡Almacenamiento Persistente Protegido activado! 💾⚡", false);
+          } else {
+            showToast("El navegador no otorgó el permiso persistente en este momento.", true);
+          }
+        });
+      } else {
+        closePersistentStorageModal();
+        showToast("Tu navegador no soporta el API de Almacenamiento Persistente.", true);
+      }
+    };
 
     window.openEditImageModal = function(spiritId) {
       editingSpiritImageId = spiritId;

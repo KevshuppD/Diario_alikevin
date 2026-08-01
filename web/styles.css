@@ -413,6 +413,12 @@ header {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  animation: fadeInFast 0.15s ease-out;
+}
+
+@keyframes fadeInFast {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Stats & Filter Bar for Normal Mode */
