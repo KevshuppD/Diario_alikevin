@@ -1245,7 +1245,7 @@
       <div class="mode-switch">
         <button type="button" id="btn-mode-normal" class="mode-btn" onclick="switchModeSPA('normal')">👁️ Modo Normal</button>
         <button type="button" id="btn-mode-edit" class="mode-btn" onclick="switchModeSPA('edit')">✏️ Modo Edición</button>
-        <button type="button" id="btn-mode-db" class="mode-btn" style="" onclick="switchModeSPA('db')">📂 Base de Datos</button>
+        <button type="button" id="btn-mode-db" class="mode-btn" onclick="switchModeSPA('db')">📂 Base de Datos</button>
         <button type="button" id="btn-mode-config" class="mode-btn active" onclick="switchModeSPA('config')">🏷️ Tipos y Categorías</button>
       </div>
 
@@ -1559,18 +1559,39 @@
         <canvas id="studio-canvas" style="max-width: 100%; max-height: 100%; cursor: crosshair; background-image: repeating-linear-gradient(45deg, #181a26 25%, transparent 25%, transparent 75%, #181a26 75%, #181a26), repeating-linear-gradient(45deg, #181a26 25%, #12131a 25%, #12131a 75%, #181a26 75%, #181a26); background-position: 0 0, 8px 8px; background-size: 16px 16px;"></canvas>
       </div>
 
-      <!-- Controles de Edición -->
-      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; border: 1px solid var(--card-border);">
-        <button class="btn btn-secondary" onclick="removeStudioBackground()" style="font-size: 12px; padding: 6px 12px;">
-          <span>🪄</span> Quitar Fondo (Auto)
+      <!-- Controles de Modo de Herramienta -->
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--card-border); align-items: center;">
+        <span style="font-size: 12px; font-weight: bold; color: var(--text-muted);">Herramienta:</span>
+        <button class="btn btn-secondary active" id="studio-tool-crop" onclick="setStudioTool('crop')" style="font-size: 11.5px; padding: 4px 10px;">
+          <span>✂️</span> Recortar
         </button>
-        <button class="btn btn-secondary" onclick="resetStudioCanvas()" style="font-size: 12px; padding: 6px 12px;">
+        <button class="btn btn-secondary" id="studio-tool-wand" onclick="setStudioTool('wand')" style="font-size: 11.5px; padding: 4px 10px;">
+          <span>🎯</span> Tocar Color (Varita Mágica)
+        </button>
+        <button class="btn btn-secondary" id="studio-tool-eraser" onclick="setStudioTool('eraser')" style="font-size: 11.5px; padding: 4px 10px;">
+          <span>🧹</span> Pincel Borrador
+        </button>
+        <button class="btn btn-secondary" onclick="resetStudioCanvas()" style="font-size: 11.5px; padding: 4px 10px; margin-left: auto;">
           <span>🔄</span> Restablecer
         </button>
-        <div style="display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 12px; color: var(--text-muted);">
+      </div>
+
+      <!-- Ajustes de Tolerancia y Pincel -->
+      <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; border: 1px solid var(--card-border); align-items: center;">
+        <button class="btn btn-secondary" onclick="removeStudioBackground()" style="font-size: 12px; padding: 5px 12px;">
+          <span>🪄</span> Quitar Fondo Automático
+        </button>
+
+        <div id="studio-brush-size-container" style="display: none; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted);">
+          <span>Tamaño pincel:</span>
+          <input type="range" id="studio-brush-size" min="4" max="60" value="20" oninput="document.getElementById('studio-brush-size-val').textContent = this.value" style="width: 75px;">
+          <span id="studio-brush-size-val" style="font-weight: 700; color: #00e5ff; min-width: 20px;">20</span>px
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px; color: var(--text-muted);">
           <span>Tolerancia varita:</span>
-          <input type="range" id="studio-threshold" min="5" max="100" value="35" oninput="onStudioThresholdChange(this.value)" style="width: 90px;">
-          <span id="studio-threshold-val" style="font-weight: 700; color: #e040fb; min-width: 24px;">35</span>
+          <input type="range" id="studio-threshold" min="5" max="100" value="35" oninput="onStudioThresholdChange(this.value)" style="width: 80px;">
+          <span id="studio-threshold-val" style="font-weight: 700; color: #e040fb; min-width: 20px;">35</span>
         </div>
       </div>
 
@@ -3889,6 +3910,18 @@
       studioCropEnd = { x: studioCanvas.width, y: studioCanvas.height };
     };
 
+    let studioCurrentTool = "crop"; // "crop", "wand", "eraser"
+
+    window.setStudioTool = function(toolName) {
+      studioCurrentTool = toolName;
+      document.getElementById("studio-tool-crop").classList.toggle("active", toolName === "crop");
+      document.getElementById("studio-tool-wand").classList.toggle("active", toolName === "wand");
+      document.getElementById("studio-tool-eraser").classList.toggle("active", toolName === "eraser");
+
+      const brushContainer = document.getElementById("studio-brush-size-container");
+      if (brushContainer) brushContainer.style.display = toolName === "eraser" ? "flex" : "none";
+    };
+
     function setupStudioCropListeners() {
       if (!studioCanvas || studioCanvas.dataset.listenersAttached) return;
       studioCanvas.dataset.listenersAttached = "true";
@@ -3897,7 +3930,19 @@
         const rect = studioCanvas.getBoundingClientRect();
         const scaleX = studioCanvas.width / rect.width;
         const scaleY = studioCanvas.height / rect.height;
-        studioCropStart = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+        const clickX = (e.clientX - rect.left) * scaleX;
+        const clickY = (e.clientY - rect.top) * scaleY;
+
+        if (studioCurrentTool === "wand") {
+          removeColorAtPoint(clickX, clickY);
+          return;
+        } else if (studioCurrentTool === "eraser") {
+          isStudioMouseDown = true;
+          eraseAtPoint(clickX, clickY);
+          return;
+        }
+
+        studioCropStart = { x: clickX, y: clickY };
         studioCropEnd = { ...studioCropStart };
         isStudioMouseDown = true;
       });
@@ -3907,23 +3952,93 @@
         const rect = studioCanvas.getBoundingClientRect();
         const scaleX = studioCanvas.width / rect.width;
         const scaleY = studioCanvas.height / rect.height;
-        studioCropEnd = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+        const currentX = (e.clientX - rect.left) * scaleX;
+        const currentY = (e.clientY - rect.top) * scaleY;
+
+        if (studioCurrentTool === "eraser") {
+          eraseAtPoint(currentX, currentY);
+          return;
+        }
+
+        studioCropEnd = { x: currentX, y: currentY };
         redrawStudioCanvasWithSelection();
       });
 
       window.addEventListener("mouseup", () => {
         if (isStudioMouseDown) {
           isStudioMouseDown = false;
-          // Solo aplicar recorte si el usuario realmente arrastró una caja de selección significativa (>20px)
-          const w = Math.round(Math.abs(studioCropEnd.x - studioCropStart.x));
-          const h = Math.round(Math.abs(studioCropEnd.y - studioCropStart.y));
-          if (w > 20 && h > 20) {
-            cropStudioSelectedArea();
-          } else {
-            redrawStudioCanvasWithSelection();
+          if (studioCurrentTool === "crop") {
+            const w = Math.round(Math.abs(studioCropEnd.x - studioCropStart.x));
+            const h = Math.round(Math.abs(studioCropEnd.y - studioCropStart.y));
+            if (w > 20 && h > 20) {
+              cropStudioSelectedArea();
+            } else {
+              redrawStudioCanvasWithSelection();
+            }
           }
         }
       });
+    }
+
+    // Tocar un punto exacto con la Varita Mágica para eliminar ese tono de color específico
+    function removeColorAtPoint(startX, startY) {
+      if (!studioCanvas || !studioCtx) return;
+      const w = studioCanvas.width;
+      const h = studioCanvas.height;
+      const x = Math.floor(startX);
+      const y = Math.floor(startY);
+      if (x < 0 || x >= w || y < 0 || y >= h) return;
+
+      const imgData = studioCtx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+      const targetIdx = (y * w + x) * 4;
+      const targetR = data[targetIdx];
+      const targetG = data[targetIdx + 1];
+      const targetB = data[targetIdx + 2];
+
+      const threshold = parseInt(document.getElementById("studio-threshold").value) || 35;
+      const featherRange = 16;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const dist = Math.sqrt(
+          Math.pow(data[i] - targetR, 2) +
+          Math.pow(data[i + 1] - targetG, 2) +
+          Math.pow(data[i + 2] - targetB, 2)
+        );
+
+        if (dist <= threshold) {
+          data[i + 3] = 0;
+        } else if (dist <= threshold + featherRange) {
+          const alphaRatio = (dist - threshold) / featherRange;
+          data[i + 3] = Math.round(data[i + 3] * alphaRatio);
+        }
+      }
+
+      studioCtx.putImageData(imgData, 0, 0);
+
+      // Actualizar imagen base original
+      const tempImg = new Image();
+      tempImg.onload = () => { studioOriginalImg = tempImg; };
+      tempImg.src = studioCanvas.toDataURL();
+      showToast("Tono de color eliminado con éxito 🎯✨", false);
+    }
+
+    // Borrar manualmente con el Pincel Borrador
+    function eraseAtPoint(x, y) {
+      if (!studioCanvas || !studioCtx) return;
+      const brushRadius = (parseInt(document.getElementById("studio-brush-size").value) || 20) / 2;
+
+      studioCtx.save();
+      studioCtx.globalCompositeOperation = "destination-out";
+      studioCtx.beginPath();
+      studioCtx.arc(x, y, brushRadius, 0, Math.PI * 2);
+      studioCtx.fill();
+      studioCtx.restore();
+
+      // Actualizar imagen base
+      const tempImg = new Image();
+      tempImg.onload = () => { studioOriginalImg = tempImg; };
+      tempImg.src = studioCanvas.toDataURL();
     }
 
     function redrawStudioCanvasWithSelection() {
