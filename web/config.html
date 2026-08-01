@@ -1528,8 +1528,56 @@
         <button class="btn" id="btn-save-custom-url" style="width: 100%; margin-top: 8px; justify-content: center; font-size: 13px;">💾 Guardar URL Personalizada</button>
       </div>
 
+      <div style="margin-bottom: 12px; border-top: 1px solid var(--card-border); padding-top: 12px;">
+        <button class="btn btn-secondary" onclick="openStudioCropModal()" style="width: 100%; justify-content: center; font-size: 13px; border-color: #e040fb; color: #e040fb;">
+          <span>✂️</span> Abrir Editor (Recortar & Quitar Fondo)
+        </button>
+      </div>
+
       <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; border-top: 1px solid var(--card-border); padding-top: 8px;">
         <button class="btn btn-secondary" onclick="closeEditImageModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editor de Imágenes Studio (Recorte y Quitar Fondo) -->
+  <div class="modal-overlay" id="studio-crop-modal">
+    <div class="modal-content" style="max-width: 580px; border-color: rgba(224, 64, 251, 0.4);">
+      <h3 style="display: flex; align-items: center; gap: 8px; font-family: 'Outfit', sans-serif; color: #e040fb;">
+        ✂️ Editor de Imágenes — Recorte y Quitar Fondo
+      </h3>
+      <p style="font-size: 12.5px; color: var(--text-muted); margin: 6px 0 14px 0;">
+        Sube o selecciona una foto para recortar el área del espíritu y eliminar automáticamente el fondo blanco/claro.
+      </p>
+
+      <div style="margin-bottom: 12px;">
+        <input type="file" id="studio-file-input" accept="image/*" onchange="loadStudioImageFromFile(this)" style="font-size: 12px; color: #fff; background: #12131a; padding: 6px; border-radius: 6px; border: 1px solid var(--card-border); width: 100%;">
+      </div>
+
+      <!-- Canvas Editor Container -->
+      <div style="position: relative; width: 100%; height: 320px; background: #0a0b12; border: 1px solid var(--card-border); border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 14px;">
+        <canvas id="studio-canvas" style="max-width: 100%; max-height: 100%; cursor: crosshair; background-image: repeating-linear-gradient(45deg, #181a26 25%, transparent 25%, transparent 75%, #181a26 75%, #181a26), repeating-linear-gradient(45deg, #181a26 25%, #12131a 25%, #12131a 75%, #181a26 75%, #181a26); background-position: 0 0, 8px 8px; background-size: 16px 16px;"></canvas>
+      </div>
+
+      <!-- Controles de Edición -->
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; border: 1px solid var(--card-border);">
+        <button class="btn btn-secondary" onclick="removeStudioBackground()" style="font-size: 12px; padding: 6px 12px;">
+          <span>🪄</span> Quitar Fondo (Auto)
+        </button>
+        <button class="btn btn-secondary" onclick="resetStudioCanvas()" style="font-size: 12px; padding: 6px 12px;">
+          <span>🔄</span> Restablecer
+        </button>
+        <div style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px; color: var(--text-muted);">
+          <span>Tolerancia varita:</span>
+          <input type="range" id="studio-threshold" min="5" max="80" value="30" style="width: 80px;">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closeStudioCropModal()">Cancelar</button>
+        <button class="btn btn-success" onclick="saveStudioProcessedImage()">
+          <span>📤</span> Guardar y Subir Espíritu
+        </button>
       </div>
     </div>
   </div>
@@ -3783,6 +3831,208 @@
           showToast("Error de conexión al limpiar Cloudinary: " + err.message, true);
         }
       });
+    // Studio Image Editor Logic (Crop + Magic Wand Background Removal)
+    let studioOriginalImg = null;
+    let studioCanvas = null;
+    let studioCtx = null;
+    let isStudioMouseDown = false;
+    let studioCropStart = { x: 0, y: 0 };
+    let studioCropEnd = { x: 0, y: 0 };
+
+    window.openStudioCropModal = function() {
+      const modal = document.getElementById("studio-crop-modal");
+      studioCanvas = document.getElementById("studio-canvas");
+      studioCtx = studioCanvas.getContext("2d", { willReadFrequently: true });
+      
+      const currentUrl = editingSpiritImageId ? getSpiritImgUrl(editingSpiritImageId) : null;
+      if (currentUrl) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = function() {
+          studioOriginalImg = img;
+          resetStudioCanvas();
+        };
+        img.src = currentUrl;
+      }
+      if (modal) modal.classList.add("show");
+      setupStudioCropListeners();
+    };
+
+    window.closeStudioCropModal = function() {
+      const modal = document.getElementById("studio-crop-modal");
+      if (modal) modal.classList.remove("show");
+    };
+
+    window.loadStudioImageFromFile = function(inputEl) {
+      if (!inputEl.files || !inputEl.files[0]) return;
+      const file = inputEl.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          studioOriginalImg = img;
+          resetStudioCanvas();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    window.resetStudioCanvas = function() {
+      if (!studioOriginalImg || !studioCanvas) return;
+      studioCanvas.width = studioOriginalImg.width;
+      studioCanvas.height = studioOriginalImg.height;
+      studioCtx.drawImage(studioOriginalImg, 0, 0);
+      studioCropStart = { x: 0, y: 0 };
+      studioCropEnd = { x: studioCanvas.width, y: studioCanvas.height };
+    };
+
+    function setupStudioCropListeners() {
+      if (!studioCanvas || studioCanvas.dataset.listenersAttached) return;
+      studioCanvas.dataset.listenersAttached = "true";
+
+      studioCanvas.addEventListener("mousedown", (e) => {
+        const rect = studioCanvas.getBoundingClientRect();
+        const scaleX = studioCanvas.width / rect.width;
+        const scaleY = studioCanvas.height / rect.height;
+        studioCropStart = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+        studioCropEnd = { ...studioCropStart };
+        isStudioMouseDown = true;
+      });
+
+      studioCanvas.addEventListener("mousemove", (e) => {
+        if (!isStudioMouseDown) return;
+        const rect = studioCanvas.getBoundingClientRect();
+        const scaleX = studioCanvas.width / rect.width;
+        const scaleY = studioCanvas.height / rect.height;
+        studioCropEnd = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+        redrawStudioCanvasWithSelection();
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (isStudioMouseDown) {
+          isStudioMouseDown = false;
+          cropStudioSelectedArea();
+        }
+      });
+    }
+
+    function redrawStudioCanvasWithSelection() {
+      if (!studioOriginalImg || !studioCtx) return;
+      studioCtx.drawImage(studioOriginalImg, 0, 0);
+      
+      const x = Math.min(studioCropStart.x, studioCropEnd.x);
+      const y = Math.min(studioCropStart.y, studioCropEnd.y);
+      const w = Math.abs(studioCropEnd.x - studioCropStart.x);
+      const h = Math.abs(studioCropEnd.y - studioCropStart.y);
+
+      if (w > 5 && h > 5) {
+        studioCtx.strokeStyle = "#e040fb";
+        studioCtx.lineWidth = Math.max(2, Math.round(studioCanvas.width / 200));
+        studioCtx.setLineDash([6, 6]);
+        studioCtx.strokeRect(x, y, w, h);
+      }
+    }
+
+    function cropStudioSelectedArea() {
+      const x = Math.round(Math.min(studioCropStart.x, studioCropEnd.x));
+      const y = Math.round(Math.min(studioCropStart.y, studioCropEnd.y));
+      const w = Math.round(Math.abs(studioCropEnd.x - studioCropStart.x));
+      const h = Math.round(Math.abs(studioCropEnd.y - studioCropStart.y));
+
+      if (w < 10 || h < 10) return;
+
+      const croppedData = studioCtx.getImageData(x, y, w, h);
+      studioCanvas.width = w;
+      studioCanvas.height = h;
+      studioCtx.putImageData(croppedData, 0, 0);
+
+      // Actualizar la imagen original de estudio con la recortada
+      const tempImg = new Image();
+      tempImg.onload = () => { studioOriginalImg = tempImg; };
+      tempImg.src = studioCanvas.toDataURL();
+    }
+
+    window.removeStudioBackground = function() {
+      if (!studioCanvas || !studioCtx) return;
+      const w = studioCanvas.width;
+      const h = studioCanvas.height;
+      const imgData = studioCtx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+
+      const threshold = parseInt(document.getElementById("studio-threshold").value) || 30;
+
+      // Muestrear el color de las esquinas superiores e inferiores como color de fondo a eliminar
+      const cornerSamples = [
+        [data[0], data[1], data[2]],
+        [data[(w - 1) * 4], data[(w - 1) * 4 + 1], data[(w - 1) * 4 + 2]],
+        [data[((h - 1) * w) * 4], data[((h - 1) * w) * 4 + 1], data[((h - 1) * w) * 4 + 2]],
+        [255, 255, 255] // También incluir blanco puro por defecto
+      ];
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        // Comprobar si el píxel se parece a algún color de fondo de las esquinas o es blanco/claro
+        let isBackground = false;
+        for (const sample of cornerSamples) {
+          const dist = Math.sqrt(
+            Math.pow(r - sample[0], 2) +
+            Math.pow(g - sample[1], 2) +
+            Math.pow(b - sample[2], 2)
+          );
+          if (dist <= threshold) {
+            isBackground = true;
+            break;
+          }
+        }
+
+        if (isBackground) {
+          data[i + 3] = 0; // Transparencia total
+        }
+      }
+
+      studioCtx.putImageData(imgData, 0, 0);
+      showToast("Fondo eliminado con éxito 🪄✨", false);
+    };
+
+    window.saveStudioProcessedImage = async function() {
+      if (!studioCanvas) return;
+      const dataUrl = studioCanvas.toDataURL("image/png");
+      
+      closeStudioCropModal();
+      showUploadLoader("🖼️ Guardando y subiendo imagen...", "Subiendo espíritu procesado a Cloudinary");
+
+      try {
+        updateUploadLoaderStep("🚀 Subiendo a Cloudinary...");
+        const r = await fetch('/api/upload-spirit-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ spiritId: editingSpiritImageId || Date.now(), imageBase64: dataUrl })
+        });
+        const res = await r.json();
+
+        if (res.success) {
+          if (editingSpiritImageId) {
+            imageCacheBusters[editingSpiritImageId] = Date.now();
+            if (res.url) customImages[editingSpiritImageId] = res.url;
+            await saveChangesToFirestoreAsync();
+            renderGallery();
+            closeEditImageModal();
+          }
+          hideUploadLoader();
+          showToast("¡Espíritu recortado y procesado guardado con éxito! ✂️🖼️🎉", false);
+        } else {
+          hideUploadLoader();
+          showToast("Error al subir a Cloudinary: " + res.error, true);
+        }
+      } catch (err) {
+        console.error("Error guardando imagen de estudio:", err);
+        hideUploadLoader();
+        showToast("Error de conexión al subir la imagen", true);
+      }
     };
   </script>
 </body>
