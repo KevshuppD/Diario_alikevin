@@ -234,16 +234,18 @@ Para simplificar el proceso de pruebas locales, el script interactivo [conectar_
 
 ---
 
-## 10. Web de Gestión de Espíritus y Servidor de Desarrollo Local (Python)
+## 10. Web de Gestión de Espíritus, Servidor Node.js y Despliegue en Vercel
 
-Se ha incorporado una **Web de Gestión** (`web/index.html`) para permitir la administración visual, masiva y cómoda de los 141 espíritus desde una computadora:
-* **Interactividad y Diseño:** Diseñada con estética premium oscura (`glassmorphism` y tipografías Outfit/Inter). Dispone de un listado lateral con las 141 imágenes de los espíritus y un panel central con la estructura de categorías y tipos (Normal, Dorado, Gomita, etc.).
-* **Cambio de Categoría y Tipo:** Permite arrastrar fotos (`drag and drop`) o usar los desplegables de cada tarjeta para mover un espíritu a cualquier categoría o alternar su variante. Al hacerlo, el nombre en la base de datos se actualiza de forma automática (ej. `"Espíritu de Viento Cubo"`).
-* **Eliminación Física de Archivos en PC:**
-  * Al hacer clic en el botón de la papelera en la web, el sistema solicita confirmación y quita al espíritu del listado de Firestore.
-  * Para eliminar también la imagen física del disco, se incluye un servidor ligero en Python (`web/server.py`) que opera en el puerto `8000` con directorio base en la raíz del proyecto.
-  * Cuando la web corre en este servidor (`http://localhost:8000`), el borrado dispara una petición a `/api/delete-spirit-image`, que ejecuta la eliminación física del archivo `.png` en la carpeta `app/src/main/res/drawable/` del proyecto de forma automatizada.
-* **Integración en la App:** En la pantalla **Misceláneo**, el slot antes bloqueado ahora muestra **🌐 Web Gestión**, que abre la página correspondiente en el navegador del celular.
-* **Seguridad de Sincronización y Protección de Caché (Firestore):**
-  * Toda la base de datos está versionada bajo la clave `schema_version = 4` para asegurar la compatibilidad con el listado de 141 espíritus.
-  * Para evitar problemas de sincronización en los que la caché local de un dispositivo (con un esquema viejo) sobreescriba y borre la base de datos remota del servidor al actualizar, la app de Android valida la propiedad `snapshot.metadata.isFromCache`. Las migraciones e inicializaciones automáticas de estructura solo se escriben si se confirma que los datos provienen del servidor remoto (`!isFromCache`), garantizando la integridad de Firebase en todo momento.
+Se incluye una **Web de Gestión** (`web/index.html`) para permitir la administración visual, masiva y cómoda de los 141 espíritus desde una computadora o navegador móvil:
+* **Interactividad y Diseño:** Diseñada con estética premium oscura (`glassmorphic` y tipografías Outfit/Inter). Dispone de un listado lateral con las 141 imágenes de los espíritus y un panel central con la estructura de categorías y tipos (Normal, Dorado, Gomita, etc.).
+* **Cambio de Categoría y Tipo:** Permite arrastrar fotos (`drag and drop`) o usar los desplegables de cada tarjeta para mover un espíritu a cualquier categoría o alternar su variante.
+* **Arquitectura de Servidor Local y Producción (Node.js / Express / Vercel Serverless):**
+  * **Entorno Local (`web/server.js`):** Servidor Express de Node.js corriendo localmente (`npm start` en la carpeta `web/`) que sirve la web estática en `http://localhost:8000` y gestiona las subidas de imágenes a Cloudinary usando el SDK de Node y `.env`.
+  * **Producción en Vercel (`web/api/upload-spirit-image.js`):** Función Serverless nativa de Vercel en Node.js que recibe las subidas de imágenes en Base64, las firma y sube de forma segura a Cloudinary mediante las variables de entorno de Vercel (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`).
+* **Compresión Inteligente en Cliente y Feedback Visual:**
+  * **Compresión Canvas:** Las imágenes seleccionadas se comprimen automáticamente en el navegador mediante HTML5 Canvas (máximo 1200px de ancho y calidad JPEG al 82%), reduciendo archivos pesados a ~300-800KB para mantenerse holgadamente por debajo del límite de payload de Vercel (4.5MB).
+  * **Overlay de Carga:** Durante la subida y guardado, se muestra un indicador visual animado (Spinner con estado por pasos: *Comprimiendo -> Subiendo -> Guardando en Firestore*) que bloquea interacciones hasta confirmar que los datos se persistieron correctamente en la nube.
+* **Sincronización Estricta de Orden de Categorías:**
+  * El guardado en Firestore almacena la lista `categories` como un arreglo JSON ordenado (`Array [...]`), eliminando desordenamientos por objetos asociativos.
+  * El algoritmo de lectura en la web y en la app Android concilian la lista manteniendo exactamente el orden secuencial del arreglo definido por la app.
+
