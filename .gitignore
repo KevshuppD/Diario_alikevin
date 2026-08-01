@@ -45,4 +45,10 @@ logcat_*.txt
 # Firebase Service Account
 app/src/main/assets/service-account.json
 
+# Node.js
+node_modules/
+web/node_modules/
 
+# Variables de entorno locales (nunca subir al repo)
+.env
+web/.env
