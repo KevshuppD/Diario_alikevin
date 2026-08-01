@@ -980,6 +980,49 @@
       background: rgba(239, 68, 68, 0.95);
     }
 
+    /* Upload Loading Overlay */
+    #upload-loader-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+    }
+    #upload-loader-overlay.active {
+      display: flex;
+    }
+    .upload-loader-spinner {
+      width: 56px;
+      height: 56px;
+      border: 5px solid rgba(255,255,255,0.15);
+      border-top-color: #10b981;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .upload-loader-text {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-align: center;
+      max-width: 260px;
+      line-height: 1.5;
+    }
+    .upload-loader-step {
+      font-size: 12px;
+      color: rgba(255,255,255,0.55);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
     /* Responsive */
     @media (max-width: 767px) {
       header {
@@ -1403,6 +1446,15 @@
   <div class="toast-banner" id="toast-banner">
     <span id="toast-icon">✓</span>
     <span id="toast-msg">Mensaje de alerta</span>
+  </div>
+
+  <!-- Upload Loading Overlay -->
+  <div id="upload-loader-overlay">
+    <div class="upload-loader-spinner"></div>
+    <div class="upload-loader-text">
+      <div id="upload-loader-msg">Subiendo imagen...</div>
+      <div class="upload-loader-step" id="upload-loader-step">Por favor espera</div>
+    </div>
   </div>
 
   <!-- Custom Dialog Modal (replaces alert/confirm/prompt) -->
@@ -2578,6 +2630,41 @@
       }, 4000);
     }
 
+    // 10a. Upload loader overlay
+    function showUploadLoader(msg, step) {
+      document.getElementById("upload-loader-msg").textContent = msg || "Subiendo imagen...";
+      document.getElementById("upload-loader-step").textContent = step || "Por favor espera";
+      document.getElementById("upload-loader-overlay").classList.add("active");
+    }
+    function hideUploadLoader() {
+      document.getElementById("upload-loader-overlay").classList.remove("active");
+    }
+    function updateUploadLoaderStep(step) {
+      document.getElementById("upload-loader-step").textContent = step;
+    }
+
+    // 10b. Guardar en Firestore y retornar Promise
+    function saveChangesToFirestoreAsync() {
+      const categoriesMap = {};
+      categories.forEach(cat => {
+        categoriesMap[cat.name] = { name: cat.name, spiritIds: cat.spiritIds };
+      });
+      const updates = {
+        "categories": categoriesMap,
+        "spirits_list": spiritsList,
+        "custom_names": customNames,
+        "custom_categories": customCategories,
+        "custom_images": customImages,
+        "kevin_list": kevinList,
+        "ali_list": aliList,
+        "kevin_mastery": kevinMastery,
+        "ali_mastery": aliMastery,
+        "spirit_types": spiritTypes,
+        "schema_version": 4
+      };
+      return db.collection("fortnite_spirits").doc(coupleId).set(updates);
+    }
+
     // 10b. DB Inspector Renderer
     function renderDbInspector() {
       const container = document.getElementById("db-inspector-container");
@@ -3262,10 +3349,11 @@
           return;
         }
         const file = fileInput.files[0];
-        showToast("Comprimiendo y subiendo imagen a Cloudinary... ⏳", false);
+        showUploadLoader("🖼️ Comprimiendo imagen...", "Reduciendo tamaño para la subida");
         compressImage(file, 1200, 0.82).then(async compressedBase64 => {
           let res;
           try {
+            updateUploadLoaderStep("🚀 Subiendo a Cloudinary...");
             const r = await fetch('/api/upload-spirit-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -3274,17 +3362,27 @@
             res = await r.json();
           } catch (networkErr) {
             console.error('Error de red al subir imagen:', networkErr);
+            hideUploadLoader();
             showToast("Error de red al conectar con el servidor", true);
             return;
           }
           if (res.success) {
             imageCacheBusters[editingSpiritImageId] = Date.now();
             delete customImages[editingSpiritImageId];
-            showToast("¡Imagen de espíritu subida a Cloudinary con éxito! 🖼️🎉", false);
-            closeEditImageModal();
-            renderGallery();
-            saveChangesToFirestore();
+            try {
+              updateUploadLoaderStep("💾 Guardando en base de datos...");
+              await saveChangesToFirestoreAsync();
+              renderGallery();
+              closeEditImageModal();
+              hideUploadLoader();
+              showToast("¡Imagen subida y guardada en la base de datos! 🖼️🎉", false);
+            } catch (dbErr) {
+              console.error('Error guardando en Firestore:', dbErr);
+              hideUploadLoader();
+              showToast("Imagen subida pero error al guardar en base de datos: " + dbErr.message, true);
+            }
           } else {
+            hideUploadLoader();
             showToast("Error subiendo a Cloudinary: " + (res.error || "Error desconocido"), true);
           }
         });
