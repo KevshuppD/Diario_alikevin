@@ -2865,31 +2865,30 @@
 
       if (fileInput && fileInput.files && fileInput.files[0]) {
         showToast("Comprimiendo y subiendo imagen a Cloudinary... ⏳", false);
-        compressImage(fileInput.files[0], 1200, 0.82).then(compressedBase64 => {
-          fetch('/api/upload-spirit-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              spiritId: id,
-              imageBase64: compressedBase64
-            })
-          })
-          .then(r => r.json())
-          .then(res => {
-            if (res.success && res.url) {
-              customImages[id] = res.url;
-              imageCacheBusters[id] = Date.now();
-            } else {
-              const formattedId = String(id).padStart(2, '0');
-              customImages[id] = `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
-            }
-            finalizeCreate();
-          })
-          .catch(() => {
+        compressImage(fileInput.files[0], 1200, 0.82).then(async compressedBase64 => {
+          let res;
+          try {
+            const r = await fetch('/api/upload-spirit-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ spiritId: id, imageBase64: compressedBase64 })
+            });
+            res = await r.json();
+          } catch (networkErr) {
+            console.error('Error de red al subir imagen:', networkErr);
             const formattedId = String(id).padStart(2, '0');
             customImages[id] = `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
             finalizeCreate();
-          });
+            return;
+          }
+          if (res.success && res.url) {
+            customImages[id] = res.url;
+            imageCacheBusters[id] = Date.now();
+          } else {
+            const formattedId = String(id).padStart(2, '0');
+            customImages[id] = `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+          }
+          finalizeCreate();
         });
       } else {
         const formattedId = String(id).padStart(2, '0');
@@ -3264,32 +3263,30 @@
         }
         const file = fileInput.files[0];
         showToast("Comprimiendo y subiendo imagen a Cloudinary... ⏳", false);
-        compressImage(file, 1200, 0.82).then(compressedBase64 => {
-          fetch('/api/upload-spirit-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              spiritId: editingSpiritImageId,
-              imageBase64: compressedBase64
-            })
-          })
-          .then(r => r.json())
-          .then(res => {
-            if (res.success) {
-              imageCacheBusters[editingSpiritImageId] = Date.now();
-              delete customImages[editingSpiritImageId];
-              showToast("¡Imagen de espíritu subida a Cloudinary con éxito! 🖼️🎉", false);
-              closeEditImageModal();
-              renderGallery();
-              saveChangesToFirestore();
-            } else {
-              showToast("Error subiendo a Cloudinary: " + (res.error || "Error desconocido"), true);
-            }
-          })
-          .catch(err => {
-            console.error(err);
-            showToast("Error al conectar con el servidor para subir imagen", true);
-          });
+        compressImage(file, 1200, 0.82).then(async compressedBase64 => {
+          let res;
+          try {
+            const r = await fetch('/api/upload-spirit-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ spiritId: editingSpiritImageId, imageBase64: compressedBase64 })
+            });
+            res = await r.json();
+          } catch (networkErr) {
+            console.error('Error de red al subir imagen:', networkErr);
+            showToast("Error de red al conectar con el servidor", true);
+            return;
+          }
+          if (res.success) {
+            imageCacheBusters[editingSpiritImageId] = Date.now();
+            delete customImages[editingSpiritImageId];
+            showToast("¡Imagen de espíritu subida a Cloudinary con éxito! 🖼️🎉", false);
+            closeEditImageModal();
+            renderGallery();
+            saveChangesToFirestore();
+          } else {
+            showToast("Error subiendo a Cloudinary: " + (res.error || "Error desconocido"), true);
+          }
         });
       });
 
