@@ -2946,7 +2946,7 @@
         closeNewSpiritModal();
         renderWorkspace();
         renderGallery();
-        saveChangesToFirestore();
+        saveChangesToFirestoreAsync();
         showToast(`¡Espíritu #${id} (${name}) creado y guardado en Firestore con éxito! 🚀🎉`, false);
       };
 
@@ -3399,7 +3399,7 @@
         showToast("URL personalizada guardada 💾", false);
         closeEditImageModal();
         renderGallery();
-        saveChangesToFirestore();
+        saveChangesToFirestoreAsync();
       });
 
       renderGallery();
