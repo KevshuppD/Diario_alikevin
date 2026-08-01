@@ -3912,7 +3912,14 @@
       window.addEventListener("mouseup", () => {
         if (isStudioMouseDown) {
           isStudioMouseDown = false;
-          cropStudioSelectedArea();
+          // Solo aplicar recorte si el usuario realmente arrastró una caja de selección significativa (>20px)
+          const w = Math.round(Math.abs(studioCropEnd.x - studioCropStart.x));
+          const h = Math.round(Math.abs(studioCropEnd.y - studioCropStart.y));
+          if (w > 20 && h > 20) {
+            cropStudioSelectedArea();
+          } else {
+            redrawStudioCanvasWithSelection();
+          }
         }
       });
     }
@@ -3940,7 +3947,7 @@
       const w = Math.round(Math.abs(studioCropEnd.x - studioCropStart.x));
       const h = Math.round(Math.abs(studioCropEnd.y - studioCropStart.y));
 
-      if (w < 10 || h < 10) return;
+      if (w < 20 || h < 20) return;
 
       const croppedData = studioCtx.getImageData(x, y, w, h);
       studioCanvas.width = w;
@@ -3949,7 +3956,10 @@
 
       // Actualizar la imagen original de estudio con la recortada
       const tempImg = new Image();
-      tempImg.onload = () => { studioOriginalImg = tempImg; };
+      tempImg.onload = () => { 
+        studioOriginalImg = tempImg;
+        redrawStudioCanvasWithSelection();
+      };
       tempImg.src = studioCanvas.toDataURL();
     }
 
