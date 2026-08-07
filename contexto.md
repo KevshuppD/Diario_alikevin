@@ -31,11 +31,12 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
   - **Cloudinary:** Hosting cloud multimedia. Las fotos de las cartas se suben de forma firmada directamente a Cloudinary.
   - **GitHub API:** Localizada en [UpdateManager.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/UpdateManager.kt) para verificar actualizaciones del APK e instalarlas automáticamente.
 - **Colección de Espíritus / Coleccionables:**
-  - **Checklist de Espíritus:** Un listado interactivo en el juego compuesto por **141 espíritus** (originalmente 65, expandido a 97 con las variantes Gema y Holofoil, luego a 119 con las categorías Batman, Viento y Especiales, luego a 121 con Batman y Viento Cubo, y finalmente a 141 incorporando las nuevas categorías Llama, Bananín, Cubo y otras variantes como Quack, John Wick e Ironmouse). Su registro en código reside en `MiscCompose.kt` y sus activos de imagen pixel-art están almacenados como `ic_spirit_01.png` a `ic_spirit_141.png` en los recursos drawables. Además, el **Modo Edición** (activable desde el menú de 3 puntos) permite renombrar espíritus y categorías, mover espíritus a diferentes categorías (mediante un diálogo interactivo) y eliminar tanto espíritus como categorías de forma persistente y compartida guardando los cambios en Firestore (campos `custom_names`, `custom_categories`, `categories` y `spirits_list` dentro del documento `fortnite_spirits/<coupleId>`).
+  - **Checklist de Espíritus:** Un listado interactivo en el juego compuesto por **117 espíritus**. Su registro en código reside en `MiscCompose.kt` y sus activos de imagen pixel-art están almacenados en los recursos drawables. Además, el **Modo Edición** (activable desde el menú de 3 puntos) permite renombrar espíritus y categorías, mover espíritus a diferentes categorías (mediante un diálogo interactivo) y eliminar tanto espíritus como categorías de forma persistentemente y compartida guardando los cambios en Firestore (campos `custom_names`, `custom_categories`, `categories` y `spirits_list` dentro del documento `fortnite_spirits/<coupleId>`).
 - **Estilos y UI:**
   - Estética inmersiva **Retro Pixel-Art de 8 y 16 bits**.
   - Tipografía pixelada `vt323` importada globalmente.
   - Soporte a tres temas visuales dinámicos: **Pixel Claro** (crema y chocolate), **Pixel Oscuro** (gris profundo y neón rosa) y **Pixel Monocromático** (blanco y negro puro).
+  - **Sincronización de Tema Web-App:** El selector de temas en la pestaña *Configuración* de la web sincroniza en tiempo real el campo `theme` dentro del documento `users/<userId>` de Firestore. Al cambiar el tema desde la web o desde la app, ambos entornos adaptan sus colores e interfaz al instante.
 
 ---
 
@@ -248,8 +249,8 @@ Para simplificar el proceso de pruebas locales, el script interactivo [conectar_
 
 ## 10. Web de Gestión de Espíritus, Servidor Node.js y Despliegue en Vercel
 
-Se incluye una **Web de Gestión** (`web/index.html`) para permitir la administración visual, masiva y cómoda de los 141 espíritus desde una computadora o navegador móvil:
-* **Interactividad y Diseño:** Diseñada con estética premium oscura (`glassmorphic` y tipografías Outfit/Inter). Dispone de un listado lateral con las 141 imágenes de los espíritus y un panel central con la estructura de categorías y tipos (Normal, Dorado, Gomita, etc.).
+Se incluye una **Web de Gestión** (`web/index.html`) para permitir la administración visual, masiva y cómoda de los 117 espíritus desde una computadora o navegador móvil:
+* **Interactividad y Diseño:** Diseñada con estética premium oscura (`glassmorphic` y tipografías Outfit/Inter). Dispone de un listado lateral con las imágenes de los espíritus y un panel central con la estructura de categorías y tipos (Normal, Dorado, Gomita, etc.).
 * **Cambio de Categoría y Tipo:** Permite arrastrar fotos (`drag and drop`) o usar los desplegables de cada tarjeta para mover un espíritu a cualquier categoría o alternar su variante.
 * **Arquitectura de Servidor Local y Producción (Node.js / Express / Vercel Serverless):**
   * **Entorno Local (`web/server.js`):** Servidor Express de Node.js corriendo localmente (`npm start` en la carpeta `web/`) que sirve la web estática en `http://localhost:8000` y gestiona las subidas de imágenes a Cloudinary usando el SDK de Node y `.env`.

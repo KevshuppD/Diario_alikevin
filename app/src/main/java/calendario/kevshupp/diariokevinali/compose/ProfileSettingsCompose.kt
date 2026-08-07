@@ -862,7 +862,7 @@ fun SettingsScreen(
                         val colors = if (isDark) {
                             listOf("#4A148C", "#0D47A1", "#1B5E20", "#C2185B", "#E65100", "#006064", "#3E2723")
                         } else {
-                            listOf("#D1C4E9", "#B3E5FC", "#C8E6C9", "#F8BBD0", "#FFE0B2", "#B2EBF2", "#D7CCC8")
+                            listOf("#D1C4E9", "#B3E5FC", "#C8E6C9", "#C2185B", "#FFE0B2", "#B2EBF2", "#D7CCC8")
                         }
                         colors.forEach { colorHex ->
                             Box(

@@ -1380,7 +1380,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
             inputBg = when (actualLightColor.uppercase()) {
                 "#B3E5FC" -> Color.parseColor("#81D4FA")
                 "#C8E6C9" -> Color.parseColor("#A5D6A7")
-                "#F8BBD0" -> Color.parseColor("#F48FB1")
+                "#F8BBD0", "#C2185B" -> Color.parseColor("#F48FB1")
                 "#FFE0B2" -> Color.parseColor("#FFCC80")
                 "#B2EBF2" -> Color.parseColor("#80DEEA")
                 "#D7CCC8" -> Color.parseColor("#BCAAA4")
