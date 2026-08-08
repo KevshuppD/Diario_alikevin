@@ -16,7 +16,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import calendario.kevshupp.diariokevinali.R
+import calendario.kevshupp.diariokevinali.SyncLogger
 
 private val Vt323Sync = FontFamily(Font(R.font.vt323))
 
@@ -469,17 +472,28 @@ fun SettingsSyncCompose(
                             modifier = Modifier.padding(bottom = 6.dp)
                         )
                         activeSyncSlots.forEach { (fileName, prog) ->
+                            val isUpload = fileName.contains("SUBIDA") || fileName.contains("⬆")
+                            val isDownload = fileName.contains("BAJADA") || fileName.contains("⬇")
+                            
+                            val slotColor = when {
+                                isUpload -> if (isDark) Color(0xFF29B6F6) else Color(0xFF0288D1)
+                                isDownload -> if (isDark) Color(0xFFFFB74D) else Color(0xFFF57C00)
+                                else -> if (isDark) Color(0xFF00E676) else Color(0xFF388E3C)
+                            }
+
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp)
-                                    .border(1.dp, borderColor.copy(alpha = 0.5f))
+                                    .border(1.5.dp, slotColor.copy(alpha = 0.8f))
+                                    .background(slotColor.copy(alpha = 0.1f))
                                     .padding(8.dp)
                             ) {
                                 Text(
                                     text = fileName,
                                     fontFamily = Vt323Sync,
-                                    fontSize = 14.sp,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
                                     color = textColor,
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -490,19 +504,20 @@ fun SettingsSyncCompose(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     LinearProgressIndicator(
-                                        progress = { if (prog >= 0) prog / 100f else 0f },
+                                        progress = { if (prog >= 0) (prog / 100f).coerceIn(0f, 1f) else 0f },
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(8.dp)
+                                            .height(10.dp)
                                             .border(1.dp, borderColor),
-                                        color = if (isDark) Color(0xFFFF4081) else Color(0xFFFF80AB),
+                                        color = slotColor,
                                         trackColor = Color.Transparent
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = if (prog >= 0) "$prog%" else "...",
                                         fontFamily = Vt323Sync,
-                                        fontSize = 12.sp,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
                                         color = textColor
                                     )
                                 }
@@ -699,6 +714,144 @@ fun SettingsSyncCompose(
                                     unfocusedContainerColor = if (isDark) Color(0xFF0D0D2B) else Color.White
                                 ),
                                 modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    },
+                    shape = RectangleShape,
+                    containerColor = dialogBg,
+                    tonalElevation = 0.dp
+                )
+            }
+
+            // Sección de Registros de Sincronización (Logs)
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 2.dp, modifier = Modifier.padding(vertical = 8.dp))
+
+            var showLogsDialog by remember { mutableStateOf(false) }
+            val context = androidx.compose.ui.platform.LocalContext.current
+
+            LaunchedEffect(Unit) {
+                SyncLogger.loadLogs(context)
+            }
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "📋 REGISTRO DE DIAGNÓSTICO Y LOGS",
+                    fontFamily = Vt323Sync,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Botón Copiar Logs Directo
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .border(2.dp, borderColor)
+                            .background(if (isDark) Color(0xFF1565C0) else Color(0xFF1976D2))
+                            .clickable { SyncLogger.copyToClipboard(context) }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "COPIAR LOGS 📋",
+                            fontFamily = Vt323Sync,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    // Botón Ver Logs Dialog
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .border(2.dp, borderColor)
+                            .background(if (isDark) Color(0xFF4A148C) else Color(0xFF6A1B9A))
+                            .clickable { showLogsDialog = true }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "VER REGISTROS 👁️",
+                            fontFamily = Vt323Sync,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            if (showLogsDialog) {
+                val dialogBg = if (isDark) Color(0xFF121212) else Color(0xFFF5F5F5)
+                val logContent = SyncLogger.getFormattedLogs(context)
+                val scrollState = rememberScrollState()
+
+                AlertDialog(
+                    onDismissRequest = { showLogsDialog = false },
+                    confirmButton = {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .clickable { SyncLogger.copyToClipboard(context) }
+                                    .border(2.dp, borderColor)
+                                    .background(if (isDark) Color(0xFF1565C0) else Color(0xFF1976D2))
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text("COPIAR 📋", fontFamily = Vt323Sync, fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clickable { SyncLogger.clearLogs(context) }
+                                    .border(2.dp, borderColor)
+                                    .background(Color(0xFFD32F2F))
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text("LIMPIAR 🧹", fontFamily = Vt323Sync, fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clickable { showLogsDialog = false }
+                                    .border(2.dp, borderColor)
+                                    .background(Color.Gray)
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text("CERRAR ✖", fontFamily = Vt323Sync, fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    },
+                    title = {
+                        Text(
+                            text = "📋 HISTORIAL DE LOGS DE SINCRONIZACIÓN",
+                            fontFamily = Vt323Sync,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                    },
+                    text = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(300.dp)
+                                .border(2.dp, borderColor)
+                                .background(if (isDark) Color(0xFF000000) else Color(0xFF1E1E1E))
+                                .padding(8.dp)
+                                .verticalScroll(scrollState)
+                        ) {
+                            Text(
+                                text = logContent,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                color = Color(0xFF00FF66)
                             )
                         }
                     },

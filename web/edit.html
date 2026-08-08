@@ -1443,6 +1443,8 @@
           <button class="filter-btn" onclick="setFilter('obtenidos_yo_no_otro', this)">⭐ Solo yo</button>
           <button class="filter-btn" onclick="setFilter('obtenidos_ambos', this)">💜 Ambos</button>
           <button class="filter-btn" onclick="setFilter('sin_maestria', this)">☆ Sin Maestría</button>
+          <button class="filter-btn" onclick="setFilter('maestria_otro_no_yo', this)">👑 Pareja Maestría (yo no)</button>
+          <button class="filter-btn" onclick="setFilter('maestria_yo_no_otro', this)">👑 Mi Maestría (pareja no)</button>
         </div>
       </div>
 
@@ -2658,6 +2660,7 @@
       const isOwnedByCurrent = currentUser && currentUser.username === "kevin" ? isKevinOwned : isAliOwned;
       const isOwnedByOther = currentUser && currentUser.username === "kevin" ? isAliOwned : isKevinOwned;
       const isMasteredByCurrent = currentUser && currentUser.username === "kevin" ? isKevinMastered : isAliMastered;
+      const isMasteredByOther = currentUser && currentUser.username === "kevin" ? isAliMastered : isKevinMastered;
 
       switch (currentFilter) {
         case "todos":
@@ -2671,7 +2674,11 @@
         case "obtenidos_ambos":
           return isKevinOwned && isAliOwned;
         case "sin_maestria":
-          return isOwnedByCurrent && !isMasteredByCurrent;
+          return !isMasteredByCurrent;
+        case "maestria_otro_no_yo":
+          return isMasteredByOther && !isMasteredByCurrent;
+        case "maestria_yo_no_otro":
+          return isMasteredByCurrent && !isMasteredByOther;
         default:
           return true;
       }

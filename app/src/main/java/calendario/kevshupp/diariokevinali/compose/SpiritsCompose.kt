@@ -827,6 +827,8 @@ fun SpiritsChecklistView(
     var imageRefreshKey by remember { mutableStateOf(0) }
     
     val matchesFilter: (String) -> Boolean = { spiritId ->
+        val myMastery = if (isKevin) kevinMastery.contains(spiritId) else aliMastery.contains(spiritId)
+        val otherMastery = if (isKevin) aliMastery.contains(spiritId) else kevinMastery.contains(spiritId)
         when (filterMode) {
             "todos" -> true
             "no_obtenidos" -> {
@@ -842,6 +844,15 @@ fun SpiritsChecklistView(
                 val ownedByMe = if (isKevin) kevinList.contains(spiritId) else aliList.contains(spiritId)
                 val ownedByOther = if (isKevin) aliList.contains(spiritId) else kevinList.contains(spiritId)
                 ownedByMe && !ownedByOther
+            }
+            "sin_maestria" -> {
+                !myMastery
+            }
+            "maestria_otro_no_yo" -> {
+                otherMastery && !myMastery
+            }
+            "maestria_yo_no_otro" -> {
+                myMastery && !otherMastery
             }
             else -> true
         }
@@ -1030,6 +1041,48 @@ fun SpiritsChecklistView(
                         },
                         onClick = {
                             filterMode = "obtenidos_yo_no_otro"
+                            showFiltersMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (filterMode == "sin_maestria") "✓ SIN MAESTRÍA 👑" else "SIN MAESTRÍA 👑",
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                        },
+                        onClick = {
+                            filterMode = "sin_maestria"
+                            showFiltersMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (filterMode == "maestria_otro_no_yo") "✓ MAESTRÍA OTRO QUE NO TENGO 👑" else "MAESTRÍA OTRO QUE NO TENGO 👑",
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                        },
+                        onClick = {
+                            filterMode = "maestria_otro_no_yo"
+                            showFiltersMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (filterMode == "maestria_yo_no_otro") "✓ MI MAESTRÍA QUE OTRO NO TIENE 👑" else "MI MAESTRÍA QUE OTRO NO TIENE 👑",
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                        },
+                        onClick = {
+                            filterMode = "maestria_yo_no_otro"
                             showFiltersMenu = false
                         }
                     )
