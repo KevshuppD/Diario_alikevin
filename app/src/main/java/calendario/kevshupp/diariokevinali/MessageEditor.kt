@@ -44,6 +44,7 @@ class MessageEditor(
         fun onPickImage(code: Int)
     }
 
+    @Suppress("DEPRECATION")
     fun showEditDialog(edit: Message?, callback: EditorCallback) {
         val b = AlertDialog.Builder(context)
         val v = LayoutInflater.from(context).inflate(R.layout.dialog_edit_message, null)
@@ -145,6 +146,7 @@ class MessageEditor(
         dialog.show()
     }
 
+    @Suppress("DEPRECATION")
     fun showMessageDetail(msg: Message) {
         val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         val v = LayoutInflater.from(context).inflate(R.layout.dialog_view_message, null)

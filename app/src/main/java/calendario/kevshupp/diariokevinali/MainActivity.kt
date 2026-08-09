@@ -1406,7 +1406,9 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         navBarPadding.setBackgroundColor(tb)
         
         val w = window
+        @Suppress("DEPRECATION")
         w.statusBarColor = tb
+        @Suppress("DEPRECATION")
         w.navigationBarColor = tb
         
         val controller = WindowCompat.getInsetsController(w, w.decorView)

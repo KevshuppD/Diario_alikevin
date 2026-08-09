@@ -346,7 +346,12 @@ fun SettingsSyncCompose(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Indicador de Estado de Sincronización
-            val effectiveSyncState = syncState
+            val isCountsMatching = selectedFolderUri != null && localFilesCount > 0 && localFilesCount == cloudFilesCount
+            val effectiveSyncState = when {
+                isSyncing -> "SINCRONIZANDO"
+                syncState == "SINCRONIZADO" || (isCountsMatching && syncLastError.isNullOrEmpty()) -> "SINCRONIZADO"
+                else -> "NO_SINCRONIZADO"
+            }
             val stateLabel = when (effectiveSyncState) {
                 "SINCRONIZADO" -> "ESTADO: SINCRONIZADO 🟢"
                 "SINCRONIZANDO" -> "ESTADO: SINCRONIZANDO... 🔄"

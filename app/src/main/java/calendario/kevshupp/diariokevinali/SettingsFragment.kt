@@ -332,9 +332,6 @@ class SettingsFragment : Fragment() {
                                 syncProgress = -1
                                 syncStatus = ""
                                 activeSyncSlots = emptyList()
-                                if (prefs?.getString("syncState", "") == "SINCRONIZANDO") {
-                                    prefs.edit().putString("syncState", "NO_SINCRONIZADO").apply()
-                                }
                             }
                         }
                     }
@@ -375,9 +372,6 @@ class SettingsFragment : Fragment() {
                                 syncProgress = -1
                                 syncStatus = ""
                                 activeSyncSlots = emptyList()
-                                if (prefs?.getString("syncState", "") == "SINCRONIZANDO") {
-                                    prefs.edit().putString("syncState", "NO_SINCRONIZADO").apply()
-                                }
                             }
                         }
                     }
