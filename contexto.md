@@ -225,16 +225,10 @@ Para añadir nuevos accesorios (como el *Plátano Nano* o las *Calcetas y Botita
 ## 8. Control de Versiones y Despliegues (CI/CD Automatizado)
 
 Cada cambio que deba publicarse a producción sigue este proceso de despliegue automatizado mediante **GitHub Actions**:
-* **Paso 1 (Versionado):** Incrementar las propiedades `versionCode` y `versionName` en el archivo [app/build.gradle.kts](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/build.gradle.kts).
-* **Paso 2 (Confirmación de Cambios):** Hacer commit y push de todos los cambios de código a la rama `master`.
-* **Paso 3 (Disparador de Compilación - Solo a demanda):** Para un uso eficiente de los corredores de Actions, los tags de versión que comienzan con `v` se empujan únicamente cuando se completa un hito importante y a petición explícita del usuario, evitando disparar lanzamientos continuos para cambios mínimos:
-  ```bash
-  git tag v1.7.11
-  git push origin v1.7.11
-  ```
-* **Paso 4 (Ejecución en GitHub Actions):** El empuje de la etiqueta activará automáticamente el workflow en la nube definido en `.github/workflows/android.yml`.
-  - El pipeline decodifica de forma segura las credenciales Base64 guardadas en los secretos de GitHub (`DIARIO_KEYSTORE_BASE64` y `GOOGLE_SERVICES_JSON_BASE64` actualizados en julio de 2026), limpiando automáticamente posibles saltos de línea con `tr -d '\r\n '`.
-  - Compila la aplicación, firma el APK de lanzamiento (Release APK), crea un lanzamiento oficial en GitHub con el nombre de la versión y adjunta el archivo `app-release.apk` firmado listo para descargar.
+* **Paso 1 (Versionado Obligatorio):** Siempre que el usuario solicite subir una release, es **OBLIGATORIO** incrementar las propiedades `versionCode` y `versionName` en [app/build.gradle.kts](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/build.gradle.kts) antes de crear el tag. Esto garantiza que la comprobación de actualizaciones de la app no entre en un bucle infinito de solicitud de actualización.
+* **Paso 2 (Confirmación de Cambios):** Hacer commit y push de los cambios de código y versionado a la rama `master`.
+* **Paso 3 (Disparador de Compilación via GitHub Actions):** Crear y empujar el tag `v<versionName>` (ej. `v1.7.30`) a `origin`. Esto activa automáticamente el workflow `.github/workflows/android.yml`.
+* **Paso 4 (Ejecución en GitHub Actions):** GitHub Actions compila y firma la APK en la nube (`app-release.apk`) y crea la GitHub Release automáticamente.
 
 ---
 
