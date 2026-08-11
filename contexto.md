@@ -235,7 +235,7 @@ Cada cambio que deba publicarse a producción sigue este proceso de despliegue a
 ## 9. Conexión de Pruebas Multidispositivo (Script ADB + Gradle)
 
 Para simplificar el proceso de pruebas locales, el script interactivo [conectar_adb.sh](file:///home/kevin/Escritorio/conectar_adb.sh) en el Escritorio gestiona el ciclo completo de conexión y despliegue:
-* **Detección Automática:** Escanea dispositivos USB activos y descubre servicios de conexión/vinculación de red mDNS (Avahi). Si el dispositivo no está vinculado, solicita interactivamente el código de 6 dígitos vía Zenity.
+* **Detección Automática y Vinculación por Código QR:** Escanea dispositivos USB activos, descubre servicios mDNS (Avahi) y permite vincular dispositivos inalámbricos escaneando un **Código QR generado directamente en la terminal** (o mediante código tradicional de 6 dígitos).
 * **Multiselección:** Mediante una lista de selección múltiple (Zenity Checklist), el usuario puede marcar exactamente qué dispositivos (USB o red) quiere desplegar en paralelo.
 * **Bucle de Instalación Directa:** El script exporta de forma secuencial la variable `ANDROID_SERIAL` para cada dispositivo seleccionado y ejecuta la compilación con `./gradlew`. La primera ejecución compila la app y las siguientes se benefician de la caché de Gradle, resultando en instalaciones casi instantáneas.
 

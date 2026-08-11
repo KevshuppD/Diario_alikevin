@@ -22,6 +22,7 @@ object SyncScheduler {
             // Sincronización manual, cancelamos cualquier tarea periódica existente
             cancelSync(context)
             Log.d(TAG, "Sincronización configurada como Manual. Tareas periódicas canceladas.")
+            SyncLogger.log(context, "Sincronización periódica desactivada (Modo Manual).")
             return
         }
 
@@ -51,6 +52,7 @@ object SyncScheduler {
             periodicWorkRequest
         )
         Log.d(TAG, "Programada sincronización periódica cada $finalInterval minutos. Restricciones - Wi-Fi: $wifiOnly, Carga: $chargingOnly")
+        SyncLogger.log(context, "Frecuencia actualizada: Sincronización programada cada $finalInterval min (Wi-Fi: $wifiOnly, Carga: $chargingOnly).")
     }
 
     fun cancelSync(context: Context) {
@@ -61,21 +63,17 @@ object SyncScheduler {
 
     fun stopAllRunningSyncs(context: Context) {
         val prefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
-        prefs.edit().putBoolean("syncCancelledByUser", true).apply()
+        prefs.edit()
+            .putBoolean("syncCancelledByUser", true)
+            .putLong("syncIntervalMinutes", 0L) // Pasar frecuencia a Manual (0L) para que no vuelva a ejecutarse
+            .apply()
 
         val workManager = WorkManager.getInstance(context)
         workManager.cancelUniqueWork(UNIQUE_ONETIME_WORK_NAME)
-        
-        // Cancelar el periódico actual, pero reagendarlo de inmediato para no perder la programación futura
         workManager.cancelUniqueWork(UNIQUE_PERIODIC_WORK_NAME)
-        
-        val intervalMinutes = prefs.getLong("syncIntervalMinutes", 0L)
-        val wifiOnly = prefs.getBoolean("syncWifiOnly", true)
-        val chargingOnly = prefs.getBoolean("syncChargingOnly", false)
-        if (intervalMinutes > 0) {
-            scheduleSync(context, intervalMinutes, wifiOnly, chargingOnly)
-        }
-        Log.d(TAG, "Sincronizaciones en ejecución detenidas (y reagendadas si existía programación).")
+
+        Log.d(TAG, "Sincronización detenida por el usuario. Frecuencia cambiada a Manual.")
+        SyncLogger.log(context, "Sincronización detenida por el usuario (Frecuencia cambiada a Manual).", "WARN")
     }
 
     fun runNow(context: Context) {

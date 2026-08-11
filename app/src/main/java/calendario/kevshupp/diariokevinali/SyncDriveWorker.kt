@@ -84,9 +84,18 @@ class SyncDriveWorker(
 
         val maxRetries = prefs.getInt("syncMaxRetries", 3)
 
+        // Función auxiliar segura para setProgress que ignora fallos si el trabajo está completando o siendo cancelado
+        suspend fun safeSetProgress(data: androidx.work.Data) {
+            try {
+                setProgress(data)
+            } catch (e: Exception) {
+                Log.w(TAG, "Excepción al llamar setProgress (ignorado por seguridad): ${e.message}")
+            }
+        }
+
         // Mostrar notificación e iniciar progreso sólo si está configurado correctamente
         showSyncNotification(-1, "Iniciando sincronización...", false)
-        setProgress(workDataOf("progress" to -1, "status" to "Iniciando sincronización..."))
+        safeSetProgress(workDataOf("progress" to -1, "status" to "Iniciando sincronización..."))
         prefs.edit()
             .putString("syncState", "SINCRONIZANDO")
             .remove("syncLastError")
@@ -101,7 +110,7 @@ class SyncDriveWorker(
 
             // 2. Construir el cliente de Google Drive
             showSyncNotification(-1, "Conectando con Google Drive...", false)
-            setProgress(workDataOf("progress" to -1, "status" to "Conectando con Google Drive..."))
+            safeSetProgress(workDataOf("progress" to -1, "status" to "Conectando con Google Drive..."))
             SyncLogger.log(applicationContext, "Conectando con la API de Google Drive...")
             
             val credential = GoogleAccountCredential.usingOAuth2(
@@ -124,7 +133,7 @@ class SyncDriveWorker(
             var folderId = prefs.getString("syncDriveFolderId", null)
             if (folderId.isNullOrEmpty()) {
                 showSyncNotification(-1, "Verificando carpeta en Drive...", false)
-                setProgress(workDataOf("progress" to -1, "status" to "Verificando carpeta en Drive..."))
+                safeSetProgress(workDataOf("progress" to -1, "status" to "Verificando carpeta en Drive..."))
                 SyncLogger.log(applicationContext, "Buscando o creando carpeta 'DiarioAliKevin_Album' en Drive...")
                 folderId = runWithRetry(maxRetries) {
                     getOrCreateDriveFolder(driveService) ?: throw java.io.IOException("No se pudo obtener o crear la carpeta de Google Drive.")
@@ -151,13 +160,13 @@ class SyncDriveWorker(
                 SyncScheduler.cancelSync(applicationContext)
                 
                 showSyncNotification(100, "Permisos de carpeta revocados. Reconfígurala en Ajustes.", true, false)
-                setProgress(workDataOf("progress" to -1, "status" to "Permisos de carpeta revocados"))
+                safeSetProgress(workDataOf("progress" to -1, "status" to "Permisos de carpeta revocados"))
                 return Result.failure()
             }
 
             // 5. Cargar metadatos desde Firestore y listar locales EN PARALELO (Omitiendo listado de Drive por velocidad)
             showSyncNotification(-1, "Consultando archivos locales y en la nube...", false)
-            setProgress(workDataOf("progress" to -1, "status" to "Consultando archivos locales y en la nube..."))
+            safeSetProgress(workDataOf("progress" to -1, "status" to "Consultando archivos locales y en la nube..."))
             SyncLogger.log(applicationContext, "Consultando archivos de la carpeta local y metadatos en Firestore...")
             val db = FirebaseFirestore.getInstance()
 
@@ -192,7 +201,7 @@ class SyncDriveWorker(
                 }
             }
 
-            // 5a. Poblar/actualizar el registro local de sincronización con archivos que ya existen localmente y en la nube
+            // 5a. Poblar/actualizar el registro local de sincronización de forma masiva
             val registryEditor = syncRegistryPrefs.edit()
             var registryChanged = false
             for (fileName in localFilesMap.keys) {
@@ -212,18 +221,20 @@ class SyncDriveWorker(
             // 5b. Detectar borrados locales y renombrados, y replicarlos en la nube (Drive + Firestore)
             val deletedLocally = mutableMapOf<String, SyncMetadata>()
             if (syncDirection != "DOWNLOAD_ONLY") {
-                // Solo buscar renombrados si hay archivos previamente sincronizados que hayan desaparecido de la carpeta local
+                // Solo buscar renombrados si hay candidatos válidos (evitar calcular MD5 si no hay archivos nuevos)
                 val candidatesForRename = dbMetadataList.filter { (fileName, meta) ->
                     !meta.eliminado && !localFilesMap.containsKey(fileName) && syncRegistryPrefs.getBoolean(fileName, false)
                 }
 
                 if (candidatesForRename.isNotEmpty()) {
                     val newLocalFiles = localFiles.filter { !updatedDbMetadataMap.containsKey(it.name) }
+                    // Solo si hay archivos nuevos desconocidos se calcula su MD5 para ver si fue un renombrado
                     val newLocalFilesWithMd5 = if (newLocalFiles.isNotEmpty()) {
                         coroutineScope {
+                            val md5Sem = Semaphore(32)
                             newLocalFiles.map { photo ->
                                 async {
-                                    photo to getOrCalculateMd5(photo.uri)
+                                    photo to md5Sem.withPermit { getOrCalculateMd5(photo.uri) }
                                 }
                             }.awaitAll().filter { it.second.isNotEmpty() }
                         }
@@ -231,71 +242,35 @@ class SyncDriveWorker(
                         emptyList()
                     }
 
-                    val renames = mutableListOf<Pair<SyncMetadata, LocalFileMeta>>()
-
                     for ((fileName, meta) in candidatesForRename) {
                         val renameMatch = newLocalFilesWithMd5.find { it.second == meta.md5Checksum }
                         if (renameMatch != null) {
-                            renames.add(meta to renameMatch.first)
-                        } else {
-                            deletedLocally[fileName] = meta
-                        }
-                    }
-
-                    if (renames.isNotEmpty()) {
-                        Log.d(TAG, "Detectados ${renames.size} archivos renombrados localmente. Sincronizando nombres en Drive y Firestore...")
-                        coroutineScope {
-                            val renameJobs = renames.map { (meta, localFile) ->
-                                async {
-                                    runWithRetry(maxRetries) {
-                                        try {
-                                            val fileMetadata = com.google.api.services.drive.model.File().apply {
-                                                name = localFile.name
-                                            }
-                                            driveService.files().update(meta.idDrive, fileMetadata).execute()
-                                            Log.d(TAG, "Renombrado en Google Drive: ${meta.nombreArchivo} -> ${localFile.name}")
-                                            
-                                            val newMeta = meta.copy(
-                                                idLocal = localFile.name,
-                                                nombreArchivo = localFile.name,
-                                                uriLocal = localFile.uri.toString(),
-                                                fechaModificacion = localFile.lastModified
-                                            )
-                                            Tasks.await(
-                                                db.collection("pets").document(coupleId)
-                                                    .collection("drive_sync_metadata").document(localFile.name)
-                                                    .set(newMeta)
-                                            )
-                                            
-                                            Tasks.await(
-                                                db.collection("pets").document(coupleId)
-                                                    .collection("drive_sync_metadata").document(meta.nombreArchivo)
-                                                    .delete()
-                                            )
-                                            
-                                            syncRegistryPrefs.edit()
-                                                .remove(meta.nombreArchivo)
-                                                .putBoolean(localFile.name, true)
-                                                .apply()
-                                            
-                                            synchronized(updatedDbMetadataMap) {
-                                                updatedDbMetadataMap.remove(meta.nombreArchivo)
-                                                updatedDbMetadataMap[localFile.name] = newMeta
-                                            }
-                                        } catch (e: Exception) {
-                                            Log.e(TAG, "Error al procesar renombrado de ${meta.nombreArchivo} a ${localFile.name}: ${e.message}", e)
-                                        }
+                            // Encontró match de renombrado
+                            val localFile = renameMatch.first
+                            val fileMetadata = com.google.api.services.drive.model.File().apply {
+                                name = localFile.name
+                            }
+                            runWithRetry(maxRetries) {
+                                try {
+                                    driveService.files().update(meta.idDrive, fileMetadata).execute()
+                                    val newMeta = meta.copy(
+                                        idLocal = localFile.name,
+                                        nombreArchivo = localFile.name,
+                                        uriLocal = localFile.uri.toString(),
+                                        fechaModificacion = localFile.lastModified
+                                    )
+                                    Tasks.await(db.collection("pets").document(coupleId).collection("drive_sync_metadata").document(localFile.name).set(newMeta))
+                                    Tasks.await(db.collection("pets").document(coupleId).collection("drive_sync_metadata").document(meta.nombreArchivo).delete())
+                                    syncRegistryPrefs.edit().remove(meta.nombreArchivo).putBoolean(localFile.name, true).apply()
+                                    synchronized(updatedDbMetadataMap) {
+                                        updatedDbMetadataMap.remove(meta.nombreArchivo)
+                                        updatedDbMetadataMap[localFile.name] = newMeta
                                     }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error al renombrar: ${e.message}")
                                 }
                             }
-                            renameJobs.awaitAll()
-                        }
-                    }
-                } else {
-                    // Si no hay archivos sincronizados anteriormente que hayan desaparecido, ningún archivo fue renombrado
-                    for ((fileName, meta) in dbMetadataList) {
-                        if (meta.eliminado) continue
-                        if (!localFilesMap.containsKey(fileName) && syncRegistryPrefs.getBoolean(fileName, false)) {
+                        } else {
                             deletedLocally[fileName] = meta
                         }
                     }
@@ -503,7 +478,7 @@ class SyncDriveWorker(
                 dataBuilder.putString("status", generalStatus)
                 
                 try {
-                    setProgress(dataBuilder.build())
+                    safeSetProgress(dataBuilder.build())
                 } catch (e: Exception) {
                     Log.w(TAG, "Error al actualizar progreso: ${e.message}")
                 }
@@ -524,9 +499,14 @@ class SyncDriveWorker(
                                 
                                 val slotIndex = freeSlotQueue.poll() ?: 0
                                 updateSlot(slotIndex, slotLabel, 0)
+
+                                if (isStopped) {
+                                    throw kotlinx.coroutines.CancellationException("Sincronización cancelada por el usuario")
+                                }
                                 
                                 val mime = localFile.mimeType
                                 val driveFileId = runWithRetry(maxRetries) {
+                                    if (isStopped) throw kotlinx.coroutines.CancellationException("Sincronización cancelada por el usuario")
                                     uploadToDrive(
                                         driveService = driveService,
                                         folderId = folderId,
@@ -554,6 +534,7 @@ class SyncDriveWorker(
                                     eliminado = false
                                 )
                                 runWithRetry(maxRetries) {
+                                    if (isStopped) throw kotlinx.coroutines.CancellationException("Sincronización cancelada por el usuario")
                                     Tasks.await(
                                         db.collection("pets").document(coupleId)
                                             .collection("drive_sync_metadata").document(fileName)
@@ -595,6 +576,10 @@ class SyncDriveWorker(
                                 
                                 val slotIndex = freeSlotQueue.poll() ?: 0
                                 updateSlot(slotIndex, slotLabel, 0)
+
+                                if (isStopped) {
+                                    throw kotlinx.coroutines.CancellationException("Sincronización cancelada por el usuario")
+                                }
                                 
                                 val ext = fileName.substringAfterLast('.', "").lowercase()
                                 val mimeType = when (ext) {
@@ -605,6 +590,7 @@ class SyncDriveWorker(
                                 }
 
                                 val downloadedUri = runWithRetry(maxRetries) {
+                                    if (isStopped) throw kotlinx.coroutines.CancellationException("Sincronización cancelada por el usuario")
                                     downloadFromDrive(
                                         driveService = driveService,
                                         fileId = driveFileId,
@@ -632,6 +618,7 @@ class SyncDriveWorker(
                                     eliminado = false
                                 )
                                 runWithRetry(maxRetries) {
+                                    if (isStopped) throw kotlinx.coroutines.CancellationException("Sincronización cancelada por el usuario")
                                     Tasks.await(
                                          db.collection("pets").document(coupleId)
                                              .collection("drive_sync_metadata").document(fileName)
@@ -666,7 +653,7 @@ class SyncDriveWorker(
                 .remove("syncLastError")
                 .apply()
             showSyncNotification(100, "Sincronización completada exitosamente", true, true)
-            setProgress(workDataOf("progress" to 100, "status" to "Completada"))
+            safeSetProgress(workDataOf("progress" to 100, "status" to "Completada"))
             return Result.success()
 
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -699,7 +686,7 @@ class SyncDriveWorker(
                 .apply()
 
             showSyncNotification(100, errorMsg, true, false)
-            setProgress(workDataOf("progress" to -1, "status" to "Error: $errorMsg"))
+            safeSetProgress(workDataOf("progress" to -1, "status" to "Error: $errorMsg"))
             return Result.failure()
         }
     }

@@ -38,7 +38,7 @@ fun MiscScreen(
     val borderColor = if (isDark) Color(0xFF91465F) else if (isMono) Color.Black else Color(0xFF4A2511)
     val cardBg = if (isDark) Color(0xFF1E1E1E) else if (isMono) Color.White else Color(0xFFFFFBEA)
 
-    // View state: "grid", "checklist", "anime", "meds", "web"
+    // View state: "grid", "checklist", "anime", "meds", "web", "schedule"
     var currentView by remember { mutableStateOf("grid") }
 
     if (currentView == "grid") {
@@ -51,7 +51,8 @@ fun MiscScreen(
             onSelectSpirits = { currentView = "checklist" },
             onSelectAnime = { currentView = "anime" },
             onSelectMeds = { currentView = "meds" },
-            onSelectWeb = { currentView = "web" }
+            onSelectWeb = { currentView = "web" },
+            onSelectSchedule = { currentView = "schedule" }
         )
     } else if (currentView == "checklist") {
         SpiritsChecklistView(
@@ -71,6 +72,14 @@ fun MiscScreen(
         )
     } else if (currentView == "meds") {
         MedsDashboardView(
+            theme = theme,
+            textColor = textColor,
+            borderColor = borderColor,
+            cardBg = cardBg,
+            onBack = { currentView = "grid" }
+        )
+    } else if (currentView == "schedule") {
+        ScheduleDashboardView(
             theme = theme,
             textColor = textColor,
             borderColor = borderColor,
@@ -128,7 +137,8 @@ fun MiscGridView(
     onSelectSpirits: () -> Unit,
     onSelectAnime: () -> Unit,
     onSelectMeds: () -> Unit,
-    onSelectWeb: () -> Unit
+    onSelectWeb: () -> Unit,
+    onSelectSchedule: () -> Unit
 ) {
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
@@ -307,6 +317,40 @@ fun MiscGridView(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Medicamentos",
+                            fontFamily = Vt323,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 22.sp
+                        )
+                    }
+                }
+            }
+
+            // Fifth item: Horario de Clases
+            item {
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .border(3.dp, borderColor)
+                        .background(cardBg)
+                        .clickable { onSelectSchedule() }
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "📚",
+                            fontSize = 44.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Horario",
                             fontFamily = Vt323,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,

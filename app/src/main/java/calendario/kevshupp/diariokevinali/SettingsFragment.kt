@@ -285,23 +285,24 @@ class SettingsFragment : Fragment() {
                 }
 
                 // Observar el estado de WorkManager para saber si se está sincronizando actualmente
-                val workInfos = act?.let {
-                    androidx.work.WorkManager.getInstance(it)
-                        .getWorkInfosForUniqueWorkLiveData(SyncScheduler.UNIQUE_ONETIME_WORK_NAME)
+                val workInfosLiveData = remember(act) {
+                    act?.let { androidx.work.WorkManager.getInstance(it).getWorkInfosForUniqueWorkLiveData(SyncScheduler.UNIQUE_ONETIME_WORK_NAME) }
                 }
-                val periodicWorkInfos = act?.let {
-                    androidx.work.WorkManager.getInstance(it)
-                        .getWorkInfosForUniqueWorkLiveData("SyncDrivePeriodicWork")
+                val periodicWorkInfosLiveData = remember(act) {
+                    act?.let { androidx.work.WorkManager.getInstance(it).getWorkInfosForUniqueWorkLiveData("SyncDrivePeriodicWork") }
                 }
 
-                LaunchedEffect(workInfos, periodicWorkInfos, syncParallelLines) {
-                    workInfos?.observe(viewLifecycleOwner) { infos ->
-                        val runningInfo = infos?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
+                DisposableEffect(workInfosLiveData, periodicWorkInfosLiveData, viewLifecycleOwner, syncParallelLines) {
+                    val updateRunningState: () -> Unit = {
+                        val oneTimeRunning = workInfosLiveData?.value?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
+                        val periodicRunning = periodicWorkInfosLiveData?.value?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
+                        val runningInfo = oneTimeRunning ?: periodicRunning
+
                         if (runningInfo != null) {
                             isSyncing = true
                             syncProgress = runningInfo.progress.getInt("progress", -1)
                             syncStatus = runningInfo.progress.getString("status") ?: "Sincronizando..."
-                            
+
                             val tempSlots = mutableListOf<Pair<String, Int>>()
                             for (i in 0 until syncParallelLines) {
                                 val name = runningInfo.progress.getString("slot_${i}_name") ?: ""
@@ -312,68 +313,23 @@ class SettingsFragment : Fragment() {
                             }
                             activeSyncSlots = tempSlots
                         } else {
-                            val periodicRunningInfo = periodicWorkInfos?.value?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
-                            if (periodicRunningInfo != null) {
-                                isSyncing = true
-                                syncProgress = periodicRunningInfo.progress.getInt("progress", -1)
-                                syncStatus = periodicRunningInfo.progress.getString("status") ?: "Sincronizando..."
-                                
-                                val tempSlots = mutableListOf<Pair<String, Int>>()
-                                for (i in 0 until syncParallelLines) {
-                                    val name = periodicRunningInfo.progress.getString("slot_${i}_name") ?: ""
-                                    val prog = periodicRunningInfo.progress.getInt("slot_${i}_progress", -1)
-                                    if (name.isNotEmpty()) {
-                                        tempSlots.add(Pair(name, prog))
-                                    }
-                                }
-                                activeSyncSlots = tempSlots
-                            } else {
-                                isSyncing = false
-                                syncProgress = -1
-                                syncStatus = ""
-                                activeSyncSlots = emptyList()
-                            }
+                            isSyncing = false
+                            syncProgress = -1
+                            syncStatus = ""
+                            activeSyncSlots = emptyList()
                         }
                     }
-                    periodicWorkInfos?.observe(viewLifecycleOwner) { infos ->
-                        val runningInfo = infos?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
-                        if (runningInfo != null) {
-                            isSyncing = true
-                            syncProgress = runningInfo.progress.getInt("progress", -1)
-                            syncStatus = runningInfo.progress.getString("status") ?: "Sincronizando..."
-                            
-                            val tempSlots = mutableListOf<Pair<String, Int>>()
-                            for (i in 0 until syncParallelLines) {
-                                val name = runningInfo.progress.getString("slot_${i}_name") ?: ""
-                                val prog = runningInfo.progress.getInt("slot_${i}_progress", -1)
-                                if (name.isNotEmpty()) {
-                                    tempSlots.add(Pair(name, prog))
-                                }
-                            }
-                            activeSyncSlots = tempSlots
-                        } else {
-                            val oneTimeRunningInfo = workInfos?.value?.find { it.state == androidx.work.WorkInfo.State.RUNNING }
-                            if (oneTimeRunningInfo != null) {
-                                isSyncing = true
-                                syncProgress = oneTimeRunningInfo.progress.getInt("progress", -1)
-                                syncStatus = oneTimeRunningInfo.progress.getString("status") ?: "Sincronizando..."
-                                
-                                val tempSlots = mutableListOf<Pair<String, Int>>()
-                                for (i in 0 until syncParallelLines) {
-                                    val name = oneTimeRunningInfo.progress.getString("slot_${i}_name") ?: ""
-                                    val prog = oneTimeRunningInfo.progress.getInt("slot_${i}_progress", -1)
-                                    if (name.isNotEmpty()) {
-                                        tempSlots.add(Pair(name, prog))
-                                    }
-                                }
-                                activeSyncSlots = tempSlots
-                            } else {
-                                isSyncing = false
-                                syncProgress = -1
-                                syncStatus = ""
-                                activeSyncSlots = emptyList()
-                            }
-                        }
+
+                    val observer = androidx.lifecycle.Observer<List<androidx.work.WorkInfo>> {
+                        updateRunningState()
+                    }
+
+                    workInfosLiveData?.observe(viewLifecycleOwner, observer)
+                    periodicWorkInfosLiveData?.observe(viewLifecycleOwner, observer)
+
+                    onDispose {
+                        workInfosLiveData?.removeObserver(observer)
+                        periodicWorkInfosLiveData?.removeObserver(observer)
                     }
                 }
 
