@@ -11,6 +11,7 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
 3. **Mascota Virtual (Thor):** Un sistema de gamificación en formato pixel-art en el que un gato virtual reacciona a la interacción diaria de la pareja, subiendo de nivel y desbloqueando ropa/accesorios en una tienda 3D.
 4. **Sincronización Local-Nube (Google Drive)**: Respaldo y replicación automática bidireccional en segundo plano de la carpeta de fotos local seleccionada por cada usuario, sincronizando incluso eliminaciones entre dispositivos.
 5. **Ficha Médica de Emergencia (Datos Vitales)**: Módulo interactivo dentro de la pantalla de Perfil con sincronización Firestore en tiempo real (`medical_records/<coupleId>`) que permite consultar y editar grupo sanguíneo, alergias, enfermedades/condiciones, medicación diaria, seguro médico y contacto de emergencia (con marcación directa `ACTION_DIAL`) de ambos integrantes de la pareja.
+6. **Horario de Clases Compartido (Misc -> Horario)**: Módulo interactivo dentro del menú Misceláneo con sincronización Firestore en tiempo real (`schedules/<coupleId>`). Permite registrar, editar y consultar clases de Kevin, Ali o Ambos en una grilla retro con arquitectura de superposición unificada (Overlay), posicionamiento proporcional exacto por minuto, tarjetas continuas sin líneas de corte y soporte de solapamientos simultáneos.
 
 ---
 
@@ -20,11 +21,11 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
   - **Kotlin:** Utilizado en prácticamente la totalidad de la lógica, ViewModel, pantallas de Jetpack Compose, Workers y utilidades en segundo plano.
   - **Java:** Utilizado en el controlador de la interfaz principal (`MainActivity.java`), que interactúa con la lógica moderna de Kotlin mediante `MainViewModel`.
 - **UI Framework:**
-  - **Jetpack Compose:** Sistema declarativo moderno para la totalidad de la interfaz de configuración, perfiles, cartas y grillas.
+  - **Jetpack Compose:** Sistema declarativo moderno para la totalidad de la interfaz de configuración, perfiles, cartas, grillas y módulos de Misceláneo.
   - **Vanilla XML / ViewBinding:** En desuso, restringido a ciertos layouts legados.
 - **Base de Datos y Backend:**
   - **Firebase Auth:** Gestión de inicio de sesión de los usuarios.
-  - **Cloud Firestore:** Almacenamiento en tiempo real con persistencia offline integrada (caching local SQLite automática) para cartas, recetas, eventos e información de la mascota.
+  - **Cloud Firestore:** Almacenamiento en tiempo real con persistencia offline integrada (caching local SQLite automática) para cartas, recetas, eventos, fichas médicas, horarios de clases e información de la mascota.
   - **Firebase Cloud Messaging (FCM):** Notificaciones push utilizando la API v1 mediante autenticación OAuth2.
 - **Servicios Externos / APIs:**
   - **Google Drive API (v3):** Respaldo directo en la nube en una carpeta oculta (`DiarioAliKevin_Album`).
@@ -62,6 +63,7 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 - [MedicalCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MedicalCompose.kt): Módulo y diálogo retro de Ficha Médica de Emergencia con datos de salud, grupo sanguíneo, alergias y llamadas directas de emergencia.
 - [RecipeCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/RecipeCompose.kt) & [RecipeDetailCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/RecipeDetailCompose.kt): Creación y visualización del libro de recetas culinarias compartido.
 - [CalendarCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/compose/CalendarCompose.kt): Vista mensual de citas y eventos recurrentes (semanales/anuales) de la pareja.
+- [ScheduleCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/ScheduleCompose.kt): Grilla y módulo de Horario de Clases compartido con arquitectura de capas de superposición (Overlay) que dibuja cada asignatura como un único cuadro continuo retro proporcional al minuto de inicio y término, filtrado por integrante (Kevin / Ali / Ambos) y alternancia entre vista continua por horas y bloques fijos.
 
 ---
 
