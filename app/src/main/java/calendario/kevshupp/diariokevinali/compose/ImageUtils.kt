@@ -1,5 +1,10 @@
 package calendario.kevshupp.diariokevinali.compose
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+
 /**
  * Utilidad para optimizar URLs de Cloudinary añadiendo parámetros de transformación.
  * Esto reduce el ancho de banda y mejora la velocidad de carga al solicitar imágenes
@@ -13,4 +18,48 @@ fun String?.optimizeCloudinary(width: Int = 800): String? {
         return this.replace("/upload/", "/upload/w_$width,c_fill,q_auto,f_auto/")
     }
     return this
+}
+
+/**
+ * Calcula de forma óptima el valor inSampleSize para no cargar Bitmaps gigabytes en memoria RAM.
+ */
+fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+    val (height: Int, width: Int) = options.outHeight to options.outWidth
+    var inSampleSize = 1
+
+    if (height > reqHeight || width > reqWidth) {
+        val halfHeight: Int = height / 2
+        val halfWidth: Int = width / 2
+
+        while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+            inSampleSize *= 2
+        }
+    }
+    return inSampleSize
+}
+
+/**
+ * Decodifica una imagen desde una Uri local aplicando downsampling seguro para prevenir OutOfMemoryError.
+ */
+fun decodeSampledBitmapFromUri(context: Context, uri: Uri, reqWidth: Int = 1200, reqHeight: Int = 1200): Bitmap? {
+    return try {
+        // Primero leer solo las dimensiones de la imagen
+        val options = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        context.contentResolver.openInputStream(uri)?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, options)
+        }
+
+        // Calcular el factor de escala inSampleSize
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
+        options.inJustDecodeBounds = false
+
+        // Cargar el bitmap escalado optimizado
+        context.contentResolver.openInputStream(uri)?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, options)
+        }
+    } catch (e: Exception) {
+        null
+    }
 }

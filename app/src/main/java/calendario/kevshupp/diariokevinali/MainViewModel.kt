@@ -352,13 +352,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             newStatus = if (newHappiness > 40) Pet.STATUS_HAPPY else Pet.STATUS_SAD
         }
 
+        val today = dayFormat.format(Date(now))
+        val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+        val yesterdayStr = dayFormat.format(yesterday.time)
+
+        val isStreakAlive = p.lastInteractionDate != null && 
+                (p.lastInteractionDate == today || p.lastInteractionDate == yesterdayStr)
+
+        var newStreakDays = p.streakDays
+        if (!isStreakAlive && p.streakDays > 0) {
+            newStreakDays = 0
+        }
+
         val hasChanged = newHappiness != p.happiness ||
                 newHunger != p.hunger ||
                 newCleanliness != p.cleanliness ||
                 newSleepPercent != p.sleepPercent ||
                 newStatus != p.status ||
                 nextDecayUpdate != p.lastDecayUpdate ||
-                isNowSleeping != p.isSleeping
+                isNowSleeping != p.isSleeping ||
+                newStreakDays != p.streakDays
 
         if (hasChanged) {
             db.collection("pets").document(currentCoupleId)
@@ -370,7 +383,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     "status", newStatus,
                     "lastInteraction", lastInteractionCompensated,
                     "lastDecayUpdate", nextDecayUpdate,
-                    "isSleeping", isNowSleeping
+                    "isSleeping", isNowSleeping,
+                    "streakDays", newStreakDays
                 )
         }
     }
@@ -394,6 +408,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val p = _petState.value ?: return
         val now = System.currentTimeMillis()
         val today = dayFormat.format(Date(now))
+        val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+        val yesterdayStr = dayFormat.format(yesterday.time)
 
         val stats = calculateDecay(p, now)
         val currentCleanliness = stats.cleanliness
@@ -406,20 +422,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         var newLevel = p.level
         var newStreak = p.streakDays
 
-        if (p.lastInteractionDate == null || p.lastInteractionDate != today) {
-            if (p.lastInteractionDate != null) {
-                val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
-                val yesterdayStr = dayFormat.format(yesterday.time)
-
-                if (p.lastInteractionDate == yesterdayStr) {
-                    newStreak++
-                    newLovePoints += (newStreak * 2)
-                } else {
-                    newStreak = 1
-                }
-            } else {
-                newStreak = 1
-            }
+        if (p.lastInteractionDate == today) {
+            newStreak = Math.max(1, p.streakDays)
+        } else if (p.lastInteractionDate == yesterdayStr) {
+            newStreak = Math.max(0, p.streakDays) + 1
+            newLovePoints += (newStreak * 2)
+        } else {
+            newStreak = 1
         }
 
         var leveledUp = false

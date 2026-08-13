@@ -721,11 +721,19 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     }
 
     override fun onDestroy() {
-        if (connectivityManager != null && networkCallback != null) {
-            connectivityManager?.unregisterNetworkCallback(networkCallback!!)
-            networkCallback = null
+        try {
+            if (connectivityManager != null && networkCallback != null) {
+                connectivityManager?.unregisterNetworkCallback(networkCallback!!)
+                networkCallback = null
+            }
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Error desregistrando networkCallback: ${e.message}")
         }
-        fcmExecutor.shutdown()
+        try {
+            fcmExecutor.shutdown()
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Error cerrando fcmExecutor: ${e.message}")
+        }
         super.onDestroy()
     }
 

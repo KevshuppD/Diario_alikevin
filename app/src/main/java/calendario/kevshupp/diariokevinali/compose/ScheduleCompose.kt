@@ -94,21 +94,14 @@ data class TimeSlot(
     val endMinutes: Int
 )
 
-val DEFAULT_TIME_SLOTS = listOf(
-    TimeSlot("08:30 - 09:45", 8 * 60 + 30, 9 * 60 + 45),
-    TimeSlot("09:50 - 11:05", 9 * 60 + 50, 11 * 60 + 5),
-    TimeSlot("11:10 - 12:25", 11 * 60 + 10, 12 * 60 + 25),
-    TimeSlot("12:30 - 13:45", 12 * 60 + 30, 13 * 60 + 45),
-    TimeSlot("13:50 - 15:05", 13 * 60 + 50, 15 * 60 + 5),
-    TimeSlot("15:10 - 16:25", 15 * 60 + 10, 16 * 60 + 25),
-    TimeSlot("17:50 - 19:05", 17 * 60 + 50, 19 * 60 + 5),
-    TimeSlot("19:10 - 20:25", 19 * 60 + 10, 20 * 60 + 25)
-)
-
-// Calcula slots continuos de 1 hora dinámicamente según la clase más temprana y tardía
+// Calcula slots continuos de 1 hora dinámicamente asegurando margen superior e inferior
 fun computeHourlyTimeSlots(subjects: List<ClassSubject>): List<TimeSlot> {
-    val minHour = minOf(8, subjects.minOfOrNull { it.startHour } ?: 8)
-    val maxHour = maxOf(20, subjects.maxOfOrNull { if (it.endMinute > 0) it.endHour + 1 else it.endHour } ?: 20)
+    val minClassHour = subjects.minOfOrNull { it.startHour } ?: 8
+    val maxClassHour = subjects.maxOfOrNull { if (it.endMinute > 0) it.endHour + 1 else it.endHour } ?: 20
+
+    val minHour = minOf(7, minClassHour - 1).coerceAtLeast(6)
+    val maxHour = maxOf(21, maxClassHour + 1).coerceAtMost(23)
+
     return (minHour until maxHour).map { hour ->
         val startStr = String.format("%02d:00", hour)
         val endStr = String.format("%02d:00", hour + 1)
@@ -116,7 +109,7 @@ fun computeHourlyTimeSlots(subjects: List<ClassSubject>): List<TimeSlot> {
     }
 }
 
-val DAYS_OF_WEEK = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado")
+val DAYS_OF_WEEK = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes")
 val SUBJECT_COLORS = listOf(
     "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A",
     "#98DED9", "#C7CEEA", "#FFDAC1", "#E2F0CB",
@@ -132,8 +125,15 @@ fun ScheduleDashboardView(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
     val prefs = remember(context) { context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE) }
     val coupleId = remember(prefs) { prefs.getString("coupleId", "vínculo_único_123") ?: "vínculo_único_123" }
+    val rawUserName = remember(prefs) { prefs.getString("userName", "Kevin") ?: "Kevin" }
+    val currentUserOwner = remember(rawUserName) {
+        if (rawUserName.equals("ali", ignoreCase = true)) "ali" else "kevin"
+    }
     val db = FirebaseFirestore.getInstance()
 
     var subjects by remember { mutableStateOf<List<ClassSubject>>(emptyList()) }
@@ -141,9 +141,6 @@ fun ScheduleDashboardView(
 
     // Filtro de dueño: "both" (Ambos), "kevin" (Kevin), "ali" (Ali)
     var filterOwner by remember { mutableStateOf("both") }
-
-    // Modo de visualización: "hourly" (Por Horas / Continuo), "default" (Bloques Fijos)
-    var gridMode by remember { mutableStateOf("hourly") }
 
     // Diálogo de agregar/editar
     var showClassDialog by remember { mutableStateOf(false) }
@@ -208,60 +205,129 @@ fun ScheduleDashboardView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(12.dp)
+            .padding(if (isLandscape) 6.dp else 12.dp)
     ) {
-        // Encabezado
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "<",
-                fontFamily = Vt323,
-                fontSize = 28.sp,
-                color = textColor,
+        if (isLandscape) {
+            // Encabezado horizontal compacto para Landscape (Evita cortes en bordes)
+            Row(
                 modifier = Modifier
-                    .clickable { onBack() }
-                    .padding(8.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "HORARIO DE CLASES 📚",
-                fontFamily = Vt323,
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = textColor,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = "+ AÑADIR",
-                fontFamily = Vt323,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF2E7D32),
-                modifier = Modifier
-                    .border(2.dp, borderColor)
-                    .background(cardBg)
-                    .clickable {
-                        editingSubject = null
-                        showClassDialog = true
-                    }
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            )
-        }
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "<",
+                        fontFamily = Vt323,
+                        fontSize = 22.sp,
+                        color = textColor,
+                        modifier = Modifier
+                            .clickable { onBack() }
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "HORARIO 📚",
+                        fontFamily = Vt323,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
+                }
 
-        // Filtros: Dueño y Modo de Grilla
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Selector de Dueño (Ambos / Kevin / Ali)
-            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                // Filtro de dueño
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf("both" to "👥 Ambos", "kevin" to "👦 Kevin", "ali" to "👧 Ali").forEach { (key, label) ->
+                        val isSelected = filterOwner == key
+                        Text(
+                            text = label,
+                            fontFamily = Vt323,
+                            fontSize = 13.sp,
+                            color = if (isSelected) Color.White else textColor,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .border(1.dp, borderColor)
+                                .background(if (isSelected) borderColor else cardBg)
+                                .clickable { filterOwner = key }
+                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = "+ AÑADIR",
+                    fontFamily = Vt323,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2E7D32),
+                    modifier = Modifier
+                        .border(1.5.dp, borderColor)
+                        .background(cardBg)
+                        .clickable {
+                            editingSubject = null
+                            showClassDialog = true
+                        }
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+        } else {
+            // Encabezado vertical estándar para Portrait
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "<",
+                        fontFamily = Vt323,
+                        fontSize = 26.sp,
+                        color = textColor,
+                        modifier = Modifier
+                            .clickable { onBack() }
+                            .padding(6.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "HORARIO DE CLASES 📚",
+                        fontFamily = Vt323,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
+                }
+
+                Text(
+                    text = "+ AÑADIR",
+                    fontFamily = Vt323,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2E7D32),
+                    modifier = Modifier
+                        .border(2.dp, borderColor)
+                        .background(cardBg)
+                        .clickable {
+                            editingSubject = null
+                            showClassDialog = true
+                        }
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                )
+            }
+
+            // Filtro de Dueño
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 listOf("both" to "👥 Ambos", "kevin" to "👦 Kevin", "ali" to "👧 Ali").forEach { (key, label) ->
                     val isSelected = filterOwner == key
                     Text(
@@ -271,29 +337,11 @@ fun ScheduleDashboardView(
                         color = if (isSelected) Color.White else textColor,
                         maxLines = 1,
                         modifier = Modifier
+                            .padding(end = 6.dp)
                             .border(1.dp, borderColor)
                             .background(if (isSelected) borderColor else cardBg)
                             .clickable { filterOwner = key }
-                            .padding(horizontal = 6.dp, vertical = 5.dp)
-                    )
-                }
-            }
-
-            // Selector de Modo (Por Horas vs Bloques Fijos)
-            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                listOf("hourly" to "⏰ Horas", "default" to "📐 Bloques").forEach { (key, label) ->
-                    val isSelected = gridMode == key
-                    Text(
-                        text = label,
-                        fontFamily = Vt323,
-                        fontSize = 15.sp,
-                        color = if (isSelected) Color.White else textColor,
-                        maxLines = 1,
-                        modifier = Modifier
-                            .border(1.dp, borderColor)
-                            .background(if (isSelected) borderColor else cardBg)
-                            .clickable { gridMode = key }
-                            .padding(horizontal = 6.dp, vertical = 5.dp)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -310,9 +358,8 @@ fun ScheduleDashboardView(
                 else subjects.filter { it.owner == filterOwner || it.owner == "both" }
             }
 
-            val timeSlots = remember(filteredSubjects, gridMode) {
-                if (gridMode == "hourly") computeHourlyTimeSlots(filteredSubjects)
-                else DEFAULT_TIME_SLOTS
+            val timeSlots = remember(filteredSubjects) {
+                computeHourlyTimeSlots(filteredSubjects)
             }
 
             // Grilla Interactiva del Horario
@@ -321,6 +368,7 @@ fun ScheduleDashboardView(
                 days = DAYS_OF_WEEK,
                 subjects = filteredSubjects,
                 filterOwner = filterOwner,
+                currentUserOwner = currentUserOwner,
                 borderColor = borderColor,
                 cardBg = cardBg,
                 textColor = textColor,
@@ -336,6 +384,7 @@ fun ScheduleDashboardView(
     if (showClassDialog) {
         ClassEditDialog(
             subject = editingSubject,
+            currentUserOwner = currentUserOwner,
             textColor = textColor,
             borderColor = borderColor,
             cardBg = cardBg,
@@ -369,16 +418,21 @@ fun ScheduleGrid(
     days: List<String>,
     subjects: List<ClassSubject>,
     filterOwner: String,
+    currentUserOwner: String = "kevin",
     borderColor: Color,
     cardBg: Color,
     textColor: Color,
     onSubjectClick: (ClassSubject) -> Unit
 ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val horizontalScrollState = rememberScrollState()
     val verticalScrollState = rememberScrollState()
 
-    val slotHeightDp = 65.dp
-    val minTimeMinutes = timeSlots.firstOrNull()?.startMinutes ?: (8 * 60)
+    val hourColumnWidth = 80.dp
+    val dayColumnWidth = 145.dp
+    val slotHeightDp = if (isLandscape) 55.dp else 68.dp
+    val minTimeMinutes = timeSlots.firstOrNull()?.startMinutes ?: (7 * 60)
     val totalGridHeightDp = slotHeightDp * timeSlots.size
 
     Column(
@@ -387,7 +441,7 @@ fun ScheduleGrid(
             .border(2.dp, borderColor)
             .background(cardBg)
     ) {
-        // Cabecera de días (fija horizontalmente con scroll)
+        // Cabecera de días (fija horizontalmente con scroll sincronizado)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -397,7 +451,7 @@ fun ScheduleGrid(
             // Esquina superior izquierda (Hora)
             Box(
                 modifier = Modifier
-                    .width(90.dp)
+                    .width(hourColumnWidth)
                     .height(36.dp)
                     .border(1.dp, borderColor),
                 contentAlignment = Alignment.Center
@@ -408,7 +462,7 @@ fun ScheduleGrid(
             days.forEach { dayName ->
                 Box(
                     modifier = Modifier
-                        .width(110.dp)
+                        .width(dayColumnWidth)
                         .height(36.dp)
                         .border(1.dp, borderColor),
                     contentAlignment = Alignment.Center
@@ -428,13 +482,13 @@ fun ScheduleGrid(
             // Columna de Horas (Fija a la izquierda)
             Column(
                 modifier = Modifier
-                    .width(90.dp)
+                    .width(hourColumnWidth)
                     .height(totalGridHeightDp)
             ) {
                 timeSlots.forEach { slot ->
                     Box(
                         modifier = Modifier
-                            .width(90.dp)
+                            .width(hourColumnWidth)
                             .height(slotHeightDp)
                             .border(1.dp, borderColor)
                             .background(borderColor.copy(alpha = 0.05f)),
@@ -461,7 +515,7 @@ fun ScheduleGrid(
 
                 Box(
                     modifier = Modifier
-                        .width(110.dp)
+                        .width(dayColumnWidth)
                         .height(totalGridHeightDp)
                         .border(1.dp, borderColor.copy(alpha = 0.4f))
                 ) {
@@ -481,7 +535,8 @@ fun ScheduleGrid(
                                                 startHour = slot.startMinutes / 60,
                                                 startMinute = slot.startMinutes % 60,
                                                 endHour = slot.endMinutes / 60,
-                                                endMinute = slot.endMinutes % 60
+                                                endMinute = slot.endMinutes % 60,
+                                                owner = currentUserOwner
                                             )
                                         )
                                     }
@@ -498,8 +553,8 @@ fun ScheduleGrid(
                         val endDiff = maxOf(startDiff + 15, subEndMinutes - minTimeMinutes)
                         val durationMinutes = endDiff - startDiff
 
-                        val topDp = 65.dp * (startDiff.toFloat() / 60f)
-                        val heightDp = 65.dp * (durationMinutes.toFloat() / 60f)
+                        val topDp = slotHeightDp * (startDiff.toFloat() / 60f)
+                        val heightDp = slotHeightDp * (durationMinutes.toFloat() / 60f)
 
                         // Detectar si se solapa con otra materia el mismo día
                         val overlappingSubs = daySubjects.filter { other ->
@@ -509,10 +564,16 @@ fun ScheduleGrid(
                             )
                         }
 
-                        val cardWidth = if (overlappingSubs.isNotEmpty()) 52.dp else 106.dp
+                        val cardWidth = if (overlappingSubs.isNotEmpty()) {
+                            (dayColumnWidth - 6.dp) / (overlappingSubs.size + 1)
+                        } else {
+                            dayColumnWidth - 4.dp
+                        }
+
                         val xOffset = if (overlappingSubs.isNotEmpty()) {
-                            val subIdx = (overlappingSubs + sub).sortedBy { it.id }.indexOf(sub)
-                            (subIdx * 54).dp
+                            val sortedGroup = (overlappingSubs + sub).sortedBy { it.id }
+                            val subIdx = sortedGroup.indexOf(sub)
+                            2.dp + (subIdx * cardWidth.value).dp
                         } else {
                             2.dp
                         }
@@ -524,7 +585,7 @@ fun ScheduleGrid(
                         }
 
                         val timeFormat = String.format(
-                            "%02d:%02d - %02d:%02d",
+                            "%02d:%02d-%02d:%02d",
                             sub.startHour,
                             sub.startMinute,
                             sub.endHour,
@@ -539,7 +600,7 @@ fun ScheduleGrid(
                                 .background(subjColor.copy(alpha = 0.95f))
                                 .border(1.5.dp, Color.Black)
                                 .clickable { onSubjectClick(sub) }
-                                .padding(4.dp),
+                                .padding(horizontal = 3.dp, vertical = 2.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(
@@ -552,20 +613,21 @@ fun ScheduleGrid(
                                         text = ownerBadge,
                                         fontFamily = Vt323,
                                         fontSize = 11.sp,
-                                        color = Color.White.copy(alpha = 0.9f),
-                                        fontWeight = FontWeight.Bold
+                                        color = Color.White.copy(alpha = 0.95f),
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
                                     )
                                 }
                                 Text(
                                     text = sub.name,
                                     fontFamily = Vt323,
-                                    fontSize = 15.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
-                                    maxLines = 2,
+                                    maxLines = 3,
                                     overflow = TextOverflow.Ellipsis,
                                     textAlign = TextAlign.Center,
-                                    lineHeight = 15.sp
+                                    lineHeight = 14.sp
                                 )
                                 Text(
                                     text = "⏰ $timeFormat",
@@ -575,13 +637,14 @@ fun ScheduleGrid(
                                     maxLines = 1,
                                     textAlign = TextAlign.Center
                                 )
-                                if (sub.room.isNotBlank() && heightDp.value >= 50f) {
+                                if (sub.room.isNotBlank() && heightDp.value >= 38f) {
                                     Text(
                                         text = "📍 ${sub.room}",
                                         fontFamily = Vt323,
-                                        fontSize = 11.sp,
+                                        fontSize = 10.sp,
                                         color = Color.White.copy(alpha = 0.9f),
-                                        maxLines = 1
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -600,6 +663,7 @@ private fun isTimeOverlapping(startA: Int, endA: Int, startB: Int, endB: Int): B
 @Composable
 fun ClassEditDialog(
     subject: ClassSubject?,
+    currentUserOwner: String = "kevin",
     textColor: Color,
     borderColor: Color,
     cardBg: Color,
@@ -615,7 +679,7 @@ fun ClassEditDialog(
     var startMinuteText by remember { mutableStateOf(String.format("%02d", subject?.startMinute ?: 30)) }
     var endHourText by remember { mutableStateOf((subject?.endHour ?: 9).toString()) }
     var endMinuteText by remember { mutableStateOf(String.format("%02d", subject?.endMinute ?: 15)) }
-    var owner by remember { mutableStateOf(subject?.owner ?: "both") }
+    var owner by remember { mutableStateOf(subject?.owner ?: currentUserOwner) }
     var colorHex by remember { mutableStateOf(subject?.colorHex ?: SUBJECT_COLORS.first()) }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
@@ -756,8 +820,23 @@ fun ClassEditDialog(
                 }
 
                 Text("¿De quién es esta clase?:", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+                val availableOwners = remember(currentUserOwner, subject) {
+                    val list = mutableListOf<Pair<String, String>>()
+                    if (currentUserOwner == "ali") {
+                        list.add("ali" to "Ali")
+                        list.add("both" to "Ambos")
+                    } else {
+                        list.add("kevin" to "Kevin")
+                        list.add("both" to "Ambos")
+                    }
+                    if (subject != null && subject.owner.isNotBlank() && list.none { it.first == subject.owner }) {
+                        val otherLabel = if (subject.owner == "ali") "Ali" else "Kevin"
+                        list.add(0, subject.owner to otherLabel)
+                    }
+                    list
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("both" to "Ambos", "kevin" to "Kevin", "ali" to "Ali").forEach { (key, label) ->
+                    availableOwners.forEach { (key, label) ->
                         val selected = owner == key
                         Text(
                             text = label,

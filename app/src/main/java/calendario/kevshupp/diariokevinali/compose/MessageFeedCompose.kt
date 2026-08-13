@@ -582,6 +582,7 @@ fun rememberTimeUntilDecay(lastInteraction: Long, happiness: Int): String {
             val period = 24 * 60 * 60 * 1000L
             val nextDecayTime = lastInteraction + ((diff / period) + 1) * period
             val timeLeft = nextDecayTime - now
+            var nextDelay = 1000L
             
             if (timeLeft <= 0) {
                 remainingTime = "Baja inminente... ⏳"
@@ -589,15 +590,18 @@ fun rememberTimeUntilDecay(lastInteraction: Long, happiness: Int): String {
                 val hours = timeLeft / (1000 * 60 * 60)
                 val minutes = (timeLeft % (1000 * 60 * 60)) / (1000 * 60)
                 val seconds = (timeLeft % (1000 * 60)) / 1000
-                remainingTime = if (hours > 0) {
-                    "Próxima baja en: ${hours}h ${minutes}m"
+                if (hours > 0) {
+                    remainingTime = "Próxima baja en: ${hours}h ${minutes}m"
+                    nextDelay = 5000L // Actualizar cada 5s cuando aún quedan horas
                 } else if (minutes > 0) {
-                    "Próxima baja en: ${minutes}m ${seconds}s"
+                    remainingTime = "Próxima baja en: ${minutes}m ${seconds}s"
+                    nextDelay = 1000L
                 } else {
-                    "Próxima baja en: ${seconds}s ⏳"
+                    remainingTime = "Próxima baja en: ${seconds}s ⏳"
+                    nextDelay = 1000L
                 }
             }
-            kotlinx.coroutines.delay(1000L)
+            kotlinx.coroutines.delay(nextDelay)
         }
     }
     return remainingTime
@@ -991,8 +995,18 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                     )
                 }
 
-                // Racha Diaria
-                if (pet.streakDays > 0) {
+                // Racha Diaria (Verificación activa de vigencia)
+                val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
+                val yesterdayStr = remember {
+                    val cal = Calendar.getInstance()
+                    cal.add(Calendar.DAY_OF_YEAR, -1)
+                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
+                }
+                val isStreakActive = pet.lastInteractionDate != null &&
+                        (pet.lastInteractionDate == todayStr || pet.lastInteractionDate == yesterdayStr)
+                val effectiveStreak = if (isStreakActive) pet.streakDays else 0
+
+                if (effectiveStreak > 0) {
                     Surface(
                         color = Color(0xFFFF9800).copy(alpha = 0.2f),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF9800)),
@@ -1004,8 +1018,9 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         ) {
                             Text("🔥", fontSize = 14.sp)
                             Spacer(modifier = Modifier.width(4.dp))
+                            val dayText = if (effectiveStreak == 1) "día" else "días"
                             Text(
-                                text = "Racha: ${pet.streakDays} días",
+                                text = "Racha: $effectiveStreak $dayText",
                                 fontFamily = Vt323,
                                 fontSize = 16.sp,
                                 color = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)

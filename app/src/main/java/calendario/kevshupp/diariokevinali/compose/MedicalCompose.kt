@@ -317,6 +317,8 @@ fun MedicalEmergencyDialog(
         onDispose { medsListener.remove() }
     }
 
+    var isEditingMyData by remember { mutableStateOf(false) }
+
     fun saveMedicalData() {
         if (coupleId.isNullOrEmpty()) {
             Toast.makeText(context, "No hay pareja vinculada para guardar datos", Toast.LENGTH_SHORT).show()
@@ -342,6 +344,7 @@ fun MedicalEmergencyDialog(
             .set(payload, SetOptions.merge())
             .addOnSuccessListener {
                 isSaving = false
+                isEditingMyData = false
                 Toast.makeText(context, "¡Ficha médica guardada con éxito! 🏥", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener { e ->
@@ -462,41 +465,106 @@ fun MedicalEmergencyDialog(
                 } else {
                     Box(modifier = Modifier.weight(1f)) {
                         if (selectedTab == 0) {
-                            // Pestaña: Mi Ficha (Formulario de edición)
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                            ) {
-                                Text(
-                                    text = "Ingresa tus datos médicos vitales en caso de emergencia:",
-                                    fontFamily = Vt323,
-                                    fontSize = 16.sp,
-                                    color = textColor.copy(alpha = 0.8f),
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
+                            val myMeds = activeMeds.filter { med ->
+                                med.createdBy.isBlank() ||
+                                med.createdBy.equals(currentUserName, ignoreCase = true) ||
+                                med.createdBy.equals(currentUserId, ignoreCase = true)
+                            }
 
-                                // 1. Tipo de Sangre (Dropdown Selector + Editable)
-                                Text(
-                                    text = "🩸 Grupo Sanguíneo:",
-                                    fontFamily = Vt323,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Box(modifier = Modifier.fillMaxWidth()) {
-                                    OutlinedTextField(
-                                        value = bloodType,
-                                        onValueChange = { bloodType = it },
-                                        placeholder = { Text("Ej. O+, A-, B+...", fontFamily = Vt323, fontSize = 16.sp) },
-                                        textStyle = TextStyle(fontFamily = Vt323, fontSize = 20.sp, color = textColor),
+                            if (isEditingMyData) {
+                                // Modo Edición: Formulario de datos médicos
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        trailingIcon = {
-                                            IconButton(onClick = { showBloodDropdown = true }) {
-                                                Text("▼", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Editar Mi Ficha Médica ✏️",
+                                            fontFamily = Vt323,
+                                            fontSize = 22.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = accentColor
+                                        )
+                                        Button(
+                                            onClick = { isEditingMyData = false },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                                            shape = RectangleShape
+                                        ) {
+                                            Text("✕ CANCELAR", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    // 1. Tipo de Sangre (Dropdown Selector + Editable)
+                                    Text(
+                                        text = "🩸 Grupo Sanguíneo:",
+                                        fontFamily = Vt323,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textColor
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Box(modifier = Modifier.fillMaxWidth()) {
+                                        OutlinedTextField(
+                                            value = bloodType,
+                                            onValueChange = { bloodType = it },
+                                            placeholder = { Text("Ej. O+, A-, B+...", fontFamily = Vt323, fontSize = 16.sp) },
+                                            textStyle = TextStyle(fontFamily = Vt323, fontSize = 20.sp, color = textColor),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            trailingIcon = {
+                                                IconButton(onClick = { showBloodDropdown = true }) {
+                                                    Text("▼", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                                                }
+                                            },
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedContainerColor = boxBackground,
+                                                unfocusedContainerColor = boxBackground,
+                                                focusedBorderColor = accentColor,
+                                                unfocusedBorderColor = borderColor,
+                                                cursorColor = textColor
+                                            )
+                                        )
+                                        DropdownMenu(
+                                            expanded = showBloodDropdown,
+                                            onDismissRequest = { showBloodDropdown = false },
+                                            modifier = Modifier.background(boxBackground)
+                                        ) {
+                                            bloodTypesList.forEach { type ->
+                                                DropdownMenuItem(
+                                                    text = { Text(type, fontFamily = Vt323, fontSize = 18.sp, color = textColor) },
+                                                    onClick = {
+                                                        bloodType = type
+                                                        showBloodDropdown = false
+                                                    }
+                                                )
                                             }
-                                        },
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // 2. Alergias
+                                    Text(
+                                        text = "⚠️ Alergias (Medicamentos, alimentos, etc.):",
+                                        fontFamily = Vt323,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textColor
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    OutlinedTextField(
+                                        value = allergies,
+                                        onValueChange = { allergies = it },
+                                        placeholder = { Text("Ej. Penicilina, Mariscos, Látex, Ninguna...", fontFamily = Vt323, fontSize = 16.sp) },
+                                        textStyle = TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        maxLines = 3,
                                         colors = OutlinedTextFieldDefaults.colors(
                                             focusedContainerColor = boxBackground,
                                             unfocusedContainerColor = boxBackground,
@@ -505,272 +573,404 @@ fun MedicalEmergencyDialog(
                                             cursorColor = textColor
                                         )
                                     )
-                                    DropdownMenu(
-                                        expanded = showBloodDropdown,
-                                        onDismissRequest = { showBloodDropdown = false },
-                                        modifier = Modifier.background(boxBackground)
-                                    ) {
-                                        bloodTypesList.forEach { type ->
-                                            DropdownMenuItem(
-                                                text = { Text(type, fontFamily = Vt323, fontSize = 18.sp, color = textColor) },
-                                                onClick = {
-                                                    bloodType = type
-                                                    showBloodDropdown = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
 
-                                Spacer(modifier = Modifier.height(10.dp))
+                                    Spacer(modifier = Modifier.height(10.dp))
 
-                                // 2. Alergias
-                                Text(
-                                    text = "⚠️ Alergias (Medicamentos, alimentos, etc.):",
-                                    fontFamily = Vt323,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                OutlinedTextField(
-                                    value = allergies,
-                                    onValueChange = { allergies = it },
-                                    placeholder = { Text("Ej. Penicilina, Mariscos, Látex, Ninguna...", fontFamily = Vt323, fontSize = 16.sp) },
-                                    textStyle = TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    maxLines = 3,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = boxBackground,
-                                        unfocusedContainerColor = boxBackground,
-                                        focusedBorderColor = accentColor,
-                                        unfocusedBorderColor = borderColor,
-                                        cursorColor = textColor
-                                    )
-                                )
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                // 3. Condiciones Médicas / Enfermedades
-                                Text(
-                                    text = "🏥 Condiciones Médicas / Diagnósticos:",
-                                    fontFamily = Vt323,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                OutlinedTextField(
-                                    value = conditions,
-                                    onValueChange = { conditions = it },
-                                    placeholder = { Text("Ej. Asma, Migrañas, Diabetes, Hipertensión...", fontFamily = Vt323, fontSize = 16.sp) },
-                                    textStyle = TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    maxLines = 3,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = boxBackground,
-                                        unfocusedContainerColor = boxBackground,
-                                        focusedBorderColor = accentColor,
-                                        unfocusedBorderColor = borderColor,
-                                        cursorColor = textColor
-                                    )
-                                )
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                // 4. Medicación Diaria
-                                Text(
-                                    text = "💊 Medicamentos Actuales / Diarios:",
-                                    fontFamily = Vt323,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                OutlinedTextField(
-                                    value = medications,
-                                    onValueChange = { medications = it },
-                                    placeholder = { Text("Ej. Inhalador Salbutamol en caso de crisis, Paracetamol...", fontFamily = Vt323, fontSize = 16.sp) },
-                                    textStyle = TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    maxLines = 3,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = boxBackground,
-                                        unfocusedContainerColor = boxBackground,
-                                        focusedBorderColor = accentColor,
-                                        unfocusedBorderColor = borderColor,
-                                        cursorColor = textColor
-                                    )
-                                )
-
-                                // Medicamentos activos del módulo Misc (sincronizados con Firestore)
-                                if (activeMeds.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    // 3. Condiciones Médicas / Enfermedades
                                     Text(
-                                        text = "📋 Activos en la app:",
+                                        text = "🏥 Condiciones Médicas / Diagnósticos:",
                                         fontFamily = Vt323,
-                                        fontSize = 16.sp,
-                                        color = textColor.copy(alpha = 0.7f)
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textColor
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    activeMeds.forEach { med ->
-                                        val isMyMed = med.createdBy.equals(currentUserName, ignoreCase = true) ||
-                                            med.createdBy.equals(currentUserId, ignoreCase = true) ||
-                                            med.createdBy.isBlank()
-                                        val medBg = if (isMyMed) {
-                                            if (isDark) Color(0xFF1E3A2F) else Color(0xFFDCFCE7)
-                                        } else {
-                                            if (isDark) Color(0xFF1E2A3A) else Color(0xFFDBEAFE)
-                                        }
-                                        val medBorder = if (isMyMed) {
-                                            if (isDark) Color(0xFF4ADE80) else Color(0xFF16A34A)
-                                        } else {
-                                            if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
-                                        }
-                                        Row(
+                                    OutlinedTextField(
+                                        value = conditions,
+                                        onValueChange = { conditions = it },
+                                        placeholder = { Text("Ej. Asma, Migrañas, Diabetes, Hipertensión...", fontFamily = Vt323, fontSize = 16.sp) },
+                                        textStyle = TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        maxLines = 3,
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = boxBackground,
+                                            unfocusedContainerColor = boxBackground,
+                                            focusedBorderColor = accentColor,
+                                            unfocusedBorderColor = borderColor,
+                                            cursorColor = textColor
+                                        )
+                                    )
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // 4. Medicación Diaria
+                                    Text(
+                                        text = "💊 Medicamentos Actuales / Diarios:",
+                                        fontFamily = Vt323,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textColor
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    OutlinedTextField(
+                                        value = medications,
+                                        onValueChange = { medications = it },
+                                        placeholder = { Text("Ej. Inhalador Salbutamol en caso de crisis, Paracetamol...", fontFamily = Vt323, fontSize = 16.sp) },
+                                        textStyle = TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        maxLines = 3,
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = boxBackground,
+                                            unfocusedContainerColor = boxBackground,
+                                            focusedBorderColor = accentColor,
+                                            unfocusedBorderColor = borderColor,
+                                            cursorColor = textColor
+                                        )
+                                    )
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // 5. Contacto de Emergencia
+                                    Text(
+                                        text = "📞 Contacto de Emergencia (Nombre y Teléfono):",
+                                        fontFamily = Vt323,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textColor
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    OutlinedTextField(
+                                        value = emergencyContact,
+                                        onValueChange = { emergencyContact = it },
+                                        placeholder = { Text("Ej. Mamá: +56912345678, Papá: +56987654321", fontFamily = Vt323, fontSize = 16.sp) },
+                                        textStyle = TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        maxLines = 2,
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = boxBackground,
+                                            unfocusedContainerColor = boxBackground,
+                                            focusedBorderColor = accentColor,
+                                            unfocusedBorderColor = borderColor,
+                                            cursorColor = textColor
+                                        )
+                                    )
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // 6. Seguro Médico / Notas Adicionales
+                                    Text(
+                                        text = "📑 Seguro Médico / Hospital / Notas:",
+                                        fontFamily = Vt323,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textColor
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    OutlinedTextField(
+                                        value = insuranceNotes,
+                                        onValueChange = { insuranceNotes = it },
+                                        placeholder = { Text("Ej. Fonasa / Isapre / N° Póliza 12345 / Clínica Preferida...", fontFamily = Vt323, fontSize = 16.sp) },
+                                        textStyle = TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        maxLines = 3,
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = boxBackground,
+                                            unfocusedContainerColor = boxBackground,
+                                            focusedBorderColor = accentColor,
+                                            unfocusedBorderColor = borderColor,
+                                            cursorColor = textColor
+                                        )
+                                    )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    // Botón 3D Guardar
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(54.dp)
+                                            .clickable(enabled = !isSaving) { saveMedicalData() }
+                                    ) {
+                                        Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(vertical = 2.dp)
-                                                .border(1.dp, medBorder)
-                                                .background(medBg)
-                                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                                .height(48.dp)
+                                                .offset(y = 4.dp)
+                                                .background(borderColor)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(48.dp)
+                                                .border(2.dp, borderColor)
+                                                .background(accentColor),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            Column(modifier = Modifier.weight(1f)) {
+                                            if (isSaving) {
+                                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                                            } else {
                                                 Text(
-                                                    text = "💊 ${med.name}",
+                                                    text = "💾 GUARDAR MI FICHA MÉDICA",
                                                     fontFamily = Vt323,
-                                                    fontSize = 17.sp,
+                                                    fontSize = 20.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = textColor
+                                                    color = Color.White
                                                 )
-                                                if (med.selectedTimes.isNotEmpty()) {
-                                                    Text(
-                                                        text = med.selectedTimes.joinToString(" · "),
-                                                        fontFamily = Vt323,
-                                                        fontSize = 14.sp,
-                                                        color = textColor.copy(alpha = 0.7f)
-                                                    )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                            } else {
+                                // Modo Lectura: Tarjetas visuales de Mi Ficha
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Mi Ficha de Emergencia 🧑‍⚕️",
+                                            fontFamily = Vt323,
+                                            fontSize = 22.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = accentColor
+                                        )
+                                        Button(
+                                            onClick = { isEditingMyData = true },
+                                            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                                            shape = RectangleShape
+                                        ) {
+                                            Text("✏️ EDITAR", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    val hasMyData = bloodType.isNotEmpty() || allergies.isNotEmpty() || conditions.isNotEmpty() || emergencyContact.isNotEmpty() || insuranceNotes.isNotEmpty()
+
+                                    if (!hasMyData && myMeds.isEmpty()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .border(2.dp, borderColor)
+                                                .background(boxBackground)
+                                                .padding(24.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text("🏥", fontSize = 48.sp)
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    text = "Aún no has registrado tus datos médicos de emergencia.",
+                                                    fontFamily = Vt323,
+                                                    fontSize = 20.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = textColor,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                                Button(
+                                                    onClick = { isEditingMyData = true },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                                                    shape = RectangleShape
+                                                ) {
+                                                    Text("✏️ COMPLETAR MI FICHA MÉDICA", fontFamily = Vt323, fontSize = 18.sp, color = Color.White)
                                                 }
                                             }
-                                            Text(
-                                                text = if (isMyMed) "Mío" else "Pareja",
-                                                fontFamily = Vt323,
-                                                fontSize = 13.sp,
-                                                color = medBorder
+                                        }
+                                    } else {
+                                        // 🩸 Grupo Sanguíneo
+                                        MedicalFieldDisplayCard(
+                                            icon = "🩸",
+                                            title = "GRUPO SANGUÍNEO",
+                                            content = bloodType.ifEmpty { "No especificado" },
+                                            highlight = true,
+                                            theme = theme
+                                        )
+
+                                        // ⚠️ Alergias
+                                        MedicalFieldDisplayCard(
+                                            icon = "⚠️",
+                                            title = "ALERGIAS DECLARADAS",
+                                            content = allergies.ifEmpty { "Sin alergias declaradas" },
+                                            highlight = allergies.isNotEmpty() && !allergies.equals("ninguna", ignoreCase = true),
+                                            theme = theme
+                                        )
+
+                                        // 🏥 Condiciones Médicas
+                                        MedicalFieldDisplayCard(
+                                            icon = "🏥",
+                                            title = "CONDICIONES MÉDICAS / DIAGNÓSTICOS",
+                                            content = conditions.ifEmpty { "Sin condiciones declaradas" },
+                                            highlight = false,
+                                            theme = theme
+                                        )
+
+                                        // 💊 Medicación Habitual
+                                        MedicalFieldDisplayCard(
+                                            icon = "💊",
+                                            title = "MEDICACIÓN HABITUAL (DECLARADA)",
+                                            content = medications.ifEmpty { "Sin medicamentos declarados" },
+                                            highlight = false,
+                                            theme = theme
+                                        )
+
+                                        // 📋 Medicamentos Activos en la App (Mis Remedios)
+                                        if (myMeds.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            val medBorder = if (isDark) Color(0xFF4ADE80) else Color(0xFF16A34A)
+                                            val medBg = if (isDark) Color(0xFF1E3A2F) else Color(0xFFDCFCE7)
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 4.dp)
+                                                    .border(2.dp, medBorder)
+                                                    .background(medBg)
+                                                    .padding(12.dp)
+                                            ) {
+                                                Column {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text("💊", fontSize = 20.sp, modifier = Modifier.padding(end = 6.dp))
+                                                        Text(
+                                                            text = "MEDICAMENTOS ACTIVOS EN LA APP (MIS REMEDIOS)",
+                                                            fontFamily = Vt323,
+                                                            fontSize = 17.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = medBorder
+                                                        )
+                                                    }
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    myMeds.forEach { med ->
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(vertical = 3.dp)
+                                                                .border(1.dp, medBorder.copy(alpha = 0.5f))
+                                                                .background(boxBackground)
+                                                                .padding(8.dp),
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.SpaceBetween
+                                                        ) {
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(
+                                                                    text = "• ${med.name}",
+                                                                    fontFamily = Vt323,
+                                                                    fontSize = 18.sp,
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    color = textColor
+                                                                )
+                                                                if (med.selectedTimes.isNotEmpty()) {
+                                                                    Text(
+                                                                        text = "Horarios: ${med.selectedTimes.joinToString(" · ")}",
+                                                                        fontFamily = Vt323,
+                                                                        fontSize = 15.sp,
+                                                                        color = textColor.copy(alpha = 0.75f)
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 📞 Contacto de Emergencia con Botón Directo de Llamada
+                                        if (emergencyContact.isNotEmpty()) {
+                                            val contactPhone = extractPhoneNumber(emergencyContact)
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 6.dp)
+                                                    .border(2.dp, accentColor)
+                                                    .background(boxBackground)
+                                                    .padding(12.dp)
+                                            ) {
+                                                Column {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text("📞", fontSize = 20.sp, modifier = Modifier.padding(end = 6.dp))
+                                                        Text(
+                                                            text = "CONTACTO DE EMERGENCIA",
+                                                            fontFamily = Vt323,
+                                                            fontSize = 16.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = accentColor
+                                                        )
+                                                    }
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Text(
+                                                        text = emergencyContact,
+                                                        fontFamily = Vt323,
+                                                        fontSize = 20.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = textColor
+                                                    )
+
+                                                    if (contactPhone.isNotEmpty()) {
+                                                        Spacer(modifier = Modifier.height(10.dp))
+                                                        Button(
+                                                            onClick = {
+                                                                try {
+                                                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$contactPhone"))
+                                                                    context.startActivity(intent)
+                                                                } catch (e: Exception) {
+                                                                    Toast.makeText(context, "No se pudo abrir el marcador", Toast.LENGTH_SHORT).show()
+                                                                }
+                                                            },
+                                                            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                                                            shape = RectangleShape,
+                                                            modifier = Modifier.fillMaxWidth()
+                                                        ) {
+                                                            Text("📞 LLAMAR DIRECTO", fontFamily = Vt323, fontSize = 18.sp, color = Color.White)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 📑 Seguro Médico / Notas
+                                        if (insuranceNotes.isNotEmpty()) {
+                                            MedicalFieldDisplayCard(
+                                                icon = "📑",
+                                                title = "SEGURO MÉDICO / NOTAS",
+                                                content = insuranceNotes,
+                                                highlight = false,
+                                                theme = theme
                                             )
+                                        }
+
+                                        if (myMedicalData.lastUpdated > 0) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                                            val dateStr = sdf.format(Date(myMedicalData.lastUpdated))
+                                            Text(
+                                                text = "Última actualización: $dateStr",
+                                                fontFamily = Vt323,
+                                                fontSize = 14.sp,
+                                                color = textColor.copy(alpha = 0.6f),
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(14.dp))
+
+                                        Button(
+                                            onClick = { isEditingMyData = true },
+                                            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                                            shape = RectangleShape,
+                                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                                        ) {
+                                            Text("✏️ EDITAR MI FICHA MÉDICA", fontFamily = Vt323, fontSize = 20.sp, color = Color.White)
                                         }
                                     }
                                 }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                // 5. Contacto de Emergencia
-                                Text(
-                                    text = "📞 Contacto de Emergencia (Nombre y Teléfono):",
-                                    fontFamily = Vt323,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                OutlinedTextField(
-                                    value = emergencyContact,
-                                    onValueChange = { emergencyContact = it },
-                                    placeholder = { Text("Ej. Mamá: +56912345678, Papá: +56987654321", fontFamily = Vt323, fontSize = 16.sp) },
-                                    textStyle = TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    maxLines = 2,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = boxBackground,
-                                        unfocusedContainerColor = boxBackground,
-                                        focusedBorderColor = accentColor,
-                                        unfocusedBorderColor = borderColor,
-                                        cursorColor = textColor
-                                    )
-                                )
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                // 6. Seguro Médico / Notas Adicionales
-                                Text(
-                                    text = "📑 Seguro Médico / Hospital / Notas:",
-                                    fontFamily = Vt323,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                OutlinedTextField(
-                                    value = insuranceNotes,
-                                    onValueChange = { insuranceNotes = it },
-                                    placeholder = { Text("Ej. Fonasa / Isapre / N° Póliza 12345 / Clínica Preferida...", fontFamily = Vt323, fontSize = 16.sp) },
-                                    textStyle = TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    maxLines = 3,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = boxBackground,
-                                        unfocusedContainerColor = boxBackground,
-                                        focusedBorderColor = accentColor,
-                                        unfocusedBorderColor = borderColor,
-                                        cursorColor = textColor
-                                    )
-                                )
-
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                // Botón 3D Guardar
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(54.dp)
-                                        .clickable(enabled = !isSaving) { saveMedicalData() }
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp)
-                                            .offset(y = 4.dp)
-                                            .background(borderColor)
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp)
-                                            .border(2.dp, borderColor)
-                                            .background(accentColor),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        if (isSaving) {
-                                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                                        } else {
-                                            Text(
-                                                text = "💾 GUARDAR MI FICHA MÉDICA",
-                                                fontFamily = Vt323,
-                                                fontSize = 20.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
-                                            )
-                                        }
-                                    }
-                                }
-
-                                if (myMedicalData.lastUpdated > 0) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-                                    val dateStr = sdf.format(Date(myMedicalData.lastUpdated))
-                                    Text(
-                                        text = "Última actualización: $dateStr",
-                                        fontFamily = Vt323,
-                                        fontSize = 14.sp,
-                                        color = textColor.copy(alpha = 0.6f),
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(16.dp))
                             }
                         } else {
                             // Pestaña: Ficha de Pareja (Visualización)
@@ -780,35 +980,42 @@ fun MedicalEmergencyDialog(
                                     .verticalScroll(rememberScrollState())
                             ) {
                                 val pData = partnerMedicalData
+                                val partnerMeds = activeMeds.filter { med ->
+                                    val creator = med.createdBy.trim()
+                                    !creator.equals(currentUserName, ignoreCase = true) &&
+                                    !creator.equals(currentUserId, ignoreCase = true)
+                                }
 
                                 if (pData == null || (pData.bloodType.isEmpty() && pData.allergies.isEmpty() && pData.emergencyContact.isEmpty())) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .border(2.dp, borderColor)
-                                            .background(boxBackground)
-                                            .padding(24.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text("🏥", fontSize = 48.sp)
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Text(
-                                                text = "$partnerName aún no ha registrado sus datos médicos de emergencia.",
-                                                fontFamily = Vt323,
-                                                fontSize = 20.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = textColor,
-                                                textAlign = TextAlign.Center
-                                            )
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = "Pídele que ingrese a Perfil > Ficha Médica para completar su información.",
-                                                fontFamily = Vt323,
-                                                fontSize = 16.sp,
-                                                color = textColor.copy(alpha = 0.7f),
-                                                textAlign = TextAlign.Center
-                                            )
+                                    if (partnerMeds.isEmpty()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .border(2.dp, borderColor)
+                                                .background(boxBackground)
+                                                .padding(24.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text("🏥", fontSize = 48.sp)
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    text = "$partnerName aún no ha registrado sus datos médicos de emergencia.",
+                                                    fontFamily = Vt323,
+                                                    fontSize = 20.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = textColor,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "Pídele que ingrese a Perfil > Ficha Médica para completar su información.",
+                                                    fontFamily = Vt323,
+                                                    fontSize = 16.sp,
+                                                    color = textColor.copy(alpha = 0.7f),
+                                                    textAlign = TextAlign.Center
+                                                )
+                                            }
                                         }
                                     }
                                 } else {
@@ -849,15 +1056,77 @@ fun MedicalEmergencyDialog(
                                         theme = theme
                                     )
 
-                                    // 💊 Medicación
+                                    // 💊 Medicación Habitual (Texto manual)
                                     MedicalFieldDisplayCard(
                                         icon = "💊",
-                                        title = "MEDICACIÓN HABITUAL",
+                                        title = "MEDICACIÓN HABITUAL (DECLARADA)",
                                         content = pData.medications.ifEmpty { "Sin medicamentos declarados" },
                                         highlight = false,
                                         theme = theme
                                     )
+                                }
 
+                                // 💊 Medicamentos Activos en la App (Sincronizados en tiempo real del módulo Medicamentos)
+                                if (partnerMeds.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    val medBorder = if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
+                                    val medBg = if (isDark) Color(0xFF1E2A3A) else Color(0xFFDBEAFE)
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                            .border(2.dp, medBorder)
+                                            .background(medBg)
+                                            .padding(12.dp)
+                                    ) {
+                                        Column {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text("💊", fontSize = 20.sp, modifier = Modifier.padding(end = 6.dp))
+                                                Text(
+                                                    text = "MEDICAMENTOS ACTIVOS EN LA APP ($partnerName)",
+                                                    fontFamily = Vt323,
+                                                    fontSize = 17.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = medBorder
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            partnerMeds.forEach { med ->
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 3.dp)
+                                                        .border(1.dp, medBorder.copy(alpha = 0.5f))
+                                                        .background(boxBackground)
+                                                        .padding(8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(
+                                                            text = "• ${med.name}",
+                                                            fontFamily = Vt323,
+                                                            fontSize = 18.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = textColor
+                                                        )
+                                                        if (med.selectedTimes.isNotEmpty()) {
+                                                            Text(
+                                                                text = "Horarios: ${med.selectedTimes.joinToString(" · ")}",
+                                                                fontFamily = Vt323,
+                                                                fontSize = 15.sp,
+                                                                color = textColor.copy(alpha = 0.75f)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (pData != null && (pData.bloodType.isNotEmpty() || pData.allergies.isNotEmpty() || pData.emergencyContact.isNotEmpty())) {
                                     // 📞 Contacto de Emergencia con Botón Directo de Llamada
                                     val contactPhone = extractPhoneNumber(pData.emergencyContact)
                                     Box(
