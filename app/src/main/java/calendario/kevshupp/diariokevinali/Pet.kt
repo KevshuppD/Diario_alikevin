@@ -22,6 +22,7 @@ data class Pet(
     var lastBallDate: String? = null,
     var lastSnakeDate: String? = null,
     var lastMemoryDate: String? = null,
+    var lastFlappyDate: String? = null,
     var lastBathDate: String? = null,
     var lastDecayUpdate: Long = System.currentTimeMillis(),
     var dndTriggeredByUserId: String? = null,

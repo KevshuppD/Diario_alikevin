@@ -1,5 +1,8 @@
 package calendario.kevshupp.diariokevinali
 
+import androidx.compose.runtime.Stable
+
+@Stable
 data class MedicationItem(
     val id: String = "",
     val name: String = "",

@@ -29,6 +29,7 @@ import android.webkit.WebViewClient
 @Composable
 fun MiscScreen(
     theme: String,
+    initialView: String = "grid",
     onBack: () -> Unit
 ) {
     val isDark = theme == "Pixel Oscuro"
@@ -39,7 +40,7 @@ fun MiscScreen(
     val cardBg = if (isDark) Color(0xFF1E1E1E) else if (isMono) Color.White else Color(0xFFFFFBEA)
 
     // View state: "grid", "checklist", "anime", "meds", "web", "schedule"
-    var currentView by remember { mutableStateOf("grid") }
+    var currentView by remember(initialView) { mutableStateOf(initialView) }
 
     if (currentView == "grid") {
         MiscGridView(

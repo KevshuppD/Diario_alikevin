@@ -51,13 +51,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             return
         }
 
-        val clickType = remoteMessage.data["click_type"]
+        val clickType = remoteMessage.data["click_type"] ?: remoteMessage.data["type"]
         sendNotification(title, body, imageUrl, clickType)
     }
 
     private fun sendNotification(title: String, messageBody: String, imageUrl: String?, clickType: String?) {
         val intent = Intent(this, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             if (clickType != null) {
                 putExtra("click_type", clickType)
             }

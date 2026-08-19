@@ -1,7 +1,9 @@
 package calendario.kevshupp.diariokevinali
 
+import androidx.compose.runtime.Stable
 import com.google.firebase.firestore.IgnoreExtraProperties
 
+@Stable
 @IgnoreExtraProperties
 data class Recipe(
     var recipeId: String? = null,

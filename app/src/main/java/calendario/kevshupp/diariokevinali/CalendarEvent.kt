@@ -1,8 +1,11 @@
 package calendario.kevshupp.diariokevinali
 
+import androidx.compose.runtime.Stable
+
 /**
  * Modelo para eventos del calendario con soporte para recurrencia.
  */
+@Stable
 data class CalendarEvent(
     var eventId: String = "",
     var title: String = "",

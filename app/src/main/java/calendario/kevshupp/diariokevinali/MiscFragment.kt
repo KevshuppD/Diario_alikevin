@@ -10,13 +10,15 @@ import calendario.kevshupp.diariokevinali.compose.MiscScreen
 
 class MiscFragment : Fragment() {
     private var theme: String = "Pixel Claro"
+    private var initialView: String = "grid"
 
     companion object {
         @JvmStatic
-        fun newInstance(theme: String): MiscFragment {
+        fun newInstance(theme: String, initialView: String = "grid"): MiscFragment {
             val f = MiscFragment()
             val a = Bundle()
             a.putString("theme", theme)
+            a.putString("initialView", initialView)
             f.arguments = a
             return f
         }
@@ -25,6 +27,7 @@ class MiscFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         theme = arguments?.getString("theme") ?: "Pixel Claro"
+        initialView = arguments?.getString("initialView") ?: "grid"
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -33,6 +36,7 @@ class MiscFragment : Fragment() {
                 androidx.compose.material3.MaterialTheme {
                     MiscScreen(
                         theme = theme,
+                        initialView = initialView,
                         onBack = { (activity as? MainActivity)?.onBackPressedDispatcher?.onBackPressed() }
                     )
                 }

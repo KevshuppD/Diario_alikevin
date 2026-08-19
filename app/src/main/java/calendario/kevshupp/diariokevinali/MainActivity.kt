@@ -110,14 +110,15 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     private lateinit var ivToolbarHeart: ImageView
     private lateinit var composeFeed: ComposeView
     
-    private val messagesState: MutableState<List<Message>> = mutableStateOf(ArrayList(), neverEqualPolicy())
-    private val themeState: MutableState<String> = mutableStateOf("Pixel Claro", neverEqualPolicy())
-    private val showEditorState: MutableState<Boolean> = mutableStateOf(false, neverEqualPolicy())
-    private val editingMessageState: MutableState<Message?> = mutableStateOf(null, neverEqualPolicy())
-    private val currentSelectedImageUrlState: MutableState<String?> = mutableStateOf(null, neverEqualPolicy())
-    private val isUploadingState: MutableState<Boolean> = mutableStateOf(false, neverEqualPolicy())
-    private val overlayMessageState: MutableState<String> = mutableStateOf("Cargando...", neverEqualPolicy())
-    private val petState: MutableState<Pet> = mutableStateOf(Pet(), neverEqualPolicy())
+    private val messagesState: MutableState<List<Message>> = mutableStateOf(emptyList())
+    private val themeState: MutableState<String> = mutableStateOf("Pixel Claro")
+    private val showEditorState: MutableState<Boolean> = mutableStateOf(false)
+    private val showPetDialogState: MutableState<Boolean> = mutableStateOf(false)
+    private val editingMessageState: MutableState<Message?> = mutableStateOf(null)
+    private val currentSelectedImageUrlState: MutableState<String?> = mutableStateOf(null)
+    private val isUploadingState: MutableState<Boolean> = mutableStateOf(false)
+    private val overlayMessageState: MutableState<String> = mutableStateOf("Cargando...")
+    private val petState: MutableState<Pet> = mutableStateOf(Pet())
 
     private var messages: List<Message> = ArrayList()
     private lateinit var etMessage: EditText
@@ -578,6 +579,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         viewModel.levelUpEvent.observe(this) { pair ->
             if (pair != null) {
                 showStyledPixelToast("¡${pair.first} ha subido al nivel ${pair.second}! 🎉")
+                sendNotificationV1("¡${pair.first} subió al Nivel ${pair.second}! ⭐", "¡$currentUserName y tú alcanzaron un nuevo nivel con ${pair.first}!", null, "mascota")
                 viewModel.levelUpEvent.value = null
             }
         }
@@ -593,6 +595,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
             themeState,
             editingMessageState,
             showEditorState,
+            showPetDialogState,
             currentSelectedImageUrlState,
             { msg: Message -> onMessageClick(null, msg) },
             { msg: Message ->
@@ -961,25 +964,49 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     fun navigateToClickType(clickType: String?) {
         if (clickType == null) return
         runOnUiThread {
-            when (clickType) {
-                "carta", "like" -> {
+            when (clickType.lowercase(Locale.ROOT)) {
+                "mascota", "pet", "thor" -> {
+                    updateTabSelection(R.id.btnHome)
+                    fragmentContainer.visibility = View.GONE
+                    composeFeed.visibility = View.VISIBLE
+                    inputArea.visibility = View.VISIBLE
+                    btnMenuMore.visibility = View.VISIBLE
+                    showPetDialogState.value = true
+                }
+                "carta", "like", "mensaje", "feed" -> {
                     updateTabSelection(R.id.btnHome)
                     fragmentContainer.visibility = View.GONE
                     composeFeed.visibility = View.VISIBLE
                     inputArea.visibility = View.VISIBLE
                     btnMenuMore.visibility = View.VISIBLE
                 }
-                "receta" -> {
+                "receta", "recipe" -> {
                     updateTabSelection(R.id.btnRecipes)
                     showFragment(RecipeFragment.newInstance(currentCoupleId, currentTheme))
                 }
-                "cita" -> {
+                "cita", "calendar", "calendario" -> {
                     updateTabSelection(R.id.btnCalendar)
                     showFragment(CalendarFragment.newInstance(currentCoupleId, currentUserId ?: "", currentTheme))
                 }
-                "album" -> {
+                "album", "foto", "recuerdo" -> {
                     updateTabSelection(R.id.btnAlbum)
                     showFragment(AlbumFragment.newInstance(currentCoupleId, currentUserId ?: "", currentUserName ?: "", currentUserImageUri ?: "", currentTheme))
+                }
+                "medicamento", "meds", "remedio", "remedios" -> {
+                    updateTabSelection(R.id.btnMisc)
+                    showFragment(MiscFragment.newInstance(currentTheme, "meds"))
+                }
+                "horario", "schedule", "clases" -> {
+                    updateTabSelection(R.id.btnMisc)
+                    showFragment(MiscFragment.newInstance(currentTheme, "schedule"))
+                }
+                "anime", "animes" -> {
+                    updateTabSelection(R.id.btnMisc)
+                    showFragment(MiscFragment.newInstance(currentTheme, "anime"))
+                }
+                "espiritus", "spirits", "checklist" -> {
+                    updateTabSelection(R.id.btnMisc)
+                    showFragment(MiscFragment.newInstance(currentTheme, "checklist"))
                 }
             }
         }
@@ -1671,6 +1698,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleUpdateIntent(intent)
     }
     

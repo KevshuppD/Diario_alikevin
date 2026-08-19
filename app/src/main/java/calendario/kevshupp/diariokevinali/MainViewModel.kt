@@ -846,7 +846,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         val now = System.currentTimeMillis()
         val today = dayFormat.format(Date(now))
-        val updateDateField = if ("memory" == gameType) "lastMemoryDate" else "lastSnakeDate"
+        val updateDateField = when (gameType) {
+            "memory" -> "lastMemoryDate"
+            "flappy" -> "lastFlappyDate"
+            else -> "lastSnakeDate"
+        }
 
         if ("memory" == gameType && today == p.lastMemoryDate) {
             toastMessage.value = "¡Ya jugaste a Retro Memory hoy! 🧠"
@@ -854,6 +858,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         if ("snake" == gameType && today == p.lastSnakeDate) {
             toastMessage.value = "¡Ya jugaste a La Serpiente hoy! 🐍"
+            return
+        }
+        if ("flappy" == gameType && today == p.lastFlappyDate) {
+            toastMessage.value = "¡Ya jugaste a Flappy Thor hoy! 🐱🪽"
             return
         }
 
