@@ -555,8 +555,12 @@ fun SpiritsChecklistView(
     
     // Deterministic identification of roles
     val isKevin = currentUserId == "user_kevin_01"
+
+    // Season Selection (Default: Temporada 2)
+    var currentSeason by remember { mutableStateOf(2) }
+    val firestoreCollection = if (currentSeason == 1) "fortnite_spirits" else "fortnite_spirits_s2"
     
-    val defaultCategories = remember {
+    val defaultCategoriesT1 = remember {
         listOf(
             SpiritCategory("Espíritu de Batman", (98..104).map { String.format("%02d", it) }),
             SpiritCategory("Espíritu de Agua", (1..4).map { String.format("%02d", it) } + listOf("66", "67", "112")),
@@ -582,10 +586,10 @@ fun SpiritsChecklistView(
             SpiritCategory("Espíritu Especial/Invitado", listOf("13") + (119..121).map { String.format("%02d", it) } + listOf("140", "141"))
         )
     }
-    val defaultSpiritsList = remember { (1..141).map { String.format("%02d", it) } }
+    val defaultSpiritsListT1 = remember { (1..141).map { String.format("%02d", it) } }
 
-    var categories by remember { mutableStateOf(defaultCategories) }
-    var spiritsList by remember { mutableStateOf(defaultSpiritsList) }
+    var categories by remember { mutableStateOf(emptyList<SpiritCategory>()) }
+    var spiritsList by remember { mutableStateOf(emptyList<String>()) }
 
     // Firebase references
     val db = FirebaseFirestore.getInstance()
@@ -608,9 +612,9 @@ fun SpiritsChecklistView(
     var deletingSpiritId by remember { mutableStateOf<String?>(null) }
     var deletingCategoryName by remember { mutableStateOf<String?>(null) }
 
-    // Read real-time values from Firestore
-    DisposableEffect(coupleId) {
-        val listener = db.collection("fortnite_spirits").document(coupleId)
+    // Read real-time values from Firestore based on coupleId and currentSeason
+    DisposableEffect(coupleId, currentSeason) {
+        val listener = db.collection(firestoreCollection).document(coupleId)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) return@addSnapshotListener
                 if (snapshot != null && snapshot.exists()) {
@@ -644,11 +648,16 @@ fun SpiritsChecklistView(
                     var schemaVersion = (snapshot.get("schema_version") as? Number)?.toInt() ?: 1
 
                     if (parsedSpiritsList.isEmpty()) {
-                        categories = defaultCategories
-                        spiritsList = defaultSpiritsList
+                        if (currentSeason == 1) {
+                            categories = defaultCategoriesT1
+                            spiritsList = defaultSpiritsListT1
+                        } else {
+                            categories = emptyList()
+                            spiritsList = emptyList()
+                        }
                     } else {
-                        // Apply selection migration if version is 1
-                        if (schemaVersion == 1) {
+                        // Apply selection migration if version is 1 (for Season 1)
+                        if (currentSeason == 1 && schemaVersion == 1) {
                             val migrateSelections = { oldList: List<String> ->
                                 oldList.map { id ->
                                     val num = id.toIntOrNull() ?: return@map id
@@ -668,15 +677,15 @@ fun SpiritsChecklistView(
                             schemaVersion = 3 // Promotion to base v3 for local logic
                         }
 
-                        if (schemaVersion < 4) {
-                            val baseCategories = parsedCategories.ifEmpty { defaultCategories }
-                            val mergedCategories = mergeCategories(baseCategories, defaultCategories, (122..141).map { String.format("%02d", it) })
+                        if (currentSeason == 1 && schemaVersion < 4) {
+                            val baseCategories = parsedCategories.ifEmpty { defaultCategoriesT1 }
+                            val mergedCategories = mergeCategories(baseCategories, defaultCategoriesT1, (122..141).map { String.format("%02d", it) })
                             categories = mergedCategories
-                            spiritsList = defaultSpiritsList
+                            spiritsList = defaultSpiritsListT1
                         } else {
                             // Firestore document is up to date, use its values
-                            categories = parsedCategories.ifEmpty { defaultCategories }
-                            spiritsList = parsedSpiritsList
+                            categories = if (currentSeason == 1) parsedCategories.ifEmpty { defaultCategoriesT1 } else parsedCategories
+                            spiritsList = if (currentSeason == 1) parsedSpiritsList.ifEmpty { defaultSpiritsListT1 } else parsedSpiritsList
                         }
                     }
                 } else {
@@ -686,8 +695,13 @@ fun SpiritsChecklistView(
                     aliMastery = emptyList()
                     customNames = emptyMap()
                     customCategories = emptyMap()
-                    categories = defaultCategories
-                    spiritsList = defaultSpiritsList
+                    if (currentSeason == 1) {
+                        categories = defaultCategoriesT1
+                        spiritsList = defaultSpiritsListT1
+                    } else {
+                        categories = emptyList()
+                        spiritsList = emptyList()
+                    }
                 }
             }
         onDispose {
@@ -724,7 +738,7 @@ fun SpiritsChecklistView(
             "categories" to categoriesMap,
             "schema_version" to 4
         )
-        db.collection("fortnite_spirits").document(coupleId)
+        db.collection(firestoreCollection).document(coupleId)
             .set(updates, SetOptions.merge())
     }
 
@@ -734,7 +748,7 @@ fun SpiritsChecklistView(
         } else {
             customCategories + (originalName to newName)
         }
-        db.collection("fortnite_spirits").document(coupleId)
+        db.collection(firestoreCollection).document(coupleId)
             .set(mapOf("custom_categories" to newCustomCategories, "schema_version" to 4), SetOptions.merge())
     }
 
@@ -762,7 +776,7 @@ fun SpiritsChecklistView(
             "ali_mastery" to newAliMastery,
             "schema_version" to 4
         )
-        db.collection("fortnite_spirits").document(coupleId)
+        db.collection(firestoreCollection).document(coupleId)
             .set(updates, SetOptions.merge())
     }
 
@@ -777,7 +791,7 @@ fun SpiritsChecklistView(
             "custom_categories" to newCustomCategories,
             "schema_version" to 4
         )
-        db.collection("fortnite_spirits").document(coupleId)
+        db.collection(firestoreCollection).document(coupleId)
             .set(updates, SetOptions.merge())
     }
 
@@ -799,7 +813,7 @@ fun SpiritsChecklistView(
             val newMastery = currentMastery.filter { it != spiritId }
             updates[masteryKey] = newMastery
         }
-        db.collection("fortnite_spirits").document(coupleId)
+        db.collection(firestoreCollection).document(coupleId)
             .set(updates, SetOptions.merge())
     }
 
@@ -815,7 +829,7 @@ fun SpiritsChecklistView(
             targetUserKey to newList,
             "schema_version" to 4
         )
-        db.collection("fortnite_spirits").document(coupleId)
+        db.collection(firestoreCollection).document(coupleId)
             .set(updates, SetOptions.merge())
     }
 
@@ -953,6 +967,25 @@ fun SpiritsChecklistView(
                 color = textColor,
                 modifier = Modifier.weight(1f)
             )
+            // Season Switcher Pill
+            Box(
+                modifier = Modifier
+                    .border(2.dp, if (currentSeason == 2) Color(0xFFBD93F9) else borderColor)
+                    .background(if (currentSeason == 2) Color(0xFFBD93F9).copy(alpha = 0.2f) else Color.Transparent)
+                    .clickable {
+                        currentSeason = if (currentSeason == 2) 1 else 2
+                    }
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = "T$currentSeason",
+                    fontFamily = Vt323,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (currentSeason == 2) Color(0xFFBD93F9) else textColor
+                )
+            }
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = when (viewMode) {
                     "grupos" -> "[GRUPOS]"

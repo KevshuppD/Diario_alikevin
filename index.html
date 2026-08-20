@@ -7,7 +7,15 @@
   <!-- Google Fonts: Inter & Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Prefetch HTML Modes for instant transitions -->
+  <link rel="prefetch" href="/normal" as="document">
+  <link rel="prefetch" href="/edit" as="document">
+  <link rel="prefetch" href="/db" as="document">
+  <link rel="prefetch" href="/config" as="document">
   
   <!-- Firebase Compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -27,6 +35,130 @@
       color: #f3f4f6 !important;
     }
     :root {
+      --bg-color: #0d0e15;
+      --card-bg: rgba(22, 24, 37, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-color: #9c27b0;
+      --accent-glow: rgba(156, 39, 176, 0.4);
+      --text-color: #f3f4f6;
+      --text-muted: #9ca3af;
+      --success-color: #10b981;
+      --error-color: #ef4444;
+      --kevin-color: #3b82f6;
+      --ali-color: #ec4899;
+      --both-color: #a855f7;
+    }
+
+    body.theme-pixel-claro {
+      color-scheme: light;
+      --bg-color: #f6eedf;
+      --card-bg: #fffbf4;
+      --card-border: #d4c5b3;
+      --accent-color: #7c4dff;
+      --accent-glow: rgba(124, 77, 255, 0.2);
+      --text-color: #3d2314;
+      --text-muted: #7c5c4c;
+      --success-color: #2e7d32;
+      --error-color: #c62828;
+      --kevin-color: #1565c0;
+      --ali-color: #c2185b;
+      --both-color: #6a1b9a;
+    }
+
+    body.theme-pixel-claro .neon-bg {
+      opacity: 0.15;
+    }
+
+    body.theme-pixel-claro header {
+      background: #eedfca;
+      border-bottom-color: #d4c5b3;
+    }
+
+    body.theme-pixel-claro .mode-switch {
+      background: #e2d2bd;
+      border-color: #cbb9a3;
+    }
+
+    body.theme-pixel-claro .mode-btn {
+      color: #7c5c4c;
+    }
+
+    body.theme-pixel-claro .mode-btn.active {
+      color: #ffffff;
+    }
+
+    body.theme-pixel-claro .normal-toolbar {
+      background: #fff8ed;
+      border-color: #d4c5b3;
+      box-shadow: 0 4px 15px rgba(61, 35, 20, 0.08);
+    }
+
+    body.theme-pixel-claro .stat-pill {
+      background: #f1e2cd;
+      border-color: #d4c5b3;
+    }
+
+    body.theme-pixel-claro .search-input-wrapper {
+      background: #f1e2cd;
+      border-color: #d4c5b3;
+    }
+
+    body.theme-pixel-claro .filter-btn {
+      background: #f1e2cd;
+      border-color: #d4c5b3;
+      color: #5c3e2e;
+    }
+
+    body.theme-pixel-claro .filter-btn.active {
+      color: #ffffff;
+    }
+
+    body.theme-pixel-claro .category-card {
+      background: #fffbf4;
+      border-color: #d4c5b3;
+      box-shadow: 0 4px 12px rgba(61, 35, 20, 0.05);
+    }
+
+    body.theme-pixel-claro .spirit-slots-grid {
+      background: #f6eedf;
+      border-color: #d4c5b3;
+    }
+
+    body.theme-pixel-claro .spirit-slot {
+      background: #fffbf4;
+      border-color: #e2d2be;
+    }
+
+    body.theme-pixel-claro select,
+    body.theme-pixel-claro input {
+      background-color: #f6eedf !important;
+      color: #3d2314 !important;
+      border: 1px solid #d4c5b3 !important;
+    }
+
+    body.theme-pixel-claro option {
+      background-color: #f6eedf !important;
+      color: #3d2314 !important;
+    }
+
+    body.theme-pixel-claro .modal-content {
+      background-color: #fffbf4 !important;
+      color: #3d2314 !important;
+      border-color: #d4c5b3 !important;
+    }
+
+    body.theme-pixel-claro .user-badge {
+      background: #f1e2cd;
+      border-color: #d4c5b3;
+    }
+
+    body.theme-pixel-claro .connection-status-pill {
+      background: #f1e2cd;
+      border-color: #d4c5b3;
+    }
+
+    body.theme-pixel-oscuro {
+      color-scheme: dark;
       --bg-color: #0d0e15;
       --card-bg: rgba(22, 24, 37, 0.75);
       --card-border: rgba(255, 255, 255, 0.08);
@@ -164,30 +296,46 @@
       color: #f472b6;
     }
 
-    .connection-panel {
+    .connection-status-pill {
       display: flex;
       align-items: center;
       gap: 8px;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--card-border);
-      padding: 4px 10px;
+      padding: 6px 14px;
       border-radius: 10px;
-    }
-
-    .connection-panel label {
       font-size: 12px;
-      color: var(--text-muted);
+      font-weight: 600;
+      transition: all 0.3s ease;
     }
 
-    .connection-panel input {
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid var(--card-border);
-      color: var(--text-color);
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 13px;
-      width: 140px;
-      font-family: monospace;
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .status-dot.online {
+      background-color: #10b981;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+    }
+
+    .status-dot.offline {
+      background-color: #ef4444;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+    }
+
+    .status-dot.syncing {
+      background-color: #f59e0b;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
     }
 
     .btn {
@@ -980,6 +1128,49 @@
       background: rgba(239, 68, 68, 0.95);
     }
 
+    /* Upload Loading Overlay */
+    #upload-loader-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+    }
+    #upload-loader-overlay.active {
+      display: flex;
+    }
+    .upload-loader-spinner {
+      width: 56px;
+      height: 56px;
+      border: 5px solid rgba(255,255,255,0.15);
+      border-top-color: #10b981;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .upload-loader-text {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-align: center;
+      max-width: 260px;
+      line-height: 1.5;
+    }
+    .upload-loader-step {
+      font-size: 12px;
+      color: rgba(255,255,255,0.55);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
     /* Responsive */
     @media (max-width: 767px) {
       header {
@@ -995,6 +1186,168 @@
       .spirit-slots-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
       }
+    }
+
+    /* DB Inspector Styles */
+    .db-inspector-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+    .db-inspector-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .db-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .db-stat-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .db-stat-number {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent-color);
+      text-shadow: 0 0 10px var(--accent-glow);
+    }
+    .db-stat-name {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .db-raw-json-container {
+      background: #06070a;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      color: #39ff14; /* Neon green terminal look */
+      overflow-x: auto;
+      max-height: 500px;
+      white-space: pre-wrap;
+    }
+    .db-action-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-color);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .db-action-btn:hover {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+    /* Custom dialog modal */
+    #custom-dialog-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    #custom-dialog-overlay.show {
+      display: flex;
+    }
+    #custom-dialog-box {
+      background: #181924;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 28px 28px 22px;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      animation: dialogPop 0.15s ease;
+    }
+    @keyframes dialogPop {
+      from { transform: scale(0.92); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+    #custom-dialog-icon {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+    #custom-dialog-msg {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-color);
+      margin-bottom: 20px;
+    }
+    #custom-dialog-input {
+      display: none;
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: #12131a;
+      color: #fff;
+      border: 1px solid var(--card-border);
+      font-size: 14px;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+    }
+    #custom-dialog-input:focus { outline: none; border-color: var(--accent-color); }
+    #custom-dialog-btns {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    @media (max-width: 768px) {
+      .config-grid-layout {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+      }
+    }
+    .draggable-config-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      cursor: grab;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .draggable-config-row:hover:not(.unmovable) {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .draggable-config-row:active:not(.unmovable) {
+      cursor: grabbing;
+    }
+    .draggable-config-row.unmovable {
+      cursor: default;
     }
   </style>
 </head>
@@ -1012,10 +1365,18 @@
     </div>
 
     <div class="header-controls">
+      <!-- Season Switcher Pill -->
+      <div class="mode-switch" id="season-switch" style="background: rgba(156, 39, 176, 0.2); border-color: var(--accent-color);">
+        <button type="button" id="btn-season-2" class="mode-btn active" onclick="switchSeason(2)" style="font-weight: 700;">🌟 Temporada 2</button>
+        <button type="button" id="btn-season-1" class="mode-btn" onclick="switchSeason(1)" style="font-weight: 700;">🕰️ Temporada 1</button>
+      </div>
+
       <!-- Mode Toggle Pill -->
       <div class="mode-switch">
-        <button id="btn-mode-normal" class="mode-btn active" onclick="setMode('normal')">👁️ Modo Normal</button>
-        <button id="btn-mode-edit" class="mode-btn" onclick="setMode('edit')">✏️ Modo Edición</button>
+        <button type="button" id="btn-mode-normal" class="mode-btn active" onclick="switchModeSPA('normal')">👁️ Modo Normal</button>
+        <button type="button" id="btn-mode-edit" class="mode-btn" onclick="switchModeSPA('edit')">✏️ Modo Edición</button>
+        <button type="button" id="btn-mode-db" class="mode-btn" onclick="switchModeSPA('db')">📂 Base de Datos</button>
+        <button type="button" id="btn-mode-config" class="mode-btn" onclick="switchModeSPA('config')">🏷️ Tipos y Categorías</button>
       </div>
 
       <!-- Logged User Badge -->
@@ -1025,11 +1386,12 @@
         <button class="btn btn-secondary" onclick="logout()" style="padding: 2px 6px; font-size: 10px; margin-left: 4px;">Salir</button>
       </div>
 
-      <!-- Connection Panel -->
-      <div class="connection-panel">
-        <label for="couple-id">Pareja:</label>
-        <input type="text" id="couple-id" value="vínculo_único_123">
-        <button class="btn" id="btn-load" style="padding: 4px 10px; font-size: 12px;">Cargar</button>
+      <!-- Connection Status & Settings Pill -->
+      <div class="connection-status-pill" id="db-status-pill">
+        <span class="status-dot syncing" id="db-status-dot"></span>
+        <span class="status-text" id="db-status-text">Conectando...</span>
+        <button class="btn btn-secondary" onclick="openThemeModal()" style="padding: 2px 6px; font-size: 11px; margin-left: 4px; border-color: var(--accent-color); color: var(--text-color);" title="Cambiar tema visual sincronizado con la app">🎨 Tema</button>
+        <button class="btn btn-secondary" onclick="openCloudinarySettingsModal()" style="padding: 2px 6px; font-size: 11px; margin-left: 4px;" title="Configuración de Cloudinary y limpieza">⚙️ Config</button>
       </div>
     </div>
   </header>
@@ -1054,27 +1416,30 @@
         <div class="stats-container">
           <div class="stat-pill kevin">
             <span class="stat-label">🔵 Kevin:</span>
-            <span class="stat-val" id="stat-kevin">0 / 121</span>
+            <span class="stat-val" id="stat-kevin">0 / 0</span>
           </div>
           <div class="stat-pill ali">
             <span class="stat-label">🔴 Ali:</span>
-            <span class="stat-val" id="stat-ali">0 / 121</span>
+            <span class="stat-val" id="stat-ali">0 / 0</span>
           </div>
           <div class="stat-pill both">
             <span class="stat-label">💜 Ambos:</span>
-            <span class="stat-val" id="stat-both">0 / 121</span>
+            <span class="stat-val" id="stat-both">0 / 0</span>
           </div>
         </div>
+      </div>
 
-        <!-- Search Input Bar -->
-        <div class="search-bar-container">
-          <div class="search-input-wrapper">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="spirit-search-input" placeholder="Buscar espíritu por nombre, # ID o variante (ej. Viento, Cubo, #12)..." oninput="onSearchInput(this.value)">
-            <button class="clear-search-btn" id="clear-search-btn" onclick="clearSearch()" style="display:none;" title="Limpiar búsqueda">✕ Limpiar</button>
-          </div>
+      <!-- Search Input Bar (Disponible en Modo Normal y Modo Edición) -->
+      <div class="search-bar-container" id="shared-search-bar-container">
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="spirit-search-input" placeholder="Buscar espíritu por nombre, # ID o variante (ej. Viento, Cubo, #12)..." oninput="onSearchInput(this.value)">
+          <button class="clear-search-btn" id="clear-search-btn" onclick="clearSearch()" style="display:none;" title="Limpiar búsqueda">✕ Limpiar</button>
         </div>
+      </div>
 
+      <!-- Normal Mode Toolbar: Stats & Filters -->
+      <div class="normal-toolbar" id="normal-toolbar">
         <!-- Filter Buttons -->
         <div class="filter-bar">
           <span style="font-size: 13px; color: var(--text-muted); font-weight: 600; margin-right: 4px;">Filtrar:</span>
@@ -1091,9 +1456,15 @@
 
       <!-- Action buttons bar for Edition Mode -->
       <div class="actions-bar" id="edit-actions-bar" style="display: none;">
-        <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px;">Estructura de Categorías en Firestore</h2>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn btn-secondary" id="btn-toggle-gallery" onclick="toggleGalleryDrawer()" style="border-color: var(--accent-color); color: #e040fb;">
+            <span>🖼️</span> <span id="btn-gallery-label">Mostrar Galería</span>
+          </button>
+          <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px;">Estructura de Categorías en Firestore</h2>
+        </div>
         <div style="display: flex; gap: 10px;">
           <button class="btn btn-secondary" id="btn-add-category">Nueva Categoría</button>
+          <button class="btn btn-secondary" onclick="openNewSpiritModal()">Nuevo Espíritu</button>
           <button class="btn btn-danger" id="btn-reset">Restablecer por Defecto</button>
           <button class="btn btn-success" id="btn-save">Guardar Cambios</button>
         </div>
@@ -1102,6 +1473,16 @@
       <!-- Categories Container -->
       <div class="categories-list" id="categories-container">
         <!-- Rendered dynamically -->
+      </div>
+
+      <!-- DB Inspector Container -->
+      <div class="db-inspector-area" id="db-inspector-container" style="display: none; margin-top: 20px;">
+        <!-- Dynamic DB view here -->
+      </div>
+
+      <!-- Configuration / Types and Categories Manager Container -->
+      <div class="db-inspector-area" id="config-container" style="display: none; margin-top: 20px;">
+        <!-- Dynamic Config editor here -->
       </div>
     </div>
   </div>
@@ -1145,13 +1526,322 @@
     </div>
   </div>
 
+  <!-- Modal for Creating New Spirit in Edit Mode -->
+  <div class="modal-overlay" id="new-spirit-modal">
+    <div class="modal-content">
+      <h3>👾 Crear Nuevo Espíritu</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Completa los detalles para añadir un nuevo espíritu a la colección:</p>
+      
+      <div style="margin-bottom: 12px;">
+        <label for="new-spirit-id" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">ID del Espíritu (Ej: 142)</label>
+        <input type="text" id="new-spirit-id" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label for="new-spirit-category" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">Categoría</label>
+        <select id="new-spirit-category" onchange="onNewSpiritFieldsChange()" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+        </select>
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label for="new-spirit-type" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">Tipo / Variante</label>
+        <select id="new-spirit-type" onchange="onNewSpiritFieldsChange()" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+          <option value="Normal">Normal</option>
+          <option value="Dorado">Dorado</option>
+          <option value="Gomita">Gomita</option>
+          <option value="Galaxia">Galaxia</option>
+          <option value="Gema">Gema</option>
+          <option value="Holofoil">Holofoil</option>
+          <option value="Cubo">Cubo</option>
+          <option value="Arcoíris">Arcoíris</option>
+          <option value="Quack">Quack</option>
+          <option value="Otro">Otro (Escribir personalizado...)</option>
+        </select>
+      </div>
+
+      <div id="new-spirit-custom-type-container" style="margin-bottom: 12px; display: none;">
+        <label for="new-spirit-custom-type" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">Escribe la variante/tipo personalizado</label>
+        <input type="text" id="new-spirit-custom-type" oninput="onNewSpiritFieldsChange()" placeholder="Ej: John Wick, Bananín Dorado" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label for="new-spirit-name" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">Nombre del Espíritu</label>
+        <input type="text" id="new-spirit-name" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label for="new-spirit-image-file" style="display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-muted);">Imagen del Espíritu (Opcional - Subirá a Cloudinary)</label>
+        <input type="file" id="new-spirit-image-file" accept="image/*" style="width: 100%; padding: 6px; border-radius: 8px; font-size: 13px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closeNewSpiritModal()">Cancelar</button>
+        <button class="btn" onclick="submitNewSpirit()">Crear Espíritu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Cloudinary Maintenance / Settings -->
+  <div class="modal-overlay" id="cloudinary-settings-modal">
+    <div class="modal-content" style="max-width: 460px;">
+      <h3 style="display: flex; align-align: center; gap: 8px; font-family: 'Outfit', sans-serif;">⚙️ Configuración y Limpieza Cloudinary</h3>
+      <p style="font-size: 13px; color: var(--text-muted); margin: 10px 0 16px 0;">
+        Gestiona y optimiza el almacenamiento de imágenes de tus espíritus en la nube.
+      </p>
+
+
+
+      <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border); padding: 14px; border-radius: 10px; margin-bottom: 16px;">
+        <h4 style="font-size: 14px; margin-bottom: 6px; color: #f3f4f6;">💾 Protección de Caché Local</h4>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+          Solicita al navegador marcar la app como <strong>Persistente</strong> para evitar el borrado automático de la caché.
+        </p>
+        <button class="btn btn-secondary" onclick="openPersistentStorageModalManual()" style="width: 100%; justify-content: center; font-size: 13px; border-color: #10b981; color: #10b981;">
+          <span>🛡️</span> Abrir Asistente de Almacenamiento Persistente
+        </button>
+      </div>
+
+      <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border); padding: 14px; border-radius: 10px; margin-bottom: 16px;">
+        <h4 style="font-size: 14px; margin-bottom: 6px; color: #f3f4f6;">🧹 Mantenimiento de Almacenamiento</h4>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;">
+          Escanea tu cuenta de Cloudinary y elimina permanentemente aquellas imágenes en la carpeta <code>spirits/</code> que no estén asignadas a ningún espíritu o configuración en la app.
+        </p>
+        <button class="btn btn-danger" onclick="runCloudinaryCleanup()" style="width: 100%; justify-content: center; font-size: 13px;">
+          <span>🗑️</span> Eliminar fotos no utilizadas de Cloudinary
+        </button>
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; border-top: 1px solid var(--card-border); padding-top: 10px;">
+        <button class="btn btn-secondary" onclick="closeCloudinarySettingsModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal dedicado para Tema Visual (Sincronizado con App Mobile) -->
+  <div class="modal-overlay" id="theme-settings-modal">
+    <div class="modal-content" style="max-width: 480px;">
+      <h3 style="display: flex; align-items: center; gap: 8px; font-family: 'Outfit', sans-serif;">🎨 Tema Visual Sincronizado con la App</h3>
+      <p style="font-size: 13px; color: var(--text-muted); margin: 8px 0 16px 0;">
+        Personaliza los colores para tu perfil (<strong id="theme-user-label">Usuario</strong>). Todos los cambios se aplicarán instantáneamente tanto en la web como en tu app móvil:
+      </p>
+
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+        <div onclick="changeTheme('Pixel Oscuro'); renderThemeModalContent();" style="flex: 1; min-width: 170px; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 2px solid var(--card-border); cursor: pointer; display: flex; align-items: center; justify-content: space-between;" id="modal-theme-dark-box">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px;">🌙</span>
+            <div>
+              <div style="font-weight: 700; font-size: 14px; color: #fff;">Pixel Oscuro</div>
+              <div style="font-size: 10px; color: #9ca3af;">Gris profundo & neón</div>
+            </div>
+          </div>
+          <input type="radio" name="modal-theme-choice" id="modal-radio-dark" style="cursor: pointer;">
+        </div>
+
+        <div onclick="changeTheme('Pixel Claro'); renderThemeModalContent();" style="flex: 1; min-width: 170px; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 2px solid var(--card-border); cursor: pointer; display: flex; align-items: center; justify-content: space-between;" id="modal-theme-light-box">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px;">☀️</span>
+            <div>
+              <div style="font-weight: 700; font-size: 14px; color: var(--text-color);">Pixel Claro</div>
+              <div style="font-size: 10px; color: var(--text-muted);">Crema & café retro</div>
+            </div>
+          </div>
+          <input type="radio" name="modal-theme-choice" id="modal-radio-light" style="cursor: pointer;">
+        </div>
+      </div>
+
+      <h4 style="font-family: 'Outfit', sans-serif; font-size: 14px; color: var(--text-color); margin-bottom: 8px;" id="modal-palette-title">
+        PALETA DE BARRAS Y ACENTOS
+      </h4>
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 20px;" id="modal-palette-container">
+      </div>
+
+      <div onclick="toggleCustomBgPreference(); renderThemeModalContent();" style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); margin-bottom: 16px;">
+        <input type="checkbox" id="modal-checkbox-custombg" style="cursor: pointer; width: 16px; height: 16px;">
+        <span style="font-size: 12.5px; font-weight: 600; color: var(--text-color);">Fondo adaptativo (usar tinte de color de barra)</span>
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--card-border); padding-top: 10px;">
+        <button class="btn btn-secondary" onclick="closeThemeModal()">Listo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para Solicitar Almacenamiento Persistente -->
+  <div class="modal-overlay" id="persistent-storage-modal">
+    <div class="modal-content" style="max-width: 480px; border-color: rgba(16, 185, 129, 0.4);">
+      <h3 style="display: flex; align-items: center; gap: 8px; font-family: 'Outfit', sans-serif; color: #10b981;">
+        💾 Activar Almacenamiento Persistente
+      </h3>
+      <p style="font-size: 13.5px; color: var(--text-color); margin: 12px 0; line-height: 1.5;">
+        Para garantizar la máxima velocidad a 100 Hz y evitar que el navegador elimine la caché local de tu colección de espíritus y tu sesión, se recomienda activar el <strong>Almacenamiento Persistente</strong>.
+      </p>
+
+      <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 12px 14px; border-radius: 10px; margin-bottom: 16px;">
+        <ul style="font-size: 12.5px; color: #9ca3af; padding-left: 18px; margin: 0; line-height: 1.6;">
+          <li>⚡ Carga instantánea de imágenes y datos de Firestore en 0ms.</li>
+          <li>🛡️ Protección anti-borrado automático de la caché si el disco se llena.</li>
+          <li>🔑 Tu inicio de sesión se mantendrá siempre guardado.</li>
+        </ul>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closePersistentStorageModal()" style="font-size: 13px;">Omitir por ahora</button>
+        <button class="btn btn-success" onclick="requestPersistentStoragePermission()" style="font-size: 13px;">
+          <span>✅</span> Activar Almacenamiento Protegido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Editing Spirit Image -->
+  <div class="modal-overlay" id="edit-image-modal">
+    <div class="modal-content" style="max-width: 420px;">
+      <h3 id="edit-image-modal-title">🖼️ Editar Imagen del Espíritu</h3>
+      <div style="text-align: center; margin: 12px 0;">
+        <img id="edit-image-preview" src="" alt="Vista previa" style="max-width: 120px; max-height: 120px; border-radius: 8px; border: 2px solid var(--card-border); background: #12131a; padding: 4px;">
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 12px; font-weight: bold; margin-bottom: 6px; color: var(--text-muted);">OPCIÓN 1: Subir nuevo archivo (Cloudinary)</label>
+        <input type="file" id="edit-image-file-input" accept="image/*" style="width: 100%; font-size: 12px; color: #fff; background: #12131a; padding: 6px; border-radius: 6px; border: 1px solid var(--card-border);">
+        <button class="btn btn-success" id="btn-upload-cloudinary" style="width: 100%; margin-top: 8px; justify-content: center; font-size: 13px;">📤 Subir a Cloudinary</button>
+      </div>
+
+      <div style="margin-bottom: 16px; border-top: 1px solid var(--card-border); padding-top: 12px;">
+        <label for="edit-image-url-input" style="display: block; font-size: 12px; font-weight: bold; margin-bottom: 6px; color: var(--text-muted);">OPCIÓN 2: O ingresar URL de imagen externa</label>
+        <input type="text" id="edit-image-url-input" placeholder="https://ejemplo.com/imagen.png" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 13px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+        <button class="btn" id="btn-save-custom-url" style="width: 100%; margin-top: 8px; justify-content: center; font-size: 13px;">💾 Guardar URL Personalizada</button>
+      </div>
+
+      <div style="margin-bottom: 12px; border-top: 1px solid var(--card-border); padding-top: 12px;">
+        <button class="btn btn-secondary" onclick="openStudioCropModal()" style="width: 100%; justify-content: center; font-size: 13px; border-color: #e040fb; color: #e040fb;">
+          <span>✂️</span> Abrir Editor (Recortar & Quitar Fondo)
+        </button>
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; border-top: 1px solid var(--card-border); padding-top: 8px;">
+        <button class="btn btn-secondary" onclick="closeEditImageModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editor de Imágenes Studio (Recorte y Quitar Fondo) -->
+  <div class="modal-overlay" id="studio-crop-modal">
+    <div class="modal-content" style="max-width: 580px; border-color: rgba(224, 64, 251, 0.4);">
+      <h3 style="display: flex; align-items: center; gap: 8px; font-family: 'Outfit', sans-serif; color: #e040fb;">
+        ✂️ Editor de Imágenes — Recorte y Quitar Fondo
+      </h3>
+      <p style="font-size: 12.5px; color: var(--text-muted); margin: 6px 0 14px 0;">
+        Sube o selecciona una foto para recortar el área del espíritu y eliminar automáticamente el fondo blanco/claro.
+      </p>
+
+      <div style="margin-bottom: 12px;">
+        <input type="file" id="studio-file-input" accept="image/*" onchange="loadStudioImageFromFile(this)" style="font-size: 12px; color: #fff; background: #12131a; padding: 6px; border-radius: 6px; border: 1px solid var(--card-border); width: 100%;">
+      </div>
+
+      <!-- Canvas Editor Container -->
+      <div style="position: relative; width: 100%; height: 320px; background: #0a0b12; border: 1px solid var(--card-border); border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 14px;">
+        <canvas id="studio-canvas" style="max-width: 100%; max-height: 100%; cursor: crosshair; background-image: repeating-linear-gradient(45deg, #181a26 25%, transparent 25%, transparent 75%, #181a26 75%, #181a26), repeating-linear-gradient(45deg, #181a26 25%, #12131a 25%, #12131a 75%, #181a26 75%, #181a26); background-position: 0 0, 8px 8px; background-size: 16px 16px;"></canvas>
+      </div>
+
+      <!-- Controles de Modo de Herramienta -->
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--card-border); align-items: center;">
+        <span style="font-size: 12px; font-weight: bold; color: var(--text-muted);">Herramienta:</span>
+        <button class="btn btn-secondary active" id="studio-tool-crop" onclick="setStudioTool('crop')" style="font-size: 11.5px; padding: 4px 10px;">
+          <span>✂️</span> Recortar
+        </button>
+        <button class="btn btn-secondary" id="studio-tool-wand" onclick="setStudioTool('wand')" style="font-size: 11.5px; padding: 4px 10px;">
+          <span>🎯</span> Tocar Color (Varita Mágica)
+        </button>
+        <button class="btn btn-secondary" id="studio-tool-eraser" onclick="setStudioTool('eraser')" style="font-size: 11.5px; padding: 4px 10px;">
+          <span>🧹</span> Pincel Borrador
+        </button>
+        <button class="btn btn-secondary" onclick="resetStudioCanvas()" style="font-size: 11.5px; padding: 4px 10px; margin-left: auto;">
+          <span>🔄</span> Restablecer
+        </button>
+      </div>
+
+      <!-- Ajustes de Tolerancia y Pincel -->
+      <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; border: 1px solid var(--card-border); align-items: center;">
+        <button class="btn btn-secondary" onclick="removeStudioBackground()" style="font-size: 12px; padding: 5px 12px;">
+          <span>🪄</span> Quitar Fondo Automático
+        </button>
+
+        <div id="studio-brush-size-container" style="display: none; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted);">
+          <span>Tamaño pincel:</span>
+          <input type="range" id="studio-brush-size" min="4" max="60" value="20" oninput="document.getElementById('studio-brush-size-val').textContent = this.value" style="width: 75px;">
+          <span id="studio-brush-size-val" style="font-weight: 700; color: #00e5ff; min-width: 20px;">20</span>px
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px; color: var(--text-muted);">
+          <span>Tolerancia varita:</span>
+          <input type="range" id="studio-threshold" min="5" max="100" value="35" oninput="onStudioThresholdChange(this.value)" style="width: 80px;">
+          <span id="studio-threshold-val" style="font-weight: 700; color: #e040fb; min-width: 20px;">35</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closeStudioCropModal()">Cancelar</button>
+        <button class="btn btn-success" onclick="saveStudioProcessedImage()">
+          <span>📤</span> Guardar y Subir Espíritu
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Banner -->
   <div class="toast-banner" id="toast-banner">
     <span id="toast-icon">✓</span>
     <span id="toast-msg">Mensaje de alerta</span>
   </div>
 
+  <!-- Upload Loading Overlay -->
+  <div id="upload-loader-overlay">
+    <div class="upload-loader-spinner"></div>
+    <div class="upload-loader-text">
+      <div id="upload-loader-msg">Subiendo imagen...</div>
+      <div class="upload-loader-step" id="upload-loader-step">Por favor espera</div>
+    </div>
+  </div>
+
+  <!-- Custom Dialog Modal (replaces alert/confirm/prompt) -->
+  <div id="custom-dialog-overlay">
+    <div id="custom-dialog-box">
+      <div id="custom-dialog-icon"></div>
+      <div id="custom-dialog-msg"></div>
+      <input type="text" id="custom-dialog-input" placeholder="">
+      <div id="custom-dialog-btns"></div>
+    </div>
+  </div>
+
+
   <script>
+    // 0. Utilidad: Comprime una imagen antes de subirla (evita el límite de 4.5MB de Vercel)
+    function compressImage(file, maxWidth, quality) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
     // 1. Firebase Configuration
     const firebaseConfig = {
       apiKey: "AIzaSyAY4lXaHIXNlftWZ3XcLgm4xuQE0atLnoM",
@@ -1164,33 +1854,80 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+    
+    // Habilitar caché offline de Firestore para carga instantánea
+    db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+      console.log("Persistence notice:", err.code);
+    });
 
     // 2. Global Application State
-    let coupleId = "vínculo_único_123";
-    let currentMode = "normal"; // "normal" or "edit"
+    let coupleId = localStorage.getItem("coupleId") || "vínculo_único_123";
+    const pageName = window.location.pathname.split('/').pop().replace('.html', '');
+    let currentMode = "normal";
+    if (pageName === "edit") currentMode = "edit";
+    else if (pageName === "db") currentMode = "db";
+    else if (pageName === "config") currentMode = "config";
+
     let currentFilter = "todos"; // "todos", "no_obtenidos", "obtenidos_otro_no_yo", "obtenidos_yo_no_otro", "obtenidos_ambos"
     let searchQuery = "";
     let currentUser = null; // { username: 'kevin'|'ali', name: 'Kevin'|'Ali', key: 'kevin_list'|'ali_list', masteryKey: 'kevin_mastery'|'ali_mastery' }
 
-    let spiritsList = [];
-    let categories = [];
-    let customNames = {};
-    let customCategories = {};
-    let kevinList = [];
-    let aliList = [];
-    let kevinMastery = [];
-    let aliMastery = [];
+    // Season Selection (Default: 2)
+    let currentSeason = 2;
+    function getFirestoreCollection() {
+      return currentSeason === 1 ? "fortnite_spirits" : "fortnite_spirits_s2";
+    }
+
+    // Cargar caché local instantánea si existe
+    let cachedData = null;
+    try {
+      cachedData = JSON.parse(localStorage.getItem(`spirits_cache_${coupleId}_s${currentSeason}`));
+    } catch(e) {}
+
+    let spiritsList = cachedData && cachedData.spirits_list ? cachedData.spirits_list : [];
+    let categories = cachedData && cachedData.categories ? cachedData.categories : [];
+    let customNames = cachedData && cachedData.custom_names ? cachedData.custom_names : {};
+    let customCategories = cachedData && cachedData.custom_categories ? cachedData.custom_categories : {};
+    let customImages = cachedData && cachedData.custom_images ? cachedData.custom_images : {};
+    const defaultSpiritTypesT1 = [
+      { name: "Normal", suffix: "" },
+      { name: "Dorado", suffix: " Dorado" },
+      { name: "Gomita", suffix: " Gomita" },
+      { name: "Galaxia", suffix: " Galaxia" },
+      { name: "Gema", suffix: " Gema" },
+      { name: "Holofoil", suffix: " Holofoil" },
+      { name: "Cubo", suffix: " Cubo" },
+      { name: "Arcoíris", suffix: " Arcoíris" },
+      { name: "Quack", suffix: " Quack" },
+      { name: "Galaxia Oscura", suffix: " Galaxia Oscura" },
+      { name: "Especial", suffix: " Especial" }
+    ];
+
+    const defaultSpiritTypesT2 = [
+      { name: "Normal", suffix: "" },
+      { name: "Dorado", suffix: " Dorado" },
+      { name: "Matrix", suffix: " Matrix" }
+    ];
+
+    let spiritTypes = cachedData && cachedData.spirit_types ? cachedData.spirit_types : (currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
+    let kevinList = cachedData && cachedData.kevin_list ? cachedData.kevin_list : [];
+    let aliList = cachedData && cachedData.ali_list ? cachedData.ali_list : [];
+    let kevinMastery = cachedData && cachedData.kevin_mastery ? cachedData.kevin_mastery : [];
+    let aliMastery = cachedData && cachedData.ali_mastery ? cachedData.ali_mastery : [];
+
+    let imageCacheBusters = {};
+    let editingSpiritImageId = null;
     let firestoreUnsubscribe = null;
 
     // Default configuration for resetting/migration
-    const defaultSpiritsList = Array.from({length: 121}, (_, i) => String(i + 1).padStart(2, '0'));
+    const defaultSpiritsList = Array.from({length: 117}, (_, i) => String(i + 1).padStart(2, '0'));
     
     const defaultCategories = [
       { name: "Espíritu de Batman", spiritIds: ["98", "99", "100", "101", "102", "103", "104"] },
       { name: "Espíritu de Agua", spiritIds: ["01", "02", "03", "04", "66", "67", "112"] },
       { name: "Espíritu de Tierra", spiritIds: ["09", "10", "11", "12", "70", "71", "114"] },
       { name: "Espíritu de Fuego", spiritIds: ["18", "19", "20", "21", "74", "75", "116"] },
-      { name: "Espíritu Pato", spiritIds: ["26", "27", "28", "29", "78", "79", "118"] },
+      { name: "Espíritu Pato", spiritIds: ["26", "27", "28", "29", "78", "79", "118", "136", "137", "138", "139"] },
       { name: "Espíritu Fantasma", spiritIds: ["34", "35", "36", "37", "82", "83"] },
       { name: "Espíritu Dormilón", spiritIds: ["05", "06", "07", "08", "68", "69", "113"] },
       { name: "Espíritu Demoníaco", spiritIds: ["14", "15", "16", "17", "72", "73", "115"] },
@@ -1201,10 +1938,13 @@
       { name: "Espíritu Futbolero", spiritIds: ["54", "55", "56", "57", "92", "93"] },
       { name: "Espíritu de Aura", spiritIds: ["42", "43", "44", "45", "86", "87"] },
       { name: "Espíritu Jefe", spiritIds: ["58", "59", "60", "61", "94", "95"] },
-      { name: "Espíritu de la Parca", spiritIds: ["50", "51", "52", "53", "90", "91"] },
+      { name: "Espíritu de la Parca", spiritIds: ["50", "51", "52", "53", "90", "91", "134", "135"] },
       { name: "Espíritu de Viento", spiritIds: ["105", "106", "107", "108", "109", "110", "111"] },
       { name: "Espíritu de la Fundación", spiritIds: ["46", "47", "48", "49", "88", "89"] },
-      { name: "Espíritu Especial/Invitado", spiritIds: ["13", "119", "120", "121"] }
+      { name: "Espíritu de Llama", spiritIds: ["122", "123", "124", "125", "126"] },
+      { name: "Espíritu de Bananín", spiritIds: ["129", "130", "131", "132", "133"] },
+      { name: "Espíritu de Cubo", spiritIds: ["127", "128"] },
+      { name: "Espíritu Especial/Invitado", spiritIds: ["13", "119", "120", "121", "140", "141"] }
     ];
 
     const defaultNames = [
@@ -1244,17 +1984,27 @@
       "Espíritu de Batman", "Espíritu de Batman Dorado", "Espíritu de Batman Gomita", "Espíritu de Batman Galaxia", "Espíritu de Batman Gema", "Espíritu de Batman Holofoil", "Espíritu de Batman Cubo",
       "Espíritu de Viento", "Espíritu de Viento Dorado", "Espíritu de Viento Gomita", "Espíritu de Viento Galaxia", "Espíritu de Viento Gema", "Espíritu de Viento Holofoil", "Espíritu de Viento Cubo",
       "Espíritu de Agua Cubo", "Espíritu Dormilón Cubo", "Espíritu de Tierra Cubo", "Espíritu Demoníaco Cubo", "Espíritu de Fuego Cubo", "Espíritu Punk Cubo", "Espíritu Pato Cubo",
-      "Espíritu Pollo", "Espíritu de Vini Jr.", "Espíritu de la Fundación Especial"
+      "Espíritu Pollo", "Espíritu de Vini Jr.", "Espíritu de la Fundación Especial",
+      "Espíritu de Llama", "Espíritu de Llama Dorado", "Espíritu de Llama Gomita", "Espíritu de Llama Galaxia", "Espíritu de Llama Gema",
+      "Espíritu de Cubo Arcoíris", "Espíritu de Cubo Galaxia Oscura",
+      "Espíritu de Bananín", "Espíritu de Bananín Dorado", "Espíritu de Bananín Gomita", "Espíritu de Bananín Arcoíris", "Espíritu de Bananín Galaxia",
+      "Espíritu de la Parca Arcoíris", "Espíritu de la Parca Gema",
+      "Espíritu de Tierra Quack", "Espíritu de Fuego Quack", "Espíritu de Agua Quack", "Espíritu de Punto Cero Quack",
+      "Espíritu de John Wick", "Espíritu de Ironmouse"
     ];
 
-    const spiritTypes = [
+    const defaultSpiritTypes = [
       { name: "Normal", suffix: "" },
       { name: "Dorado", suffix: " Dorado" },
       { name: "Gomita", suffix: " Gomita" },
       { name: "Galaxia", suffix: " Galaxia" },
       { name: "Gema", suffix: " Gema" },
       { name: "Holofoil", suffix: " Holofoil" },
-      { name: "Cubo", suffix: " Cubo" }
+      { name: "Cubo", suffix: " Cubo" },
+      { name: "Arcoíris", suffix: " Arcoíris" },
+      { name: "Quack", suffix: " Quack" },
+      { name: "Galaxia Oscura", suffix: " Galaxia Oscura" },
+      { name: "Especial", suffix: " Especial" }
     ];
 
     // 3. User Authentication
@@ -1272,6 +2022,7 @@
       if (username === "kevin") {
         currentUser = {
           username: "kevin",
+          docId: "user_kevin_01",
           name: "Kevin",
           key: "kevin_list",
           masteryKey: "kevin_mastery",
@@ -1280,6 +2031,7 @@
       } else {
         currentUser = {
           username: "ali",
+          docId: "user_ali_02",
           name: "Ali",
           key: "ali_list",
           masteryKey: "ali_mastery",
@@ -1321,17 +2073,227 @@
       document.getElementById("login-modal").classList.add("show");
     }
 
-    // 4. Mode Switching
+    let userTheme = localStorage.getItem("userTheme") || "Pixel Oscuro";
+    let userLightColor = localStorage.getItem("userLightColor") || "#D1C4E9";
+    let userDarkColor = localStorage.getItem("userDarkColor") || "#4A148C";
+    let userUseCustomBg = localStorage.getItem("userUseCustomBg") === "true";
+    let userDocUnsubscribe = null;
+
+    const DARK_BAR_COLORS = ["#4A148C", "#0D47A1", "#1B5E20", "#C2185B", "#E65100", "#006064", "#3E2723"];
+    const LIGHT_BAR_COLORS = ["#D1C4E9", "#B3E5FC", "#C8E6C9", "#C2185B", "#FFE0B2", "#B2EBF2", "#D7CCC8"];
+
+    function applyTheme(themeName, lightCol, darkCol, customBg) {
+      userTheme = themeName || userTheme || "Pixel Oscuro";
+      if (lightCol) userLightColor = lightCol;
+      if (darkCol) userDarkColor = darkCol;
+      if (customBg !== undefined) userUseCustomBg = customBg;
+
+      localStorage.setItem("userTheme", userTheme);
+      localStorage.setItem("userLightColor", userLightColor);
+      localStorage.setItem("userDarkColor", userDarkColor);
+      localStorage.setItem("userUseCustomBg", userUseCustomBg);
+
+      document.body.classList.remove("theme-pixel-claro", "theme-pixel-oscuro");
+      const isDark = userTheme === "Pixel Oscuro";
+      document.body.classList.add(isDark ? "theme-pixel-oscuro" : "theme-pixel-claro");
+
+      const activeBarColor = isDark ? userDarkColor : userLightColor;
+      
+      document.body.style.setProperty('--accent-color', activeBarColor);
+      document.body.style.setProperty('--accent-glow', activeBarColor + "66");
+      document.documentElement.style.setProperty('--accent-color', activeBarColor);
+      document.documentElement.style.setProperty('--accent-glow', activeBarColor + "66");
+
+      if (userUseCustomBg) {
+        document.body.style.setProperty('--bg-color', activeBarColor + "22");
+        document.documentElement.style.setProperty('--bg-color', activeBarColor + "22");
+      } else {
+        const defaultBg = isDark ? '#0d0e15' : '#fdf6e9';
+        document.body.style.setProperty('--bg-color', defaultBg);
+        document.documentElement.style.setProperty('--bg-color', defaultBg);
+      }
+    }
+
+    applyTheme(userTheme, userLightColor, userDarkColor, userUseCustomBg);
+
+    window.changeTheme = function(newTheme) {
+      applyTheme(newTheme, userLightColor, userDarkColor, userUseCustomBg);
+      renderThemeModalContent();
+      if (currentMode === "config") renderConfigEditor();
+
+      if (currentUser && currentUser.docId) {
+        db.collection("users").doc(currentUser.docId).set({
+          theme: newTheme
+        }, { merge: true }).then(() => {
+          showToast(`¡Tema '${newTheme}' sincronizado con la app! 🎨`, false);
+        }).catch(err => console.error("Error guardando tema:", err));
+      }
+    };
+
+    window.changeBarColor = function(hexColor) {
+      const isDark = userTheme === "Pixel Oscuro";
+      if (isDark) userDarkColor = hexColor; else userLightColor = hexColor;
+      applyTheme(userTheme, userLightColor, userDarkColor, userUseCustomBg);
+      renderThemeModalContent();
+      if (currentMode === "config") renderConfigEditor();
+
+      if (currentUser && currentUser.docId) {
+        const fieldName = isDark ? "darkColor" : "lightColor";
+        db.collection("users").doc(currentUser.docId).set({
+          [fieldName]: hexColor
+        }, { merge: true }).then(() => {
+          showToast(`¡Color de barra '${hexColor}' guardado y sincronizado! 🎨`, false);
+        }).catch(err => console.error("Error guardando color:", err));
+      }
+    };
+
+    window.toggleCustomBgPreference = function() {
+      userUseCustomBg = !userUseCustomBg;
+      applyTheme(userTheme, userLightColor, userDarkColor, userUseCustomBg);
+      renderThemeModalContent();
+      if (currentMode === "config") renderConfigEditor();
+
+      if (currentUser && currentUser.docId) {
+        db.collection("users").doc(currentUser.docId).set({
+          useCustomBg: userUseCustomBg
+        }, { merge: true }).then(() => {
+          showToast(`¡Preferencia de fondo adaptativo guardada! ✨`, false);
+        }).catch(err => console.error("Error guardando fondo:", err));
+      }
+    };
+
+    window.openThemeModal = function() {
+      const modal = document.getElementById("theme-settings-modal");
+      if (!modal) return;
+      const userLabel = document.getElementById("theme-user-label");
+      if (userLabel) userLabel.textContent = currentUser ? currentUser.name : "Usuario";
+      renderThemeModalContent();
+      modal.classList.add("show");
+    };
+
+    window.closeThemeModal = function() {
+      const modal = document.getElementById("theme-settings-modal");
+      if (modal) modal.classList.remove("show");
+    };
+
+    window.renderThemeModalContent = function() {
+      const isDark = userTheme === "Pixel Oscuro";
+      const radioDark = document.getElementById("modal-radio-dark");
+      const radioLight = document.getElementById("modal-radio-light");
+      if (radioDark) radioDark.checked = isDark;
+      if (radioLight) radioLight.checked = !isDark;
+
+      const darkBox = document.getElementById("modal-theme-dark-box");
+      const lightBox = document.getElementById("modal-theme-light-box");
+      if (darkBox) {
+        darkBox.style.borderColor = isDark ? "var(--accent-color)" : "var(--card-border)";
+        darkBox.style.background = isDark ? "rgba(156, 39, 176, 0.25)" : "rgba(255,255,255,0.03)";
+      }
+      if (lightBox) {
+        lightBox.style.borderColor = !isDark ? "var(--accent-color)" : "var(--card-border)";
+        lightBox.style.background = !isDark ? "rgba(124, 77, 255, 0.25)" : "rgba(255,255,255,0.03)";
+      }
+
+      const paletteTitle = document.getElementById("modal-palette-title");
+      if (paletteTitle) {
+        paletteTitle.textContent = isDark ? "PALETA DE BARRAS Y ACENTOS (OSCURO)" : "PALETA DE BARRAS Y ACENTOS (CLARO)";
+      }
+
+      const paletteContainer = document.getElementById("modal-palette-container");
+      if (paletteContainer) {
+        const colors = isDark ? DARK_BAR_COLORS : LIGHT_BAR_COLORS;
+        const activeColor = isDark ? userDarkColor : userLightColor;
+        paletteContainer.innerHTML = colors.map(hex => `
+          <div onclick="changeBarColor('${hex}')" style="width: 36px; height: 36px; border-radius: 50%; background-color: ${hex}; border: 3px solid ${activeColor.toUpperCase() === hex.toUpperCase() ? (isDark ? '#fff' : '#4a2511') : 'transparent'}; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: transform 0.2s;" title="Seleccionar color ${hex}"></div>
+        `).join('');
+      }
+
+      const cb = document.getElementById("modal-checkbox-custombg");
+      if (cb) cb.checked = userUseCustomBg;
+    };
+
+    function listenUserTheme() {
+      if (userDocUnsubscribe) userDocUnsubscribe();
+      if (!currentUser || !currentUser.docId) return;
+
+      userDocUnsubscribe = db.collection("users").doc(currentUser.docId)
+        .onSnapshot(doc => {
+          if (doc.exists) {
+            const data = doc.data();
+            const t = data.theme || userTheme;
+            const lc = data.lightColor || userLightColor;
+            const dc = data.darkColor || userDarkColor;
+            const bg = data.useCustomBg !== undefined ? data.useCustomBg : userUseCustomBg;
+
+            if (t !== userTheme || lc !== userLightColor || dc !== userDarkColor || bg !== userUseCustomBg) {
+              applyTheme(t, lc, dc, bg);
+              if (currentMode === "config") {
+                renderConfigEditor();
+              }
+            }
+          }
+        }, err => console.error("Error escuchando tema de usuario:", err));
+    }
+
+    // 4. Mode Switching (Instant 0ms SPA Client Routing)
+    window.switchModeSPA = function(mode) {
+      if (currentMode === mode) return;
+      window.history.pushState({ mode }, '', `/${mode}`);
+      setMode(mode);
+    };
+
+    window.addEventListener('popstate', (e) => {
+      const pageName = window.location.pathname.split('/').pop().replace('.html', '');
+      let mode = "normal";
+      if (pageName === "edit") mode = "edit";
+      else if (pageName === "db") mode = "db";
+      else if (pageName === "config") mode = "config";
+      setMode(mode);
+    });
+
+    let isGalleryOpen = false;
+
+    window.toggleGalleryDrawer = function() {
+      isGalleryOpen = !isGalleryOpen;
+      const sidebar = document.getElementById("sidebar");
+      const label = document.getElementById("btn-gallery-label");
+      
+      if (isGalleryOpen) {
+        sidebar.classList.remove("hidden");
+        if (label) label.textContent = "Ocultar Galería";
+        renderGallery();
+      } else {
+        sidebar.classList.add("hidden");
+        if (label) label.textContent = "Mostrar Galería";
+      }
+    };
+
     window.setMode = function(mode) {
       currentMode = mode;
       document.getElementById("btn-mode-normal").classList.toggle("active", mode === "normal");
       document.getElementById("btn-mode-edit").classList.toggle("active", mode === "edit");
+      document.getElementById("btn-mode-db").classList.toggle("active", mode === "db");
+      document.getElementById("btn-mode-config").classList.toggle("active", mode === "config");
 
-      document.getElementById("sidebar").classList.toggle("hidden", mode === "normal");
+      // La galería permanece oculta por defecto al entrar a Edit Mode para máxima velocidad
+      document.getElementById("sidebar").classList.toggle("hidden", !isGalleryOpen || mode !== "edit");
+      document.getElementById("shared-search-bar-container").style.display = (mode === "normal" || mode === "edit") ? "block" : "none";
       document.getElementById("normal-toolbar").style.display = mode === "normal" ? "flex" : "none";
       document.getElementById("edit-actions-bar").style.display = mode === "edit" ? "flex" : "none";
+      document.getElementById("categories-container").style.display = (mode !== "db" && mode !== "config") ? "flex" : "none";
+      document.getElementById("db-inspector-container").style.display = mode === "db" ? "block" : "none";
+      document.getElementById("config-container").style.display = mode === "config" ? "block" : "none";
 
-      renderWorkspace();
+      if (mode === "db") {
+        renderDbInspector();
+      } else if (mode === "config") {
+        renderConfigEditor();
+      } else {
+        renderWorkspace();
+        if (mode === "edit" && isGalleryOpen) {
+          renderGallery();
+        }
+      }
     };
 
     window.setFilter = function(filterName, btnEl) {
@@ -1368,9 +2330,22 @@
       return baseCatName + suffix;
     }
 
+    function optimizeCloudinaryUrl(url) {
+      if (!url || typeof url !== 'string') return url;
+      if (url.includes('res.cloudinary.com') && url.includes('/upload/') && !url.includes('/f_auto,q_auto/')) {
+        return url.replace('/upload/', '/upload/f_auto,q_auto,w_180/');
+      }
+      return url;
+    }
+
     function getSpiritImgUrl(id) {
+      if (customImages && customImages[id]) {
+        const cacheBust = imageCacheBusters[id] ? `?v=${imageCacheBusters[id]}` : '';
+        return optimizeCloudinaryUrl(`${customImages[id]}${cacheBust}`);
+      }
       const formattedId = String(id).padStart(2, '0');
-      return `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+      const cacheBust = imageCacheBusters[id] ? `?v=${imageCacheBusters[id]}` : '';
+      return `https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/spirits/ic_spirit_${formattedId}.png${cacheBust}`;
     }
 
     function getSpiritName(id) {
@@ -1414,34 +2389,86 @@
       renderWorkspace();
     };
 
+    function updateDbStatusBadge(isOnline, isFromCache) {
+      const dot = document.getElementById("db-status-dot");
+      const text = document.getElementById("db-status-text");
+      if (!dot || !text) return;
+
+      if (!isOnline) {
+        dot.className = "status-dot offline";
+        text.textContent = "Offline (Sin red)";
+      } else {
+        dot.className = "status-dot online";
+        text.textContent = isFromCache ? "Firestore (Caché Local) 🟢" : "Firestore Conectado 🟢";
+      }
+    }
+
     // 5. Realtime Firestore Sync
     function listenFirestore() {
       if (firestoreUnsubscribe) firestoreUnsubscribe();
-      coupleId = document.getElementById("couple-id").value.trim() || "vínculo_único_123";
-      localStorage.setItem("coupleId", coupleId);
+      let rawId = localStorage.getItem("coupleId") || "vínculo_único_123";
+      coupleId = rawId.trim();
 
-      firestoreUnsubscribe = db.collection("fortnite_spirits").doc(coupleId)
-        .onSnapshot(doc => {
-          if (doc.exists) {
-            const data = doc.data();
+      try {
+        listenUserTheme();
+      } catch (themeErr) {
+        console.warn("Aviso al escuchar tema:", themeErr);
+      }
+      updateDbStatusBadge(true, true);
+
+      firestoreUnsubscribe = db.collection(getFirestoreCollection()).doc(coupleId)
+        .onSnapshot({ includeMetadataChanges: true }, snapshot => {
+          const isFromCache = snapshot.metadata.hasPendingWrites || snapshot.metadata.fromCache;
+          updateDbStatusBadge(true, isFromCache);
+
+          if (snapshot.exists) {
+            const data = snapshot.data();
+            window.rawFirestoreData = data;
             kevinList = data.kevin_list || [];
             aliList = data.ali_list || [];
             kevinMastery = data.kevin_mastery || [];
             aliMastery = data.ali_mastery || [];
 
-            // Prevent snapshot from overwriting un-saved local edits while in Edit Mode
-            if (currentMode !== "edit") {
+            // Only load data from Firestore if we haven't modified local state or on initial load
+            const isInitialLoad = !window.hasLoadedFirestoreOnce;
+            window.hasLoadedFirestoreOnce = true;
+
+            if (currentMode !== "edit" || isInitialLoad) {
               customNames = data.custom_names || {};
               customCategories = data.custom_categories || {};
+              customImages = data.custom_images || {};
               
-              const dbCategories = data.categories || [];
-              categories = dbCategories.map(cat => ({
+              if (data.spirit_types && Array.isArray(data.spirit_types)) {
+                spiritTypes = data.spirit_types;
+              } else {
+                spiritTypes = currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2;
+              }
+
+              const dbCategoriesData = data.categories || [];
+              let dbCategoriesList = [];
+              if (Array.isArray(dbCategoriesData)) {
+                dbCategoriesList = dbCategoriesData;
+              } else if (typeof dbCategoriesData === 'object' && dbCategoriesData !== null) {
+                dbCategoriesList = Object.values(dbCategoriesData);
+              }
+              const parsedCategories = dbCategoriesList.map(cat => ({
                 name: cat.name,
                 spiritIds: cat.spiritIds || []
-              }));
+              })).filter(cat => cat && cat.name);
 
-              if (categories.length === 0) {
-                categories = JSON.parse(JSON.stringify(defaultCategories));
+              if (parsedCategories.length > 0) {
+                const defaultOrderMap = new Map();
+                if (currentSeason === 1) {
+                  defaultCategories.forEach((cat, idx) => defaultOrderMap.set(cat.name, idx));
+                }
+
+                categories = parsedCategories.sort((a, b) => {
+                  const orderA = defaultOrderMap.has(a.name) ? defaultOrderMap.get(a.name) : 999;
+                  const orderB = defaultOrderMap.has(b.name) ? defaultOrderMap.get(b.name) : 999;
+                  return orderA - orderB;
+                });
+              } else {
+                categories = currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategories)) : [];
               }
 
               const idsInCategories = new Set();
@@ -1450,7 +2477,7 @@
               if (data.spirits_list && Array.isArray(data.spirits_list)) {
                 spiritsList = Array.from(new Set([...data.spirits_list, ...idsInCategories])).sort((a, b) => parseInt(a) - parseInt(b));
               } else {
-                spiritsList = [...defaultSpiritsList];
+                spiritsList = currentSeason === 1 ? [...defaultSpiritsList] : [];
               }
             }
           } else {
@@ -1459,27 +2486,95 @@
             kevinMastery = [];
             aliMastery = [];
             if (currentMode !== "edit") {
-              spiritsList = [...defaultSpiritsList];
-              categories = JSON.parse(JSON.stringify(defaultCategories));
+              spiritsList = currentSeason === 1 ? [...defaultSpiritsList] : [];
+              categories = currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategories)) : [];
               customNames = {};
               customCategories = {};
             }
           }
+          try {
+            localStorage.setItem(`spirits_cache_${coupleId}_s${currentSeason}`, JSON.stringify({
+              spirits_list: spiritsList,
+              categories: categories,
+              custom_names: customNames,
+              custom_categories: customCategories,
+              custom_images: customImages,
+              spirit_types: spiritTypes,
+              kevin_list: kevinList,
+              ali_list: aliList,
+              kevin_mastery: kevinMastery,
+              ali_mastery: aliMastery
+            }));
+          } catch(e) {}
           updateStats();
           renderGallery();
-          if (currentMode !== "edit") {
+          if (currentMode === "db") {
+            renderDbInspector();
+          } else if (currentMode === "config") {
+            renderConfigEditor();
+          } else {
             renderWorkspace();
           }
         }, err => {
           console.error("Error al escuchar Firestore:", err);
+          updateDbStatusBadge(false, false);
           showToast("Error de conexión con Firestore", true);
         });
     }
 
-    function updateStats() {
-      const activeSpirits = spiritsList.length > 0 ? spiritsList : defaultSpiritsList;
+    window.switchSeason = function(season) {
+      if (currentSeason === season) return;
+      currentSeason = season;
 
-      // Registered spirits are those assigned to at least one category (118)
+      // Update Season buttons UI
+      const btnS1 = document.getElementById("btn-season-1");
+      const btnS2 = document.getElementById("btn-season-2");
+      if (btnS1 && btnS2) {
+        if (season === 1) {
+          btnS1.classList.add("active");
+          btnS2.classList.remove("active");
+        } else {
+          btnS2.classList.add("active");
+          btnS1.classList.remove("active");
+        }
+      }
+
+      // Load cache for selected season if available
+      try {
+        const seasonCache = JSON.parse(localStorage.getItem(`spirits_cache_${coupleId}_s${currentSeason}`));
+        if (seasonCache) {
+          spiritsList = seasonCache.spirits_list || (currentSeason === 1 ? defaultSpiritsList : []);
+          categories = seasonCache.categories || (currentSeason === 1 ? defaultCategories : []);
+          customNames = seasonCache.custom_names || {};
+          customCategories = seasonCache.custom_categories || {};
+          customImages = seasonCache.custom_images || {};
+          spiritTypes = seasonCache.spirit_types || (currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
+          kevinList = seasonCache.kevin_list || [];
+          aliList = seasonCache.ali_list || [];
+          kevinMastery = seasonCache.kevin_mastery || [];
+          aliMastery = seasonCache.ali_mastery || [];
+        } else {
+          spiritsList = currentSeason === 1 ? [...defaultSpiritsList] : [];
+          categories = currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategories)) : [];
+          customNames = {};
+          customCategories = {};
+          spiritTypes = currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2;
+          kevinList = [];
+          aliList = [];
+          kevinMastery = [];
+          aliMastery = [];
+        }
+      } catch(e) {}
+
+      window.hasLoadedFirestoreOnce = false;
+      listenFirestore();
+      showToast(`Cargando Temporada ${season}...`, false);
+    };
+
+    function updateStats() {
+      const activeSpirits = currentSeason === 1 ? (spiritsList.length > 0 ? spiritsList : defaultSpiritsList) : spiritsList;
+
+      // Registered spirits are those assigned to at least one category
       const assignedIds = new Set();
       categories.forEach(cat => {
         cat.spiritIds.forEach(id => {
@@ -1487,26 +2582,27 @@
         });
       });
 
-      const totalRegistered = assignedIds.size > 0 ? assignedIds.size : 118;
+      const totalRegistered = assignedIds.size > 0 ? assignedIds.size : activeSpirits.length;
       
-      const totalKevin = kevinList.filter(id => assignedIds.has(id)).length;
-      const totalAli = aliList.filter(id => assignedIds.has(id)).length;
-      const bothCount = Array.from(assignedIds).filter(id => kevinList.includes(id) && aliList.includes(id)).length;
+      const totalKevin = kevinList.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
+      const totalAli = aliList.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
+      const bothCount = activeSpirits.filter(id => kevinList.includes(id) && aliList.includes(id)).length;
 
-      const kevinMasteryCount = kevinMastery.filter(id => assignedIds.has(id)).length;
-      const aliMasteryCount = aliMastery.filter(id => assignedIds.has(id)).length;
+      const kevinMasteryCount = kevinMastery.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
+      const aliMasteryCount = aliMastery.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
 
       document.getElementById("stat-kevin").innerHTML = `${totalKevin} / ${totalRegistered} <span class="mastery-count-tag" title="Maestría (Estrellas) de Kevin">⭐ ${kevinMasteryCount}</span>`;
       document.getElementById("stat-ali").innerHTML = `${totalAli} / ${totalRegistered} <span class="mastery-count-tag" title="Maestría (Estrellas) de Ali">⭐ ${aliMasteryCount}</span>`;
       document.getElementById("stat-both").textContent = `${bothCount} / ${totalRegistered}`;
     }
 
-    // 6. Normal Mode Toggle Owned / Mastery
+    // 6. Normal Mode Toggle Owned / Mastery (Optimización 3: Actualización optimista instantánea + Firestore Sync)
     window.toggleSpiritOwned = function(id) {
       if (!currentUser) return;
-      const userList = currentUser.username === "kevin" ? kevinList : aliList;
+      const isKevin = currentUser.username === "kevin";
+      const userList = isKevin ? kevinList : aliList;
       const userKey = currentUser.key;
-      const masteryList = currentUser.username === "kevin" ? kevinMastery : aliMastery;
+      const masteryList = isKevin ? kevinMastery : aliMastery;
       const masteryKey = currentUser.masteryKey;
 
       let newOwnedList;
@@ -1514,17 +2610,25 @@
 
       if (userList.includes(id)) {
         newOwnedList = userList.filter(item => item !== id);
-        // If unchecking owned, also uncheck mastery
+        if (isKevin) kevinList = newOwnedList; else aliList = newOwnedList;
+
         if (masteryList.includes(id)) {
-          updates[masteryKey] = masteryList.filter(item => item !== id);
+          const newMastery = masteryList.filter(item => item !== id);
+          if (isKevin) kevinMastery = newMastery; else aliMastery = newMastery;
+          updates[masteryKey] = newMastery;
         }
       } else {
         newOwnedList = [...userList, id];
+        if (isKevin) kevinList = newOwnedList; else aliList = newOwnedList;
       }
 
       updates[userKey] = newOwnedList;
 
-      db.collection("fortnite_spirits").doc(coupleId).set(updates, { merge: true })
+      // Actualización optimista de UI instantánea sin parpadeo
+      updateStats();
+      renderWorkspace();
+
+      db.collection(getFirestoreCollection()).doc(coupleId).set(updates, { merge: true })
         .catch(err => {
           console.error("Error toggling spirit:", err);
           showToast("Error al guardar estado de espíritu.", true);
@@ -1534,30 +2638,44 @@
     window.toggleSpiritMastery = function(id, event) {
       if (event) event.stopPropagation();
       if (!currentUser) return;
-      const masteryList = currentUser.username === "kevin" ? kevinMastery : aliMastery;
+      const isKevin = currentUser.username === "kevin";
+      const masteryList = isKevin ? kevinMastery : aliMastery;
       const masteryKey = currentUser.masteryKey;
 
       const newMasteryList = masteryList.includes(id)
         ? masteryList.filter(item => item !== id)
         : [...masteryList, id];
 
-      db.collection("fortnite_spirits").doc(coupleId).set({
+      if (isKevin) kevinMastery = newMasteryList; else aliMastery = newMasteryList;
+
+      // Actualización optimista de UI instantánea sin parpadeo
+      updateStats();
+      renderWorkspace();
+
+      db.collection(getFirestoreCollection()).doc(coupleId).set({
         [masteryKey]: newMasteryList
       }, { merge: true }).catch(err => {
         console.error("Error toggling mastery:", err);
       });
     };
 
-    // Search Handler Functions
+    // 100Hz Frame-budget scheduling (requestAnimationFrame)
+    let searchRafPending = false;
     window.onSearchInput = function(val) {
       searchQuery = val.trim().toLowerCase();
       const clearBtn = document.getElementById("clear-search-btn");
       if (clearBtn) {
         clearBtn.style.display = searchQuery.length > 0 ? "inline-block" : "none";
       }
-      renderWorkspace();
-      if (currentMode === "edit") {
-        renderGallery();
+      if (!searchRafPending) {
+        searchRafPending = true;
+        requestAnimationFrame(() => {
+          renderWorkspace();
+          if (currentMode === "edit") {
+            renderGallery();
+          }
+          searchRafPending = false;
+        });
       }
     };
 
@@ -1631,12 +2749,12 @@
       if (!container) return;
       container.innerHTML = "";
       
-      const activeList = spiritsList.length > 0 ? spiritsList : defaultSpiritsList;
+      const activeList = currentSeason === 1 ? (spiritsList.length > 0 ? spiritsList : defaultSpiritsList) : spiritsList;
       const listToRender = [...activeList].sort((a, b) => parseInt(a) - parseInt(b));
 
       const sidebarTitle = document.getElementById("sidebar-title");
       if (sidebarTitle) {
-        sidebarTitle.textContent = `Galería de Espíritus (${listToRender.length})`;
+        sidebarTitle.textContent = `Galería T${currentSeason} (${listToRender.length})`;
       }
 
       // Calculate set of assigned spirit IDs across all categories
@@ -1908,7 +3026,7 @@
 
         slot.innerHTML = `
           <span class="spirit-id-badge">#${displayNumber}</span>
-          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}">
+          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async">
           <span class="spirit-name-label">${getSpiritName(id)}</span>
           
           <div class="checks-row">
@@ -1947,7 +3065,8 @@
         slot.innerHTML = `
           ${deleteBtnHtml}
           <span class="spirit-id-badge">#${displayNumber}</span>
-          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}">
+          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" style="cursor: pointer;" onclick="openEditImageModal('${id}')" title="Haz clic para cambiar la imagen">
+          <button type="button" class="btn" style="padding: 2px 4px; font-size: 9px; margin-bottom: 4px; width: 100%; font-family: inherit; justify-content: center;" onclick="openEditImageModal('${id}')">🖼️ Cambiar Imagen</button>
           <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}" style="margin-bottom: 4px;">
           <select class="type-select" data-id="${id}" style="width: 100%; font-size: 10px; border-radius: 4px; padding: 2px; margin-bottom: 4px;">
             ${typesHtml}
@@ -2047,7 +3166,7 @@
     };
 
     window.permanentlyDeleteSpirit = function(spiritId) {
-      if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el espíritu ID ${spiritId}? Se quitará de todas las categorías y se borrará también su archivo de imagen en tu PC.`)) {
+      customConfirm(`¿Eliminar permanentemente el espíritu ID ${spiritId}? Se quitará de todas las categorías y se borrará su imagen.`, "⚠️", () => {
         // 1. Remove spiritId from spiritsList master array
         spiritsList = spiritsList.filter(id => id !== spiritId);
 
@@ -2071,24 +3190,7 @@
         renderWorkspace();
 
         // 6. Push deletion directly to Firestore cloud database
-        const categoriesMap = categories.map(cat => ({
-          name: cat.name,
-          spiritIds: cat.spiritIds
-        }));
-
-        const updates = {
-          "categories": categoriesMap,
-          "spirits_list": spiritsList,
-          "custom_names": customNames,
-          "custom_categories": customCategories,
-          "kevin_list": kevinList,
-          "ali_list": aliList,
-          "kevin_mastery": kevinMastery,
-          "ali_mastery": aliMastery,
-          "schema_version": 3
-        };
-
-        db.collection("fortnite_spirits").doc(coupleId).set(updates, { merge: true })
+        saveChangesToFirestoreAsync()
           .then(() => {
             showToast(`Espíritu #${spiritId} eliminado de la base de datos de Firestore.`, false);
           })
@@ -2112,14 +3214,14 @@
         .catch(err => {
           console.warn("No se pudo conectar al servidor local para borrar el archivo físico:", err);
         });
-      }
+      });
     };
 
     window.deleteCategory = function(index) {
-      if (confirm(`¿Eliminar la categoría "${categories[index].name}"? Los espíritus asignados a ella pasarán a "Sueltos".`)) {
+      customConfirm(`¿Eliminar la categoría "${categories[index].name}"? Los espíritus asignados pasarán a "Sueltos".`, "🗑️", () => {
         categories.splice(index, 1);
         renderWorkspace();
-      }
+      });
     };
 
     // Mobile assignment modal
@@ -2150,69 +3252,65 @@
     }
 
     // 9. Firebase Load/Save Handlers
-    document.getElementById("btn-load").addEventListener("click", () => {
-      listenFirestore();
-      showToast("Sincronizando con Firestore...", false);
-    });
+    const btnLoadEl = document.getElementById("btn-load");
+    if (btnLoadEl) {
+      btnLoadEl.addEventListener("click", () => {
+        listenFirestore();
+        showToast("Sincronizando con Firestore...", false);
+      });
+    }
 
-    document.getElementById("btn-save").addEventListener("click", () => {
-      coupleId = document.getElementById("couple-id").value.trim();
-      if (!coupleId) {
-        showToast("Error: ID de pareja vacío.", true);
-        return;
-      }
+    const btnSaveEl = document.getElementById("btn-save");
+    if (btnSaveEl) {
+      btnSaveEl.addEventListener("click", () => {
+        coupleId = localStorage.getItem("coupleId") || "vínculo_único_123";
 
-      collectInputsFromDOM();
+        collectInputsFromDOM();
 
-      showToast("Guardando cambios en Firestore...", false);
+        showToast("Guardando cambios en Firestore...", false);
 
-      const categoriesMap = categories.map(cat => ({
-        name: cat.name,
-        spiritIds: cat.spiritIds
-      }));
+        saveChangesToFirestoreAsync()
+          .then(() => {
+            showToast("¡Base de datos actualizada con éxito en la nube! 🚀", false);
+          })
+          .catch(err => {
+            console.error(err);
+            showToast("Error al guardar cambios: " + err.message, true);
+          });
+      });
+    }
 
-      const updates = {
-        "categories": categoriesMap,
-        "spirits_list": spiritsList,
-        "custom_names": customNames,
-        "custom_categories": customCategories,
-        "schema_version": 3
-      };
-
-      db.collection("fortnite_spirits").doc(coupleId).set(updates, { merge: true })
-        .then(() => {
-          showToast("¡Base de datos actualizada con éxito en la nube! 🚀", false);
-        })
-        .catch(err => {
-          console.error(err);
-          showToast("Error al guardar cambios: " + err.message, true);
+    const btnResetEl = document.getElementById("btn-reset");
+    if (btnResetEl) {
+      btnResetEl.addEventListener("click", () => {
+        customConfirm("¿Restablecer todos los espíritus y categorías a sus valores por defecto? Se perderán personalizaciones de nombres y ordenación.", "⚠️", () => {
+          spiritsList = [...defaultSpiritsList];
+          categories = JSON.parse(JSON.stringify(defaultCategories));
+          customNames = {};
+          customCategories = {};
+          renderGallery();
+          renderWorkspace();
+          showToast("Restablecido a valores por defecto locales. Haz clic en Guardar para subir a Firestore.", false);
         });
-    });
+      });
+    }
 
-    document.getElementById("btn-reset").addEventListener("click", () => {
-      if (confirm("¿Estás seguro de que deseas restablecer todos los espíritus y categorías a sus valores por defecto? Se perderán las personalizaciones actuales de nombres y ordenación.")) {
-        spiritsList = [...defaultSpiritsList];
-        categories = JSON.parse(JSON.stringify(defaultCategories));
-        customNames = {};
-        customCategories = {};
-        renderGallery();
-        renderWorkspace();
-        showToast("Restablecido a valores por defecto locales. Haz clic en Guardar para subir a Firestore.", false);
-      }
-    });
-
-    document.getElementById("btn-add-category").addEventListener("click", () => {
-      const name = prompt("Ingresa el nombre de la nueva categoría:");
-      if (name && name.trim()) {
-        const cleanName = name.trim();
-        if (categories.some(c => c.name === cleanName)) {
-          alert("Ya existe una categoría con ese nombre.");
-          return;
-        }
-        categories.push({ name: cleanName, spiritIds: [] });
-        renderWorkspace();
-      }
-    });
+    const btnAddCatEl = document.getElementById("btn-add-category");
+    if (btnAddCatEl) {
+      btnAddCatEl.addEventListener("click", () => {
+        customPrompt("Ingresa el nombre de la nueva categoría:", "📁", (name) => {
+          if (!name || !name.trim()) return;
+          const cleanName = name.trim();
+          if (categories.some(c => c.name === cleanName)) {
+            customAlert("Ya existe una categoría con ese nombre.", "⚠️");
+            return;
+          }
+          categories.push({ name: cleanName, spiritIds: [] });
+          renderWorkspace();
+          showToast(`Categoría "${cleanName}" creada localmente. Haz clic en 'Guardar Cambios' para subir a Firestore.`, false);
+        });
+      });
+    }
 
     // 10. Toast Utility
     function showToast(msg, isError) {
@@ -2231,36 +3329,1339 @@
       }, 4000);
     }
 
+    // 10a. Upload loader overlay
+    function showUploadLoader(msg, step) {
+      document.getElementById("upload-loader-msg").textContent = msg || "Subiendo imagen...";
+      document.getElementById("upload-loader-step").textContent = step || "Por favor espera";
+      document.getElementById("upload-loader-overlay").classList.add("active");
+    }
+    function hideUploadLoader() {
+      document.getElementById("upload-loader-overlay").classList.remove("active");
+    }
+    function updateUploadLoaderStep(step) {
+      document.getElementById("upload-loader-step").textContent = step;
+    }
+
+    // 10b. Guardar en Firestore y retornar Promise
+    function saveChangesToFirestoreAsync() {
+      const categoriesList = categories.map(cat => ({
+        name: cat.name,
+        spiritIds: cat.spiritIds || []
+      }));
+      const updates = {
+        "categories": categoriesList,
+        "spirits_list": spiritsList,
+        "custom_names": customNames,
+        "custom_categories": customCategories,
+        "custom_images": customImages,
+        "kevin_list": kevinList,
+        "ali_list": aliList,
+        "kevin_mastery": kevinMastery,
+        "ali_mastery": aliMastery,
+        "spirit_types": spiritTypes,
+        "schema_version": 4
+      };
+      return db.collection(getFirestoreCollection()).doc(coupleId).set(updates);
+    }
+
+    // 10b. DB Inspector Renderer
+    function renderDbInspector() {
+      const container = document.getElementById("db-inspector-container");
+      if (!container) return;
+
+      const data = window.rawFirestoreData || null;
+
+      if (!data) {
+        container.innerHTML = `
+          <div class="db-inspector-card">
+            <div class="db-inspector-title">📂 Base de Datos de Firestore (Vacía / No cargada)</div>
+            <p style="color: var(--text-muted);">No hay datos cargados para el coupleId: <strong>${coupleId}</strong>.</p>
+            <p style="color: var(--text-muted);">Por favor, asegúrate de hacer clic en "Cargar" en el panel superior.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const rawJson = JSON.stringify(data, null, 2);
+      
+      // Calculate statistics
+      const totalSpirits = Array.isArray(data.spirits_list) ? data.spirits_list.length : 0;
+      const customNamesCount = data.custom_names ? Object.keys(data.custom_names).length : 0;
+      const customCategoriesCount = data.custom_categories ? Object.keys(data.custom_categories).length : 0;
+      const categoriesCount = Array.isArray(data.categories) ? data.categories.length : 0;
+      const kevinSpiritsCount = Array.isArray(data.kevin_list) ? data.kevin_list.length : 0;
+      const aliSpiritsCount = Array.isArray(data.ali_list) ? data.ali_list.length : 0;
+      const kevinMasteryCount = Array.isArray(data.kevin_mastery) ? data.kevin_mastery.length : 0;
+      const aliMasteryCount = Array.isArray(data.ali_mastery) ? data.ali_mastery.length : 0;
+      const schemaVersion = data.schema_version !== undefined ? data.schema_version : "Desconocido";
+
+      container.innerHTML = `
+        <div class="db-inspector-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+            <div class="db-inspector-title" style="margin-bottom: 0;">
+              <span>📂</span> Inspector de Base de Datos (Documento: <span style="color: var(--accent-color);">${coupleId}</span>)
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="db-action-btn" onclick="copyDbJson()">
+                <span>📋</span> Copiar JSON
+              </button>
+              <button class="db-action-btn" onclick="downloadDbJson()">
+                <span>💾</span> Descargar JSON
+              </button>
+              <button class="db-action-btn" onclick="document.getElementById('db-upload-input').click()">
+                <span>📤</span> Importar JSON
+              </button>
+              <input type="file" id="db-upload-input" style="display: none;" accept=".json" onchange="uploadDbJson(event)">
+            </div>
+          </div>
+
+          <div class="db-stats-grid">
+            <div class="db-stat-box">
+              <div class="db-stat-number">${schemaVersion}</div>
+              <div class="db-stat-name">Esquema Versión</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number">${totalSpirits}</div>
+              <div class="db-stat-name">Total Espíritus</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number">${categoriesCount}</div>
+              <div class="db-stat-name">Categorías</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number">${customNamesCount}</div>
+              <div class="db-stat-name">Nombres Modif.</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number">${customCategoriesCount}</div>
+              <div class="db-stat-name">Cat. Modif.</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number" style="color: var(--kevin-color);">${kevinSpiritsCount}</div>
+              <div class="db-stat-name">Espíritus Kevin</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number" style="color: var(--ali-color);">${aliSpiritsCount}</div>
+              <div class="db-stat-name">Espíritus Ali</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number" style="color: var(--kevin-color); text-shadow: 0 0 10px rgba(59, 130, 246, 0.4);">${kevinMasteryCount}</div>
+              <div class="db-stat-name">Maestría Kevin</div>
+            </div>
+            <div class="db-stat-box">
+              <div class="db-stat-number" style="color: var(--ali-color); text-shadow: 0 0 10px rgba(236, 72, 153, 0.4);">${aliMasteryCount}</div>
+              <div class="db-stat-name">Maestría Ali</div>
+            </div>
+          </div>
+
+          <h3 style="font-family: 'Outfit', sans-serif; font-size: 16px; margin-bottom: 10px; color: var(--text-color);">JSON en tiempo real desde Firestore:</h3>
+          <pre class="db-raw-json-container"><code id="db-json-code">${escapeHtml(rawJson)}</code></pre>
+        </div>
+      `;
+    }
+
+    // Helper to escape HTML characters
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Global copy function
+    window.copyDbJson = function() {
+      const codeEl = document.getElementById("db-json-code");
+      if (codeEl) {
+        navigator.clipboard.writeText(codeEl.textContent)
+          .then(() => showToast("¡JSON copiado al portapapeles! 📋", false))
+          .catch(() => showToast("Error al copiar el JSON", true));
+      }
+    };
+
+    // Download JSON function
+    window.downloadDbJson = function() {
+      if (!window.rawFirestoreData) {
+        showToast("No hay datos disponibles para descargar", true);
+        return;
+      }
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.rawFirestoreData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `diario_espiritus_${coupleId}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast("¡JSON descargado con éxito! 💾", false);
+    };
+
+    // Import JSON function
+    window.uploadDbJson = function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsedData = JSON.parse(e.target.result);
+          
+          // Basic validation
+          if (!parsedData.categories || !Array.isArray(parsedData.categories)) {
+            customAlert("El archivo JSON no es válido. Debe contener un arreglo de 'categories'.", "❌");
+            return;
+          }
+          if (!parsedData.spirits_list || !Array.isArray(parsedData.spirits_list)) {
+            customAlert("El archivo JSON no es válido. Debe contener un arreglo de 'spirits_list'.", "❌");
+            return;
+          }
+
+          customConfirm("¿Importar este JSON? Se reemplazarán las categorías, espíritus y estados de obtención actuales en Firestore.", "📤", () => {
+            parsedData.schema_version = 4;
+            db.collection(getFirestoreCollection()).doc(coupleId).set(parsedData)
+              .then(() => {
+                showToast("¡Base de datos importada con éxito! 🚀", false);
+              })
+              .catch(err => {
+                console.error("Error al importar JSON:", err);
+                showToast("Error al subir el JSON a Firestore", true);
+              });
+          });
+        } catch (err) {
+          customAlert("Error al parsear el archivo JSON: " + err.message, "❌");
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = "";
+    };
+
+    // Open New Spirit Modal
+    window.openNewSpiritModal = function() {
+      let maxIdNum = 0;
+      const activeList = spiritsList.length > 0 ? spiritsList : defaultSpiritsList;
+      activeList.forEach(id => {
+        const num = parseInt(id);
+        if (!isNaN(num) && num > maxIdNum) {
+          maxIdNum = num;
+        }
+      });
+      const nextId = String(maxIdNum + 1).padStart(2, '0');
+      document.getElementById("new-spirit-id").value = nextId;
+
+      const categorySelect = document.getElementById("new-spirit-category");
+      if (categorySelect) {
+        categorySelect.innerHTML = "";
+        categories.forEach(cat => {
+          const opt = document.createElement("option");
+          opt.value = cat.name;
+          opt.textContent = customCategories[cat.name] || cat.name;
+          categorySelect.appendChild(opt);
+        });
+      }
+
+      document.getElementById("new-spirit-type").value = "Normal";
+      document.getElementById("new-spirit-custom-type").value = "";
+      document.getElementById("new-spirit-custom-type-container").style.display = "none";
+      
+      onNewSpiritFieldsChange();
+
+      document.getElementById("new-spirit-modal").classList.add("show");
+    };
+
+    // Close New Spirit Modal
+    window.closeNewSpiritModal = function() {
+      document.getElementById("new-spirit-modal").classList.remove("show");
+    };
+
+    // Handle fields change to auto-update generated name
+    window.onNewSpiritFieldsChange = function() {
+      const categorySelect = document.getElementById("new-spirit-category");
+      if (!categorySelect) return;
+      const catName = categorySelect.value;
+      const catDisplayName = customCategories[catName] || catName;
+
+      const typeSelect = document.getElementById("new-spirit-type");
+      const customTypeContainer = document.getElementById("new-spirit-custom-type-container");
+      
+      let typeVal = typeSelect.value;
+      if (typeVal === "Otro") {
+        customTypeContainer.style.display = "block";
+        typeVal = document.getElementById("new-spirit-custom-type").value.trim();
+      } else {
+        customTypeContainer.style.display = "none";
+      }
+
+      const nameInput = document.getElementById("new-spirit-name");
+      if (nameInput) {
+        if (!typeVal || typeVal === "Normal") {
+          nameInput.value = catDisplayName;
+        } else {
+          nameInput.value = `${catDisplayName} ${typeVal}`;
+        }
+      }
+    };
+
+    // Submit New Spirit to local state & Firestore
+    window.submitNewSpirit = function() {
+      const idInput = document.getElementById("new-spirit-id");
+      const nameInput = document.getElementById("new-spirit-name");
+      const categorySelect = document.getElementById("new-spirit-category");
+      const fileInput = document.getElementById("new-spirit-image-file");
+      
+      if (!idInput || !nameInput || !categorySelect) return;
+
+      const id = idInput.value.trim();
+      const name = nameInput.value.trim();
+      const catName = categorySelect.value;
+
+      if (!id) {
+        customAlert("Por favor ingresa un ID válido.", "⚠️");
+        return;
+      }
+      if (!name) {
+        customAlert("Por favor ingresa un nombre para el espíritu.", "⚠️");
+        return;
+      }
+
+      const activeList = spiritsList.length > 0 ? spiritsList : defaultSpiritsList;
+      if (activeList.includes(id)) {
+        customAlert(`El espíritu con ID #${id} ya existe en la base de datos.`, "⚠️");
+        return;
+      }
+
+      if (spiritsList.length === 0) {
+        spiritsList = [...defaultSpiritsList];
+      }
+      spiritsList.push(id);
+      
+      const targetCat = categories.find(c => c.name === catName);
+      if (targetCat) {
+        targetCat.spiritIds.push(id);
+      }
+
+      customNames[id] = name;
+
+      const finalizeCreate = () => {
+        closeNewSpiritModal();
+        renderWorkspace();
+        renderGallery();
+        saveChangesToFirestoreAsync();
+        showToast(`¡Espíritu #${id} (${name}) creado y guardado en Firestore con éxito! 🚀🎉`, false);
+      };
+
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        showToast("Comprimiendo y subiendo imagen a Cloudinary... ⏳", false);
+        compressImage(fileInput.files[0], 1200, 0.82).then(async compressedBase64 => {
+          let res;
+          try {
+            const r = await fetch('/api/upload-spirit-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ spiritId: id, imageBase64: compressedBase64 })
+            });
+            res = await r.json();
+          } catch (networkErr) {
+            console.error('Error de red al subir imagen:', networkErr);
+            const formattedId = String(id).padStart(2, '0');
+            customImages[id] = `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+            finalizeCreate();
+            return;
+          }
+          if (res.success && res.url) {
+            customImages[id] = res.url;
+            imageCacheBusters[id] = Date.now();
+          } else {
+            const formattedId = String(id).padStart(2, '0');
+            customImages[id] = `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+          }
+          finalizeCreate();
+        });
+      } else {
+        const formattedId = String(id).padStart(2, '0');
+        customImages[id] = `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+        finalizeCreate();
+      }
+    };
+    // Render configuration screen
+    function renderConfigEditor() {
+      const container = document.getElementById("config-container");
+      if (!container) return;
+
+      let categoriesHtml = "";
+      categories.forEach((cat, index) => {
+        const catDisplayName = customCategories[cat.name] || cat.name;
+        categoriesHtml += `
+          <div class="draggable-config-row" draggable="true" ondragstart="onConfigCategoryDragStart(event, ${index})" ondragover="onConfigCategoryDragOver(event)" ondrop="onConfigCategoryDrop(event, ${index})" ondragend="onConfigCategoryDragEnd(event)">
+            <span style="color: var(--text-muted); cursor: grab; font-size: 14px; user-select: none; margin-right: 4px;">⋮⋮</span>
+            <span style="font-family: monospace; color: var(--text-muted); font-size: 13px; margin-right: 4px;">#${String(index + 1).padStart(2, '0')}</span>
+            <input type="text" value="${catDisplayName}" onchange="updateConfigCategoryName(${index}, this.value)" style="flex: 1; padding: 6px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px; cursor: text;">
+            <span class="badge" style="background: rgba(255, 255, 255, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">${cat.spiritIds.length} esp.</span>
+            <button class="remove-btn" onclick="deleteConfigCategory(${index})" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;">🗑</button>
+          </div>
+        `;
+      });
+
+      let typesHtml = "";
+      spiritTypes.forEach((t, index) => {
+        const isNormal = t.name === "Normal";
+        typesHtml += `
+          <div class="draggable-config-row ${isNormal ? 'unmovable' : ''}" draggable="${!isNormal}" ondragstart="onConfigTypeDragStart(event, ${index})" ondragover="onConfigTypeDragOver(event)" ondrop="onConfigTypeDrop(event, ${index})" ondragend="onConfigTypeDragEnd(event)">
+            <span style="color: var(--text-muted); cursor: ${isNormal ? 'default' : 'grab'}; font-size: 14px; user-select: none; margin-right: 4px; opacity: ${isNormal ? 0.2 : 1};">⋮⋮</span>
+            <input type="text" value="${t.name}" onchange="updateConfigTypeName(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Nombre (Ej: Dorado)" style="flex: 1; padding: 6px; border-radius: 6px; background: ${isNormal ? '#1b1d24' : '#12131a'}; color: ${isNormal ? '#888' : '#fff'}; border: 1px solid var(--card-border); font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+            <input type="text" value="${t.suffix}" onchange="updateConfigTypeSuffix(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Sufijo (Ej:  Dorado)" style="flex: 1; padding: 6px; border-radius: 6px; background: ${isNormal ? '#1b1d24' : '#12131a'}; color: ${isNormal ? '#888' : '#fff'}; border: 1px solid var(--card-border); font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+            <button class="remove-btn" onclick="deleteConfigType(${index})" ${isNormal ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : 'style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;"'}>🗑</button>
+          </div>
+        `;
+      });
+
+      container.innerHTML = `
+        <div class="db-inspector-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 10px;">
+            <div class="db-inspector-title" style="margin-bottom: 0;">
+              <span>🏷️</span> Gestión de Tipos y Categorías
+            </div>
+            <button class="btn btn-success" onclick="saveConfigToFirestore()">
+              <span>💾</span> Guardar Configuración en Firestore
+            </button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px;" class="config-grid-layout">
+            
+            <!-- Column 1: Categories -->
+            <div style="display: flex; flex-direction: column;">
+              <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; margin-bottom: 12px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+                <span>📁</span> Categorías de Espíritus
+              </h3>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Edita los nombres de las categorías o elimínalas. Los espíritus de las categorías eliminadas quedarán sueltos.</p>
+              
+              <div style="max-height: 500px; overflow-y: auto; padding-right: 8px; margin-bottom: 16px;">
+                ${categoriesHtml}
+              </div>
+
+              <!-- Add Category Form -->
+              <div style="display: flex; gap: 10px; margin-top: auto; padding: 12px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
+                <input type="text" id="config-add-category-input" placeholder="Nueva Categoría (Ej: Espíritu de Viento)" style="flex: 1; padding: 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px;">
+                <button class="btn" onclick="addConfigCategory()" style="padding: 8px 16px; font-size: 13px;">Agregar</button>
+              </div>
+            </div>
+
+            <!-- Column 2: Types -->
+            <div style="display: flex; flex-direction: column;">
+              <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; margin-bottom: 12px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+                <span>✨</span> Tipos / Variantes de Espíritus
+              </h3>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Configura los tipos disponibles (ej. Dorado, Gomita). El sufijo se agregará automáticamente al nombre generado.</p>
+              
+              <div style="max-height: 500px; overflow-y: auto; padding-right: 8px; margin-bottom: 16px;">
+                <div style="display: flex; gap: 10px; padding: 4px 8px; margin-bottom: 8px; font-size: 11px; color: var(--text-muted); font-weight: 600;">
+                  <div style="flex: 1;">Nombre del Tipo</div>
+                  <div style="flex: 1;">Sufijo (Ej: " Dorado")</div>
+                  <div style="width: 32px;"></div>
+                </div>
+                ${typesHtml}
+              </div>
+
+              <!-- Add Type Form -->
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding: 12px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
+                <div style="display: flex; gap: 10px;">
+                  <input type="text" id="config-add-type-name" placeholder="Nombre (Ej: Quack)" style="flex: 1; padding: 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px;">
+                  <input type="text" id="config-add-type-suffix" placeholder="Sufijo (Ej:  Quack)" style="flex: 1; padding: 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px;">
+                </div>
+                <button class="btn" onclick="addConfigType()" style="width: 100%; padding: 8px; font-size: 13px;">Agregar Nuevo Tipo</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Section 3: App Theme Selector (Sincronizado con Android) -->
+          <div style="margin-top: 35px; padding-top: 25px; border-top: 1px solid var(--card-border);">
+            <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; margin-bottom: 8px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+              <span>🎨</span> Tema Visual Sincronizado con la App
+            </h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Selecciona el tema y paleta de colores para tu perfil (<strong>${currentUser ? currentUser.name : 'Usuario'}</strong>). Al cambiarlo aquí, se aplicará instantáneamente tanto en la web como en la app móvil:</p>
+            
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 24px;">
+              <div onclick="changeTheme('Pixel Oscuro'); if(currentMode==='config') renderConfigEditor();" style="flex: 1; min-width: 180px; padding: 14px 18px; border-radius: 10px; background: ${userTheme === 'Pixel Oscuro' ? 'rgba(156, 39, 176, 0.2)' : 'rgba(255,255,255,0.03)'}; border: 2px solid ${userTheme === 'Pixel Oscuro' ? 'var(--accent-color)' : 'var(--card-border)'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 22px;">🌙</span>
+                  <div>
+                    <div style="font-weight: 700; font-size: 15px; color: var(--text-color);">Pixel Oscuro</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">Gris profundo y neón rosa</div>
+                  </div>
+                </div>
+                <input type="radio" name="theme-choice" value="Pixel Oscuro" ${userTheme === 'Pixel Oscuro' ? 'checked' : ''} style="cursor: pointer;">
+              </div>
+
+              <div onclick="changeTheme('Pixel Claro'); if(currentMode==='config') renderConfigEditor();" style="flex: 1; min-width: 180px; padding: 14px 18px; border-radius: 10px; background: ${userTheme === 'Pixel Claro' ? 'rgba(124, 77, 255, 0.15)' : 'rgba(255,255,255,0.03)'}; border: 2px solid ${userTheme === 'Pixel Claro' ? 'var(--accent-color)' : 'var(--card-border)'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 22px;">☀️</span>
+                  <div>
+                    <div style="font-weight: 700; font-size: 15px; color: var(--text-color);">Pixel Claro</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">Crema y café tradicional</div>
+                  </div>
+                </div>
+                <input type="radio" name="theme-choice" value="Pixel Claro" ${userTheme === 'Pixel Claro' ? 'checked' : ''} style="cursor: pointer;">
+              </div>
+            </div>
+
+            <!-- Color Palette Selector -->
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 15px; color: var(--text-color); margin-bottom: 10px;">
+              ${userTheme === 'Pixel Oscuro' ? 'COLOR DE BARRAS Y ACENTOS (OSCURO)' : 'COLOR DE BARRAS Y ACENTOS (CLARO)'}
+            </h4>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
+              ${(userTheme === 'Pixel Oscuro' ? DARK_BAR_COLORS : LIGHT_BAR_COLORS).map(hex => `
+                <div onclick="changeBarColor('${hex}')" style="width: 38px; height: 38px; border-radius: 50%; background-color: ${hex}; border: 3px solid ${ (userTheme === 'Pixel Oscuro' ? userDarkColor : userLightColor).toUpperCase() === hex.toUpperCase() ? '#fff' : 'transparent'}; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s;" title="Seleccionar color ${hex}"></div>
+              `).join('')}
+            </div>
+
+            <!-- Custom Background Checkbox -->
+            <div onclick="toggleCustomBgPreference()" style="display: inline-flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border);">
+              <input type="checkbox" ${userUseCustomBg ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px;">
+              <span style="font-size: 13px; font-weight: 600; color: var(--text-color);">Usar tinte de color de barra como fondo adaptativo (Fondo Personalizado)</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Category drag and drop handlers
+    let draggedCategoryIndex = null;
+    
+    window.onConfigCategoryDragStart = function(event, index) {
+      draggedCategoryIndex = index;
+      event.dataTransfer.effectAllowed = "move";
+      event.target.style.opacity = "0.5";
+    };
+
+    window.onConfigCategoryDragOver = function(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    };
+
+    window.onConfigCategoryDrop = function(event, targetIndex) {
+      event.preventDefault();
+      if (draggedCategoryIndex === null || draggedCategoryIndex === targetIndex) return;
+      
+      const item = categories.splice(draggedCategoryIndex, 1)[0];
+      categories.splice(targetIndex, 0, item);
+      
+      draggedCategoryIndex = null;
+      renderConfigEditor();
+      showToast("Orden de categoría actualizado por arrastre.", false);
+    };
+
+    window.onConfigCategoryDragEnd = function(event) {
+      event.target.style.opacity = "1";
+    };
+
+    // Type drag and drop handlers
+    let draggedTypeIndex = null;
+    
+    window.onConfigTypeDragStart = function(event, index) {
+      if (index === 0) { // Normal is not draggable
+        event.preventDefault();
+        return;
+      }
+      draggedTypeIndex = index;
+      event.dataTransfer.effectAllowed = "move";
+      event.target.style.opacity = "0.5";
+    };
+
+    window.onConfigTypeDragOver = function(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    };
+
+    window.onConfigTypeDrop = function(event, targetIndex) {
+      event.preventDefault();
+      if (targetIndex === 0) return; // Cannot drop on Normal index
+      if (draggedTypeIndex === null || draggedTypeIndex === targetIndex) return;
+      
+      const item = spiritTypes.splice(draggedTypeIndex, 1)[0];
+      spiritTypes.splice(targetIndex, 0, item);
+      
+      draggedTypeIndex = null;
+      renderConfigEditor();
+      showToast("Orden de tipo actualizado por arrastre.", false);
+    };
+
+    window.onConfigTypeDragEnd = function(event) {
+      event.target.style.opacity = "1";
+    };
+
+    window.updateConfigCategoryName = function(index, newValue) {
+      const cleanVal = newValue.trim();
+      if (!cleanVal) return;
+      
+      const originalName = categories[index].name;
+      customCategories[originalName] = cleanVal;
+      showToast(`Nombre personalizado cambiado a "${cleanVal}"`, false);
+    };
+
+    window.deleteConfigCategory = function(index) {
+      const cat = categories[index];
+      const displayName = customCategories[cat.name] || cat.name;
+      const msg = cat.spiritIds.length > 0
+        ? `La categoría "${displayName}" tiene ${cat.spiritIds.length} espíritus. Si la eliminas, quedarán sueltos. ¿Continuar?`
+        : `¿Eliminar la categoría vacía "${displayName}"?`;
+
+      customConfirm(msg, "🗑️", () => {
+        categories.splice(index, 1);
+        renderConfigEditor();
+        showToast(`Categoría "${displayName}" eliminada de la configuración.`, false);
+      });
+    };
+
+    window.addConfigCategory = function() {
+      const input = document.getElementById("config-add-category-input");
+      if (!input) return;
+      const name = input.value.trim();
+      if (!name) {
+        customAlert("Por favor ingresa un nombre válido para la categoría.", "⚠️");
+        return;
+      }
+
+      if (categories.some(c => c.name === name)) {
+        customAlert("Ya existe una categoría con ese nombre.", "⚠️");
+        return;
+      }
+
+      categories.push({ name: name, spiritIds: [] });
+      input.value = "";
+      renderConfigEditor();
+      showToast(`Categoría "${name}" agregada localmente.`, false);
+    };
+
+    window.updateConfigTypeName = function(index, newValue) {
+      const cleanVal = newValue.trim();
+      if (!cleanVal) return;
+      spiritTypes[index].name = cleanVal;
+    };
+
+    window.updateConfigTypeSuffix = function(index, newValue) {
+      spiritTypes[index].suffix = newValue;
+    };
+
+    window.deleteConfigType = function(index) {
+      const t = spiritTypes[index];
+      customConfirm(`¿Eliminar el tipo "${t.name}"?`, "🗑️", () => {
+        spiritTypes.splice(index, 1);
+        renderConfigEditor();
+        showToast(`Tipo "${t.name}" eliminado de la configuración.`, false);
+      });
+    };
+
+    window.addConfigType = function() {
+      const nameInput = document.getElementById("config-add-type-name");
+      const suffixInput = document.getElementById("config-add-type-suffix");
+      if (!nameInput || !suffixInput) return;
+
+      const name = nameInput.value.trim();
+      const suffix = suffixInput.value;
+
+      if (!name) {
+        customAlert("Por favor ingresa un nombre para el tipo.", "⚠️");
+        return;
+      }
+
+      if (spiritTypes.some(t => t.name === name)) {
+        customAlert("Ya existe un tipo con ese nombre.", "⚠️");
+        return;
+      }
+
+      spiritTypes.push({ name: name, suffix: suffix });
+      nameInput.value = "";
+      suffixInput.value = "";
+      renderConfigEditor();
+      showToast(`Tipo "${name}" agregado localmente.`, false);
+    };
+
+    window.saveConfigToFirestore = function() {
+      const categoriesMap = categories.map(cat => ({
+        name: cat.name,
+        spiritIds: cat.spiritIds
+      }));
+
+      const updates = {
+        "categories": categoriesMap,
+        "custom_categories": customCategories,
+        "spirit_types": spiritTypes,
+        "schema_version": 4
+      };
+
+      db.collection(getFirestoreCollection()).doc(coupleId).set(updates, { merge: true })
+        .then(() => {
+          showToast("¡Tipos y Categorías guardados en Firestore con éxito! 🚀", false);
+        })
+        .catch(err => {
+          console.error("Error al guardar configuración:", err);
+          showToast("Error al guardar en Firestore", true);
+        });
+    };
+    // ---- Custom dialog system (replaces native alert/confirm/prompt) ----
+    function _showDialog(icon, msg, inputVisible, inputPlaceholder, buttons) {
+      document.getElementById("custom-dialog-icon").textContent = icon;
+      document.getElementById("custom-dialog-msg").textContent = msg;
+      const inputEl = document.getElementById("custom-dialog-input");
+      if (inputVisible) {
+        inputEl.style.display = "block";
+        inputEl.value = "";
+        inputEl.placeholder = inputPlaceholder || "";
+        setTimeout(() => inputEl.focus(), 80);
+      } else {
+        inputEl.style.display = "none";
+      }
+      const btnsEl = document.getElementById("custom-dialog-btns");
+      btnsEl.innerHTML = "";
+      buttons.forEach(b => {
+        const btn = document.createElement("button");
+        btn.textContent = b.label;
+        btn.className = b.primary ? "btn" : "btn btn-secondary";
+        if (b.danger) { btn.style.background = "rgba(239,68,68,0.15)"; btn.style.borderColor = "#ef4444"; btn.style.color = "#ef4444"; }
+        btn.onclick = () => {
+          document.getElementById("custom-dialog-overlay").classList.remove("show");
+          if (b.action) b.action(inputEl.value);
+        };
+        btnsEl.appendChild(btn);
+      });
+      // Close on Enter for single-button or confirm dialogs
+      inputEl.onkeydown = (e) => {
+        if (e.key === "Enter") {
+          const primary = buttons.find(b => b.primary);
+          if (primary) {
+            document.getElementById("custom-dialog-overlay").classList.remove("show");
+            if (primary.action) primary.action(inputEl.value);
+          }
+        }
+      };
+      document.getElementById("custom-dialog-overlay").classList.add("show");
+    }
+
+    window.customAlert = function(msg, icon = "ℹ️") {
+      _showDialog(icon, msg, false, "", [
+        { label: "Aceptar", primary: true, action: null }
+      ]);
+    };
+
+    window.customConfirm = function(msg, icon = "❓", onConfirm) {
+      _showDialog(icon, msg, false, "", [
+        { label: "Cancelar", primary: false, action: null },
+        { label: "Confirmar", primary: true, danger: false, action: () => { if (onConfirm) onConfirm(); } }
+      ]);
+    };
+
+    window.customPrompt = function(msg, icon = "✏️", onConfirm) {
+      _showDialog(icon, msg, true, "", [
+        { label: "Cancelar", primary: false, action: null },
+        { label: "Aceptar", primary: true, action: (val) => { if (onConfirm) onConfirm(val); } }
+      ]);
+    };
+
+    // Close overlay on background click
+    document.getElementById("custom-dialog-overlay").addEventListener("click", function(e) {
+      if (e.target === this) this.classList.remove("show");
+    });
+
     // 11. Initializer
     window.addEventListener("DOMContentLoaded", () => {
       const savedCoupleId = localStorage.getItem("coupleId") || "vínculo_único_123";
-      document.getElementById("couple-id").value = savedCoupleId;
+      const coupleIdInput = document.getElementById("couple-id");
+      if (coupleIdInput) {
+        coupleIdInput.value = savedCoupleId;
+        coupleIdInput.addEventListener("change", () => {
+          listenFirestore();
+        });
+      }
 
-      document.getElementById("couple-id").addEventListener("change", () => {
-        listenFirestore();
-      });
+      const btnCloseModal = document.getElementById("btn-close-modal");
+      if (btnCloseModal) btnCloseModal.addEventListener("click", closeAssignModal);
 
-      document.getElementById("btn-close-modal").addEventListener("click", closeAssignModal);
-      document.getElementById("btn-confirm-assign").addEventListener("click", () => {
-        if (activeModalSpiritId) {
-          const selectedCat = document.getElementById("assign-category-select").value;
-          moveSpiritToCategory(activeModalSpiritId, selectedCat);
-          closeAssignModal();
-          showToast("Espíritu asignado correctamente.", false);
-        }
-      });
-      document.getElementById("btn-modal-delete").addEventListener("click", () => {
-        if (activeModalSpiritId) {
-          const sid = activeModalSpiritId;
-          closeAssignModal();
-          permanentlyDeleteSpirit(sid);
-        }
-      });
+      const btnConfirmAssign = document.getElementById("btn-confirm-assign");
+      if (btnConfirmAssign) {
+        btnConfirmAssign.addEventListener("click", () => {
+          if (activeModalSpiritId) {
+            const selectedCat = document.getElementById("assign-category-select").value;
+            moveSpiritToCategory(activeModalSpiritId, selectedCat);
+            closeAssignModal();
+            showToast("Espíritu asignado correctamente.", false);
+          }
+        });
+      }
+
+      const btnModalDelete = document.getElementById("btn-modal-delete");
+      if (btnModalDelete) {
+        btnModalDelete.addEventListener("click", () => {
+          if (activeModalSpiritId) {
+            const sid = activeModalSpiritId;
+            closeAssignModal();
+            permanentlyDeleteSpirit(sid);
+          }
+        });
+      }
+
+      const btnUploadCloudinary = document.getElementById("btn-upload-cloudinary");
+      if (btnUploadCloudinary) {
+        btnUploadCloudinary.addEventListener("click", () => {
+          if (!editingSpiritImageId) return;
+          const fileInput = document.getElementById("edit-image-file-input");
+          if (!fileInput.files || !fileInput.files[0]) {
+            showToast("Por favor, selecciona un archivo de imagen primero", true);
+            return;
+          }
+          const file = fileInput.files[0];
+          showUploadLoader("🖼️ Comprimiendo imagen...", "Reduciendo tamaño para la subida");
+          compressImage(file, 1200, 0.82).then(async compressedBase64 => {
+            let res;
+            try {
+              updateUploadLoaderStep("🚀 Subiendo a Cloudinary...");
+              const r = await fetch('/api/upload-spirit-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spiritId: editingSpiritImageId, imageBase64: compressedBase64 })
+              });
+              res = await r.json();
+            } catch (networkErr) {
+              console.error('Error de red al subir imagen:', networkErr);
+              hideUploadLoader();
+              showToast("Error de red al conectar con el servidor", true);
+              return;
+            }
+            if (res.success) {
+              imageCacheBusters[editingSpiritImageId] = Date.now();
+              if (res.url) {
+                customImages[editingSpiritImageId] = res.url;
+              }
+              try {
+                updateUploadLoaderStep("💾 Guardando en base de datos...");
+                await saveChangesToFirestoreAsync();
+                renderGallery();
+                closeEditImageModal();
+                hideUploadLoader();
+                showToast("¡Imagen subida y guardada en la base de datos! 🖼️🎉", false);
+              } catch (dbErr) {
+                console.error('Error guardando en Firestore:', dbErr);
+                hideUploadLoader();
+                showToast("Imagen subida pero error al guardar en base de datos: " + dbErr.message, true);
+              }
+            } else {
+              hideUploadLoader();
+              showToast("Error subiendo a Cloudinary: " + (res.error || "Error desconocido"), true);
+            }
+          });
+        });
+      }
+
+      const btnSaveCustomUrl = document.getElementById("btn-save-custom-url");
+      if (btnSaveCustomUrl) {
+        btnSaveCustomUrl.addEventListener("click", () => {
+          if (!editingSpiritImageId) return;
+          const url = document.getElementById("edit-image-url-input").value.trim();
+          if (url) {
+            customImages[editingSpiritImageId] = url;
+          } else {
+            delete customImages[editingSpiritImageId];
+          }
+          showToast("URL personalizada guardada 💾", false);
+          closeEditImageModal();
+          renderGallery();
+          saveChangesToFirestoreAsync();
+        });
+      }
+
+      if (localStorage.getItem("high_fps_mode") === "true") {
+        document.body.classList.add("high-fps-mode");
+      }
+
+      // Passive event listeners para garantizar scroll a 100Hz (0ms de bloqueo de hilo)
+      window.addEventListener('scroll', () => {}, { passive: true });
+      window.addEventListener('touchstart', () => {}, { passive: true });
+      window.addEventListener('touchmove', () => {}, { passive: true });
 
       renderGallery();
       checkSession();
       listenFirestore();
+      setMode(currentMode);
+      checkPersistentStorageStatus();
     });
+
+    window.checkPersistentStorageStatus = function() {
+      if (navigator.storage && navigator.storage.persisted) {
+        navigator.storage.persisted().then(isPersisted => {
+          if (!isPersisted && localStorage.getItem("persistent_storage_dismissed") !== "true") {
+            setTimeout(() => {
+              const modal = document.getElementById("persistent-storage-modal");
+              if (modal) modal.classList.add("show");
+            }, 1200);
+          }
+        });
+      }
+    };
+
+    window.openPersistentStorageModalManual = function() {
+      closeCloudinarySettingsModal();
+      const modal = document.getElementById("persistent-storage-modal");
+      if (modal) modal.classList.add("show");
+    };
+
+    window.closePersistentStorageModal = function() {
+      localStorage.setItem("persistent_storage_dismissed", "true");
+      const modal = document.getElementById("persistent-storage-modal");
+      if (modal) modal.classList.remove("show");
+    };
+
+    window.requestPersistentStoragePermission = function() {
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().then(granted => {
+          closePersistentStorageModal();
+          if (granted) {
+            showToast("¡Almacenamiento Persistente Protegido activado! 💾⚡", false);
+          } else {
+            showToast("El navegador no otorgó el permiso persistente en este momento.", true);
+          }
+        });
+      } else {
+        closePersistentStorageModal();
+        showToast("Tu navegador no soporta el API de Almacenamiento Persistente.", true);
+      }
+    };
+
+    window.openEditImageModal = function(spiritId) {
+      editingSpiritImageId = spiritId;
+      const formattedId = String(spiritId).padStart(2, '0');
+      document.getElementById("edit-image-modal-title").textContent = `🖼️ Editar Imagen (#${formattedId} - ${getSpiritName(spiritId)})`;
+      document.getElementById("edit-image-preview").src = getSpiritImgUrl(spiritId);
+      document.getElementById("edit-image-file-input").value = "";
+      document.getElementById("edit-image-url-input").value = customImages[spiritId] || "";
+      document.getElementById("edit-image-modal").classList.add("show");
+    };
+
+    window.closeEditImageModal = function() {
+      document.getElementById("edit-image-modal").classList.remove("show");
+      editingSpiritImageId = null;
+    };
+
+    window.toggleHighFpsMode = function(enabled) {
+      if (enabled) {
+        document.body.classList.add("high-fps-mode");
+        localStorage.setItem("high_fps_mode", "true");
+        showToast("⚡ Modo 120 FPS / Tasa Alta activado", false);
+      } else {
+        document.body.classList.remove("high-fps-mode");
+        localStorage.setItem("high_fps_mode", "false");
+        showToast("Modo estándar de tasa de refresco activado", false);
+      }
+    };
+
+    window.openCloudinarySettingsModal = function() {
+      const isHighFps = localStorage.getItem("high_fps_mode") === "true";
+      const toggleEl = document.getElementById("toggle-120fps");
+      if (toggleEl) toggleEl.checked = isHighFps;
+      document.getElementById("cloudinary-settings-modal").classList.add("show");
+    };
+
+    window.closeCloudinarySettingsModal = function() {
+      document.getElementById("cloudinary-settings-modal").classList.remove("show");
+    };
+
+    window.runCloudinaryCleanup = function() {
+      customConfirm("¿Deseas escanear y eliminar permanentemente las imágenes de Cloudinary que ya no estén utilizadas en la app?", "🧹", async () => {
+        showUploadLoader("🔍 Escaneando Cloudinary...", "Buscando fotos no utilizadas");
+
+        // Recopilar todas las URLs activas actualmente en uso
+        const activeUrls = [];
+        
+        // 1. URLs en customImages
+        if (customImages) {
+          Object.values(customImages).forEach(url => {
+            if (url) activeUrls.push(url);
+          });
+        }
+
+        // 2. URLs predeterminadas de Cloudinary para todos los espíritus registrados
+        const activeSpirits = spiritsList.length > 0 ? spiritsList : defaultSpiritsList;
+        activeSpirits.forEach(id => {
+          const formattedId = String(id).padStart(2, '0');
+          activeUrls.push(`https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`);
+          activeUrls.push(`spirits/ic_spirit_${formattedId}`);
+        });
+
+        try {
+          updateUploadLoaderStep("🗑️ Eliminando imágenes huérfanas...");
+          const isVercel = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+          const endpoint = isVercel ? '/api/clean-unused-cloudinary' : '/api/clean-unused-cloudinary';
+
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activeUrls })
+          });
+
+          const data = await res.json();
+          hideUploadLoader();
+
+          if (data.success) {
+            if (data.deletedCount > 0) {
+              showToast(`¡Se eliminaron ${data.deletedCount} foto(s) huérfanas de Cloudinary con éxito! 🗑️🎉`, false);
+            } else {
+              showToast(data.message || "No se encontraron fotos huérfanas para eliminar en Cloudinary. ✨", false);
+            }
+            closeCloudinarySettingsModal();
+          } else {
+            showToast("Error al limpiar Cloudinary: " + (data.error || "Error desconocido"), true);
+          }
+        } catch (err) {
+          console.error("Error ejecutando limpieza:", err);
+          hideUploadLoader();
+          showToast("Error de conexión al limpiar Cloudinary: " + err.message, true);
+        }
+      });
+    };
+    // Studio Image Editor Logic (Crop + Magic Wand Background Removal)
+    let studioOriginalImg = null;
+    let studioCanvas = null;
+    let studioCtx = null;
+    let isStudioMouseDown = false;
+    let studioCropStart = { x: 0, y: 0 };
+    let studioCropEnd = { x: 0, y: 0 };
+
+    window.openStudioCropModal = function() {
+      const modal = document.getElementById("studio-crop-modal");
+      studioCanvas = document.getElementById("studio-canvas");
+      studioCtx = studioCanvas.getContext("2d", { willReadFrequently: true });
+      
+      const currentUrl = editingSpiritImageId ? getSpiritImgUrl(editingSpiritImageId) : null;
+      if (currentUrl) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = function() {
+          studioOriginalImg = img;
+          resetStudioCanvas();
+        };
+        img.src = currentUrl;
+      }
+      if (modal) modal.classList.add("show");
+      setupStudioCropListeners();
+    };
+
+    window.closeStudioCropModal = function() {
+      const modal = document.getElementById("studio-crop-modal");
+      if (modal) modal.classList.remove("show");
+    };
+
+    window.loadStudioImageFromFile = function(inputEl) {
+      if (!inputEl.files || !inputEl.files[0]) return;
+      const file = inputEl.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          studioOriginalImg = img;
+          resetStudioCanvas();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    window.resetStudioCanvas = function() {
+      if (!studioOriginalImg || !studioCanvas) return;
+      studioCanvas.width = studioOriginalImg.width;
+      studioCanvas.height = studioOriginalImg.height;
+      studioCtx.drawImage(studioOriginalImg, 0, 0);
+      studioCropStart = { x: 0, y: 0 };
+      studioCropEnd = { x: studioCanvas.width, y: studioCanvas.height };
+    };
+
+    let studioCurrentTool = "crop"; // "crop", "wand", "eraser"
+
+    window.setStudioTool = function(toolName) {
+      studioCurrentTool = toolName;
+      document.getElementById("studio-tool-crop").classList.toggle("active", toolName === "crop");
+      document.getElementById("studio-tool-wand").classList.toggle("active", toolName === "wand");
+      document.getElementById("studio-tool-eraser").classList.toggle("active", toolName === "eraser");
+
+      const brushContainer = document.getElementById("studio-brush-size-container");
+      if (brushContainer) brushContainer.style.display = toolName === "eraser" ? "flex" : "none";
+    };
+
+    function setupStudioCropListeners() {
+      if (!studioCanvas || studioCanvas.dataset.listenersAttached) return;
+      studioCanvas.dataset.listenersAttached = "true";
+
+      studioCanvas.addEventListener("mousedown", (e) => {
+        const rect = studioCanvas.getBoundingClientRect();
+        const scaleX = studioCanvas.width / rect.width;
+        const scaleY = studioCanvas.height / rect.height;
+        const clickX = (e.clientX - rect.left) * scaleX;
+        const clickY = (e.clientY - rect.top) * scaleY;
+
+        if (studioCurrentTool === "wand") {
+          removeColorAtPoint(clickX, clickY);
+          return;
+        } else if (studioCurrentTool === "eraser") {
+          isStudioMouseDown = true;
+          eraseAtPoint(clickX, clickY);
+          return;
+        }
+
+        studioCropStart = { x: clickX, y: clickY };
+        studioCropEnd = { ...studioCropStart };
+        isStudioMouseDown = true;
+      });
+
+      studioCanvas.addEventListener("mousemove", (e) => {
+        if (!isStudioMouseDown) return;
+        const rect = studioCanvas.getBoundingClientRect();
+        const scaleX = studioCanvas.width / rect.width;
+        const scaleY = studioCanvas.height / rect.height;
+        const currentX = (e.clientX - rect.left) * scaleX;
+        const currentY = (e.clientY - rect.top) * scaleY;
+
+        if (studioCurrentTool === "eraser") {
+          eraseAtPoint(currentX, currentY);
+          return;
+        }
+
+        studioCropEnd = { x: currentX, y: currentY };
+        redrawStudioCanvasWithSelection();
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (isStudioMouseDown) {
+          isStudioMouseDown = false;
+          if (studioCurrentTool === "crop") {
+            const w = Math.round(Math.abs(studioCropEnd.x - studioCropStart.x));
+            const h = Math.round(Math.abs(studioCropEnd.y - studioCropStart.y));
+            if (w > 20 && h > 20) {
+              cropStudioSelectedArea();
+            } else {
+              redrawStudioCanvasWithSelection();
+            }
+          }
+        }
+      });
+    }
+
+    // Tocar un punto exacto con la Varita Mágica para eliminar ese tono de color específico
+    function removeColorAtPoint(startX, startY) {
+      if (!studioCanvas || !studioCtx) return;
+      const w = studioCanvas.width;
+      const h = studioCanvas.height;
+      const x = Math.floor(startX);
+      const y = Math.floor(startY);
+      if (x < 0 || x >= w || y < 0 || y >= h) return;
+
+      const imgData = studioCtx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+      const targetIdx = (y * w + x) * 4;
+      const targetR = data[targetIdx];
+      const targetG = data[targetIdx + 1];
+      const targetB = data[targetIdx + 2];
+
+      const threshold = parseInt(document.getElementById("studio-threshold").value) || 35;
+      const featherRange = 16;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const dist = Math.sqrt(
+          Math.pow(data[i] - targetR, 2) +
+          Math.pow(data[i + 1] - targetG, 2) +
+          Math.pow(data[i + 2] - targetB, 2)
+        );
+
+        if (dist <= threshold) {
+          data[i + 3] = 0;
+        } else if (dist <= threshold + featherRange) {
+          const alphaRatio = (dist - threshold) / featherRange;
+          data[i + 3] = Math.round(data[i + 3] * alphaRatio);
+        }
+      }
+
+      studioCtx.putImageData(imgData, 0, 0);
+
+      // Actualizar imagen base original
+      const tempImg = new Image();
+      tempImg.onload = () => { studioOriginalImg = tempImg; };
+      tempImg.src = studioCanvas.toDataURL();
+      showToast("Tono de color eliminado con éxito 🎯✨", false);
+    }
+
+    // Borrar manualmente con el Pincel Borrador
+    function eraseAtPoint(x, y) {
+      if (!studioCanvas || !studioCtx) return;
+      const brushRadius = (parseInt(document.getElementById("studio-brush-size").value) || 20) / 2;
+
+      studioCtx.save();
+      studioCtx.globalCompositeOperation = "destination-out";
+      studioCtx.beginPath();
+      studioCtx.arc(x, y, brushRadius, 0, Math.PI * 2);
+      studioCtx.fill();
+      studioCtx.restore();
+
+      // Actualizar imagen base
+      const tempImg = new Image();
+      tempImg.onload = () => { studioOriginalImg = tempImg; };
+      tempImg.src = studioCanvas.toDataURL();
+    }
+
+    function redrawStudioCanvasWithSelection() {
+      if (!studioOriginalImg || !studioCtx) return;
+      studioCtx.drawImage(studioOriginalImg, 0, 0);
+      
+      const x = Math.min(studioCropStart.x, studioCropEnd.x);
+      const y = Math.min(studioCropStart.y, studioCropEnd.y);
+      const w = Math.abs(studioCropEnd.x - studioCropStart.x);
+      const h = Math.abs(studioCropEnd.y - studioCropStart.y);
+
+      if (w > 5 && h > 5) {
+        studioCtx.strokeStyle = "#e040fb";
+        studioCtx.lineWidth = Math.max(2, Math.round(studioCanvas.width / 200));
+        studioCtx.setLineDash([6, 6]);
+        studioCtx.strokeRect(x, y, w, h);
+      }
+    }
+
+    function cropStudioSelectedArea() {
+      const x = Math.round(Math.min(studioCropStart.x, studioCropEnd.x));
+      const y = Math.round(Math.min(studioCropStart.y, studioCropEnd.y));
+      const w = Math.round(Math.abs(studioCropEnd.x - studioCropStart.x));
+      const h = Math.round(Math.abs(studioCropEnd.y - studioCropStart.y));
+
+      if (w < 20 || h < 20) return;
+
+      const croppedData = studioCtx.getImageData(x, y, w, h);
+      studioCanvas.width = w;
+      studioCanvas.height = h;
+      studioCtx.putImageData(croppedData, 0, 0);
+
+      // Actualizar la imagen original de estudio con la recortada
+      const tempImg = new Image();
+      tempImg.onload = () => { 
+        studioOriginalImg = tempImg;
+        redrawStudioCanvasWithSelection();
+      };
+      tempImg.src = studioCanvas.toDataURL();
+    }
+
+    let studioBackgroundProcessed = false;
+    let studioThrottledRaf = false;
+
+    window.onStudioThresholdChange = function(val) {
+      const valEl = document.getElementById("studio-threshold-val");
+      if (valEl) valEl.textContent = val;
+
+      if (!studioThrottledRaf) {
+        studioThrottledRaf = true;
+        requestAnimationFrame(() => {
+          removeStudioBackground(true);
+          studioThrottledRaf = false;
+        });
+      }
+    };
+
+    window.removeStudioBackground = function(isSilent = false) {
+      if (!studioOriginalImg || !studioCanvas || !studioCtx) return;
+
+      const w = studioCanvas.width;
+      const h = studioCanvas.height;
+
+      // Trabajar siempre desde la imagen base limpia original (o recortada)
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = w;
+      tempCanvas.height = h;
+      const tempCtx = tempCanvas.getContext("2d");
+      tempCtx.drawImage(studioOriginalImg, 0, 0);
+
+      const imgData = tempCtx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+
+      const threshold = parseInt(document.getElementById("studio-threshold").value) || 35;
+      const featherRange = 18; // Rango de transición suavizada de bordes
+
+      // Muestrear esquinas y borde superior/inferior para identificar colores de fondo
+      const cornerSamples = [
+        [data[0], data[1], data[2]],
+        [data[(w - 1) * 4], data[(w - 1) * 4 + 1], data[(w - 1) * 4 + 2]],
+        [data[((h - 1) * w) * 4], data[((h - 1) * w) * 4 + 1], data[((h - 1) * w) * 4 + 2]],
+        [data[((h - 1) * w + w - 1) * 4], data[((h - 1) * w + w - 1) * 4 + 1], data[((h - 1) * w + w - 1) * 4 + 2]],
+        [255, 255, 255] // Blanco puro por defecto
+      ];
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        let minDistance = Infinity;
+        for (const sample of cornerSamples) {
+          const dist = Math.sqrt(
+            Math.pow(r - sample[0], 2) +
+            Math.pow(g - sample[1], 2) +
+            Math.pow(b - sample[2], 2)
+          );
+          if (dist < minDistance) {
+            minDistance = dist;
+          }
+        }
+
+        if (minDistance <= threshold) {
+          // Fondo completo
+          data[i + 3] = 0;
+        } else if (minDistance <= threshold + featherRange) {
+          // Borde con transición de opacidad (Alpha Feathering / Anti-Aliasing)
+          const alphaRatio = (minDistance - threshold) / featherRange;
+          data[i + 3] = Math.round(data[i + 3] * alphaRatio);
+          
+          // Descontaminar borde halo blanco
+          data[i] = Math.max(0, data[i] - Math.round((255 - data[i]) * (1 - alphaRatio)));
+          data[i + 1] = Math.max(0, data[i + 1] - Math.round((255 - data[i + 1]) * (1 - alphaRatio)));
+          data[i + 2] = Math.max(0, data[i + 2] - Math.round((255 - data[i + 2]) * (1 - alphaRatio)));
+        }
+      }
+
+      studioCtx.putImageData(imgData, 0, 0);
+      studioBackgroundProcessed = true;
+
+      if (!isSilent) {
+        showToast("Fondo eliminado con bordes suavizados 🪄✨", false);
+      }
+    };
+
+    window.saveStudioProcessedImage = async function() {
+      if (!studioCanvas) return;
+      const dataUrl = studioCanvas.toDataURL("image/png");
+      
+      closeStudioCropModal();
+      showUploadLoader("🖼️ Guardando y subiendo imagen...", "Subiendo espíritu procesado a Cloudinary");
+
+      try {
+        updateUploadLoaderStep("🚀 Subiendo a Cloudinary...");
+        const r = await fetch('/api/upload-spirit-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ spiritId: editingSpiritImageId || Date.now(), imageBase64: dataUrl })
+        });
+        const res = await r.json();
+
+        if (res.success) {
+          if (editingSpiritImageId) {
+            imageCacheBusters[editingSpiritImageId] = Date.now();
+            if (res.url) customImages[editingSpiritImageId] = res.url;
+            await saveChangesToFirestoreAsync();
+            renderGallery();
+            closeEditImageModal();
+          }
+          hideUploadLoader();
+          showToast("¡Espíritu recortado y procesado guardado con éxito! ✂️🖼️🎉", false);
+        } else {
+          hideUploadLoader();
+          showToast("Error al subir a Cloudinary: " + res.error, true);
+        }
+      } catch (err) {
+        console.error("Error guardando imagen de estudio:", err);
+        hideUploadLoader();
+        showToast("Error de conexión al subir la imagen", true);
+      }
+    };
   </script>
 </body>
 </html>

@@ -130,13 +130,16 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 ### G. Metadatos de Sincronización Drive (`pets/<coupleId>/drive_sync_metadata/<docId>`)
 - `idLocal: String`, `idDrive: String`, `nombreArchivo: String`, `uriLocal: String`, `md5Checksum: String`, `fechaModificacion: Long`, `sincronizadoPor: String`, `eliminado: Boolean`.
 
-### H. Colección de Espíritus Fortnite (`fortnite_spirits/<coupleId>`)
+### H. Colección de Espíritus Fortnite (`fortnite_spirits/<coupleId>` para Temporada 1 / `fortnite_spirits_s2/<coupleId>` para Temporada 2)
+- **Soporte Multitemporada:**
+  - **Temporada 1**: Contiene la colección original de espíritus (1 a 141), categorías y estado histórico de checks y maestrías.
+  - **Temporada 2 (Por defecto)**: Colección activa para los nuevos espíritus, variantes y categorías creadas en la Web de Gestión con registro independiente de checks y maestrías.
 - `schema_version: Int` (Versión 4).
 - `categories: List<SpiritCategory>` / `Map`
 - `spirits_list: List<String>`
 - `kevin_list: List<String>` / `ali_list: List<String>`
 - `kevin_mastery: List<String>` / `ali_mastery: List<String>`
-- `custom_names: Map<String, String>`, `custom_categories: Map<String, String>`, `custom_images: Map<String, String>`.
+- `custom_names: Map<String, String>`, `custom_categories: Map<String, String>`, `custom_images: Map<String, String>`, `spirit_types: List<SpiritType>`.
 
 ---
 

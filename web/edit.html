@@ -1365,6 +1365,12 @@
     </div>
 
     <div class="header-controls">
+      <!-- Season Switcher Pill -->
+      <div class="mode-switch" id="season-switch" style="background: rgba(156, 39, 176, 0.2); border-color: var(--accent-color);">
+        <button type="button" id="btn-season-2" class="mode-btn active" onclick="switchSeason(2)" style="font-weight: 700;">🌟 Temporada 2</button>
+        <button type="button" id="btn-season-1" class="mode-btn" onclick="switchSeason(1)" style="font-weight: 700;">🕰️ Temporada 1</button>
+      </div>
+
       <!-- Mode Toggle Pill -->
       <div class="mode-switch">
         <button type="button" id="btn-mode-normal" class="mode-btn active" onclick="switchModeSPA('normal')">👁️ Modo Normal</button>
@@ -1410,15 +1416,15 @@
         <div class="stats-container">
           <div class="stat-pill kevin">
             <span class="stat-label">🔵 Kevin:</span>
-            <span class="stat-val" id="stat-kevin">0 / 117</span>
+            <span class="stat-val" id="stat-kevin">0 / 0</span>
           </div>
           <div class="stat-pill ali">
             <span class="stat-label">🔴 Ali:</span>
-            <span class="stat-val" id="stat-ali">0 / 117</span>
+            <span class="stat-val" id="stat-ali">0 / 0</span>
           </div>
           <div class="stat-pill both">
             <span class="stat-label">💜 Ambos:</span>
-            <span class="stat-val" id="stat-both">0 / 117</span>
+            <span class="stat-val" id="stat-both">0 / 0</span>
           </div>
         </div>
       </div>
@@ -1866,18 +1872,24 @@
     let searchQuery = "";
     let currentUser = null; // { username: 'kevin'|'ali', name: 'Kevin'|'Ali', key: 'kevin_list'|'ali_list', masteryKey: 'kevin_mastery'|'ali_mastery' }
 
+    // Season Selection (Default: 2)
+    let currentSeason = 2;
+    function getFirestoreCollection() {
+      return currentSeason === 1 ? "fortnite_spirits" : "fortnite_spirits_s2";
+    }
+
     // Cargar caché local instantánea si existe
     let cachedData = null;
     try {
-      cachedData = JSON.parse(localStorage.getItem(`spirits_cache_${coupleId}`));
+      cachedData = JSON.parse(localStorage.getItem(`spirits_cache_${coupleId}_s${currentSeason}`));
     } catch(e) {}
 
-    let spiritsList = cachedData && cachedData.spirits_list ? cachedData.spirits_list : Array.from({length: 117}, (_, i) => String(i + 1).padStart(2, '0'));
+    let spiritsList = cachedData && cachedData.spirits_list ? cachedData.spirits_list : [];
     let categories = cachedData && cachedData.categories ? cachedData.categories : [];
     let customNames = cachedData && cachedData.custom_names ? cachedData.custom_names : {};
     let customCategories = cachedData && cachedData.custom_categories ? cachedData.custom_categories : {};
     let customImages = cachedData && cachedData.custom_images ? cachedData.custom_images : {};
-    let spiritTypes = cachedData && cachedData.spirit_types ? cachedData.spirit_types : [
+    const defaultSpiritTypesT1 = [
       { name: "Normal", suffix: "" },
       { name: "Dorado", suffix: " Dorado" },
       { name: "Gomita", suffix: " Gomita" },
@@ -1890,6 +1902,14 @@
       { name: "Galaxia Oscura", suffix: " Galaxia Oscura" },
       { name: "Especial", suffix: " Especial" }
     ];
+
+    const defaultSpiritTypesT2 = [
+      { name: "Normal", suffix: "" },
+      { name: "Dorado", suffix: " Dorado" },
+      { name: "Matrix", suffix: " Matrix" }
+    ];
+
+    let spiritTypes = cachedData && cachedData.spirit_types ? cachedData.spirit_types : (currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
     let kevinList = cachedData && cachedData.kevin_list ? cachedData.kevin_list : [];
     let aliList = cachedData && cachedData.ali_list ? cachedData.ali_list : [];
     let kevinMastery = cachedData && cachedData.kevin_mastery ? cachedData.kevin_mastery : [];
@@ -2396,7 +2416,7 @@
       }
       updateDbStatusBadge(true, true);
 
-      firestoreUnsubscribe = db.collection("fortnite_spirits").doc(coupleId)
+      firestoreUnsubscribe = db.collection(getFirestoreCollection()).doc(coupleId)
         .onSnapshot({ includeMetadataChanges: true }, snapshot => {
           const isFromCache = snapshot.metadata.hasPendingWrites || snapshot.metadata.fromCache;
           updateDbStatusBadge(true, isFromCache);
@@ -2421,19 +2441,7 @@
               if (data.spirit_types && Array.isArray(data.spirit_types)) {
                 spiritTypes = data.spirit_types;
               } else {
-                spiritTypes = [
-                  { name: "Normal", suffix: "" },
-                  { name: "Dorado", suffix: " Dorado" },
-                  { name: "Gomita", suffix: " Gomita" },
-                  { name: "Galaxia", suffix: " Galaxia" },
-                  { name: "Gema", suffix: " Gema" },
-                  { name: "Holofoil", suffix: " Holofoil" },
-                  { name: "Cubo", suffix: " Cubo" },
-                  { name: "Arcoíris", suffix: " Arcoíris" },
-                  { name: "Quack", suffix: " Quack" },
-                  { name: "Galaxia Oscura", suffix: " Galaxia Oscura" },
-                  { name: "Especial", suffix: " Especial" }
-                ];
+                spiritTypes = currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2;
               }
 
               const dbCategoriesData = data.categories || [];
@@ -2450,7 +2458,9 @@
 
               if (parsedCategories.length > 0) {
                 const defaultOrderMap = new Map();
-                defaultCategories.forEach((cat, idx) => defaultOrderMap.set(cat.name, idx));
+                if (currentSeason === 1) {
+                  defaultCategories.forEach((cat, idx) => defaultOrderMap.set(cat.name, idx));
+                }
 
                 categories = parsedCategories.sort((a, b) => {
                   const orderA = defaultOrderMap.has(a.name) ? defaultOrderMap.get(a.name) : 999;
@@ -2458,7 +2468,7 @@
                   return orderA - orderB;
                 });
               } else {
-                categories = JSON.parse(JSON.stringify(defaultCategories));
+                categories = currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategories)) : [];
               }
 
               const idsInCategories = new Set();
@@ -2467,7 +2477,7 @@
               if (data.spirits_list && Array.isArray(data.spirits_list)) {
                 spiritsList = Array.from(new Set([...data.spirits_list, ...idsInCategories])).sort((a, b) => parseInt(a) - parseInt(b));
               } else {
-                spiritsList = [...defaultSpiritsList];
+                spiritsList = currentSeason === 1 ? [...defaultSpiritsList] : [];
               }
             }
           } else {
@@ -2476,14 +2486,14 @@
             kevinMastery = [];
             aliMastery = [];
             if (currentMode !== "edit") {
-              spiritsList = [...defaultSpiritsList];
-              categories = JSON.parse(JSON.stringify(defaultCategories));
+              spiritsList = currentSeason === 1 ? [...defaultSpiritsList] : [];
+              categories = currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategories)) : [];
               customNames = {};
               customCategories = {};
             }
           }
           try {
-            localStorage.setItem(`spirits_cache_${coupleId}`, JSON.stringify({
+            localStorage.setItem(`spirits_cache_${coupleId}_s${currentSeason}`, JSON.stringify({
               spirits_list: spiritsList,
               categories: categories,
               custom_names: customNames,
@@ -2512,10 +2522,59 @@
         });
     }
 
-    function updateStats() {
-      const activeSpirits = spiritsList.length > 0 ? spiritsList : defaultSpiritsList;
+    window.switchSeason = function(season) {
+      if (currentSeason === season) return;
+      currentSeason = season;
 
-      // Registered spirits are those assigned to at least one category (118)
+      // Update Season buttons UI
+      const btnS1 = document.getElementById("btn-season-1");
+      const btnS2 = document.getElementById("btn-season-2");
+      if (btnS1 && btnS2) {
+        if (season === 1) {
+          btnS1.classList.add("active");
+          btnS2.classList.remove("active");
+        } else {
+          btnS2.classList.add("active");
+          btnS1.classList.remove("active");
+        }
+      }
+
+      // Load cache for selected season if available
+      try {
+        const seasonCache = JSON.parse(localStorage.getItem(`spirits_cache_${coupleId}_s${currentSeason}`));
+        if (seasonCache) {
+          spiritsList = seasonCache.spirits_list || (currentSeason === 1 ? defaultSpiritsList : []);
+          categories = seasonCache.categories || (currentSeason === 1 ? defaultCategories : []);
+          customNames = seasonCache.custom_names || {};
+          customCategories = seasonCache.custom_categories || {};
+          customImages = seasonCache.custom_images || {};
+          spiritTypes = seasonCache.spirit_types || (currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
+          kevinList = seasonCache.kevin_list || [];
+          aliList = seasonCache.ali_list || [];
+          kevinMastery = seasonCache.kevin_mastery || [];
+          aliMastery = seasonCache.ali_mastery || [];
+        } else {
+          spiritsList = currentSeason === 1 ? [...defaultSpiritsList] : [];
+          categories = currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategories)) : [];
+          customNames = {};
+          customCategories = {};
+          spiritTypes = currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2;
+          kevinList = [];
+          aliList = [];
+          kevinMastery = [];
+          aliMastery = [];
+        }
+      } catch(e) {}
+
+      window.hasLoadedFirestoreOnce = false;
+      listenFirestore();
+      showToast(`Cargando Temporada ${season}...`, false);
+    };
+
+    function updateStats() {
+      const activeSpirits = currentSeason === 1 ? (spiritsList.length > 0 ? spiritsList : defaultSpiritsList) : spiritsList;
+
+      // Registered spirits are those assigned to at least one category
       const assignedIds = new Set();
       categories.forEach(cat => {
         cat.spiritIds.forEach(id => {
@@ -2523,14 +2582,14 @@
         });
       });
 
-      const totalRegistered = assignedIds.size > 0 ? assignedIds.size : 117;
+      const totalRegistered = assignedIds.size > 0 ? assignedIds.size : activeSpirits.length;
       
-      const totalKevin = kevinList.filter(id => assignedIds.has(id)).length;
-      const totalAli = aliList.filter(id => assignedIds.has(id)).length;
-      const bothCount = Array.from(assignedIds).filter(id => kevinList.includes(id) && aliList.includes(id)).length;
+      const totalKevin = kevinList.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
+      const totalAli = aliList.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
+      const bothCount = activeSpirits.filter(id => kevinList.includes(id) && aliList.includes(id)).length;
 
-      const kevinMasteryCount = kevinMastery.filter(id => assignedIds.has(id)).length;
-      const aliMasteryCount = aliMastery.filter(id => assignedIds.has(id)).length;
+      const kevinMasteryCount = kevinMastery.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
+      const aliMasteryCount = aliMastery.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
 
       document.getElementById("stat-kevin").innerHTML = `${totalKevin} / ${totalRegistered} <span class="mastery-count-tag" title="Maestría (Estrellas) de Kevin">⭐ ${kevinMasteryCount}</span>`;
       document.getElementById("stat-ali").innerHTML = `${totalAli} / ${totalRegistered} <span class="mastery-count-tag" title="Maestría (Estrellas) de Ali">⭐ ${aliMasteryCount}</span>`;
@@ -2569,7 +2628,7 @@
       updateStats();
       renderWorkspace();
 
-      db.collection("fortnite_spirits").doc(coupleId).set(updates, { merge: true })
+      db.collection(getFirestoreCollection()).doc(coupleId).set(updates, { merge: true })
         .catch(err => {
           console.error("Error toggling spirit:", err);
           showToast("Error al guardar estado de espíritu.", true);
@@ -2593,7 +2652,7 @@
       updateStats();
       renderWorkspace();
 
-      db.collection("fortnite_spirits").doc(coupleId).set({
+      db.collection(getFirestoreCollection()).doc(coupleId).set({
         [masteryKey]: newMasteryList
       }, { merge: true }).catch(err => {
         console.error("Error toggling mastery:", err);
@@ -2690,12 +2749,12 @@
       if (!container) return;
       container.innerHTML = "";
       
-      const activeList = spiritsList.length > 0 ? spiritsList : defaultSpiritsList;
+      const activeList = currentSeason === 1 ? (spiritsList.length > 0 ? spiritsList : defaultSpiritsList) : spiritsList;
       const listToRender = [...activeList].sort((a, b) => parseInt(a) - parseInt(b));
 
       const sidebarTitle = document.getElementById("sidebar-title");
       if (sidebarTitle) {
-        sidebarTitle.textContent = `Galería de Espíritus (${listToRender.length})`;
+        sidebarTitle.textContent = `Galería T${currentSeason} (${listToRender.length})`;
       }
 
       // Calculate set of assigned spirit IDs across all categories
@@ -3302,7 +3361,7 @@
         "spirit_types": spiritTypes,
         "schema_version": 4
       };
-      return db.collection("fortnite_spirits").doc(coupleId).set(updates);
+      return db.collection(getFirestoreCollection()).doc(coupleId).set(updates);
     }
 
     // 10b. DB Inspector Renderer
@@ -3459,7 +3518,7 @@
 
           customConfirm("¿Importar este JSON? Se reemplazarán las categorías, espíritus y estados de obtención actuales en Firestore.", "📤", () => {
             parsedData.schema_version = 4;
-            db.collection("fortnite_spirits").doc(coupleId).set(parsedData)
+            db.collection(getFirestoreCollection()).doc(coupleId).set(parsedData)
               .then(() => {
                 showToast("¡Base de datos importada con éxito! 🚀", false);
               })
@@ -3930,7 +3989,7 @@
         "schema_version": 4
       };
 
-      db.collection("fortnite_spirits").doc(coupleId).set(updates, { merge: true })
+      db.collection(getFirestoreCollection()).doc(coupleId).set(updates, { merge: true })
         .then(() => {
           showToast("¡Tipos y Categorías guardados en Firestore con éxito! 🚀", false);
         })
