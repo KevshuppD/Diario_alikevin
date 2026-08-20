@@ -3935,10 +3935,39 @@
     window.updateConfigTypeName = function(index, newValue) {
       const cleanVal = newValue.trim();
       if (!cleanVal) return;
+      const oldType = spiritTypes[index];
+      const oldName = oldType.name;
+      const oldSuffix = oldType.suffix;
+      
       spiritTypes[index].name = cleanVal;
+      
+      // If suffix was matching old name, update suffix automatically
+      if (!oldSuffix || oldSuffix.trim() === oldName) {
+        spiritTypes[index].suffix = ` ${cleanVal}`;
+      }
+      
+      const newSuffix = spiritTypes[index].suffix;
+      
+      // Update custom_names for any spirits matching the old suffix or name
+      if (oldName !== "Normal" && oldName !== cleanVal) {
+        Object.keys(customNames).forEach(id => {
+          let currentName = customNames[id];
+          if (oldSuffix && oldSuffix.trim() && currentName.endsWith(oldSuffix)) {
+            customNames[id] = currentName.slice(0, -oldSuffix.length) + newSuffix;
+          } else if (currentName.endsWith(oldName)) {
+            // In case it was glued without space (e.g. RexHacker)
+            customNames[id] = currentName.slice(0, -oldName.length) + newSuffix;
+          }
+        });
+      }
+      
+      renderConfigEditor();
     };
 
     window.updateConfigTypeSuffix = function(index, newValue) {
+      if (newValue && !newValue.startsWith(" ")) {
+        newValue = ` ${newValue.trim()}`;
+      }
       spiritTypes[index].suffix = newValue;
     };
 
@@ -3985,6 +4014,7 @@
       const updates = {
         "categories": categoriesMap,
         "custom_categories": customCategories,
+        "custom_names": customNames,
         "spirit_types": spiritTypes,
         "schema_version": 4
       };
