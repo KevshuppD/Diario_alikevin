@@ -194,3 +194,27 @@ graph TD
 4. **Caché de `SharedPreferences` vía `remember(context)`**: Apertura del XML de preferencias encapsulada en `remember` en todas las pantallas de Compose ([`AnimeCompose.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/AnimeCompose.kt), [`MedsCompose.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MedsCompose.kt), [`ScheduleCompose.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/ScheduleCompose.kt), etc.), evitando I/O de disco repetido durante renderizados.
 5. **Intervalo Dinámico en Temporizador de Thor**: El temporizador dinámico `rememberTimeUntilDecay` en [`MessageFeedCompose.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt) adapta su intervalo de actualización a 5000ms mientras quedan horas disponibles, reduciendo en un 80% el consumo de CPU y batería.
 
+---
+
+## 10. Últimos Hitos Implementados (Temporada 2 Espíritus)
+
+1. **Separación Multitemporada en Espíritus:**
+   - **Temporada 1:** Preserva los 141 espíritus originales y su historial en `fortnite_spirits/<coupleId>`.
+   - **Temporada 2:** Nueva colección activa por defecto en `fortnite_spirits_s2/<coupleId>`.
+   - Selector de temporada interactivo integrado en la App (`[T2] / [T1]`) y en la Web (`[🌟 Temporada 2] / [🕰️ Temporada 1]`).
+2. **Extracción y Procesamiento de la Planilla Fortnite Override (Capítulo 7 T4):**
+   - Recorte y limpieza con transparencia antialiasing de **36 nuevos espíritus** (12 personajes con 3 variantes: *Normal*, *Dorado*, *Hacker*).
+   - Subida y alojamiento automático en Cloudinary (`spirits_s2/ic_spirit_s2_01` a `36`).
+   - Sincronización en tiempo real con Firestore y nombrado consistente con espaciado adecuado (ej. *Espíritu de Rex Hacker*).
+3. **Release v1.7.35:** Publicada en GitHub Releases vía CI/CD con tag `v1.7.35` (versionCode 80).
+
+---
+
+## 11. Tareas Pendientes / Backlog
+
+1. **Selector de Tasa de Refresco (Hz) en Configuración:**
+   - **Requisito:** Agregar un selector de tasa de refresco con opciones de **60 Hz, 90 Hz, 100 Hz y 120 Hz**, dejando **90 Hz por defecto**.
+   - **Ubicación:** Configuración de la App / Web sincronizada en `users/<userId>`.
+   - **Implementación Técnica Android:** En `MainActivity.kt` (o `Window.setFrameRate` / `Display.Mode` en Android 11+ / API 30+ con fallback a `WindowManager.LayoutParams.preferredDisplayModeId`), aplicar dinámicamente la tasa de refresco seleccionada al iniciar la aplicación y al cambiar de preferencia.
+
+
