@@ -661,6 +661,8 @@ fun SettingsScreen(
     onUpdateIntervalChange: (Long) -> Unit,
     appointmentLeadTime: Long,
     onAppointmentLeadTimeChange: (Long) -> Unit,
+    refreshRate: Int = 90,
+    onRefreshRateChange: (Int) -> Unit = {},
     googleAccountEmail: String?,
     selectedFolderUri: String?,
     syncIntervalMinutes: Long,
@@ -1105,6 +1107,43 @@ fun SettingsScreen(
                     )
                 }
                 "system" -> {
+                    Text(text = "TASA DE REFRESCO (PANTALLA)", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Configura la fluidez visual en pantalla (90 Hz recomendado por defecto):",
+                        fontFamily = Vt323,
+                        fontSize = 14.sp,
+                        color = textColor.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(60, 90, 100, 120).forEach { hz ->
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { onRefreshRateChange(hz) }
+                            ) {
+                                RadioButton(
+                                    selected = refreshRate == hz,
+                                    onClick = { onRefreshRateChange(hz) }
+                                )
+                                Text(
+                                    text = "${hz}Hz",
+                                    fontFamily = Vt323,
+                                    fontSize = 18.sp,
+                                    fontWeight = if (refreshRate == hz) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (refreshRate == hz) (if (isDark) Color(0xFFFF80AB) else Color(0xFFC2185B)) else textColor
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(28.dp))
+
                     val updatesBtnBg = if (isDark) Color(0xFF00796B) else Color(0xFF673AB7)
                     Box(
                         modifier = Modifier

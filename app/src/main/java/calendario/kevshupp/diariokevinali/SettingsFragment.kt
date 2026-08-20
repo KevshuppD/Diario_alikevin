@@ -82,6 +82,9 @@ class SettingsFragment : Fragment() {
                 var currentAppointmentLeadTime by remember {
                     mutableStateOf(prefs?.getLong("appointmentLeadTime", 60L) ?: 60L)
                 }
+                var currentRefreshRate by remember {
+                    mutableStateOf(prefs?.getInt("refreshRate", 90) ?: 90)
+                }
 
                 // Estados de sincronización con Google Drive
                 var googleAccountEmail by remember {
@@ -403,6 +406,13 @@ class SettingsFragment : Fragment() {
                             prefs?.edit()?.putLong("appointmentLeadTime", newLeadTime)?.apply()
                             act?.rescheduleAllCalendarReminders()
                             updateFirestoreSetting("appointmentLeadTime", newLeadTime)
+                        },
+                        refreshRate = currentRefreshRate,
+                        onRefreshRateChange = { newHz ->
+                            currentRefreshRate = newHz
+                            prefs?.edit()?.putInt("refreshRate", newHz)?.apply()
+                            act?.applyRefreshRate(newHz)
+                            updateFirestoreSetting("refreshRate", newHz)
                         },
                         googleAccountEmail = googleAccountEmail,
                         selectedFolderUri = selectedFolderUri,

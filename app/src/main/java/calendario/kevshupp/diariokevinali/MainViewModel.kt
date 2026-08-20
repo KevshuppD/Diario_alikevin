@@ -49,6 +49,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _themeState = MutableLiveData(prefs.getString("theme", "Pixel Claro") ?: "Pixel Claro")
     val themeState: LiveData<String> = _themeState
 
+    private val _refreshRateState = MutableLiveData(prefs.getInt("refreshRate", 90))
+    val refreshRateState: LiveData<Int> = _refreshRateState
+
     val showEditorState = MutableLiveData(false)
     val editingMessageState = MutableLiveData<Message?>()
     val currentSelectedImageUrlState = MutableLiveData<String?>()
@@ -133,6 +136,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val cacheSizeLimitVal = snapshot.getLong("cacheSizeLimit")
                 val updateIntervalVal = snapshot.getLong("updateInterval")
                 val appointmentLeadTimeVal = snapshot.getLong("appointmentLeadTime")
+                val refreshRateVal = snapshot.getLong("refreshRate")?.toInt()
 
                 val editor = prefs.edit()
                 var changed = false
@@ -140,6 +144,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (themeVal != null && themeVal != prefs.getString("theme", "")) {
                     editor.putString("theme", themeVal)
                     _themeState.value = themeVal
+                    changed = true
+                }
+                if (refreshRateVal != null && refreshRateVal != prefs.getInt("refreshRate", 90)) {
+                    editor.putInt("refreshRate", refreshRateVal)
+                    _refreshRateState.value = refreshRateVal
                     changed = true
                 }
                 if (useCustomBgVal != null && useCustomBgVal != prefs.getBoolean("useCustomBg", false)) {

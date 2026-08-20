@@ -1660,6 +1660,15 @@
         <span style="font-size: 12.5px; font-weight: 600; color: var(--text-color);">Fondo adaptativo (usar tinte de color de barra)</span>
       </div>
 
+      <h4 style="font-family: 'Outfit', sans-serif; font-size: 14px; color: var(--text-color); margin-bottom: 6px;">
+        ⚡ TASA DE REFRESCO EN APP MÓVIL (HZ)
+      </h4>
+      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+        Ajusta la fluidez en pantalla para la app de Android (90 Hz por defecto):
+      </p>
+      <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 18px;" id="modal-refresh-rate-container">
+      </div>
+
       <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--card-border); padding-top: 10px;">
         <button class="btn btn-secondary" onclick="closeThemeModal()">Listo</button>
       </div>
@@ -2077,6 +2086,7 @@
     let userLightColor = localStorage.getItem("userLightColor") || "#D1C4E9";
     let userDarkColor = localStorage.getItem("userDarkColor") || "#4A148C";
     let userUseCustomBg = localStorage.getItem("userUseCustomBg") === "true";
+    let userRefreshRate = parseInt(localStorage.getItem("userRefreshRate")) || 90;
     let userDocUnsubscribe = null;
 
     const DARK_BAR_COLORS = ["#4A148C", "#0D47A1", "#1B5E20", "#C2185B", "#E65100", "#006064", "#3E2723"];
@@ -2162,6 +2172,21 @@
       }
     };
 
+    window.changeRefreshRate = function(newHz) {
+      userRefreshRate = newHz || 90;
+      localStorage.setItem("userRefreshRate", userRefreshRate);
+      renderThemeModalContent();
+      if (currentMode === "config") renderConfigEditor();
+
+      if (currentUser && currentUser.docId) {
+        db.collection("users").doc(currentUser.docId).set({
+          refreshRate: userRefreshRate
+        }, { merge: true }).then(() => {
+          showToast(`¡Tasa de refresco (${userRefreshRate} Hz) sincronizada con la app! ⚡`, false);
+        }).catch(err => console.error("Error guardando tasa de refresco:", err));
+      }
+    };
+
     window.openThemeModal = function() {
       const modal = document.getElementById("theme-settings-modal");
       if (!modal) return;
@@ -2210,6 +2235,16 @@
 
       const cb = document.getElementById("modal-checkbox-custombg");
       if (cb) cb.checked = userUseCustomBg;
+
+      const refreshContainer = document.getElementById("modal-refresh-rate-container");
+      if (refreshContainer) {
+        refreshContainer.innerHTML = [60, 90, 100, 120].map(hz => `
+          <div onclick="changeRefreshRate(${hz})" style="flex: 1; min-width: 60px; padding: 8px 4px; border-radius: 8px; background: ${userRefreshRate === hz ? (isDark ? 'rgba(156, 39, 176, 0.35)' : 'rgba(124, 77, 255, 0.25)') : 'rgba(255,255,255,0.03)'}; border: 2px solid ${userRefreshRate === hz ? 'var(--accent-color)' : 'var(--card-border)'}; cursor: pointer; text-align: center; transition: all 0.2s;">
+            <div style="font-weight: 700; font-size: 13px; color: var(--text-color);">${hz}Hz</div>
+            <div style="font-size: 9px; color: var(--text-muted);">${hz === 90 ? 'Defecto' : (hz === 60 ? 'Batería' : 'Fluido')}</div>
+          </div>
+        `).join('');
+      }
     };
 
     function listenUserTheme() {
@@ -2224,8 +2259,13 @@
             const lc = data.lightColor || userLightColor;
             const dc = data.darkColor || userDarkColor;
             const bg = data.useCustomBg !== undefined ? data.useCustomBg : userUseCustomBg;
+            const rr = data.refreshRate !== undefined ? parseInt(data.refreshRate) : userRefreshRate;
 
-            if (t !== userTheme || lc !== userLightColor || dc !== userDarkColor || bg !== userUseCustomBg) {
+            if (t !== userTheme || lc !== userLightColor || dc !== userDarkColor || bg !== userUseCustomBg || rr !== userRefreshRate) {
+              if (rr !== userRefreshRate) {
+                userRefreshRate = rr;
+                localStorage.setItem("userRefreshRate", userRefreshRate);
+              }
               applyTheme(t, lc, dc, bg);
               if (currentMode === "config") {
                 renderConfigEditor();
@@ -2457,16 +2497,7 @@
               })).filter(cat => cat && cat.name);
 
               if (parsedCategories.length > 0) {
-                const defaultOrderMap = new Map();
-                if (currentSeason === 1) {
-                  defaultCategories.forEach((cat, idx) => defaultOrderMap.set(cat.name, idx));
-                }
-
-                categories = parsedCategories.sort((a, b) => {
-                  const orderA = defaultOrderMap.has(a.name) ? defaultOrderMap.get(a.name) : 999;
-                  const orderB = defaultOrderMap.has(b.name) ? defaultOrderMap.get(b.name) : 999;
-                  return orderA - orderB;
-                });
+                categories = parsedCategories;
               } else {
                 categories = currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategories)) : [];
               }
@@ -3218,9 +3249,14 @@
     };
 
     window.deleteCategory = function(index) {
-      customConfirm(`¿Eliminar la categoría "${categories[index].name}"? Los espíritus asignados pasarán a "Sueltos".`, "🗑️", () => {
+      const cat = categories[index];
+      if (!cat) return;
+      const displayName = customCategories[cat.name] || cat.name;
+      customConfirm(`¿Eliminar la categoría "${displayName}"? Los espíritus asignados pasarán a "Sueltos".`, "🗑️", () => {
+        delete customCategories[cat.name];
         categories.splice(index, 1);
         renderWorkspace();
+        showToast(`Categoría "${displayName}" eliminada. Haz clic en 'Guardar Cambios' para sincronizar con Firestore.`, false);
       });
     };
 
@@ -3344,6 +3380,7 @@
 
     // 10b. Guardar en Firestore y retornar Promise
     function saveChangesToFirestoreAsync() {
+      coupleId = (localStorage.getItem("coupleId") || "vínculo_único_123").trim();
       const categoriesList = categories.map(cat => ({
         name: cat.name,
         spiritIds: cat.spiritIds || []
@@ -3694,7 +3731,7 @@
           <div class="draggable-config-row" draggable="true" ondragstart="onConfigCategoryDragStart(event, ${index})" ondragover="onConfigCategoryDragOver(event)" ondrop="onConfigCategoryDrop(event, ${index})" ondragend="onConfigCategoryDragEnd(event)">
             <span style="color: var(--text-muted); cursor: grab; font-size: 14px; user-select: none; margin-right: 4px;">⋮⋮</span>
             <span style="font-family: monospace; color: var(--text-muted); font-size: 13px; margin-right: 4px;">#${String(index + 1).padStart(2, '0')}</span>
-            <input type="text" value="${catDisplayName}" onchange="updateConfigCategoryName(${index}, this.value)" style="flex: 1; padding: 6px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px; cursor: text;">
+            <input type="text" value="${catDisplayName}" data-cat-index="${index}" onchange="updateConfigCategoryName(${index}, this.value)" style="flex: 1; padding: 6px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px; cursor: text;">
             <span class="badge" style="background: rgba(255, 255, 255, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">${cat.spiritIds.length} esp.</span>
             <button class="remove-btn" onclick="deleteConfigCategory(${index})" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;">🗑</button>
           </div>
@@ -3707,8 +3744,8 @@
         typesHtml += `
           <div class="draggable-config-row ${isNormal ? 'unmovable' : ''}" draggable="${!isNormal}" ondragstart="onConfigTypeDragStart(event, ${index})" ondragover="onConfigTypeDragOver(event)" ondrop="onConfigTypeDrop(event, ${index})" ondragend="onConfigTypeDragEnd(event)">
             <span style="color: var(--text-muted); cursor: ${isNormal ? 'default' : 'grab'}; font-size: 14px; user-select: none; margin-right: 4px; opacity: ${isNormal ? 0.2 : 1};">⋮⋮</span>
-            <input type="text" value="${t.name}" onchange="updateConfigTypeName(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Nombre (Ej: Dorado)" style="flex: 1; padding: 6px; border-radius: 6px; background: ${isNormal ? '#1b1d24' : '#12131a'}; color: ${isNormal ? '#888' : '#fff'}; border: 1px solid var(--card-border); font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
-            <input type="text" value="${t.suffix}" onchange="updateConfigTypeSuffix(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Sufijo (Ej:  Dorado)" style="flex: 1; padding: 6px; border-radius: 6px; background: ${isNormal ? '#1b1d24' : '#12131a'}; color: ${isNormal ? '#888' : '#fff'}; border: 1px solid var(--card-border); font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+            <input type="text" value="${t.name}" data-type-index="${index}" data-type-field="name" onchange="updateConfigTypeName(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Nombre (Ej: Dorado)" style="flex: 1; padding: 6px; border-radius: 6px; background: ${isNormal ? '#1b1d24' : '#12131a'}; color: ${isNormal ? '#888' : '#fff'}; border: 1px solid var(--card-border); font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+            <input type="text" value="${t.suffix}" data-type-index="${index}" data-type-field="suffix" onchange="updateConfigTypeSuffix(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Sufijo (Ej:  Dorado)" style="flex: 1; padding: 6px; border-radius: 6px; background: ${isNormal ? '#1b1d24' : '#12131a'}; color: ${isNormal ? '#888' : '#fff'}; border: 1px solid var(--card-border); font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
             <button class="remove-btn" onclick="deleteConfigType(${index})" ${isNormal ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : 'style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;"'}>🗑</button>
           </div>
         `;
@@ -3815,9 +3852,25 @@
             </div>
 
             <!-- Custom Background Checkbox -->
-            <div onclick="toggleCustomBgPreference()" style="display: inline-flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border);">
+            <div onclick="toggleCustomBgPreference()" style="display: inline-flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); margin-bottom: 20px;">
               <input type="checkbox" ${userUseCustomBg ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px;">
               <span style="font-size: 13px; font-weight: 600; color: var(--text-color);">Usar tinte de color de barra como fondo adaptativo (Fondo Personalizado)</span>
+            </div>
+
+            <!-- Refresh Rate Selector (Sincronizado con Android) -->
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 15px; color: var(--text-color); margin-top: 15px; margin-bottom: 6px;">
+              ⚡ Tasa de Refresco en la App Móvil (Hz)
+            </h4>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+              Configura los hercios de la pantalla en la app Android (90 Hz recomendado por defecto):
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+              ${[60, 90, 100, 120].map(hz => `
+                <div onclick="changeRefreshRate(${hz})" style="flex: 1; min-width: 90px; padding: 12px 14px; border-radius: 8px; background: ${userRefreshRate === hz ? (userTheme === 'Pixel Oscuro' ? 'rgba(156, 39, 176, 0.25)' : 'rgba(124, 77, 255, 0.2)') : 'rgba(255,255,255,0.03)'}; border: 2px solid ${userRefreshRate === hz ? 'var(--accent-color)' : 'var(--card-border)'}; cursor: pointer; text-align: center; transition: all 0.2s;">
+                  <div style="font-weight: 700; font-size: 16px; color: var(--text-color);">${hz} Hz</div>
+                  <div style="font-size: 11px; color: var(--text-muted);">${hz === 90 ? 'Recomendado' : (hz === 60 ? 'Estándar' : (hz === 120 ? 'Ultra Fluido' : 'Alto'))}</div>
+                </div>
+              `).join('')}
             </div>
           </div>
         </div>
@@ -3889,26 +3942,59 @@
       event.target.style.opacity = "1";
     };
 
+    function collectConfigInputsFromDOM() {
+      document.querySelectorAll(".draggable-config-row input[data-cat-index]").forEach(input => {
+        const idx = parseInt(input.dataset.catIndex);
+        if (!isNaN(idx) && categories[idx]) {
+          const val = input.value.trim();
+          const orig = categories[idx].name;
+          if (val === "" || val === orig) {
+            delete customCategories[orig];
+          } else {
+            customCategories[orig] = val;
+          }
+        }
+      });
+
+      document.querySelectorAll(".draggable-config-row input[data-type-index]").forEach(input => {
+        const idx = parseInt(input.dataset.typeIndex);
+        const field = input.dataset.typeField;
+        if (!isNaN(idx) && spiritTypes[idx] && field) {
+          const val = input.value.trim();
+          if (field === "name") {
+            if (val) spiritTypes[idx].name = val;
+          } else if (field === "suffix") {
+            spiritTypes[idx].suffix = val ? (val.startsWith(" ") ? val : ` ${val}`) : "";
+          }
+        }
+      });
+    }
+
     window.updateConfigCategoryName = function(index, newValue) {
+      if (!categories[index]) return;
       const cleanVal = newValue.trim();
-      if (!cleanVal) return;
-      
       const originalName = categories[index].name;
-      customCategories[originalName] = cleanVal;
-      showToast(`Nombre personalizado cambiado a "${cleanVal}"`, false);
+      if (!cleanVal || cleanVal === originalName) {
+        delete customCategories[originalName];
+      } else {
+        customCategories[originalName] = cleanVal;
+      }
+      showToast(`Nombre de categoría actualizado: "${cleanVal || originalName}". Recuerda guardar en Firestore.`, false);
     };
 
     window.deleteConfigCategory = function(index) {
       const cat = categories[index];
+      if (!cat) return;
       const displayName = customCategories[cat.name] || cat.name;
-      const msg = cat.spiritIds.length > 0
+      const msg = cat.spiritIds && cat.spiritIds.length > 0
         ? `La categoría "${displayName}" tiene ${cat.spiritIds.length} espíritus. Si la eliminas, quedarán sueltos. ¿Continuar?`
         : `¿Eliminar la categoría vacía "${displayName}"?`;
 
       customConfirm(msg, "🗑️", () => {
+        delete customCategories[cat.name];
         categories.splice(index, 1);
         renderConfigEditor();
-        showToast(`Categoría "${displayName}" eliminada de la configuración.`, false);
+        showToast(`Categoría "${displayName}" eliminada. Recuerda hacer clic en 'Guardar Configuración en Firestore'.`, false);
       });
     };
 
@@ -3929,7 +4015,7 @@
       categories.push({ name: name, spiritIds: [] });
       input.value = "";
       renderConfigEditor();
-      showToast(`Categoría "${name}" agregada localmente.`, false);
+      showToast(`Categoría "${name}" agregada localmente. Haz clic en 'Guardar Configuración en Firestore' para sincronizar.`, false);
     };
 
     window.updateConfigTypeName = function(index, newValue) {
@@ -4006,26 +4092,37 @@
     };
 
     window.saveConfigToFirestore = function() {
+      // 1. Recolectar valores actuales de los inputs del DOM
+      collectConfigInputsFromDOM();
+
       const categoriesMap = categories.map(cat => ({
         name: cat.name,
-        spiritIds: cat.spiritIds
+        spiritIds: cat.spiritIds || []
       }));
 
       const updates = {
         "categories": categoriesMap,
         "custom_categories": customCategories,
         "custom_names": customNames,
+        "custom_images": customImages,
+        "spirits_list": spiritsList,
+        "kevin_list": kevinList,
+        "ali_list": aliList,
+        "kevin_mastery": kevinMastery,
+        "ali_mastery": aliMastery,
         "spirit_types": spiritTypes,
         "schema_version": 4
       };
 
-      db.collection(getFirestoreCollection()).doc(coupleId).set(updates, { merge: true })
+      coupleId = (localStorage.getItem("coupleId") || "vínculo_único_123").trim();
+
+      db.collection(getFirestoreCollection()).doc(coupleId).set(updates)
         .then(() => {
           showToast("¡Tipos y Categorías guardados en Firestore con éxito! 🚀", false);
         })
         .catch(err => {
           console.error("Error al guardar configuración:", err);
-          showToast("Error al guardar en Firestore", true);
+          showToast("Error al guardar en Firestore: " + err.message, true);
         });
     };
     // ---- Custom dialog system (replaces native alert/confirm/prompt) ----

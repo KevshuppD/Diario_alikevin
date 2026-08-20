@@ -26,9 +26,11 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.Settings
 import android.util.Log
+import android.view.Display
 import android.view.LayoutInflater
 import android.view.View
 import android.view.Window
+import android.view.WindowManager
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -297,6 +299,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         recipeManager.setTheme(currentTheme)
 
         initViews()
+        applyRefreshRate(prefs.getInt("refreshRate", 90))
         applyTheme(prefs.getString("theme", "Pixel Claro") ?: "Pixel Claro")
         updateTabSelection(R.id.btnHome)
 
@@ -570,6 +573,11 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                 applyTheme(theme)
             }
         }
+        viewModel.refreshRateState.observe(this) { hz ->
+            if (hz != null) {
+                applyRefreshRate(hz)
+            }
+        }
         viewModel.toastMessage.observe(this) { message ->
             if (message != null) {
                 showStyledPixelToast(message)
@@ -832,6 +840,14 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     } else {
                         userUpdates["appointmentLeadTime"] = prefs.getLong("appointmentLeadTime", 60L)
                     }
+
+                    val refreshRateVal = documentSnapshot.getLong("refreshRate")?.toInt()
+                    if (refreshRateVal != null) {
+                        editor.putInt("refreshRate", refreshRateVal)
+                        prefsChanged = true
+                    } else {
+                        userUpdates["refreshRate"] = prefs.getInt("refreshRate", 90)
+                    }
                     
                     if (prefsChanged) {
                         editor.apply()
@@ -840,6 +856,8 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                             val lc = prefs.getString("lightColor", "#D1C4E9")
                             val dc = prefs.getString("darkColor", "#4A148C")
                             applyTheme(finalTheme ?: "Pixel Claro", lc, dc)
+                            val finalHz = prefs.getInt("refreshRate", 90)
+                            applyRefreshRate(finalHz)
                         }
                     }
                 } else {
@@ -850,6 +868,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     userUpdates["cacheSizeLimit"] = prefs.getLong("cacheSizeLimit", 100L)
                     userUpdates["updateInterval"] = prefs.getLong("updateInterval", 720L)
                     userUpdates["appointmentLeadTime"] = prefs.getLong("appointmentLeadTime", 60L)
+                    userUpdates["refreshRate"] = prefs.getInt("refreshRate", 90)
                 }
 
                 db.collection("users").document(userId)
@@ -1357,6 +1376,59 @@ class MainActivity : AppCompatActivity(), AppNavigation {
 
         btnSettings.setColorFilter(if (activeTabId == R.id.btnSettings) activeColor else inactiveColor)
         tvTabSettings.setTextColor(if (activeTabId == R.id.btnSettings) activeColor else inactiveColor)
+    }
+
+    fun applyRefreshRate(hz: Int) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    this.display
+                } else {
+                    @Suppress("DEPRECATION")
+                    windowManager.defaultDisplay
+                }
+
+                if (display != null) {
+                    val modes = display.supportedModes
+                    val currentMode = display.mode
+                    var bestMode: Display.Mode? = null
+                    var minDiff = Float.MAX_VALUE
+
+                    // 1. Intentar coincidir con la resolución actual buscando la tasa de refresco más cercana
+                    for (mode in modes) {
+                        if (mode.physicalWidth == currentMode.physicalWidth && mode.physicalHeight == currentMode.physicalHeight) {
+                            val diff = Math.abs(mode.refreshRate - hz.toFloat())
+                            if (diff < minDiff) {
+                                minDiff = diff
+                                bestMode = mode
+                            }
+                        }
+                    }
+
+                    // 2. Si no coincide la resolución exacta, buscar el modo más cercano globalmente
+                    if (bestMode == null || minDiff > 3.0f) {
+                        for (mode in modes) {
+                            val diff = Math.abs(mode.refreshRate - hz.toFloat())
+                            if (diff < minDiff) {
+                                minDiff = diff
+                                bestMode = mode
+                            }
+                        }
+                    }
+
+                    val layoutParams = window.attributes
+                    if (bestMode != null && minDiff <= 3.0f) {
+                        layoutParams.preferredDisplayModeId = bestMode.modeId
+                    }
+                    @Suppress("DEPRECATION")
+                    layoutParams.preferredRefreshRate = hz.toFloat()
+                    window.attributes = layoutParams
+                }
+            }
+            Log.d("MainActivity", "Tasa de refresco configurada a: ${hz}Hz")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error al aplicar tasa de refresco a $hz Hz", e)
+        }
     }
 
     override fun applyTheme(theme: String) {

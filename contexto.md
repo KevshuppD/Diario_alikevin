@@ -206,15 +206,18 @@ graph TD
    - Recorte y limpieza con transparencia antialiasing de **36 nuevos espíritus** (12 personajes con 3 variantes: *Normal*, *Dorado*, *Hacker*).
    - Subida y alojamiento automático en Cloudinary (`spirits_s2/ic_spirit_s2_01` a `36`).
    - Sincronización en tiempo real con Firestore y nombrado consistente con espaciado adecuado (ej. *Espíritu de Rex Hacker*).
-3. **Release v1.7.35:** Publicada en GitHub Releases vía CI/CD con tag `v1.7.35` (versionCode 80).
+3. **Selector de Tasa de Refresco (Hz) Sincronizado en App & Web:**
+   - Opciones dinámicas de **60 Hz (Batería), 90 Hz (Por Defecto / Recomendado), 100 Hz y 120 Hz (Ultra Fluido)**.
+   - Sincronización en tiempo real en Firestore (`users/<userId>/refreshRate`) con persistencia local en `SharedPreferences`.
+   - Selector en la sección **Sistema** de la app y en el modal/pestaña de **Configuración** de la Web.
+   - Aplicación técnica a bajo nivel en Android mediante `preferredDisplayModeId` (API 23+) y coincidencia óptima con la resolución activa de la pantalla.
+4. **Release v1.7.35:** Publicada en GitHub Releases vía CI/CD con tag `v1.7.35` (versionCode 80).
 
 ---
 
 ## 11. Tareas Pendientes / Backlog
 
-1. **Selector de Tasa de Refresco (Hz) en Configuración:**
-   - **Requisito:** Agregar un selector de tasa de refresco con opciones de **60 Hz, 90 Hz, 100 Hz y 120 Hz**, dejando **90 Hz por defecto**.
-   - **Ubicación:** Configuración de la App / Web sincronizada en `users/<userId>`.
-   - **Implementación Técnica Android:** En `MainActivity.kt` (o `Window.setFrameRate` / `Display.Mode` en Android 11+ / API 30+ con fallback a `WindowManager.LayoutParams.preferredDisplayModeId`), aplicar dinámicamente la tasa de refresco seleccionada al iniciar la aplicación y al cambiar de preferencia.
+*(Sin tareas pendientes inmediatas).*
+
 
 
