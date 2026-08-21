@@ -73,6 +73,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".InstallResultReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".LastMessageWidget"
             android:exported="true">
             <intent-filter>

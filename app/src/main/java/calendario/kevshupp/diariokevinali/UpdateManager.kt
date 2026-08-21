@@ -19,6 +19,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 
+import android.app.PendingIntent
+import android.content.pm.PackageInstaller
+import android.os.Build
+
 class UpdateManager(private val context: Context) {
     private val TAG = "UpdateManager"
     private val downloadManager: DownloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
@@ -179,12 +183,72 @@ class UpdateManager(private val context: Context) {
 
     fun installApk() {
         if (latestDownloadId == -1L) return
-        val uri = downloadManager.getUriForDownloadedFile(latestDownloadId)
-        if (uri != null) {
-            val intent = Intent(Intent.ACTION_VIEW)
-            intent.setDataAndType(uri, "application/vnd.android.package-archive")
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            context.startActivity(intent)
+        val uri = downloadManager.getUriForDownloadedFile(latestDownloadId) ?: return
+
+        // En Android 12+ (API 31+) intentar instalación silenciosa desatendida sin diálogos
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                if (installViaPackageInstaller(uri)) {
+                    return
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error en instalación con PackageInstaller: ${e.message}", e)
+            }
         }
+
+        // Fallback para Android 11 o si la instalación directa no estuvo disponible
+        fallbackInstallIntent(uri)
+    }
+
+    private fun installViaPackageInstaller(apkUri: Uri): Boolean {
+        return try {
+            val packageInstaller = context.packageManager.packageInstaller
+            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setAppPackageName(context.packageName)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    setPackageSource(PackageInstaller.PACKAGE_SOURCE_OTHER)
+                }
+            }
+
+            val sessionId = packageInstaller.createSession(params)
+            val session = packageInstaller.openSession(sessionId)
+
+            session.use { s ->
+                context.contentResolver.openInputStream(apkUri)?.use { inputStream ->
+                    s.openWrite("package_update", 0, -1).use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                        s.fsync(outputStream)
+                    }
+                }
+
+                val intent = Intent(context, InstallResultReceiver::class.java).apply {
+                    action = InstallResultReceiver.ACTION_INSTALL_COMPLETE
+                }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    sessionId,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                )
+
+                s.commit(pendingIntent.intentSender)
+            }
+            Log.d(TAG, "Sesión de PackageInstaller enviada con éxito")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Fallo al crear sesión de PackageInstaller", e)
+            false
+        }
+    }
+
+    private fun fallbackInstallIntent(uri: Uri) {
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(intent)
     }
 }
