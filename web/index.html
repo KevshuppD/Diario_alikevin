@@ -1765,9 +1765,29 @@
         <button class="btn btn-secondary" id="studio-tool-eraser" onclick="setStudioTool('eraser')" style="font-size: 11.5px; padding: 4px 10px;">
           <span>🧹</span> Pincel Borrador
         </button>
-        <button class="btn btn-secondary" onclick="resetStudioCanvas()" style="font-size: 11.5px; padding: 4px 10px; margin-left: auto;">
+        <button class="btn btn-secondary" id="studio-btn-undo" onclick="popStudioHistory()" style="font-size: 11.5px; padding: 4px 10px; margin-left: auto; opacity: 0.5;" title="Deshacer último cambio">
+          <span>↩️</span> Deshacer
+        </button>
+        <button class="btn btn-secondary" onclick="resetStudioCanvas()" style="font-size: 11.5px; padding: 4px 10px;">
           <span>🔄</span> Restablecer
         </button>
+      </div>
+
+      <!-- Barra contextual para Recorte -->
+      <div id="studio-crop-actions-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; background: rgba(224, 64, 251, 0.08); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(224, 64, 251, 0.3); align-items: center;">
+        <button class="btn btn-success" id="btn-apply-crop" onclick="applyStudioCrop()" style="font-size: 12px; padding: 6px 14px; background: #e040fb; border-color: #e040fb; color: #fff; font-weight: 700;">
+          <span>✂️</span> Aplicar Recorte
+        </button>
+        <button class="btn btn-secondary" onclick="clearStudioCropSelection()" style="font-size: 11.5px; padding: 6px 10px;">
+          <span>✖️</span> Quitar Selección
+        </button>
+        <div style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px; color: var(--text-muted);">
+          <span>Aspecto:</span>
+          <select id="studio-crop-aspect" onchange="setStudioCropAspect(this.value)" style="background: #12131a; color: #fff; border: 1px solid var(--card-border); padding: 4px 8px; border-radius: 6px; font-size: 12px;">
+            <option value="1:1" selected>1:1 (Cuadrado)</option>
+            <option value="free">Libre</option>
+          </select>
+        </div>
       </div>
 
       <!-- Ajustes de Tolerancia y Pincel -->
@@ -4482,18 +4502,29 @@
         }
       });
     };
-    // Studio Image Editor Logic (Crop + Magic Wand Background Removal)
+    // Studio Image Editor Logic (Interactive Crop + Undo + Magic Wand + Eraser + Auto-Remove Background)
     let studioOriginalImg = null;
     let studioCanvas = null;
     let studioCtx = null;
-    let isStudioMouseDown = false;
-    let studioCropStart = { x: 0, y: 0 };
-    let studioCropEnd = { x: 0, y: 0 };
+    let studioCurrentTool = "crop"; // "crop", "wand", "eraser"
+    let studioCropAspect = "1:1"; // "1:1" or "free"
+    let studioCropBox = null; // { x, y, w, h } in canvas coordinates
+    let studioHistory = []; // Undo stack of { width, height, dataUrl }
+    let studioDragState = {
+      isDragging: false,
+      mode: null, // "create", "move", "nw", "ne", "se", "sw"
+      startX: 0,
+      startY: 0,
+      origBox: null
+    };
 
     window.openStudioCropModal = function() {
       const modal = document.getElementById("studio-crop-modal");
       studioCanvas = document.getElementById("studio-canvas");
       studioCtx = studioCanvas.getContext("2d", { willReadFrequently: true });
+      studioHistory = [];
+      studioCropBox = null;
+      updateStudioUndoButton();
       
       const currentUrl = editingSpiritImageId ? getSpiritImgUrl(editingSpiritImageId) : null;
       if (currentUrl) {
@@ -4507,11 +4538,13 @@
       }
       if (modal) modal.classList.add("show");
       setupStudioCropListeners();
+      setStudioTool("crop");
     };
 
     window.closeStudioCropModal = function() {
       const modal = document.getElementById("studio-crop-modal");
       if (modal) modal.classList.remove("show");
+      studioCropBox = null;
     };
 
     window.loadStudioImageFromFile = function(inputEl) {
@@ -4522,6 +4555,8 @@
         const img = new Image();
         img.onload = function() {
           studioOriginalImg = img;
+          studioHistory = [];
+          updateStudioUndoButton();
           resetStudioCanvas();
         };
         img.src = e.target.result;
@@ -4529,16 +4564,70 @@
       reader.readAsDataURL(file);
     };
 
+    function pushStudioHistory() {
+      if (!studioCanvas || !studioCtx) return;
+      const dataUrl = studioCanvas.toDataURL("image/png");
+      studioHistory.push({
+        width: studioCanvas.width,
+        height: studioCanvas.height,
+        dataUrl: dataUrl
+      });
+      if (studioHistory.length > 20) studioHistory.shift();
+      updateStudioUndoButton();
+    }
+
+    window.popStudioHistory = function() {
+      if (studioHistory.length === 0) return;
+      const prev = studioHistory.pop();
+      const img = new Image();
+      img.onload = function() {
+        studioCanvas.width = prev.width;
+        studioCanvas.height = prev.height;
+        studioCtx.drawImage(img, 0, 0);
+        studioOriginalImg = img;
+        studioCropBox = null;
+        redrawStudioCanvas();
+        updateStudioUndoButton();
+        showToast("Acción deshecha ↩️", false);
+      };
+      img.src = prev.dataUrl;
+    };
+
+    function updateStudioUndoButton() {
+      const btn = document.getElementById("studio-btn-undo");
+      if (btn) {
+        const hasHistory = studioHistory.length > 0;
+        btn.style.opacity = hasHistory ? "1" : "0.4";
+        btn.style.cursor = hasHistory ? "pointer" : "default";
+      }
+    }
+
     window.resetStudioCanvas = function() {
       if (!studioOriginalImg || !studioCanvas) return;
       studioCanvas.width = studioOriginalImg.width;
       studioCanvas.height = studioOriginalImg.height;
       studioCtx.drawImage(studioOriginalImg, 0, 0);
-      studioCropStart = { x: 0, y: 0 };
-      studioCropEnd = { x: studioCanvas.width, y: studioCanvas.height };
+      
+      // Initialize default square crop box in the center if tool is crop
+      initDefaultCropBox();
+      redrawStudioCanvas();
     };
 
-    let studioCurrentTool = "crop"; // "crop", "wand", "eraser"
+    function initDefaultCropBox() {
+      if (!studioCanvas) return;
+      const cw = studioCanvas.width;
+      const ch = studioCanvas.height;
+      const size = Math.min(cw, ch) * 0.85;
+      const boxSize = studioCropAspect === "1:1" ? size : Math.min(cw * 0.9, ch * 0.9);
+      const boxW = boxSize;
+      const boxH = studioCropAspect === "1:1" ? boxSize : ch * 0.85;
+      studioCropBox = {
+        x: Math.round((cw - boxW) / 2),
+        y: Math.round((ch - boxH) / 2),
+        w: Math.round(boxW),
+        h: Math.round(boxH)
+      };
+    }
 
     window.setStudioTool = function(toolName) {
       studioCurrentTool = toolName;
@@ -4548,65 +4637,354 @@
 
       const brushContainer = document.getElementById("studio-brush-size-container");
       if (brushContainer) brushContainer.style.display = toolName === "eraser" ? "flex" : "none";
+
+      const cropActionsBar = document.getElementById("studio-crop-actions-bar");
+      if (cropActionsBar) cropActionsBar.style.display = toolName === "crop" ? "flex" : "none";
+
+      if (toolName === "crop" && !studioCropBox) {
+        initDefaultCropBox();
+      }
+
+      redrawStudioCanvas();
     };
+
+    window.setStudioCropAspect = function(aspect) {
+      studioCropAspect = aspect;
+      if (studioCropBox) {
+        if (aspect === "1:1") {
+          const size = Math.min(studioCropBox.w, studioCropBox.h);
+          studioCropBox.w = size;
+          studioCropBox.h = size;
+        }
+        redrawStudioCanvas();
+      }
+    };
+
+    window.clearStudioCropSelection = function() {
+      studioCropBox = null;
+      redrawStudioCanvas();
+      showToast("Selección de recorte quitada. Arrastra sobre la imagen para seleccionar un área.", false);
+    };
+
+    function getNormalizedCropBox() {
+      if (!studioCropBox) return null;
+      let x = studioCropBox.x;
+      let y = studioCropBox.y;
+      let w = studioCropBox.w;
+      let h = studioCropBox.h;
+
+      if (w < 0) {
+        x += w;
+        w = Math.abs(w);
+      }
+      if (h < 0) {
+        y += h;
+        h = Math.abs(h);
+      }
+
+      // Clamp to canvas boundaries
+      x = Math.max(0, Math.min(studioCanvas.width - 2, x));
+      y = Math.max(0, Math.min(studioCanvas.height - 2, y));
+      w = Math.min(studioCanvas.width - x, w);
+      h = Math.min(studioCanvas.height - y, h);
+
+      return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+    }
+
+    function redrawStudioCanvas() {
+      if (!studioOriginalImg || !studioCtx || !studioCanvas) return;
+      studioCtx.clearRect(0, 0, studioCanvas.width, studioCanvas.height);
+      studioCtx.drawImage(studioOriginalImg, 0, 0);
+
+      if (studioCurrentTool === "crop" && studioCropBox) {
+        const box = getNormalizedCropBox();
+        if (box && box.w > 5 && box.h > 5) {
+          const cw = studioCanvas.width;
+          const ch = studioCanvas.height;
+
+          // 1. Semi-transparent dark mask outside crop box
+          studioCtx.save();
+          studioCtx.fillStyle = "rgba(5, 7, 15, 0.65)";
+          // Top
+          studioCtx.fillRect(0, 0, cw, box.y);
+          // Bottom
+          studioCtx.fillRect(0, box.y + box.h, cw, ch - (box.y + box.h));
+          // Left
+          studioCtx.fillRect(0, box.y, box.x, box.h);
+          // Right
+          studioCtx.fillRect(box.x + box.w, box.y, cw - (box.x + box.w), box.h);
+
+          // 2. Rule of thirds grid lines
+          studioCtx.strokeStyle = "rgba(224, 64, 251, 0.4)";
+          studioCtx.lineWidth = Math.max(1, Math.round(cw / 600));
+          studioCtx.beginPath();
+          studioCtx.moveTo(box.x + box.w / 3, box.y); studioCtx.lineTo(box.x + box.w / 3, box.y + box.h);
+          studioCtx.moveTo(box.x + 2 * box.w / 3, box.y); studioCtx.lineTo(box.x + 2 * box.w / 3, box.y + box.h);
+          studioCtx.moveTo(box.x, box.y + box.h / 3); studioCtx.lineTo(box.x + box.w, box.y + box.h / 3);
+          studioCtx.moveTo(box.x, box.y + 2 * box.h / 3); studioCtx.lineTo(box.x + box.w, box.y + 2 * box.h / 3);
+          studioCtx.stroke();
+
+          // 3. Glowing neon border
+          studioCtx.strokeStyle = "#e040fb";
+          studioCtx.lineWidth = Math.max(2, Math.round(cw / 250));
+          studioCtx.strokeRect(box.x, box.y, box.w, box.h);
+
+          // 4. Corner Handles (8 corners and middle edges)
+          const handleSize = Math.max(8, Math.round(cw / 45));
+          const handles = [
+            { x: box.x, y: box.y }, // NW
+            { x: box.x + box.w, y: box.y }, // NE
+            { x: box.x + box.w, y: box.y + box.h }, // SE
+            { x: box.x, y: box.y + box.h }, // SW
+            { x: box.x + box.w / 2, y: box.y }, // N
+            { x: box.x + box.w, y: box.y + box.h / 2 }, // E
+            { x: box.x + box.w / 2, y: box.y + box.h }, // S
+            { x: box.x, y: box.y + box.h / 2 } // W
+          ];
+
+          studioCtx.fillStyle = "#ffffff";
+          studioCtx.strokeStyle = "#e040fb";
+          studioCtx.lineWidth = 2;
+          handles.forEach(h => {
+            studioCtx.fillRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
+            studioCtx.strokeRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
+          });
+
+          // Dimension badge
+          studioCtx.fillStyle = "rgba(0, 0, 0, 0.75)";
+          const badgeText = `${box.w} × ${box.h} px`;
+          studioCtx.font = `bold ${Math.max(11, Math.round(cw / 35))}px monospace`;
+          const textW = studioCtx.measureText(badgeText).width;
+          const badgeX = box.x + (box.w - textW) / 2 - 6;
+          const badgeY = Math.max(16, box.y - 8);
+          studioCtx.fillRect(badgeX, badgeY - 14, textW + 12, 18);
+          studioCtx.fillStyle = "#00e5ff";
+          studioCtx.fillText(badgeText, badgeX + 6, badgeY);
+
+          studioCtx.restore();
+        }
+      }
+    }
+
+    function getCanvasPointerCoords(e) {
+      const rect = studioCanvas.getBoundingClientRect();
+      const scaleX = studioCanvas.width / rect.width;
+      const scaleY = studioCanvas.height / rect.height;
+      return {
+        x: Math.round((e.clientX - rect.left) * scaleX),
+        y: Math.round((e.clientY - rect.top) * scaleY)
+      };
+    }
+
+    function detectCropHandle(pos, box) {
+      if (!box) return null;
+      const threshold = Math.max(16, Math.round(studioCanvas.width / 25));
+      
+      const nw = Math.hypot(pos.x - box.x, pos.y - box.y);
+      const ne = Math.hypot(pos.x - (box.x + box.w), pos.y - box.y);
+      const se = Math.hypot(pos.x - (box.x + box.w), pos.y - (box.y + box.h));
+      const sw = Math.hypot(pos.x - box.x, pos.y - (box.y + box.h));
+
+      if (nw <= threshold) return "nw";
+      if (ne <= threshold) return "ne";
+      if (se <= threshold) return "se";
+      if (sw <= threshold) return "sw";
+
+      if (pos.x >= box.x && pos.x <= box.x + box.w && pos.y >= box.y && pos.y <= box.y + box.h) {
+        return "move";
+      }
+
+      return null;
+    }
 
     function setupStudioCropListeners() {
       if (!studioCanvas || studioCanvas.dataset.listenersAttached) return;
       studioCanvas.dataset.listenersAttached = "true";
 
-      studioCanvas.addEventListener("mousedown", (e) => {
-        const rect = studioCanvas.getBoundingClientRect();
-        const scaleX = studioCanvas.width / rect.width;
-        const scaleY = studioCanvas.height / rect.height;
-        const clickX = (e.clientX - rect.left) * scaleX;
-        const clickY = (e.clientY - rect.top) * scaleY;
+      studioCanvas.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        const pos = getCanvasPointerCoords(e);
 
         if (studioCurrentTool === "wand") {
-          removeColorAtPoint(clickX, clickY);
+          pushStudioHistory();
+          removeColorAtPoint(pos.x, pos.y);
           return;
         } else if (studioCurrentTool === "eraser") {
-          isStudioMouseDown = true;
-          eraseAtPoint(clickX, clickY);
+          pushStudioHistory();
+          studioDragState.isDragging = true;
+          eraseAtPoint(pos.x, pos.y);
           return;
         }
 
-        studioCropStart = { x: clickX, y: clickY };
-        studioCropEnd = { ...studioCropStart };
-        isStudioMouseDown = true;
+        // Crop Tool
+        const box = getNormalizedCropBox();
+        const handle = detectCropHandle(pos, box);
+
+        studioDragState.isDragging = true;
+        studioDragState.startX = pos.x;
+        studioDragState.startY = pos.y;
+        studioDragState.origBox = box ? { ...box } : null;
+
+        if (handle) {
+          studioDragState.mode = handle;
+        } else {
+          studioDragState.mode = "create";
+          studioCropBox = { x: pos.x, y: pos.y, w: 0, h: 0 };
+        }
       });
 
-      studioCanvas.addEventListener("mousemove", (e) => {
-        if (!isStudioMouseDown) return;
-        const rect = studioCanvas.getBoundingClientRect();
-        const scaleX = studioCanvas.width / rect.width;
-        const scaleY = studioCanvas.height / rect.height;
-        const currentX = (e.clientX - rect.left) * scaleX;
-        const currentY = (e.clientY - rect.top) * scaleY;
+      window.addEventListener("pointermove", (e) => {
+        if (!studioCanvas) return;
+        const pos = getCanvasPointerCoords(e);
+
+        if (!studioDragState.isDragging) {
+          // Update cursor icon in crop mode
+          if (studioCurrentTool === "crop") {
+            const box = getNormalizedCropBox();
+            const handle = detectCropHandle(pos, box);
+            if (handle === "nw" || handle === "se") {
+              studioCanvas.style.cursor = "nwse-resize";
+            } else if (handle === "ne" || handle === "sw") {
+              studioCanvas.style.cursor = "nesw-resize";
+            } else if (handle === "move") {
+              studioCanvas.style.cursor = "move";
+            } else {
+              studioCanvas.style.cursor = "crosshair";
+            }
+          } else {
+            studioCanvas.style.cursor = studioCurrentTool === "eraser" ? "grab" : "crosshair";
+          }
+          return;
+        }
 
         if (studioCurrentTool === "eraser") {
-          eraseAtPoint(currentX, currentY);
+          eraseAtPoint(pos.x, pos.y);
           return;
         }
 
-        studioCropEnd = { x: currentX, y: currentY };
-        redrawStudioCanvasWithSelection();
+        if (studioCurrentTool === "crop") {
+          const dx = pos.x - studioDragState.startX;
+          const dy = pos.y - studioDragState.startY;
+          const orig = studioDragState.origBox;
+
+          if (studioDragState.mode === "create") {
+            let w = dx;
+            let h = dy;
+            if (studioCropAspect === "1:1") {
+              const signX = w >= 0 ? 1 : -1;
+              const signY = h >= 0 ? 1 : -1;
+              const maxDist = Math.max(Math.abs(w), Math.abs(h));
+              w = maxDist * signX;
+              h = maxDist * signY;
+            }
+            studioCropBox = { x: studioDragState.startX, y: studioDragState.startY, w: w, h: h };
+          } else if (studioDragState.mode === "move" && orig) {
+            const newX = Math.max(0, Math.min(studioCanvas.width - orig.w, orig.x + dx));
+            const newY = Math.max(0, Math.min(studioCanvas.height - orig.h, orig.y + dy));
+            studioCropBox = { x: newX, y: newY, w: orig.w, h: orig.h };
+          } else if (orig) {
+            // Resizing via handles
+            let newX = orig.x;
+            let newY = orig.y;
+            let newW = orig.w;
+            let newH = orig.h;
+
+            if (studioDragState.mode === "se") {
+              newW = orig.w + dx;
+              newH = orig.h + dy;
+              if (studioCropAspect === "1:1") {
+                const s = Math.max(newW, newH);
+                newW = s; newH = s;
+              }
+            } else if (studioDragState.mode === "nw") {
+              newX = orig.x + dx;
+              newY = orig.y + dy;
+              newW = orig.w - dx;
+              newH = orig.h - dy;
+              if (studioCropAspect === "1:1") {
+                const s = Math.max(newW, newH);
+                newX = orig.x + orig.w - s;
+                newY = orig.y + orig.h - s;
+                newW = s; newH = s;
+              }
+            } else if (studioDragState.mode === "ne") {
+              newY = orig.y + dy;
+              newW = orig.w + dx;
+              newH = orig.h - dy;
+              if (studioCropAspect === "1:1") {
+                const s = Math.max(newW, newH);
+                newY = orig.y + orig.h - s;
+                newW = s; newH = s;
+              }
+            } else if (studioDragState.mode === "sw") {
+              newX = orig.x + dx;
+              newW = orig.w - dx;
+              newH = orig.h + dy;
+              if (studioCropAspect === "1:1") {
+                const s = Math.max(newW, newH);
+                newX = orig.x + orig.w - s;
+                newW = s; newH = s;
+              }
+            }
+
+            if (newW > 10 && newH > 10) {
+              studioCropBox = { x: newX, y: newY, w: newW, h: newH };
+            }
+          }
+
+          redrawStudioCanvas();
+        }
       });
 
-      window.addEventListener("mouseup", () => {
-        if (isStudioMouseDown) {
-          isStudioMouseDown = false;
+      window.addEventListener("pointerup", () => {
+        if (studioDragState.isDragging) {
+          studioDragState.isDragging = false;
           if (studioCurrentTool === "crop") {
-            const w = Math.round(Math.abs(studioCropEnd.x - studioCropStart.x));
-            const h = Math.round(Math.abs(studioCropEnd.y - studioCropStart.y));
-            if (w > 20 && h > 20) {
-              cropStudioSelectedArea();
+            const box = getNormalizedCropBox();
+            if (!box || box.w < 10 || box.h < 10) {
+              initDefaultCropBox();
             } else {
-              redrawStudioCanvasWithSelection();
+              studioCropBox = box;
             }
+            redrawStudioCanvas();
           }
         }
       });
     }
+
+    // Aplicar Recorte Limpio sin artefactos visuales
+    window.applyStudioCrop = function() {
+      if (!studioCanvas || !studioOriginalImg) return;
+      const box = getNormalizedCropBox();
+      if (!box || box.w < 10 || box.h < 10) {
+        customAlert("Por favor selecciona un área válida para recortar.", "✂️");
+        return;
+      }
+
+      pushStudioHistory();
+
+      // Renderizar imagen base limpia en un canvas temporal para extraer los píxeles puros
+      const cleanCanvas = document.createElement("canvas");
+      cleanCanvas.width = studioCanvas.width;
+      cleanCanvas.height = studioCanvas.height;
+      const cleanCtx = cleanCanvas.getContext("2d", { willReadFrequently: true });
+      cleanCtx.drawImage(studioOriginalImg, 0, 0);
+
+      const croppedData = cleanCtx.getImageData(box.x, box.y, box.w, box.h);
+
+      studioCanvas.width = box.w;
+      studioCanvas.height = box.h;
+      studioCtx.putImageData(croppedData, 0, 0);
+
+      const croppedImg = new Image();
+      croppedImg.onload = function() {
+        studioOriginalImg = croppedImg;
+        studioCropBox = null;
+        redrawStudioCanvas();
+        showToast("¡Recorte aplicado con éxito! ✂️✨", false);
+      };
+      croppedImg.src = studioCanvas.toDataURL("image/png");
+    };
 
     // Tocar un punto exacto con la Varita Mágica para eliminar ese tono de color específico
     function removeColorAtPoint(startX, startY) {
@@ -4647,7 +5025,7 @@
       // Actualizar imagen base original
       const tempImg = new Image();
       tempImg.onload = () => { studioOriginalImg = tempImg; };
-      tempImg.src = studioCanvas.toDataURL();
+      tempImg.src = studioCanvas.toDataURL("image/png");
       showToast("Tono de color eliminado con éxito 🎯✨", false);
     }
 
@@ -4666,66 +5044,17 @@
       // Actualizar imagen base
       const tempImg = new Image();
       tempImg.onload = () => { studioOriginalImg = tempImg; };
-      tempImg.src = studioCanvas.toDataURL();
+      tempImg.src = studioCanvas.toDataURL("image/png");
     }
-
-    function redrawStudioCanvasWithSelection() {
-      if (!studioOriginalImg || !studioCtx) return;
-      studioCtx.drawImage(studioOriginalImg, 0, 0);
-      
-      const x = Math.min(studioCropStart.x, studioCropEnd.x);
-      const y = Math.min(studioCropStart.y, studioCropEnd.y);
-      const w = Math.abs(studioCropEnd.x - studioCropStart.x);
-      const h = Math.abs(studioCropEnd.y - studioCropStart.y);
-
-      if (w > 5 && h > 5) {
-        studioCtx.strokeStyle = "#e040fb";
-        studioCtx.lineWidth = Math.max(2, Math.round(studioCanvas.width / 200));
-        studioCtx.setLineDash([6, 6]);
-        studioCtx.strokeRect(x, y, w, h);
-      }
-    }
-
-    function cropStudioSelectedArea() {
-      const x = Math.round(Math.min(studioCropStart.x, studioCropEnd.x));
-      const y = Math.round(Math.min(studioCropStart.y, studioCropEnd.y));
-      const w = Math.round(Math.abs(studioCropEnd.x - studioCropStart.x));
-      const h = Math.round(Math.abs(studioCropEnd.y - studioCropStart.y));
-
-      if (w < 20 || h < 20) return;
-
-      const croppedData = studioCtx.getImageData(x, y, w, h);
-      studioCanvas.width = w;
-      studioCanvas.height = h;
-      studioCtx.putImageData(croppedData, 0, 0);
-
-      // Actualizar la imagen original de estudio con la recortada
-      const tempImg = new Image();
-      tempImg.onload = () => { 
-        studioOriginalImg = tempImg;
-        redrawStudioCanvasWithSelection();
-      };
-      tempImg.src = studioCanvas.toDataURL();
-    }
-
-    let studioBackgroundProcessed = false;
-    let studioThrottledRaf = false;
 
     window.onStudioThresholdChange = function(val) {
       const valEl = document.getElementById("studio-threshold-val");
       if (valEl) valEl.textContent = val;
-
-      if (!studioThrottledRaf) {
-        studioThrottledRaf = true;
-        requestAnimationFrame(() => {
-          removeStudioBackground(true);
-          studioThrottledRaf = false;
-        });
-      }
     };
 
     window.removeStudioBackground = function(isSilent = false) {
       if (!studioOriginalImg || !studioCanvas || !studioCtx) return;
+      pushStudioHistory();
 
       const w = studioCanvas.width;
       const h = studioCanvas.height;
@@ -4734,7 +5063,7 @@
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = w;
       tempCanvas.height = h;
-      const tempCtx = tempCanvas.getContext("2d");
+      const tempCtx = tempCanvas.getContext("2d", { willReadFrequently: true });
       tempCtx.drawImage(studioOriginalImg, 0, 0);
 
       const imgData = tempCtx.getImageData(0, 0, w, h);
@@ -4785,7 +5114,13 @@
       }
 
       studioCtx.putImageData(imgData, 0, 0);
-      studioBackgroundProcessed = true;
+      
+      const processedImg = new Image();
+      processedImg.onload = function() {
+        studioOriginalImg = processedImg;
+        redrawStudioCanvas();
+      };
+      processedImg.src = studioCanvas.toDataURL("image/png");
 
       if (!isSilent) {
         showToast("Fondo eliminado con bordes suavizados 🪄✨", false);
