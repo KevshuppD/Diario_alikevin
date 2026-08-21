@@ -1781,6 +1781,9 @@
         <button class="btn btn-secondary" onclick="clearStudioCropSelection()" style="font-size: 11.5px; padding: 6px 10px;">
           <span>✖️</span> Quitar Selección
         </button>
+        <div id="studio-crop-dims-badge" style="font-family: monospace; font-size: 11.5px; font-weight: 700; color: #00e5ff; background: #12131a; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--card-border);">
+          0 × 0 px
+        </div>
         <div style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px; color: var(--text-muted);">
           <span>Aspecto:</span>
           <select id="studio-crop-aspect" onchange="setStudioCropAspect(this.value)" style="background: #12131a; color: #fff; border: 1px solid var(--card-border); padding: 4px 8px; border-radius: 6px; font-size: 12px;">
@@ -4750,16 +4753,11 @@
             studioCtx.strokeRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
           });
 
-          // Dimension badge
-          studioCtx.fillStyle = "rgba(0, 0, 0, 0.75)";
-          const badgeText = `${box.w} × ${box.h} px`;
-          studioCtx.font = `bold ${Math.max(11, Math.round(cw / 35))}px monospace`;
-          const textW = studioCtx.measureText(badgeText).width;
-          const badgeX = box.x + (box.w - textW) / 2 - 6;
-          const badgeY = Math.max(16, box.y - 8);
-          studioCtx.fillRect(badgeX, badgeY - 14, textW + 12, 18);
-          studioCtx.fillStyle = "#00e5ff";
-          studioCtx.fillText(badgeText, badgeX + 6, badgeY);
+          // Update dimension badge in the action bar
+          const dimsBadge = document.getElementById("studio-crop-dims-badge");
+          if (dimsBadge) {
+            dimsBadge.textContent = `${box.w} × ${box.h} px`;
+          }
 
           studioCtx.restore();
         }
