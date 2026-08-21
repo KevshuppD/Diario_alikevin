@@ -3137,6 +3137,29 @@
 
     // 8. Edit Mode Data Mutation Functions
     function collectInputsFromDOM() {
+      document.querySelectorAll(".category-title-edit input[data-original]").forEach(input => {
+        const orig = input.dataset.original;
+        const val = input.value.trim();
+        const cat = categories.find(c => c.name === orig);
+        if (val === "" || val === orig) {
+          delete customCategories[orig];
+        } else {
+          customCategories[orig] = val;
+        }
+        if (cat) {
+          (cat.spiritIds || []).forEach(sid => {
+            const currentType = getSpiritCurrentType(sid);
+            const newFullName = computeSpiritName(sid, cat.name, currentType);
+            const defName = defaultNames[parseInt(sid) - 1] || "";
+            if (newFullName === defName) {
+              delete customNames[sid];
+            } else {
+              customNames[sid] = newFullName;
+            }
+          });
+        }
+      });
+
       document.querySelectorAll(".spirit-slot input[data-id]").forEach(input => {
         const sid = input.dataset.id;
         const val = input.value.trim();
@@ -3145,16 +3168,6 @@
           delete customNames[sid];
         } else {
           customNames[sid] = val;
-        }
-      });
-
-      document.querySelectorAll(".category-title-edit input[data-original]").forEach(input => {
-        const orig = input.dataset.original;
-        const val = input.value.trim();
-        if (val === "" || val === orig) {
-          delete customCategories[orig];
-        } else {
-          customCategories[orig] = val;
         }
       });
     }
@@ -3947,12 +3960,24 @@
         const idx = parseInt(input.dataset.catIndex);
         if (!isNaN(idx) && categories[idx]) {
           const val = input.value.trim();
-          const orig = categories[idx].name;
+          const cat = categories[idx];
+          const orig = cat.name;
           if (val === "" || val === orig) {
             delete customCategories[orig];
           } else {
             customCategories[orig] = val;
           }
+          // Auto-update spirit names inside this category
+          (cat.spiritIds || []).forEach(sid => {
+            const currentType = getSpiritCurrentType(sid);
+            const newFullName = computeSpiritName(sid, cat.name, currentType);
+            const defName = defaultNames[parseInt(sid) - 1] || "";
+            if (newFullName === defName) {
+              delete customNames[sid];
+            } else {
+              customNames[sid] = newFullName;
+            }
+          });
         }
       });
 
@@ -3973,13 +3998,27 @@
     window.updateConfigCategoryName = function(index, newValue) {
       if (!categories[index]) return;
       const cleanVal = newValue.trim();
-      const originalName = categories[index].name;
+      const cat = categories[index];
+      const originalName = cat.name;
       if (!cleanVal || cleanVal === originalName) {
         delete customCategories[originalName];
       } else {
         customCategories[originalName] = cleanVal;
       }
-      showToast(`Nombre de categoría actualizado: "${cleanVal || originalName}". Recuerda guardar en Firestore.`, false);
+
+      // Auto-update spirit names inside this category
+      (cat.spiritIds || []).forEach(sid => {
+        const currentType = getSpiritCurrentType(sid);
+        const newFullName = computeSpiritName(sid, cat.name, currentType);
+        const defName = defaultNames[parseInt(sid) - 1] || "";
+        if (newFullName === defName) {
+          delete customNames[sid];
+        } else {
+          customNames[sid] = newFullName;
+        }
+      });
+
+      showToast(`Categoría y espíritus actualizados: "${cleanVal || originalName}". Recuerda guardar en Firestore.`, false);
     };
 
     window.deleteConfigCategory = function(index) {

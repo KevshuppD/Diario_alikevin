@@ -587,6 +587,68 @@ fun SpiritsChecklistView(
         )
     }
     val defaultSpiritsListT1 = remember { (1..141).map { String.format("%02d", it) } }
+    val spiritNames = remember {
+        listOf(
+            // Fila 1
+            "Espíritu de Agua", "Espíritu de Agua Dorado", "Espíritu de Agua Gomita", "Espíritu de Agua Galaxia",
+            "Espíritu Dormilón", "Espíritu Dormilón Dorado", "Espíritu Dormilón Gomita", "Espíritu Dormilón Galaxia",
+            // Fila 2
+            "Espíritu de Tierra", "Espíritu de Tierra Dorado", "Espíritu de Tierra Gomita", "Espíritu de Tierra Galaxia",
+            "TheBurntPeanut (Espíritu del Cacahuete)",
+            "Espíritu Demoníaco", "Espíritu Demoníaco Dorado", "Espíritu Demoníaco Gomita", "Espíritu Demoníaco Galaxia",
+            // Fila 3
+            "Espíritu de Fuego", "Espíritu de Fuego Dorado", "Espíritu de Fuego Gomita", "Espíritu de Fuego Galaxia",
+            "Espíritu Punk", "Espíritu Punk Dorado", "Espíritu Punk Gomita", "Espíritu Punk Galaxia",
+            // Fila 4
+            "Espíritu Pato", "Espíritu Pato Dorado", "Espíritu Pato Gomita", "Espíritu Pato Galaxia",
+            "Espíritu Monarca", "Espíritu Monarca Dorado", "Espíritu Monarca Gomita", "Espíritu Monarca Galaxia",
+            // Fila 5
+            "Espíritu Fantasma", "Espíritu Fantasma Dorado", "Espíritu Fantasma Gomita", "Espíritu Fantasma Galaxia",
+            "Espíritu del Punto Cero", "Espíritu del Punto Cero Dorado", "Espíritu del Punto Cero Gomita", "Espíritu del Punto Cero Galaxia",
+            // Fila 6 (Nuevos)
+            "Espíritu de Aura", "Espíritu de Aura Dorado", "Espíritu de Aura Galaxia", "Espíritu de Aura Gomita",
+            "Espíritu de la Fundación", "Espíritu de la Fundación Dorado", "Espíritu de la Fundación Galaxia", "Espíritu de la Fundación Gomita",
+            // Fila 7 (Nuevos)
+            "Espíritu de la Parca", "Espíritu de la Parca Dorado", "Espíritu de la Parca Galaxia", "Espíritu de la Parca Gomita",
+            "Espíritu Futbolero", "Espíritu Futbolero Dorado", "Espíritu Futbolero Galaxia", "Espíritu Futbolero Gomita",
+            // Fila 8 (Nuevos)
+            "Espíritu Jefe", "Espíritu Jefe Dorado", "Espíritu Jefe Galaxia", "Espíritu Jefe Gomita",
+            "Espíritu Pescado", "Espíritu Pescado Dorado", "Espíritu Pescado Galaxia", "Espíritu Pescado Gomita",
+            // Nuevas Variantes (Gema y Holofoil)
+            "Espíritu de Agua Gema", "Espíritu de Agua Holofoil",
+            "Espíritu Dormilón Gema", "Espíritu Dormilón Holofoil",
+            "Espíritu de Tierra Gema", "Espíritu de Tierra Holofoil",
+            "Espíritu Demoníaco Gema", "Espíritu Demoníaco Holofoil",
+            "Espíritu de Fuego Gema", "Espíritu de Fuego Holofoil",
+            "Espíritu Punk Gema", "Espíritu Punk Holofoil",
+            "Espíritu Pato Gema", "Espíritu Pato Holofoil",
+            "Espíritu Monarca Gema", "Espíritu Monarca Holofoil",
+            "Espíritu Fantasma Gema", "Espíritu Fantasma Holofoil",
+            "Espíritu del Punto Cero Gema", "Espíritu del Punto Cero Holofoil",
+            "Espíritu de Aura Gema", "Espíritu de Aura Holofoil",
+            "Espíritu de la Fundación Gema", "Espíritu de la Fundación Holofoil",
+            "Espíritu de la Parca Gema", "Espíritu de la Parca Holofoil",
+            "Espíritu Futbolero Gema", "Espíritu Futbolero Holofoil",
+            "Espíritu Jefe Gema", "Espíritu Jefe Holofoil",
+            "Espíritu Pescado Gema", "Espíritu Pescado Holofoil",
+            // Nuevos Espíritus (98..121)
+            // Fila 9 (Batman)
+            "Espíritu de Batman", "Espíritu de Batman Dorado", "Espíritu de Batman Gomita", "Espíritu de Batman Galaxia", "Espíritu de Batman Gema", "Espíritu de Batman Holofoil", "Espíritu de Batman Cubo",
+            // Fila 10 (Viento)
+            "Espíritu de Viento", "Espíritu de Viento Dorado", "Espíritu de Viento Gomita", "Espíritu de Viento Galaxia", "Espíritu de Viento Gema", "Espíritu de Viento Holofoil", "Espíritu de Viento Cubo",
+            // Fila 11 (Cubo)
+            "Espíritu de Agua Cubo", "Espíritu Dormilón Cubo", "Espíritu de Tierra Cubo", "Espíritu Demoníaco Cubo", "Espíritu de Fuego Cubo", "Espíritu Punk Cubo", "Espíritu Pato Cubo",
+            // Fila 12 (Especiales / Invitados)
+            "Espíritu Pollo", "Espíritu de Vini Jr.", "Espíritu de la Fundación Especial",
+            // Nuevos Espíritus (122..141)
+            "Espíritu de Llama", "Espíritu de Llama Dorado", "Espíritu de Llama Gomita", "Espíritu de Llama Galaxia", "Espíritu de Llama Gema",
+            "Espíritu de Cubo Arcoíris", "Espíritu de Cubo Galaxia Oscura",
+            "Espíritu de Bananín", "Espíritu de Bananín Dorado", "Espíritu de Bananín Gomita", "Espíritu de Bananín Arcoíris", "Espíritu de Bananín Galaxia",
+            "Espíritu de la Parca Arcoíris", "Espíritu de la Parca Gema",
+            "Espíritu de Tierra Quack", "Espíritu de Fuego Quack", "Espíritu de Agua Quack", "Espíritu de Punto Cero Quack",
+            "Espíritu de John Wick", "Espíritu de Ironmouse"
+        )
+    }
 
     var categories by remember { mutableStateOf(emptyList<SpiritCategory>()) }
     var spiritsList by remember { mutableStateOf(emptyList<String>()) }
@@ -743,13 +805,32 @@ fun SpiritsChecklistView(
     }
 
     val onSaveCategoryName: (String, String) -> Unit = { originalName, newName ->
-        val newCustomCategories = if (newName.isBlank()) {
+        val cleanName = newName.trim()
+        val newCustomCategories = if (cleanName.isBlank()) {
             customCategories - originalName
         } else {
-            customCategories + (originalName to newName)
+            customCategories + (originalName to cleanName)
         }
+        val targetCat = categories.find { it.name == originalName }
+        val updatedCustomNames = customNames.toMutableMap()
+        if (targetCat != null && cleanName.isNotBlank()) {
+            val typeSuffixes = listOf(" Dorado", " Gomita", " Galaxia", " Gema", " Holofoil", " Cubo", " Extra", " Especial", " Hacker", " Hacker Dorado")
+            targetCat.spiritIds.forEach { sid ->
+                val currentName = customNames[sid] ?: run {
+                    val idx = sid.toIntOrNull()?.minus(1) ?: 0
+                    spiritNames.getOrElse(idx) { "Espíritu #$sid" }
+                }
+                val matchedSuffix = typeSuffixes.findLast { currentName.endsWith(it) } ?: ""
+                updatedCustomNames[sid] = cleanName + matchedSuffix
+            }
+        }
+        val updates = mapOf(
+            "custom_categories" to newCustomCategories,
+            "custom_names" to updatedCustomNames,
+            "schema_version" to 4
+        )
         db.collection(firestoreCollection).document(coupleId)
-            .set(mapOf("custom_categories" to newCustomCategories, "schema_version" to 4), SetOptions.merge())
+            .set(updates, SetOptions.merge())
     }
 
     val onDeleteSpirit: (String) -> Unit = { spiritId ->
@@ -873,68 +954,6 @@ fun SpiritsChecklistView(
     }
 
 
-    val spiritNames = remember {
-        listOf(
-            // Fila 1
-            "Espíritu de Agua", "Espíritu de Agua Dorado", "Espíritu de Agua Gomita", "Espíritu de Agua Galaxia",
-            "Espíritu Dormilón", "Espíritu Dormilón Dorado", "Espíritu Dormilón Gomita", "Espíritu Dormilón Galaxia",
-            // Fila 2
-            "Espíritu de Tierra", "Espíritu de Tierra Dorado", "Espíritu de Tierra Gomita", "Espíritu de Tierra Galaxia",
-            "TheBurntPeanut (Espíritu del Cacahuete)",
-            "Espíritu Demoníaco", "Espíritu Demoníaco Dorado", "Espíritu Demoníaco Gomita", "Espíritu Demoníaco Galaxia",
-            // Fila 3
-            "Espíritu de Fuego", "Espíritu de Fuego Dorado", "Espíritu de Fuego Gomita", "Espíritu de Fuego Galaxia",
-            "Espíritu Punk", "Espíritu Punk Dorado", "Espíritu Punk Gomita", "Espíritu Punk Galaxia",
-            // Fila 4
-            "Espíritu Pato", "Espíritu Pato Dorado", "Espíritu Pato Gomita", "Espíritu Pato Galaxia",
-            "Espíritu Monarca", "Espíritu Monarca Dorado", "Espíritu Monarca Gomita", "Espíritu Monarca Galaxia",
-            // Fila 5
-            "Espíritu Fantasma", "Espíritu Fantasma Dorado", "Espíritu Fantasma Gomita", "Espíritu Fantasma Galaxia",
-            "Espíritu del Punto Cero", "Espíritu del Punto Cero Dorado", "Espíritu del Punto Cero Gomita", "Espíritu del Punto Cero Galaxia",
-            // Fila 6 (Nuevos)
-            "Espíritu de Aura", "Espíritu de Aura Dorado", "Espíritu de Aura Galaxia", "Espíritu de Aura Gomita",
-            "Espíritu de la Fundación", "Espíritu de la Fundación Dorado", "Espíritu de la Fundación Galaxia", "Espíritu de la Fundación Gomita",
-            // Fila 7 (Nuevos)
-            "Espíritu de la Parca", "Espíritu de la Parca Dorado", "Espíritu de la Parca Galaxia", "Espíritu de la Parca Gomita",
-            "Espíritu Futbolero", "Espíritu Futbolero Dorado", "Espíritu Futbolero Galaxia", "Espíritu Futbolero Gomita",
-            // Fila 8 (Nuevos)
-            "Espíritu Jefe", "Espíritu Jefe Dorado", "Espíritu Jefe Galaxia", "Espíritu Jefe Gomita",
-            "Espíritu Pescado", "Espíritu Pescado Dorado", "Espíritu Pescado Galaxia", "Espíritu Pescado Gomita",
-            // Nuevas Variantes (Gema y Holofoil)
-            "Espíritu de Agua Gema", "Espíritu de Agua Holofoil",
-            "Espíritu Dormilón Gema", "Espíritu Dormilón Holofoil",
-            "Espíritu de Tierra Gema", "Espíritu de Tierra Holofoil",
-            "Espíritu Demoníaco Gema", "Espíritu Demoníaco Holofoil",
-            "Espíritu de Fuego Gema", "Espíritu de Fuego Holofoil",
-            "Espíritu Punk Gema", "Espíritu Punk Holofoil",
-            "Espíritu Pato Gema", "Espíritu Pato Holofoil",
-            "Espíritu Monarca Gema", "Espíritu Monarca Holofoil",
-            "Espíritu Fantasma Gema", "Espíritu Fantasma Holofoil",
-            "Espíritu del Punto Cero Gema", "Espíritu del Punto Cero Holofoil",
-            "Espíritu de Aura Gema", "Espíritu de Aura Holofoil",
-            "Espíritu de la Fundación Gema", "Espíritu de la Fundación Holofoil",
-            "Espíritu de la Parca Gema", "Espíritu de la Parca Holofoil",
-            "Espíritu Futbolero Gema", "Espíritu Futbolero Holofoil",
-            "Espíritu Jefe Gema", "Espíritu Jefe Holofoil",
-            "Espíritu Pescado Gema", "Espíritu Pescado Holofoil",
-            // Nuevos Espíritus (98..121)
-            // Fila 9 (Batman)
-            "Espíritu de Batman", "Espíritu de Batman Dorado", "Espíritu de Batman Gomita", "Espíritu de Batman Galaxia", "Espíritu de Batman Gema", "Espíritu de Batman Holofoil", "Espíritu de Batman Cubo",
-            // Fila 10 (Viento)
-            "Espíritu de Viento", "Espíritu de Viento Dorado", "Espíritu de Viento Gomita", "Espíritu de Viento Galaxia", "Espíritu de Viento Gema", "Espíritu de Viento Holofoil", "Espíritu de Viento Cubo",
-            // Fila 11 (Cubo)
-            "Espíritu de Agua Cubo", "Espíritu Dormilón Cubo", "Espíritu de Tierra Cubo", "Espíritu Demoníaco Cubo", "Espíritu de Fuego Cubo", "Espíritu Punk Cubo", "Espíritu Pato Cubo",
-            // Fila 12 (Especiales / Invitados)
-            "Espíritu Pollo", "Espíritu de Vini Jr.", "Espíritu de la Fundación Especial",
-            // Nuevos Espíritus (122..141)
-            "Espíritu de Llama", "Espíritu de Llama Dorado", "Espíritu de Llama Gomita", "Espíritu de Llama Galaxia", "Espíritu de Llama Gema",
-            "Espíritu de Cubo Arcoíris", "Espíritu de Cubo Galaxia Oscura",
-            "Espíritu de Bananín", "Espíritu de Bananín Dorado", "Espíritu de Bananín Gomita", "Espíritu de Bananín Arcoíris", "Espíritu de Bananín Galaxia",
-            "Espíritu de la Parca Arcoíris", "Espíritu de la Parca Gema",
-            "Espíritu de Tierra Quack", "Espíritu de Fuego Quack", "Espíritu de Agua Quack", "Espíritu de Punto Cero Quack",
-            "Espíritu de John Wick", "Espíritu de Ironmouse"
-        )
-    }
 
     Column(
         modifier = Modifier
