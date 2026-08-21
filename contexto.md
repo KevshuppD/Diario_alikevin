@@ -149,11 +149,17 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 graph TD
     User([Interacciones de Usuario]) -->|Enviar Mensajes / Abrir App| XP[+10 XP]
     User -->|Interacción Manual| LP[+5 Puntos de Amor]
+    User -->|Primera Partida de Minijuego Diaria| MiniReward[Puntos de Amor + EXP Diaria]
+    User -->|Partidas Posteriores en el Día| FreePlay[Modo Libre / Felicidad + Diversión Ilimitada]
     XP -->|Cada 100 XP| LevelUp[Subir de Nivel +50 Puntos de Amor]
     LP -->|Comprar Accesorios| Shop[Tienda de Thor]
     Shop -->|Desbloquear| Equip[Equipar Accesorio]
     Time([Transcurso del Tiempo]) -->|Cada 24 horas| Decay[-20% Felicidad]
 ```
+
+- **Mecánica de Minijuegos (Retro Memory, Flappy Thor, La Serpiente):**
+  - **Recompensa Diaria (1ª partida del día):** Otorga los Puntos de Amor (❤️) y EXP (✨) correspondientes, aumentando además la felicidad de Thor.
+  - **Modo Libre Ilimitado:** Una vez reclamada la recompensa diaria, los minijuegos **nunca se bloquean**. Los usuarios pueden seguir jugando infinitamente por diversión, superación de récords personales o para aumentar la felicidad de Thor (+5).
 
 ## 6. Flujos de Sincronización (Google Drive & Firestore)
 
