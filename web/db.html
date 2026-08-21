@@ -4963,16 +4963,13 @@
 
       // Renderizar imagen base limpia en un canvas temporal para extraer los píxeles puros
       const cleanCanvas = document.createElement("canvas");
-      cleanCanvas.width = studioCanvas.width;
-      cleanCanvas.height = studioCanvas.height;
+      cleanCanvas.width = box.w;
+      cleanCanvas.height = box.h;
       const cleanCtx = cleanCanvas.getContext("2d", { willReadFrequently: true });
-      cleanCtx.drawImage(studioOriginalImg, 0, 0);
-
-      const croppedData = cleanCtx.getImageData(box.x, box.y, box.w, box.h);
+      cleanCtx.drawImage(studioOriginalImg, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
 
       studioCanvas.width = box.w;
       studioCanvas.height = box.h;
-      studioCtx.putImageData(croppedData, 0, 0);
 
       const croppedImg = new Image();
       croppedImg.onload = function() {
@@ -4981,19 +4978,48 @@
         redrawStudioCanvas();
         showToast("¡Recorte aplicado con éxito! ✂️✨", false);
       };
-      croppedImg.src = studioCanvas.toDataURL("image/png");
+      croppedImg.src = cleanCanvas.toDataURL("image/png");
     };
+
+    // Obtener DataURL puro de la imagen SIN ninguna línea, máscara ni UI dibujada encima
+    function getCleanStudioDataUrl() {
+      if (!studioOriginalImg) return null;
+      
+      const box = (studioCurrentTool === "crop") ? getNormalizedCropBox() : null;
+      const cleanCanvas = document.createElement("canvas");
+      
+      // Si hay una caja de selección activa, recortar limpia y directamente desde la imagen original
+      if (box && box.w > 10 && box.h > 10 && (box.w < studioOriginalImg.width - 4 || box.h < studioOriginalImg.height - 4 || box.x > 2 || box.y > 2)) {
+        cleanCanvas.width = box.w;
+        cleanCanvas.height = box.h;
+        const cleanCtx = cleanCanvas.getContext("2d", { willReadFrequently: true });
+        cleanCtx.drawImage(studioOriginalImg, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+      } else {
+        cleanCanvas.width = studioOriginalImg.width;
+        cleanCanvas.height = studioOriginalImg.height;
+        const cleanCtx = cleanCanvas.getContext("2d", { willReadFrequently: true });
+        cleanCtx.drawImage(studioOriginalImg, 0, 0);
+      }
+      return cleanCanvas.toDataURL("image/png");
+    }
 
     // Tocar un punto exacto con la Varita Mágica para eliminar ese tono de color específico
     function removeColorAtPoint(startX, startY) {
-      if (!studioCanvas || !studioCtx) return;
+      if (!studioCanvas || !studioCtx || !studioOriginalImg) return;
       const w = studioCanvas.width;
       const h = studioCanvas.height;
       const x = Math.floor(startX);
       const y = Math.floor(startY);
       if (x < 0 || x >= w || y < 0 || y >= h) return;
 
-      const imgData = studioCtx.getImageData(0, 0, w, h);
+      // Trabajar sobre imagen limpia
+      const cleanCanvas = document.createElement("canvas");
+      cleanCanvas.width = w;
+      cleanCanvas.height = h;
+      const cleanCtx = cleanCanvas.getContext("2d", { willReadFrequently: true });
+      cleanCtx.drawImage(studioOriginalImg, 0, 0);
+
+      const imgData = cleanCtx.getImageData(0, 0, w, h);
       const data = imgData.data;
       const targetIdx = (y * w + x) * 4;
       const targetR = data[targetIdx];
@@ -5018,31 +5044,43 @@
         }
       }
 
-      studioCtx.putImageData(imgData, 0, 0);
+      cleanCtx.putImageData(imgData, 0, 0);
 
       // Actualizar imagen base original
       const tempImg = new Image();
-      tempImg.onload = () => { studioOriginalImg = tempImg; };
-      tempImg.src = studioCanvas.toDataURL("image/png");
+      tempImg.onload = () => { 
+        studioOriginalImg = tempImg; 
+        redrawStudioCanvas();
+      };
+      tempImg.src = cleanCanvas.toDataURL("image/png");
       showToast("Tono de color eliminado con éxito 🎯✨", false);
     }
 
     // Borrar manualmente con el Pincel Borrador
     function eraseAtPoint(x, y) {
-      if (!studioCanvas || !studioCtx) return;
+      if (!studioCanvas || !studioOriginalImg) return;
       const brushRadius = (parseInt(document.getElementById("studio-brush-size").value) || 20) / 2;
 
-      studioCtx.save();
-      studioCtx.globalCompositeOperation = "destination-out";
-      studioCtx.beginPath();
-      studioCtx.arc(x, y, brushRadius, 0, Math.PI * 2);
-      studioCtx.fill();
-      studioCtx.restore();
+      const cleanCanvas = document.createElement("canvas");
+      cleanCanvas.width = studioCanvas.width;
+      cleanCanvas.height = studioCanvas.height;
+      const cleanCtx = cleanCanvas.getContext("2d", { willReadFrequently: true });
+      cleanCtx.drawImage(studioOriginalImg, 0, 0);
+
+      cleanCtx.save();
+      cleanCtx.globalCompositeOperation = "destination-out";
+      cleanCtx.beginPath();
+      cleanCtx.arc(x, y, brushRadius, 0, Math.PI * 2);
+      cleanCtx.fill();
+      cleanCtx.restore();
 
       // Actualizar imagen base
       const tempImg = new Image();
-      tempImg.onload = () => { studioOriginalImg = tempImg; };
-      tempImg.src = studioCanvas.toDataURL("image/png");
+      tempImg.onload = () => { 
+        studioOriginalImg = tempImg; 
+        redrawStudioCanvas();
+      };
+      tempImg.src = cleanCanvas.toDataURL("image/png");
     }
 
     window.onStudioThresholdChange = function(val) {
@@ -5111,14 +5149,14 @@
         }
       }
 
-      studioCtx.putImageData(imgData, 0, 0);
+      tempCtx.putImageData(imgData, 0, 0);
       
       const processedImg = new Image();
       processedImg.onload = function() {
         studioOriginalImg = processedImg;
         redrawStudioCanvas();
       };
-      processedImg.src = studioCanvas.toDataURL("image/png");
+      processedImg.src = tempCanvas.toDataURL("image/png");
 
       if (!isSilent) {
         showToast("Fondo eliminado con bordes suavizados 🪄✨", false);
@@ -5126,8 +5164,11 @@
     };
 
     window.saveStudioProcessedImage = async function() {
-      if (!studioCanvas) return;
-      const dataUrl = studioCanvas.toDataURL("image/png");
+      const dataUrl = getCleanStudioDataUrl();
+      if (!dataUrl) {
+        customAlert("No hay una imagen válida para guardar.", "⚠️");
+        return;
+      }
       
       closeStudioCropModal();
       showUploadLoader("🖼️ Guardando y subiendo imagen...", "Subiendo espíritu procesado a Cloudinary");
