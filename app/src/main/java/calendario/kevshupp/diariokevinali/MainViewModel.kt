@@ -861,17 +861,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             else -> "lastSnakeDate"
         }
 
-        if ("memory" == gameType && today == p.lastMemoryDate) {
-            toastMessage.value = "¡Ya jugaste a Retro Memory hoy! 🧠"
-            return
-        }
-        if ("snake" == gameType && today == p.lastSnakeDate) {
-            toastMessage.value = "¡Ya jugaste a La Serpiente hoy! 🐍"
-            return
-        }
-        if ("flappy" == gameType && today == p.lastFlappyDate) {
-            toastMessage.value = "¡Ya jugaste a Flappy Thor hoy! 🐱🪽"
-            return
+        val alreadyPlayedToday = when (gameType) {
+            "memory" -> today == p.lastMemoryDate
+            "flappy" -> today == p.lastFlappyDate
+            else -> today == p.lastSnakeDate
         }
 
         val stats = calculateDecay(p, now)
@@ -880,10 +873,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val nextDecayUpdate = stats.nextDecayUpdate
         val isNowSleeping = stats.isSleeping
 
-        var newExp = p.experience + exp
+        // Solo otorgar Puntos de Amor y EXP en la primera partida del día
+        val effectivePoints = if (alreadyPlayedToday) 0 else points
+        val effectiveExp = if (alreadyPlayedToday) 0 else exp
+
+        var newExp = p.experience + effectiveExp
         var newLevel = p.level
-        var newLovePoints = p.lovePoints + points
-        val newHappiness = Math.min(100, p.happiness + 15)
+        var newLovePoints = p.lovePoints + effectivePoints
+        val newHappiness = Math.min(100, p.happiness + if (alreadyPlayedToday) 5 else 15)
         var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.status
         if (!isNowSleeping && newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
             newStatus = Pet.STATUS_HAPPY
@@ -914,7 +911,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "isSleeping", isNowSleeping
             )
             .addOnSuccessListener {
-                toastMessage.value = "¡Premio reclamado! +$points ❤️ y +$exp EXP    "
+                if (alreadyPlayedToday) {
+                    toastMessage.value = "¡Bien jugado! 🎮 (Recompensa diaria ya obtenida)"
+                } else {
+                    toastMessage.value = "¡Premio diario reclamado! +$points ❤️ y +$exp EXP 🎉"
+                }
                 if (showLevelUpToast) {
                     levelUpEvent.value = Pair(p.name ?: "Thor", finalLevel)
                 }

@@ -1156,28 +1156,16 @@ fun PetMenuDialog(
             playedFlappyToday = playedFlappyToday,
             onDismiss = { showGameSelector = false },
             onPlayMemory = {
-                if (playedMemoryToday) {
-                    (context as? MainActivity)?.showStyledPixelToast("¡Ya jugaste a Retro Memory hoy! 🧠")
-                } else {
-                    showGameSelector = false
-                    showMemoryGame = true
-                }
+                showGameSelector = false
+                showMemoryGame = true
             },
             onPlaySnake = {
-                if (playedSnakeToday) {
-                    (context as? MainActivity)?.showStyledPixelToast("¡Ya jugaste a La Serpiente hoy! 🐍")
-                } else {
-                    showGameSelector = false
-                    showSnakeGame = true
-                }
+                showGameSelector = false
+                showSnakeGame = true
             },
             onPlayFlappy = {
-                if (playedFlappyToday) {
-                    (context as? MainActivity)?.showStyledPixelToast("¡Ya jugaste a Flappy Thor hoy! 🐱🪽")
-                } else {
-                    showGameSelector = false
-                    showFlappyGame = true
-                }
+                showGameSelector = false
+                showFlappyGame = true
             }
         )
     }
@@ -1398,7 +1386,7 @@ fun MinigamesSelectorDialog(
                         .fillMaxWidth()
                         .padding(bottom = 12.dp)
                         .border(2.dp, borderColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (playedFlappyToday) Color.Gray else if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
                     shape = RectangleShape
                 ) {
                     Row(
@@ -1412,8 +1400,20 @@ fun MinigamesSelectorDialog(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(horizontalAlignment = Alignment.Start) {
-                            Text(if (playedFlappyToday) "🐱 FLAPPY THOR (1/1)" else "🐱 FLAPPY THOR 🪽", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
-                            Text(if (playedFlappyToday) "Completado por hoy. Vuelve mañana." else "¡Vuela entre tubos y atrapa corazones!", fontFamily = Vt323, fontSize = 14.sp, color = contentColor.copy(alpha = 0.7f))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("🐱 FLAPPY THOR 🪽", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                                if (playedFlappyToday) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("⭐ (Modo Libre)", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Text(
+                                if (playedFlappyToday) "¡Sigue jugando por diversión! (Recompensa de hoy reclamada)"
+                                else "¡Vuela y atrapa corazones! ✨ Recompensa diaria disponible",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                color = contentColor.copy(alpha = 0.75f)
+                            )
                         }
                     }
                 }
@@ -1425,7 +1425,7 @@ fun MinigamesSelectorDialog(
                         .fillMaxWidth()
                         .padding(bottom = 12.dp)
                         .border(2.dp, borderColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (playedMemoryToday) Color.Gray else if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
                     shape = RectangleShape
                 ) {
                     Row(
@@ -1439,8 +1439,20 @@ fun MinigamesSelectorDialog(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(horizontalAlignment = Alignment.Start) {
-                            Text(if (playedMemoryToday) "🧠 RETRO MEMORY (1/1)" else "🧠 RETRO MEMORY", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
-                            Text(if (playedMemoryToday) "Completado por hoy. Vuelve mañana." else "¡Encuentra ropa pixel-art de Thor!", fontFamily = Vt323, fontSize = 14.sp, color = contentColor.copy(alpha = 0.7f))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("🧠 RETRO MEMORY", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                                if (playedMemoryToday) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("⭐ (Modo Libre)", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Text(
+                                if (playedMemoryToday) "¡Sigue jugando por diversión! (Recompensa de hoy reclamada)"
+                                else "¡Encuentra ropa pixel-art de Thor! ✨ Recompensa diaria disponible",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                color = contentColor.copy(alpha = 0.75f)
+                            )
                         }
                     }
                 }
@@ -1452,7 +1464,7 @@ fun MinigamesSelectorDialog(
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
                         .border(2.dp, borderColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (playedSnakeToday) Color.Gray else if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
                     shape = RectangleShape
                 ) {
                     Row(
@@ -1466,8 +1478,20 @@ fun MinigamesSelectorDialog(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(horizontalAlignment = Alignment.Start) {
-                            Text(if (playedSnakeToday) "🐍 LA SERPIENTE (1/1)" else "🐍 LA SERPIENTE", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
-                            Text(if (playedSnakeToday) "Completado por hoy. Vuelve mañana." else "¡Come manzanas y haz crecer tu cuerpo!", fontFamily = Vt323, fontSize = 14.sp, color = contentColor.copy(alpha = 0.7f))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("🐍 LA SERPIENTE", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                                if (playedSnakeToday) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("⭐ (Modo Libre)", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Text(
+                                if (playedSnakeToday) "¡Sigue jugando por diversión! (Recompensa de hoy reclamada)"
+                                else "¡Come manzanas y bate récords! ✨ Recompensa diaria disponible",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                color = contentColor.copy(alpha = 0.75f)
+                            )
                         }
                     }
                 }
