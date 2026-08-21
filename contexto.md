@@ -237,7 +237,7 @@ graph TD
    - Opciones dinámicas de **60 Hz (Batería), 90 Hz (Por Defecto / Recomendado), 100 Hz y 120 Hz (Ultra Fluido)**.
    - Sincronización en tiempo real en Firestore (`users/<userId>/refreshRate`) con persistencia local en `SharedPreferences`.
    - Aplicación técnica a bajo nivel en Android mediante `preferredDisplayModeId` (API 23+) y coincidencia óptima con la resolución activa de la pantalla.
-7. **Release v1.7.36:** Publicada en GitHub Releases vía CI/CD con tag `v1.7.36` (versionCode 81).
+7. **Release v1.7.37:** Publicada en GitHub Releases vía CI/CD con tag `v1.7.37` (versionCode 82).
 
 ---
 
