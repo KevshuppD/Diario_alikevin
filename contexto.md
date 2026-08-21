@@ -196,7 +196,7 @@ graph TD
 
 ---
 
-## 10. Últimos Hitos Implementados (Temporada 2 Espíritus)
+## 10. Últimos Hitos Implementados (Temporada 2 Espíritus & Herramientas Web)
 
 1. **Separación Multitemporada en Espíritus:**
    - **Temporada 1:** Preserva los 141 espíritus originales y su historial en `fortnite_spirits/<coupleId>`.
@@ -205,13 +205,25 @@ graph TD
 2. **Extracción y Procesamiento de la Planilla Fortnite Override (Capítulo 7 T4):**
    - Recorte y limpieza con transparencia antialiasing de **36 nuevos espíritus** (12 personajes con 3 variantes: *Normal*, *Dorado*, *Hacker*).
    - Subida y alojamiento automático en Cloudinary (`spirits_s2/ic_spirit_s2_01` a `36`).
-   - Sincronización en tiempo real con Firestore y nombrado consistente con espaciado adecuado (ej. *Espíritu de Rex Hacker*).
-3. **Selector de Tasa de Refresco (Hz) Sincronizado en App & Web:**
+   - Activos individuales preservados localmente en `scripts/spirits_s2_extracted/` (`spirit_s2_01.png` a `spirit_s2_36.png`).
+3. **Sincronización Automática de Nombres al Renombrar Categorías:**
+   - Al cambiar el nombre de cualquier categoría (ej. *"Espíritu de Rex"* ➔ *"Espíritu de Klombo"*), tanto la Web (`web/config.html`, `/edit`) como la App Android (`SpiritsCompose.kt`) detectan todos los espíritus pertenecientes a esa categoría, preservan sus sufijos de tipo (*Normal, Dorado, Hacker, etc.*) y actualizan en tiempo real los registros en `custom_names` y `custom_categories` en Firestore.
+4. **Rediseño Completo del Editor de Imágenes Studio (Recorte & Quitar Fondo):**
+   - **Caja de Selección Interactiva con 8 Puntos de Ajuste**: Detección sensible adaptable por DPI/pantalla, arrastre de los 4 bordes (`↕️`, `↔️`) y las 4 esquinas (`nwse-resize`, `nesw-resize`), y desplazamiento de la caja completa.
+   - **Proporción 1:1 Cuadrada o Libre**: Selector para forzar proporción cuadrada o ajuste libre.
+   - **Exportación 100% Limpia sin Artefactos (`getCleanStudioDataUrl`)**: Extracción de píxeles puros directamente de la imagen base original en un lienzo secundario aislado, evitando que las líneas magentas, la cuadrícula o los puntos de control queden estampados en el PNG subido a Cloudinary.
+   - **Auto-recorte al Guardar y Subir**: Si una selección está activa al pulsar *"Guardar y Subir Espíritu"*, se recorta y procesa automáticamente sin pasos intermedios.
+   - **Historial de Deshacer (`↩️ Deshacer`)**: Posibilidad de revertir recortes, borrados de pincel y extracciones de color.
+   - **Soporte Táctil y Móvil**: Eventos Pointer (`pointerdown`, `pointermove`, `pointerup`) para edición fluida en PC, tablets y móviles.
+   - **Indicador de Dimensiones en Barra de Herramientas**: Medidas `W × H px` ubicadas en la barra de controles para no obstruir la imagen.
+5. **Servidor Local y Enrutamiento SPA Limpio (`web/server.py`):**
+   - Servidor Python backend en puerto 8000 con enrutamiento SPA directo sin redirecciones permanentes 301.
+   - Normalización de URLs en el cliente (`replaceState`) para mantener rutas limpias (`http://localhost:8000/`, `/edit`, `/config`, `/db`).
+6. **Selector de Tasa de Refresco (Hz) Sincronizado en App & Web:**
    - Opciones dinámicas de **60 Hz (Batería), 90 Hz (Por Defecto / Recomendado), 100 Hz y 120 Hz (Ultra Fluido)**.
    - Sincronización en tiempo real en Firestore (`users/<userId>/refreshRate`) con persistencia local en `SharedPreferences`.
-   - Selector en la sección **Sistema** de la app y en el modal/pestaña de **Configuración** de la Web.
    - Aplicación técnica a bajo nivel en Android mediante `preferredDisplayModeId` (API 23+) y coincidencia óptima con la resolución activa de la pantalla.
-4. **Release v1.7.35:** Publicada en GitHub Releases vía CI/CD con tag `v1.7.35` (versionCode 80).
+7. **Release v1.7.35:** Publicada en GitHub Releases vía CI/CD con tag `v1.7.35` (versionCode 80).
 
 ---
 
