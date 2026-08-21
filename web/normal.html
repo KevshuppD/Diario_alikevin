@@ -1900,6 +1900,12 @@
     else if (pageName === "db") currentMode = "db";
     else if (pageName === "config") currentMode = "config";
 
+    // Normalizar automáticamente la barra de direcciones a URL limpia en 0ms
+    if (window.location.pathname.startsWith('/web') || window.location.pathname.includes('.html')) {
+      const cleanPath = (currentMode === "normal") ? '/' : `/${currentMode}`;
+      window.history.replaceState({ mode: currentMode }, '', cleanPath);
+    }
+
     let currentFilter = "todos"; // "todos", "no_obtenidos", "obtenidos_otro_no_yo", "obtenidos_yo_no_otro", "obtenidos_ambos"
     let searchQuery = "";
     let currentUser = null; // { username: 'kevin'|'ali', name: 'Kevin'|'Ali', key: 'kevin_list'|'ali_list', masteryKey: 'kevin_mastery'|'ali_mastery' }
