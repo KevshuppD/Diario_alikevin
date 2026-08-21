@@ -88,7 +88,7 @@ fun setFeedContent(
     onPickImage: () -> Unit,
     onBathPet: () -> Unit,
     onPlayBallPet: (points: Int, happinessGain: Int) -> Unit,
-    onPlayMinigame: (gameType: String, points: Int, exp: Int) -> Unit
+    onPlayMinigame: (gameType: String, points: Int, exp: Int, score: Int) -> Unit
 ) {
     composeView.setContent {
         val isDark = themeState.value == "Pixel Oscuro"
@@ -161,7 +161,7 @@ fun MessageFeedScreen(
     onToggleSleep: () -> Unit,
     onBathPet: () -> Unit,
     onPlayBallPet: (Int, Int) -> Unit,
-    onPlayMinigame: (String, Int, Int) -> Unit
+    onPlayMinigame: (String, Int, Int, Int) -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
     var selectedMessageForMenu by remember { mutableStateOf<Message?>(null) }

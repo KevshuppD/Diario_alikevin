@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -47,7 +48,7 @@ fun PetMenuDialog(
     onToggleSleep: () -> Unit,
     onBathPet: () -> Unit,
     onPlayBallPet: (Int, Int) -> Unit,
-    onPlayMinigame: (String, Int, Int) -> Unit
+    onPlayMinigame: (String, Int, Int, Int) -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var shopCategory by remember { mutableStateOf("accessories") } // "accessories" o "backgrounds"
@@ -1150,6 +1151,7 @@ fun PetMenuDialog(
 
     if (showGameSelector) {
         MinigamesSelectorDialog(
+            pet = pet,
             isDark = isDark,
             playedMemoryToday = playedMemoryToday,
             playedSnakeToday = playedSnakeToday,
@@ -1174,15 +1176,16 @@ fun PetMenuDialog(
         MemoryGameDialog(
             isDark = isDark,
             onDismiss = { showMemoryGame = false },
-            onReward = { pts, exp -> onPlayMinigame("memory", pts, exp) }
+            onReward = { pts, exp -> onPlayMinigame("memory", pts, exp, 0) }
         )
     }
 
     if (showSnakeGame) {
         SnakeGameDialog(
+            pet = pet,
             isDark = isDark,
             onDismiss = { showSnakeGame = false },
-            onReward = { pts, exp -> onPlayMinigame("snake", pts, exp) }
+            onReward = { pts, exp, score -> onPlayMinigame("snake", pts, exp, score) }
         )
     }
 
@@ -1191,7 +1194,7 @@ fun PetMenuDialog(
             pet = pet,
             isDark = isDark,
             onDismiss = { showFlappyGame = false },
-            onReward = { pts, exp -> onPlayMinigame("flappy", pts, exp) }
+            onReward = { pts, exp, score -> onPlayMinigame("flappy", pts, exp, score) }
         )
     }
 }
@@ -1344,6 +1347,7 @@ fun FoodRow(
 
 @Composable
 fun MinigamesSelectorDialog(
+    pet: Pet,
     isDark: Boolean,
     playedMemoryToday: Boolean,
     playedSnakeToday: Boolean,
@@ -1360,22 +1364,30 @@ fun MinigamesSelectorDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
+                .fillMaxWidth(0.96f)
+                .padding(vertical = 8.dp, horizontal = 4.dp)
                 .border(3.dp, borderColor),
             color = bgColor,
             shape = RectangleShape
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = "🎮 SELECCIONAR JUEGO 🎮",
                     fontFamily = Vt323,
-                    fontSize = 24.sp,
+                    fontSize = 26.sp,
                     color = contentColor,
                     fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Text(
+                    text = "Gana ❤️ y EXP en tu 1ª partida del día y juega libremente.",
+                    fontFamily = Vt323,
+                    fontSize = 15.sp,
+                    color = contentColor.copy(alpha = 0.75f),
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
@@ -1384,35 +1396,43 @@ fun MinigamesSelectorDialog(
                     onClick = onPlayFlappy,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp)
+                        .padding(bottom = 14.dp)
                         .border(2.dp, borderColor),
                     colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
                     shape = RectangleShape
                 ) {
                     Row(
-                        modifier = Modifier.padding(8.dp),
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.ic_thor_balloon),
                             contentDescription = null,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(36.dp)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
                         Column(horizontalAlignment = Alignment.Start) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("🐱 FLAPPY THOR 🪽", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                                Text("🐱 FLAPPY THOR 🪽", fontFamily = Vt323, fontSize = 21.sp, color = contentColor, fontWeight = FontWeight.Bold)
                                 if (playedFlappyToday) {
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("⭐ (Modo Libre)", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
+                                    Text("⭐ (Libre)", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
                                 }
                             }
                             Text(
-                                if (playedFlappyToday) "¡Sigue jugando por diversión! (Recompensa de hoy reclamada)"
-                                else "¡Vuela y atrapa corazones! ✨ Recompensa diaria disponible",
+                                if (playedFlappyToday) "¡Juega por diversión! (Recompensa de hoy lista)"
+                                else "¡Vuela y atrapa corazones! ✨ Recompensa diaria activa",
                                 fontFamily = Vt323,
                                 fontSize = 14.sp,
                                 color = contentColor.copy(alpha = 0.75f)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "🏆 Récords: Kevin: ${pet.flappyHighScoreKevin} pts | Ali: ${pet.flappyHighScoreAli} pts",
+                                fontFamily = Vt323,
+                                fontSize = 13.sp,
+                                color = Color(0xFFFF9800),
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -1423,32 +1443,32 @@ fun MinigamesSelectorDialog(
                     onClick = onPlayMemory,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp)
+                        .padding(bottom = 14.dp)
                         .border(2.dp, borderColor),
                     colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
                     shape = RectangleShape
                 ) {
                     Row(
-                        modifier = Modifier.padding(8.dp),
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.ic_heart_pixel),
                             contentDescription = null,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(36.dp)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
                         Column(horizontalAlignment = Alignment.Start) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("🧠 RETRO MEMORY", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                                Text("🧠 RETRO MEMORY", fontFamily = Vt323, fontSize = 21.sp, color = contentColor, fontWeight = FontWeight.Bold)
                                 if (playedMemoryToday) {
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("⭐ (Modo Libre)", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
+                                    Text("⭐ (Libre)", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
                                 }
                             }
                             Text(
-                                if (playedMemoryToday) "¡Sigue jugando por diversión! (Recompensa de hoy reclamada)"
-                                else "¡Encuentra ropa pixel-art de Thor! ✨ Recompensa diaria disponible",
+                                if (playedMemoryToday) "¡Juega por diversión! (Recompensa de hoy lista)"
+                                else "¡Encuentra ropa pixel-art! ✨ Recompensa diaria activa",
                                 fontFamily = Vt323,
                                 fontSize = 14.sp,
                                 color = contentColor.copy(alpha = 0.75f)
@@ -1462,35 +1482,43 @@ fun MinigamesSelectorDialog(
                     onClick = onPlaySnake,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp)
+                        .padding(bottom = 18.dp)
                         .border(2.dp, borderColor),
                     colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
                     shape = RectangleShape
                 ) {
                     Row(
-                        modifier = Modifier.padding(8.dp),
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.ic_recipe_pixel),
                             contentDescription = null,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(36.dp)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
                         Column(horizontalAlignment = Alignment.Start) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("🐍 LA SERPIENTE", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                                Text("🐍 LA SERPIENTE", fontFamily = Vt323, fontSize = 21.sp, color = contentColor, fontWeight = FontWeight.Bold)
                                 if (playedSnakeToday) {
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("⭐ (Modo Libre)", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
+                                    Text("⭐ (Libre)", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
                                 }
                             }
                             Text(
-                                if (playedSnakeToday) "¡Sigue jugando por diversión! (Recompensa de hoy reclamada)"
-                                else "¡Come manzanas y bate récords! ✨ Recompensa diaria disponible",
+                                if (playedSnakeToday) "¡Juega por diversión! (Recompensa de hoy lista)"
+                                else "¡Come manzanas y bate récords! ✨ Recompensa diaria activa",
                                 fontFamily = Vt323,
                                 fontSize = 14.sp,
                                 color = contentColor.copy(alpha = 0.75f)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "🏆 Récords: Kevin: ${pet.snakeHighScoreKevin} pts | Ali: ${pet.snakeHighScoreAli} pts",
+                                fontFamily = Vt323,
+                                fontSize = 13.sp,
+                                color = Color(0xFFFF9800),
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -1502,7 +1530,7 @@ fun MinigamesSelectorDialog(
                     shape = RectangleShape,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Cerrar ❌", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                    Text("Cerrar ❌", fontFamily = Vt323, fontSize = 18.sp, color = Color.White)
                 }
             }
         }

@@ -672,7 +672,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
             { pickImage(PICK_IMAGE_CARTA) },
             { viewModel.bathPet() },
             { points: Int, happinessGain: Int -> viewModel.playBallPet(points, happinessGain) },
-            { gameType: String, points: Int, exp: Int -> viewModel.playMinigame(gameType, points, exp) }
+            { gameType: String, points: Int, exp: Int, score: Int -> viewModel.playMinigame(gameType, points, exp, score) }
         )
     }
 

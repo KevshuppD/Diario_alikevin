@@ -44,6 +44,11 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.sin
 
+import calendario.kevshupp.diariokevinali.Pet
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 private data class SnakeParticle(
     var x: Float,
     var y: Float,
@@ -55,17 +60,28 @@ private data class SnakeParticle(
 
 @Composable
 fun SnakeGameDialog(
+    pet: Pet,
     isDark: Boolean,
     onDismiss: () -> Unit,
-    onReward: (points: Int, exp: Int) -> Unit
+    onReward: (points: Int, exp: Int, score: Int) -> Unit
 ) {
     val context = LocalContext.current
     LaunchedEffect(Unit) {
         FlappyAudioEngine.init(context)
     }
 
+    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
+    var hasClaimedDailyRewardThisSession by remember { mutableStateOf(false) }
+    val isDailyPending = pet.lastSnakeDate != today
+
     val prefs = remember(context) { context.getSharedPreferences("snake_game_prefs", Context.MODE_PRIVATE) }
-    var highScore by remember { mutableStateOf(prefs.getInt("high_score", 0)) }
+    val isCurrentUserKevin = remember(context) {
+        val mainPrefs = context.getSharedPreferences("diario_prefs", Context.MODE_PRIVATE)
+        val uid = mainPrefs.getString("userId", "user_kevin_01") ?: "user_kevin_01"
+        uid.contains("kevin", ignoreCase = true)
+    }
+    val cloudHighScore = if (isCurrentUserKevin) pet.snakeHighScoreKevin else pet.snakeHighScoreAli
+    var highScore by remember { mutableStateOf(maxOf(prefs.getInt("high_score", 0), cloudHighScore)) }
     var viewMode by remember { mutableStateOf(prefs.getString("view_mode", "FULLSCREEN") ?: "FULLSCREEN") }
     var soundEnabled by remember { mutableStateOf(prefs.getBoolean("sound_enabled", true)) }
 
@@ -110,6 +126,19 @@ fun SnakeGameDialog(
         food = newFood
     }
 
+    fun triggerGameOverRewards(finalScore: Int) {
+        if (finalScore > 0) {
+            val pts = finalScore * 2
+            val xp = finalScore * 5
+            if (isDailyPending && !hasClaimedDailyRewardThisSession) {
+                onReward(pts, xp, finalScore)
+                hasClaimedDailyRewardThisSession = true
+            } else {
+                onReward(0, 0, finalScore)
+            }
+        }
+    }
+
     fun resetGame() {
         snake = listOf(6 to 6, 6 to 7)
         direction = 0 to -1
@@ -150,6 +179,7 @@ fun SnakeGameDialog(
                     highScore = score
                     prefs.edit().putInt("high_score", highScore).apply()
                 }
+                triggerGameOverRewards(score)
                 break
             }
 
@@ -161,6 +191,7 @@ fun SnakeGameDialog(
                     highScore = score
                     prefs.edit().putInt("high_score", highScore).apply()
                 }
+                triggerGameOverRewards(score)
                 break
             }
 
@@ -388,9 +419,9 @@ fun SnakeGameDialog(
                                         .padding(16.dp)
                                 ) {
                                     Text(
-                                        text = "GAME OVER!",
+                                        text = "¡FIN DE LA PARTIDA!",
                                         fontFamily = Vt323,
-                                        fontSize = 32.sp,
+                                        fontSize = 30.sp,
                                         color = Color(0xFFE06C75),
                                         fontWeight = FontWeight.Bold
                                     )
@@ -398,12 +429,53 @@ fun SnakeGameDialog(
                                     val pts = score * 2
                                     val xp = score * 5
                                     Text(
-                                        text = "Puntos: $score  (+$pts ❤️  +$xp EXP)",
+                                        text = "Puntaje: $score pts",
                                         fontFamily = Vt323,
-                                        fontSize = 20.sp,
-                                        color = Color(0xFF98C379),
+                                        fontSize = 22.sp,
+                                        color = Color.White,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    if (isDailyPending && hasClaimedDailyRewardThisSession) {
+                                        Text(
+                                            text = "🎉 ¡Recompensa Diaria Reclamada! +$pts ❤️ +$xp EXP\n⭐ ¡Modo Libre Activado!",
+                                            fontFamily = Vt323,
+                                            fontSize = 16.sp,
+                                            color = Color(0xFF98C379),
+                                            textAlign = TextAlign.Center,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "⭐ Modo Libre Activo (Partida de Récord)",
+                                            fontFamily = Vt323,
+                                            fontSize = 16.sp,
+                                            color = Color(0xFFE5C07B),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Ranking Card
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.92f)
+                                            .border(1.dp, Color(0xFF61AFEF).copy(alpha = 0.6f))
+                                            .background(Color(0xFF21252B))
+                                            .padding(8.dp)
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                                            Text("🏆 RÉCORDS DE LA SERPIENTE", fontFamily = Vt323, fontSize = 16.sp, color = Color(0xFFE5C07B), fontWeight = FontWeight.Bold)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceAround
+                                            ) {
+                                                Text("👑 Kevin: ${pet.snakeHighScoreKevin.coerceAtLeast(if (isCurrentUserKevin) highScore else 0)}", fontFamily = Vt323, fontSize = 15.sp, color = Color.White)
+                                                Text("👑 Ali: ${pet.snakeHighScoreAli.coerceAtLeast(if (!isCurrentUserKevin) highScore else 0)}", fontFamily = Vt323, fontSize = 15.sp, color = Color.White)
+                                            }
+                                        }
+                                    }
                                     Spacer(modifier = Modifier.height(14.dp))
 
                                     Button(
@@ -417,14 +489,14 @@ fun SnakeGameDialog(
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Button(
                                         onClick = {
-                                            if (score > 0) onReward(pts, xp)
+                                            if (score > 0) triggerGameOverRewards(score)
                                             onDismiss()
                                         },
                                         modifier = Modifier.fillMaxWidth(0.85f),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF61AFEF)),
                                         shape = RectangleShape
                                     ) {
-                                        Text("🏆 Guardar y Salir", fontFamily = Vt323, fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                        Text("🏆 Salir", fontFamily = Vt323, fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -706,9 +778,7 @@ fun SnakeGameDialog(
                                         .background(Color(0xFF6B6A68), shape = RoundedCornerShape(3.dp))
                                         .border(1.dp, Color.Black, shape = RoundedCornerShape(3.dp))
                                         .clickable {
-                                            val rewardedPts = score * 2
-                                            val rewardedXp = score * 5
-                                            if (score > 0) onReward(rewardedPts, rewardedXp)
+                                            if (score > 0) triggerGameOverRewards(score)
                                             onDismiss()
                                         }
                                 )
@@ -795,9 +865,7 @@ fun SnakeGameDialog(
                                         .border(3.dp, Color.Black, shape = CircleShape)
                                         .clickable {
                                             if (isGameOver) {
-                                                val rewardedPts = score * 2
-                                                val rewardedXp = score * 5
-                                                if (score > 0) onReward(rewardedPts, rewardedXp)
+                                                if (score > 0) triggerGameOverRewards(score)
                                                 onDismiss()
                                             }
                                         },

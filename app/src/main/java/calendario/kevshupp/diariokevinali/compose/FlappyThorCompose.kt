@@ -52,6 +52,10 @@ import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
 
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 // =========================================================================
 // MOTOR DE SONIDO RETRO 8-BIT (Chiptune Procedimental / SoundPool)
 // =========================================================================
@@ -286,15 +290,25 @@ fun FlappyThorGameDialog(
     pet: Pet,
     isDark: Boolean,
     onDismiss: () -> Unit,
-    onReward: (points: Int, exp: Int) -> Unit
+    onReward: (points: Int, exp: Int, score: Int) -> Unit
 ) {
     val context = LocalContext.current
     LaunchedEffect(Unit) {
         FlappyAudioEngine.init(context)
     }
 
+    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
+    var hasClaimedDailyRewardThisSession by remember { mutableStateOf(false) }
+    val isDailyPending = pet.lastFlappyDate != today
+
     val prefs = remember(context) { context.getSharedPreferences("flappy_thor_prefs", Context.MODE_PRIVATE) }
-    var highScore by remember { mutableStateOf(prefs.getInt("high_score", 0)) }
+    val isCurrentUserKevin = remember(context) {
+        val mainPrefs = context.getSharedPreferences("diario_prefs", Context.MODE_PRIVATE)
+        val uid = mainPrefs.getString("userId", "user_kevin_01") ?: "user_kevin_01"
+        uid.contains("kevin", ignoreCase = true)
+    }
+    val cloudHighScore = if (isCurrentUserKevin) pet.flappyHighScoreKevin else pet.flappyHighScoreAli
+    var highScore by remember { mutableStateOf(maxOf(prefs.getInt("high_score", 0), cloudHighScore)) }
     
     // Modo de visualización: "FULLSCREEN" o "POCKET"
     var viewMode by remember { mutableStateOf(prefs.getString("view_mode", "FULLSCREEN") ?: "FULLSCREEN") }
@@ -350,6 +364,19 @@ fun FlappyThorGameDialog(
         thorVelocity = 0f
     }
 
+    fun triggerGameOverRewards(finalScore: Int, hearts: Int) {
+        val earnedLp = (finalScore * 2 + hearts * 2).coerceAtLeast(if (finalScore > 0) 5 else 0)
+        val earnedXp = (finalScore * 5 + hearts * 3).coerceAtLeast(if (finalScore > 0) 5 else 0)
+        if (finalScore > 0) {
+            if (isDailyPending && !hasClaimedDailyRewardThisSession) {
+                onReward(earnedLp, earnedXp, finalScore)
+                hasClaimedDailyRewardThisSession = true
+            } else {
+                onReward(0, 0, finalScore)
+            }
+        }
+    }
+
     fun resetGame() {
         thorY = 0.42f
         thorVelocity = 0f
@@ -367,7 +394,6 @@ fun FlappyThorGameDialog(
     val jumpForce = if (isFull) -0.0084f else -0.0072f
     val gravity = if (isFull) 0.00045f else 0.00034f
     val maxFallVelocity = if (isFull) 0.0088f else 0.0075f
-    val pipeGap = if (isFull) 0.25f else 0.36f // Gap balanceado en pantalla completa (25% vs 36% en pantalla pequeña)
     val baseSpeed = if (isFull) 0.0038f else 0.0030f
     val spawnInterval = if (isFull) 120L else 145L
 
@@ -411,20 +437,35 @@ fun FlappyThorGameDialog(
                     highScore = score
                     prefs.edit().putInt("high_score", highScore).apply()
                 }
+                triggerGameOverRewards(score, heartsCollected)
                 break
             }
 
-            // 2. Generación progresiva de tuberías
+            // 2. Generación progresiva de tuberías con dificultad y aperturas variables
             if (pipes.isEmpty() || gameTicks % spawnInterval == 0L) {
-                val maxTop = if (isFull) 0.46f else 0.38f
-                val minTop = if (isFull) 0.12f else 0.12f
+                val difficultyRoll = Random.nextFloat()
+                val isTight = difficultyRoll < (0.28f + (score * 0.012f).coerceAtMost(0.32f)) // Más tubos estrechos a mayor puntaje
+                val isExtreme = difficultyRoll > 0.80f // Tubos altos o bajos extremos
+
+                val currentPipeGap = when {
+                    isTight -> if (isFull) 0.195f else 0.285f // Apertura más estrecha y desafiante
+                    isExtreme -> if (isFull) 0.23f else 0.33f
+                    else -> if (isFull) 0.27f else 0.38f // Apertura amplia estándar
+                }
+
+                val (minTop, maxTop) = when {
+                    isExtreme && Random.nextBoolean() -> if (isFull) 0.06f to 0.16f else 0.08f to 0.15f // Tubo muy arriba
+                    isExtreme -> if (isFull) 0.44f to 0.56f else 0.38f to 0.46f // Tubo muy abajo
+                    else -> if (isFull) 0.12f to 0.44f else 0.14f to 0.38f
+                }
                 val topH = Random.nextFloat() * (maxTop - minTop) + minTop
-                val spawnHeart = Random.nextFloat() < 0.45f
+                val spawnHeart = isTight || Random.nextFloat() < 0.42f // Recompensa con corazón en pasajes estrechos
+
                 pipes.add(
                     Pipe(
                         x = 1.15f,
                         topHeight = topH,
-                        gap = pipeGap,
+                        gap = currentPipeGap,
                         hasHeart = spawnHeart
                     )
                 )
@@ -489,6 +530,7 @@ fun FlappyThorGameDialog(
                             highScore = score
                             prefs.edit().putInt("high_score", highScore).apply()
                         }
+                        triggerGameOverRewards(score, heartsCollected)
                         break
                     }
                 }
@@ -776,25 +818,59 @@ fun FlappyThorGameDialog(
                                     color = Color(0xFFFF4081),
                                     fontWeight = FontWeight.Bold
                                 )
-                                Spacer(modifier = Modifier.height(10.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Puntaje: $score  |  Corazones: $heartsCollected",
+                                    text = "Puntaje: $score pts  |  ❤️ Atrapados: $heartsCollected",
                                     fontFamily = Vt323,
                                     fontSize = 20.sp,
                                     color = if (isDark) Color.White else Color(0xFF4A2511),
                                     fontWeight = FontWeight.Bold
                                 )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                val earnedLp = (score * 2).coerceAtLeast(0)
-                                val earnedXp = (score * 5).coerceAtLeast(0)
-                                Text(
-                                    text = "Recompensa: +$earnedLp ❤️ +$earnedXp EXP",
-                                    fontFamily = Vt323,
-                                    fontSize = 18.sp,
-                                    color = Color(0xFF4CAF50),
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(18.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
+                                val earnedLp = (score * 2 + heartsCollected * 2).coerceAtLeast(if (score > 0) 5 else 0)
+                                val earnedXp = (score * 5 + heartsCollected * 3).coerceAtLeast(if (score > 0) 5 else 0)
+
+                                if (isDailyPending && hasClaimedDailyRewardThisSession) {
+                                    Text(
+                                        text = "🎉 ¡Recompensa Diaria Obtenida! +$earnedLp ❤️ +$earnedXp EXP\n⭐ ¡Modo Libre Activado!",
+                                        fontFamily = Vt323,
+                                        fontSize = 16.sp,
+                                        color = Color(0xFF4CAF50),
+                                        textAlign = TextAlign.Center,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                } else {
+                                    Text(
+                                        text = "⭐ Modo Libre Activo (Partida de Récord)",
+                                        fontFamily = Vt323,
+                                        fontSize = 16.sp,
+                                        color = Color(0xFFFF9800),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Ranking Card
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(1.dp, Color(0xFFFF4081).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                        .background(if (isDark) Color(0xFF161622) else Color(0xFFFFF4D6), RoundedCornerShape(8.dp))
+                                        .padding(8.dp)
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                                        Text("🏆 RÉCORDS DE FLAPPY THOR", fontFamily = Vt323, fontSize = 16.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceAround
+                                        ) {
+                                            Text("👑 Kevin: ${pet.flappyHighScoreKevin.coerceAtLeast(if (isCurrentUserKevin) highScore else 0)} pts", fontFamily = Vt323, fontSize = 15.sp, color = if (isDark) Color.White else Color.Black)
+                                            Text("👑 Ali: ${pet.flappyHighScoreAli.coerceAtLeast(if (!isCurrentUserKevin) highScore else 0)} pts", fontFamily = Vt323, fontSize = 15.sp, color = if (isDark) Color.White else Color.Black)
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(14.dp))
 
                                 Button(
                                     onClick = { jump() },
@@ -807,14 +883,14 @@ fun FlappyThorGameDialog(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Button(
                                     onClick = {
-                                        if (score > 0) onReward(earnedLp, earnedXp)
+                                        if (score > 0) triggerGameOverRewards(score, heartsCollected)
                                         onDismiss()
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                                     shape = RectangleShape
                                 ) {
-                                    Text("🏆 Guardar y Salir", fontFamily = Vt323, fontSize = 20.sp, color = Color.White)
+                                    Text("🏆 Salir", fontFamily = Vt323, fontSize = 20.sp, color = Color.White)
                                 }
                             }
                         }
@@ -1075,9 +1151,7 @@ fun FlappyThorGameDialog(
                                         .background(Color(0xFF6B6A68), shape = RoundedCornerShape(3.dp))
                                         .border(1.dp, Color.Black, shape = RoundedCornerShape(3.dp))
                                         .clickable {
-                                            val earnedLp = (score * 2).coerceAtLeast(0)
-                                            val earnedXp = (score * 5).coerceAtLeast(0)
-                                            if (score > 0) onReward(earnedLp, earnedXp)
+                                            if (score > 0) triggerGameOverRewards(score, heartsCollected)
                                             onDismiss()
                                         }
                                 )

@@ -845,7 +845,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
     }
 
-    fun playMinigame(gameType: String, points: Int, exp: Int) {
+    fun playMinigame(gameType: String, points: Int, exp: Int, score: Int = 0) {
         val p = _petState.value ?: return
         val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val isNightTime = currentHour in 0..7
@@ -895,26 +895,58 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val showLevelUpToast = leveledUp
         val finalLevel = newLevel
 
+        val isCurrentUserKevin = currentUserId.contains("kevin", ignoreCase = true)
+        val updates = mutableMapOf<String, Any>(
+            "lovePoints" to newLovePoints,
+            "experience" to newExp,
+            "level" to newLevel,
+            "happiness" to newHappiness,
+            "status" to newStatus,
+            "hunger" to 0,
+            "cleanliness" to decayedCleanliness,
+            "sleepPercent" to decayedSleepPercent,
+            updateDateField to today,
+            "lastInteraction" to now,
+            "lastDecayUpdate" to nextDecayUpdate,
+            "isSleeping" to isNowSleeping
+        )
+
+        var newHighScoreBeaten = false
+        if (score > 0) {
+            if (gameType == "flappy") {
+                if (isCurrentUserKevin && score > p.flappyHighScoreKevin) {
+                    updates["flappyHighScoreKevin"] = score
+                    newHighScoreBeaten = true
+                } else if (!isCurrentUserKevin && score > p.flappyHighScoreAli) {
+                    updates["flappyHighScoreAli"] = score
+                    newHighScoreBeaten = true
+                }
+            } else if (gameType == "snake") {
+                if (isCurrentUserKevin && score > p.snakeHighScoreKevin) {
+                    updates["snakeHighScoreKevin"] = score
+                    newHighScoreBeaten = true
+                } else if (!isCurrentUserKevin && score > p.snakeHighScoreAli) {
+                    updates["snakeHighScoreAli"] = score
+                    newHighScoreBeaten = true
+                }
+            }
+        }
+
         db.collection("pets").document(currentCoupleId)
-            .update(
-                "lovePoints", newLovePoints,
-                "experience", newExp,
-                "level", newLevel,
-                "happiness", newHappiness,
-                "status", newStatus,
-                "hunger", 0,
-                "cleanliness", decayedCleanliness,
-                "sleepPercent", decayedSleepPercent,
-                updateDateField, today,
-                "lastInteraction", now,
-                "lastDecayUpdate", nextDecayUpdate,
-                "isSleeping", isNowSleeping
-            )
+            .update(updates)
             .addOnSuccessListener {
                 if (alreadyPlayedToday) {
-                    toastMessage.value = "¡Bien jugado! 🎮 (Recompensa diaria ya obtenida)"
+                    if (newHighScoreBeaten) {
+                        toastMessage.value = "🎉 ¡NUEVO RÉCORD: $score PTS! 🏆"
+                    } else {
+                        toastMessage.value = "¡Bien jugado! 🎮 (Modo libre activo)"
+                    }
                 } else {
-                    toastMessage.value = "¡Premio diario reclamado! +$points ❤️ y +$exp EXP 🎉"
+                    if (newHighScoreBeaten) {
+                        toastMessage.value = "🎉 ¡NUEVO RÉCORD ($score pts) y premio diario! +$points ❤️ +$exp EXP"
+                    } else {
+                        toastMessage.value = "¡Premio diario reclamado! +$points ❤️ y +$exp EXP 🎉"
+                    }
                 }
                 if (showLevelUpToast) {
                     levelUpEvent.value = Pair(p.name ?: "Thor", finalLevel)

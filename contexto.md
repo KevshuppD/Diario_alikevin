@@ -158,8 +158,11 @@ graph TD
 ```
 
 - **Mecánica de Minijuegos (Retro Memory, Flappy Thor, La Serpiente):**
-  - **Recompensa Diaria (1ª partida del día):** Otorga los Puntos de Amor (❤️) y EXP (✨) correspondientes, aumentando además la felicidad de Thor.
-  - **Modo Libre Ilimitado:** Una vez reclamada la recompensa diaria, los minijuegos **nunca se bloquean**. Los usuarios pueden seguir jugando infinitamente por diversión, superación de récords personales o para aumentar la felicidad de Thor (+5).
+  - **Recompensa Diaria (1ª partida del día):** Otorga los Puntos de Amor (❤️) y EXP (✨) correspondientes automáticamente al terminar/perder la partida, activando el *Modo Libre*.
+  - **Modo Libre Ilimitado:** Una vez reclamada la recompensa diaria, los minijuegos **nunca se bloquean**. Los usuarios pueden seguir jugando infinitamente para batir récords y divertirse.
+  - **Ranking de Récords de Pareja:** Se persisten y sincronizan en Firestore los mejores récords de Kevin y Ali (`flappyHighScoreKevin`, `flappyHighScoreAli`, `snakeHighScoreKevin`, `snakeHighScoreAli`), mostrándose en el selector y en las pantallas de fin de partida.
+  - **Dificultad Dinámica en Flappy Thor:** Tuberías generadas con aperturas y alturas variables (aperturas estrechas desafiantes con recompensas de corazones, tuberías extremas y aceleración progresiva).
+  - **Selector de Minijuegos Ampliado:** Diálogo con mayor espacio visual, badges de récords de pareja y estado claro de recompensa diaria vs modo libre.
 
 ## 6. Flujos de Sincronización (Google Drive & Firestore)
 

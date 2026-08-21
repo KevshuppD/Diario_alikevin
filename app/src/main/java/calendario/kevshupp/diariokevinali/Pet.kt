@@ -30,7 +30,11 @@ data class Pet(
     var unlockedBackgrounds: List<String> = listOf("default"),
     var equippedBackground: String = "default",
     var dailyTapCount: Int = 0,
-    var lastTapDate: String? = null
+    var lastTapDate: String? = null,
+    var flappyHighScoreKevin: Int = 0,
+    var flappyHighScoreAli: Int = 0,
+    var snakeHighScoreKevin: Int = 0,
+    var snakeHighScoreAli: Int = 0
 ) {
     @get:Exclude
     var isSleepingSetFromNewField: Boolean = false
