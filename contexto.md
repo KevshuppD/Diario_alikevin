@@ -178,6 +178,11 @@ graph TD
 - **Incrustar versión obligatoria:** Antes de publicar, incrementar `versionCode` y `versionName` en [app/build.gradle.kts](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/build.gradle.kts).
 - **Creación de Tag:** Empujar el tag `v<versionName>` a `master` dispara el workflow `.github/workflows/android.yml`, el cual firma y publica `app-release.apk` en GitHub Releases.
 
+### Actualizaciones Silenciosas Desatendidas (Android 12+ / PackageInstaller)
+- **Instalación sin Diálogos en Android 12+ (API 31+):** Se utiliza `PackageInstaller.SessionParams` con `setRequireUserAction(USER_ACTION_NOT_REQUIRED)` y streaming de flujo de entrada (`openInputStream`/`openWrite`). La app se actualiza silenciosamente en segundo plano sin mostrar la ventana del instalador del sistema.
+- **Recepción de Estado:** `InstallResultReceiver` escucha el resultado del commit (`STATUS_SUCCESS` o `STATUS_PENDING_USER_ACTION` para fallback con confirmación de usuario).
+- **Fallback Automático (Android 11 o inferior):** Si la API nativa de Android 12+ no está disponible o falla, la app abre directamente el instalador con `Intent.ACTION_VIEW`.
+
 ### Conexión ADB Multidispositivo (`conectar_adb.sh`)
 - Script interactivo en el escritorio para mDNS QR code pairing, selección múltiple en Zenity e instalación directa acelerada por Gradle cache.
 
