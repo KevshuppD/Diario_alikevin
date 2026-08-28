@@ -98,7 +98,7 @@ fun CartasScreen(
 
 @Composable
 fun CartaItem(message: Message, cardBg: Color, textColor: Color, borderColor: Color, onClick: (Message) -> Unit) {
-    val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+    val sdf = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
     val dateStr = message.timestamp?.let { sdf.format(Date(it)) } ?: ""
 
     Box(

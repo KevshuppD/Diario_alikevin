@@ -296,16 +296,6 @@ class SyncDriveWorker(
                                 } catch (e: Exception) {
                                     Log.w(TAG, "No se pudo borrar de Drive: $fileName", e)
                                 }
-                                val updatedMeta = meta.copy(eliminado = true)
-                                Tasks.await(
-                                    db.collection("pets").document(coupleId)
-                                        .collection("drive_sync_metadata").document(fileName)
-                                        .set(updatedMeta)
-                                )
-                                syncRegistryPrefs.edit().remove(fileName).apply()
-                                synchronized(updatedDbMetadataMap) {
-                                    updatedDbMetadataMap[fileName] = updatedMeta
-                                }
                                 val curr = processedDeletes.incrementAndGet()
                                 if (curr % 10 == 0 || curr == deleteCount) {
                                     SyncLogger.log(applicationContext, "🗑️ Progresos de eliminación: $curr / $deleteCount")
@@ -314,6 +304,29 @@ class SyncDriveWorker(
                         }
                     }
                     jobs.awaitAll()
+                }
+
+                // Batching en Firestore para registrar los tombstones de eliminación
+                val batchChunks = deletedLocally.entries.chunked(450)
+                for (chunk in batchChunks) {
+                    val batch = db.batch()
+                    val prefEdit = syncRegistryPrefs.edit()
+                    for ((fileName, meta) in chunk) {
+                        val updatedMeta = meta.copy(eliminado = true)
+                        val docRef = db.collection("pets").document(coupleId)
+                            .collection("drive_sync_metadata").document(fileName)
+                        batch.set(docRef, updatedMeta)
+                        prefEdit.remove(fileName)
+                        synchronized(updatedDbMetadataMap) {
+                            updatedDbMetadataMap[fileName] = updatedMeta
+                        }
+                    }
+                    try {
+                        Tasks.await(batch.commit())
+                        prefEdit.apply()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error al hacer batch commit de eliminaciones en Firestore: ${e.message}")
+                    }
                 }
                 SyncLogger.log(applicationContext, "✓ Se eliminaron $deleteCount fotos de la nube exitosamente.", "SUCCESS")
             }

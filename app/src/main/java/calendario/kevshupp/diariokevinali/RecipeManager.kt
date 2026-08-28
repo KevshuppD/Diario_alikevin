@@ -12,7 +12,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import com.bumptech.glide.Glide
+import coil.load
 import com.google.firebase.firestore.FirebaseFirestore
 
 class RecipeManager(
@@ -37,7 +37,7 @@ class RecipeManager(
         pendingImageUrl = url
         previewContainer?.visibility = View.VISIBLE
         previewImage?.let { imageView ->
-            Glide.with(context).load(url).centerCrop().into(imageView)
+            imageView.load(url) { crossfade(true) }
         }
         removeImageButton?.visibility = View.VISIBLE
     }
@@ -96,7 +96,7 @@ class RecipeManager(
             if (!pendingImageUrl.isNullOrEmpty()) {
                 previewContainer?.visibility = View.VISIBLE
                 previewImage?.let { imageView ->
-                    Glide.with(context).load(pendingImageUrl).centerCrop().into(imageView)
+                    imageView.load(pendingImageUrl) { crossfade(true) }
                 }
             }
         } else {
@@ -162,7 +162,7 @@ class RecipeManager(
 
         if (!recipe.imageUrl.isNullOrEmpty()) {
             imageContainer.visibility = View.VISIBLE
-            Glide.with(context).load(recipe.imageUrl).centerCrop().into(imageView)
+            imageView.load(recipe.imageUrl) { crossfade(true) }
         } else {
             imageContainer.visibility = View.GONE
         }

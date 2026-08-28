@@ -10,7 +10,6 @@ constraintlayout = "2.1.4"
 googleServices = "4.4.4"
 firebaseBom = "34.11.0"
 cloudinary = "3.1.2"
-glide = "4.16.0"
 ucrop = "2.2.10"
 googleAuth = "1.24.1"
 kotlin = "2.0.21"
@@ -45,8 +44,6 @@ firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
 cloudinary-android = { group = "com.cloudinary", name = "cloudinary-android", version.ref = "cloudinary" }
-glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
-glide-compiler = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide" }
 ucrop = { group = "com.github.yalantis", name = "ucrop", version.ref = "ucrop" }
 google-auth = { group = "com.google.auth", name = "google-auth-library-oauth2-http", version.ref = "googleAuth" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }

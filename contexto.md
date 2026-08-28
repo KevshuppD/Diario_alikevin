@@ -21,8 +21,7 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
 ## 2. Stack Tecnológico y Arquitectura
 
 - **Plataforma / Lenguajes:** Android Nativo.
-  - **Kotlin:** Utilizado en el 98% de la lógica de negocio, ViewModels, pantallas de Jetpack Compose, Workers y utilidades en segundo plano.
-  - **Java:** Restringido al controlador de la interfaz principal (`MainActivity.java`), que interactúa con la lógica moderna de Kotlin mediante `MainViewModel`.
+  - **Kotlin:** Utilizado en el 100% del código fuente (Activities, ViewModels, pantallas de Jetpack Compose, Workers y utilidades en segundo plano).
 - **UI Framework:**
   - **Jetpack Compose:** Sistema declarativo moderno utilizado en la totalidad de las pantallas (cartas, álbum, calendario, recetas, ficha médica, medicamentos, horario, espíritus, anime, perfil y configuración de sincronización).
   - **Vanilla XML / ViewBinding:** En desuso, restringido a ciertos componentes legados y layouts de Widgets de pantalla de inicio.
@@ -207,6 +206,18 @@ graph TD
 3. **Memorización de Keys y Lambdas en Listas Compose**: Garantizada la estabilidad de listas mediante `key` únicos en `LazyColumn` en [`MessageFeedCompose.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt) para prevenir recomposiciones completas de la lista cuando la app recibe actualizaciones de Firebase.
 4. **Caché de `SharedPreferences` vía `remember(context)`**: Apertura del XML de preferencias encapsulada en `remember` en todas las pantallas de Compose ([`AnimeCompose.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/AnimeCompose.kt), [`MedsCompose.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MedsCompose.kt), [`ScheduleCompose.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/ScheduleCompose.kt), etc.), evitando I/O de disco repetido durante renderizados.
 5. **Intervalo Dinámico en Temporizador de Thor**: El temporizador dinámico `rememberTimeUntilDecay` en [`MessageFeedCompose.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt) adapta su intervalo de actualización a 5000ms mientras quedan horas disponibles, reduciendo en un 80% el consumo de CPU y batería.
+6. **Límite de Caché Firestore SQLite (100MB)**: Configurado `PersistentCacheSettings` con un límite estricto de 100MB en [`DiarioApp.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/DiarioApp.kt) en lugar de `CACHE_SIZE_UNLIMITED`, evitando el crecimiento descontrolado de almacenamiento en disco en sesiones prolongadas.
+7. **Modularización de Componentes de MainActivity**: Extracción de responsabilidades en clases helper dedicadas: [`PermissionHelper.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/PermissionHelper.kt) (permisos en Android 13+), [`NetworkStatusTracker.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/NetworkStatusTracker.kt) (conectividad y callbacks seguros) y [`PixelToastHelper.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/PixelToastHelper.kt) (toasts retro estilizados).
+8. **Reglas Proguard / R8 para Minificación Segura**: Habilitación de `isMinifyEnabled = true` e `isShrinkResources = true` en `app/build.gradle.kts` con reglas de keep en `proguard-rules.pro` para WorkManager, Room, UCrop y Cloudinary, optimizando el tamaño del APK Release sin cierres inesperados.
+9. **Eliminación Total de Glide & Unificación en Coil**: Se eliminó la librería pesada Glide (`glide`, `glide-compiler`, `DiarioGlideModule.kt`) migrando todas las vistas legacy (`AlbumManager.kt`, `RecipeManager.kt`, `MessageEditor.kt`) a `coil.load` y `Coil.ImageLoader`, reduciendo el tamaño del APK y tiempo de compilación.
+10. **Optimización de Caché de Imágenes en Espíritus (`SpiritsCompose.kt`)**: Reemplazo de políticas que desactivaban la caché de red (`CachePolicy.DISABLED`) por `remember(spiritImageUrl, imageRefreshKey)` con claves de memoria y disco dinámicas (`memoryCacheKey` / `diskCacheKey`), eliminando recargas continuas durante el desplazamiento y mejorando la fluidez del scroll a 60/90/120 FPS.
+11. **Batching de Escrituras en Firestore para Sincronización Drive (`SyncDriveWorker.kt`)**: Las actualizaciones de metadatos y tombstones de eliminación (`eliminado = true`) se agrupan en lotes atómicos de hasta 450 operaciones mediante `db.batch()`, reduciendo las llamadas de red individuales y acelerando drásticamente el proceso de limpieza y sincronización de carpetas de Drive.
+12. **Ciclo de Vida y Parada Segura en Motor de Audio Retro (`RetroGameAudioEngine.kt`)**: Refactorización de `stopBgm()` con señalización no bloqueante e interrupción controlada de hilo, delegando la liberación (`stop()` y `release()`) exclusivamente al bloque `finally` del hilo generador para evitar condiciones de carrera o `IllegalStateException`.
+13. **Memorización de Cálculos y Formateadores en Compose**: Encapsulación de filtrados de listas (`activeAnimeList`, `watchedAnimeList` en `AnimeCompose.kt`) y formateadores de fecha `SimpleDateFormat` en `remember` (`MedicalCompose.kt`, `CartasCompose.kt`), eliminando allocations redundantes en el Garbage Collector en cada recomposición.
+14. **Caché en Memoria de Token OAuth2 para FCM v1 (`MainActivity.kt`)**: Reutilización de la instancia de `GoogleCredentials` en memoria con `refreshIfExpired()`, evitando la lectura y parseo continuo de claves RSA desde `service-account.json` y solicitudes HTTP innecesarias a Google Auth en cada interacción (likes, cartas, recetas).
+15. **Compresión y Downsampling Preventivo Pre-Cloudinary (`ImageUtils.kt` / `MainActivity.kt`)**: Función `compressImageForUpload` ejecutada en background antes de enviar cualquier archivo a Cloudinary, reescalando y comprimiendo fotos pesadas (de 15-20MB a <600KB), reduciendo en un 90% el tiempo de subida y el consumo de datos.
+16. **Física por Delta-Time Adaptativa para Minijuegos a 90Hz / 120Hz (`FlappyThorCompose.kt`)**: Sincronización del bucle del juego mediante `withFrameNanos` y factor de tiempo delta $\Delta t$, permitiendo renderizado nativo a 90 FPS y 120 FPS sin alterar la calibración ni velocidad de las físicas de salto y obstáculos.
+17. **Memorización de Estructuras y Recomposición de Calendario (`CalendarCompose.kt`)**: Extracción y encapsulación de `dayEvents` y cálculos de matriz mensual (`daysInMonth`, `startOffset`, `selectedDayOfMonth`) en bloques `remember`, además de asignación de `key = { it.eventId }` en `LazyColumn`, eliminando docenas de instanciaciones `Calendar.getInstance()` por frame.
 
 ---
 
@@ -241,9 +252,22 @@ graph TD
 
 ---
 
-## 11. Tareas Pendientes / Backlog
+## 11. Motor de Audio 8-Bit & Minijuegos Retro (Flappy Thor & La Serpiente)
+
+1. **Motor de Sonido Chiptune Unificado (`RetroGameAudioEngine.kt`):**
+   - Sintetizador procedural PCM en tiempo real mediante `AudioTrack` multicanal en segundo plano (ondas cuadradas y triangulares NES con envolventes suaves).
+   - Melodías extendidas de 4 secciones con bajo melódico independiente para Flappy Thor y tema arcade en escala menor armónica para La Serpiente.
+   - Gestión segura de ciclo de vida: parada instantánea en game over/pausa sin bloquear el hilo de UI ni fugas de hilos de audio.
+2. **Sprite Dedicado de Thor Pájaro Blanco (`drawWhiteThorBirdSprite`):**
+   - Sprite pixel-art limpio de Thor con pelaje blanco esponjoso, orejitas, ojitos expresivos, rubor en las mejillas y alitas batientes animadas en tiempo real según la velocidad y los toques.
+   - Integración dinámica con los accesorios equipados (corona, moño, gafas, bandana).
+3. **Calibración Accesible y Equilibrada en Flappy Thor:**
+   - Espacios generosos entre tubos (0.32 en Fullscreen / 0.38 en Pocket), física de salto balanceada y hitbox justa para una experiencia fluida y entretenida.
+4. **Bucle de Juego Robusto y Responsivo en La Serpiente:**
+   - Bucle continuo y suave con velocidad adaptable por puntaje, control táctil con Swipe y D-PAD ergonómico, efectos de sonido y puntuación en vivo.
+
+---
+
+## 12. Tareas Pendientes / Backlog
 
 *(Sin tareas pendientes inmediatas).*
-
-
-

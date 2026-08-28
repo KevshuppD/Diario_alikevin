@@ -82,6 +82,17 @@ fun CalendarScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        val dayEvents = remember(events, selectedTimestamp) {
+            val cal2 = Calendar.getInstance().apply { timeInMillis = selectedTimestamp }
+            val selYear = cal2.get(Calendar.YEAR)
+            val selDay = cal2.get(Calendar.DAY_OF_YEAR)
+            val cal1 = Calendar.getInstance()
+            events.filter {
+                cal1.timeInMillis = it.date
+                cal1.get(Calendar.YEAR) == selYear && cal1.get(Calendar.DAY_OF_YEAR) == selDay
+            }
+        }
+
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -89,12 +100,6 @@ fun CalendarScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
-            val dayEvents = events.filter {
-                val cal1 = Calendar.getInstance().apply { timeInMillis = it.date }
-                val cal2 = Calendar.getInstance().apply { timeInMillis = selectedTimestamp }
-                cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
-                    cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
-            }
             if (dayEvents.isEmpty()) {
                 item {
                     Text(
@@ -109,7 +114,7 @@ fun CalendarScreen(
                     )
                 }
             } else {
-                items(dayEvents) { event ->
+                items(dayEvents, key = { it.eventId }) { event ->
                     EventItem(event, isDark, borderColor, onEditEvent, onDeleteEvent)
                 }
             }
@@ -137,20 +142,24 @@ fun CalendarScreen(
 
 @Composable
 fun CalendarGrid(selectedTime: Long, onDateSelected: (Long) -> Unit, isDark: Boolean, borderColor: Color) {
-    val cal = Calendar.getInstance().apply { timeInMillis = selectedTime }
-    val currentMonthYear = SimpleDateFormat("MMMM 'de' yyyy", Locale.getDefault()).format(cal.time).uppercase(Locale.getDefault())
+    val (currentMonthYear, daysInMonth, startOffset, selectedDayOfMonth) = remember(selectedTime) {
+        val cal = Calendar.getInstance().apply { timeInMillis = selectedTime }
+        val my = SimpleDateFormat("MMMM 'de' yyyy", Locale.getDefault()).format(cal.time).uppercase(Locale.getDefault())
+        val dim = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val sdom = cal.get(Calendar.DAY_OF_MONTH)
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        val firstDayOffset = cal.get(Calendar.DAY_OF_WEEK)
+        val so = (firstDayOffset + 5) % 7
+        listOf(my, dim, so, sdom)
+    }
+    val daysInMonthInt = daysInMonth as Int
+    val startOffsetInt = startOffset as Int
+    val selectedDayOfMonthInt = selectedDayOfMonth as Int
+    val currentMonthYearStr = currentMonthYear as String
+
     val textColor = if (isDark) Color(0xFFEEF3EA) else Color(0xFF111111)
     val cellColor = if (isDark) Color(0xFF26412B) else Color(0xFFF9F0DD)
     val cellSelectedColor = if (isDark) Color(0xFF5C20FF) else Color(0xFF4D00E5)
-
-    val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-    val firstDayOfMonthOffset = Calendar.getInstance().apply {
-        timeInMillis = selectedTime
-        set(Calendar.DAY_OF_MONTH, 1)
-    }.get(Calendar.DAY_OF_WEEK) // 1=Dom, 2=Lun...
-
-    // Ajustar a Lunes inicio (ISO)
-    val startOffset = (firstDayOfMonthOffset + 5) % 7 
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // Cabecera mes
@@ -168,7 +177,7 @@ fun CalendarGrid(selectedTime: Long, onDateSelected: (Long) -> Unit, isDark: Boo
                     onDateSelected(newCal.timeInMillis)
                 }.padding(8.dp))
 
-            Text(currentMonthYear, fontFamily = CalendarVt323, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+            Text(currentMonthYearStr, fontFamily = CalendarVt323, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
 
             Text(">", fontFamily = CalendarVt323, fontSize = 28.sp, color = textColor,
                 modifier = Modifier.clickable { 
@@ -189,15 +198,15 @@ fun CalendarGrid(selectedTime: Long, onDateSelected: (Long) -> Unit, isDark: Boo
         }
 
         // Grid de números
-        val totalCells = ((daysInMonth + startOffset + 6) / 7) * 7
+        val totalCells = ((daysInMonthInt + startOffsetInt + 6) / 7) * 7
         for (row in 0 until (totalCells / 7)) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 for (col in 0 until 7) {
                     val dayIdx = row * 7 + col
-                    val dayNumber = dayIdx - startOffset + 1
+                    val dayNumber = dayIdx - startOffsetInt + 1
                     
-                    if (dayNumber in 1..daysInMonth) {
-                        val isSelected = (dayNumber == cal.get(Calendar.DAY_OF_MONTH))
+                    if (dayNumber in 1..daysInMonthInt) {
+                        val isSelected = (dayNumber == selectedDayOfMonthInt)
                         Box(
                             modifier = Modifier
                                 .weight(1f)

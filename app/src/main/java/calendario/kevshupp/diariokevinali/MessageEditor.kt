@@ -19,7 +19,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
-import com.bumptech.glide.Glide
+import coil.load
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.UploadCallback
 import java.text.SimpleDateFormat
@@ -87,7 +87,7 @@ class MessageEditor(
             currentSelectedImageUrl = edit.imageUrl
             if (currentSelectedImageUrl != null) {
                 imageContainer.visibility = View.VISIBLE
-                Glide.with(context).load(currentSelectedImageUrl).into(ivSelectedImage)
+                ivSelectedImage.load(currentSelectedImageUrl) { crossfade(true) }
             }
         }
 
@@ -207,7 +207,7 @@ class MessageEditor(
         val iv = v.findViewById<ImageView>(R.id.ivViewImage)
         if (msg.imageUrl != null) {
             iv.visibility = View.VISIBLE
-            Glide.with(context).load(msg.imageUrl).centerCrop().into(iv)
+            iv.load(msg.imageUrl) { crossfade(true) }
         }
 
         btnClose.setOnClickListener { dialog.dismiss() }
@@ -234,7 +234,7 @@ class MessageEditor(
             val imageContainer = view.findViewById<View>(R.id.imageContainer)
             if (ivSelectedImage != null && imageContainer != null) {
                 imageContainer.visibility = View.VISIBLE
-                Glide.with(context).load(url).into(ivSelectedImage)
+                ivSelectedImage.load(url) { crossfade(true) }
             }
         }
     }

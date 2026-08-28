@@ -30,12 +30,12 @@ class DiarioApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
 
-        // Habilitar persistencia offline de Firestore con un caché ilimitado mediante PersistentCacheSettings
+        // Habilitar persistencia offline de Firestore con un límite de caché de 100 MB
         val db = FirebaseFirestore.getInstance()
         val settings = FirebaseFirestoreSettings.Builder()
             .setLocalCacheSettings(
                 com.google.firebase.firestore.PersistentCacheSettings.newBuilder()
-                    .setSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+                    .setSizeBytes(100L * 1024 * 1024) // 100 MB máximo
                     .build()
             )
             .build()

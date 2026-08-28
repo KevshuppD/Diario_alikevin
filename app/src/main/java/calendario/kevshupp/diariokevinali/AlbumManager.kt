@@ -17,7 +17,7 @@ import android.provider.OpenableColumns
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
+import coil.load
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.QueryDocumentSnapshot
 import java.util.*
@@ -76,7 +76,7 @@ class AlbumManager(
 
             override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
                 val url = currentAlbumImages[position]
-                Glide.with(context).load(url).centerCrop().into(holder.itemView.findViewById(R.id.ivPreviewPhoto))
+                holder.itemView.findViewById<ImageView>(R.id.ivPreviewPhoto).load(url) { crossfade(true) }
                 holder.itemView.findViewById<View>(R.id.tvRemovePhoto).setOnClickListener {
                     currentAlbumImages.removeAt(position)
                     notifyDataSetChanged()
@@ -230,7 +230,7 @@ class AlbumManager(
                 override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
                     val url = urls[position]
                     val iv = holder.itemView.findViewById<ImageView>(R.id.ivGalleryImage)
-                    Glide.with(context).load(url).centerCrop().into(iv)
+                    iv.load(url) { crossfade(true) }
                     holder.itemView.setOnClickListener { showFullScreenImage(url, msg) }
                     holder.itemView.setOnLongClickListener {
                         if (msg.authorId == userId) {
@@ -289,7 +289,7 @@ class AlbumManager(
             }
             override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
                 val url = currentAlbumImages[position]
-                Glide.with(context).load(url).centerCrop().into(holder.itemView.findViewById(R.id.ivPreviewPhoto))
+                holder.itemView.findViewById<ImageView>(R.id.ivPreviewPhoto).load(url) { crossfade(true) }
                 holder.itemView.findViewById<View>(R.id.tvRemovePhoto).setOnClickListener {
                     currentAlbumImages.removeAt(position)
                     notifyDataSetChanged()
@@ -334,7 +334,7 @@ class AlbumManager(
             layoutParams = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT)
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
-        Glide.with(context).load(url).into(iv)
+        iv.load(url) { crossfade(true) }
         root.addView(iv)
         
         // Parse metadata

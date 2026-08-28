@@ -27,7 +27,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -226,14 +225,21 @@ fun SpiritRow(
                     }
                 }
             }
-            val imageModel = if (!customImageUrl.isNullOrBlank()) {
-                ImageRequest.Builder(context)
-                    .data(spiritImageUrl)
-                    .diskCachePolicy(CachePolicy.DISABLED)
-                    .memoryCachePolicy(CachePolicy.DISABLED)
-                    .build()
-            } else {
-                spiritImageUrl
+            val imageModel = remember(spiritImageUrl, imageRefreshKey, context) {
+                if (!customImageUrl.isNullOrBlank()) {
+                    ImageRequest.Builder(context)
+                        .data(spiritImageUrl)
+                        .crossfade(true)
+                        .apply {
+                            if (imageRefreshKey > 0) {
+                                memoryCacheKey("${spiritImageUrl}_$imageRefreshKey")
+                                diskCacheKey("${spiritImageUrl}_$imageRefreshKey")
+                            }
+                        }
+                        .build()
+                } else {
+                    spiritImageUrl
+                }
             }
             AsyncImage(
                 model = imageModel,
@@ -485,14 +491,21 @@ fun SpiritGridCard(
                 }
             }
         }
-        val imageModel = if (!customImageUrl.isNullOrBlank()) {
-            ImageRequest.Builder(context)
-                .data(spiritImageUrl)
-                .diskCachePolicy(CachePolicy.DISABLED)
-                .memoryCachePolicy(CachePolicy.DISABLED)
-                .build()
-        } else {
-            spiritImageUrl
+        val imageModel = remember(spiritImageUrl, imageRefreshKey, context) {
+            if (!customImageUrl.isNullOrBlank()) {
+                ImageRequest.Builder(context)
+                    .data(spiritImageUrl)
+                    .crossfade(true)
+                    .apply {
+                        if (imageRefreshKey > 0) {
+                            memoryCacheKey("${spiritImageUrl}_$imageRefreshKey")
+                            diskCacheKey("${spiritImageUrl}_$imageRefreshKey")
+                        }
+                    }
+                    .build()
+            } else {
+                spiritImageUrl
+            }
         }
         AsyncImage(
             model = imageModel,

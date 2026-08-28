@@ -60,7 +60,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.google.android.material.appbar.MaterialToolbar
@@ -104,6 +103,23 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         private const val PICK_IMAGE_ALBUM = 4
         private const val PICK_IMAGE_RECIPE = 5
         private const val PERMISSION_REQUEST_CODE = 100
+
+        @Volatile
+        private var cachedGoogleCredentials: GoogleCredentials? = null
+
+        @Synchronized
+        fun getGoogleCredentials(context: Context): GoogleCredentials {
+            var creds = cachedGoogleCredentials
+            if (creds == null) {
+                context.assets.open("service-account.json").use { `is` ->
+                    creds = GoogleCredentials.fromStream(`is`)
+                        .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"))
+                    cachedGoogleCredentials = creds
+                }
+            }
+            creds!!.refreshIfExpired()
+            return creds!!
+        }
     }
 
     private lateinit var mainLayout: ConstraintLayout
@@ -179,8 +195,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     private var selectedFilterDate: Calendar? = null
 
     private val dayFormat = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    private var connectivityManager: ConnectivityManager? = null
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var networkStatusTracker: NetworkStatusTracker? = null
 
     private val pickImageLauncher = registerForActivityResult(StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK && result.data != null) {
@@ -329,7 +344,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         btnMenuMore.setOnClickListener { showOverflowMenu(it) }
 
         setupRecyclerView()
-        checkAndRequestPermissions()
+        PermissionHelper.checkAndRequestPermissions(this)
         setupFirebaseMessaging()
         btnSend.setOnClickListener { sendMessage() }
         btnRemovePreview.setOnClickListener {
@@ -386,7 +401,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         super.onStart()
         viewModel.startAllListeners()
         setupOverlays()
-        checkNotificationPermission()
+        PermissionHelper.checkNotificationAndAlarmPermissions(this)
         try {
             registerReceiver(dndReceiver, IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED))
             viewModel.syncDndStateWithPet()
@@ -499,44 +514,10 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     }
 
     private fun setupOfflineStatusListener() {
-        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        if (connectivityManager == null) {
-            updateConnectionUi(false)
-            return
+        networkStatusTracker = NetworkStatusTracker(this) { isOnline ->
+            runOnUiThread { updateConnectionUi(isOnline) }
         }
-
-        networkCallback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                runOnUiThread { updateConnectionUi(true) }
-            }
-
-            override fun onLost(network: Network) {
-                runOnUiThread { updateConnectionUi(isNetworkAvailable()) }
-            }
-
-            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-                runOnUiThread { updateConnectionUi(hasInternetCapability(networkCapabilities)) }
-            }
-        }
-
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-        connectivityManager?.registerNetworkCallback(request, networkCallback!!)
-        updateConnectionUi(isNetworkAvailable())
-    }
-
-    private fun isNetworkAvailable(): Boolean {
-        val cm = connectivityManager ?: return false
-        val activeNetwork = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(activeNetwork)
-        return hasInternetCapability(caps)
-    }
-
-    private fun hasInternetCapability(caps: NetworkCapabilities?): Boolean {
-        return (caps != null &&
-                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
+        networkStatusTracker?.startListening()
     }
 
     private fun updateConnectionUi(connected: Boolean) {
@@ -732,14 +713,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     }
 
     override fun onDestroy() {
-        try {
-            if (connectivityManager != null && networkCallback != null) {
-                connectivityManager?.unregisterNetworkCallback(networkCallback!!)
-                networkCallback = null
-            }
-        } catch (e: Exception) {
-            Log.w("MainActivity", "Error desregistrando networkCallback: ${e.message}")
-        }
+        networkStatusTracker?.stopListening()
         try {
             fcmExecutor.shutdown()
         } catch (e: Exception) {
@@ -926,34 +900,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         ThorWidgetProvider.triggerUpdate(this)
     }
 
-    private fun checkAndRequestPermissions() {
-        val permissions: MutableList<String> = ArrayList()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-        if (permissions.isNotEmpty()) ActivityCompat.requestPermissions(this, permissions.toTypedArray(), 100)
-        
-        requestIgnoreBatteryOptimizations()
-    }
 
-    private fun requestIgnoreBatteryOptimizations() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val pm = getSystemService(POWER_SERVICE) as PowerManager
-            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-                try {
-                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                        data = Uri.parse("package:$packageName")
-                    }
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    Log.e("MainActivity", "Error requesting battery optimization ignore", e)
-                }
-            }
-        }
-    }
 
     private fun handleUpdateIntent(intent: Intent?) {
         if (intent != null) {
@@ -1064,66 +1011,62 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     fun sendNotificationV1(title: String?, messageText: String?, imageUrl: String?, type: String?) {
         fcmExecutor.execute {
             try {
-                assets.open("service-account.json").use { `is` ->
-                    val credentials = GoogleCredentials.fromStream(`is`)
-                        .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"))
-                    credentials.refreshIfExpired()
-                    val token = credentials.accessToken.tokenValue
-                    
-                    val projectId = "diario-pareja-a2d35"
-                    val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
+                val credentials = getGoogleCredentials(this@MainActivity)
+                val token = credentials.accessToken.tokenValue
+                
+                val projectId = "diario-pareja-a2d35"
+                val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
 
-                    val jsonBody = JSONObject()
-                    val message = JSONObject()
-                    val notification = JSONObject()
-                    val data = JSONObject()
+                val jsonBody = JSONObject()
+                val message = JSONObject()
+                val notification = JSONObject()
+                val data = JSONObject()
 
-                    notification.put("title", title ?: "Nuevo mensaje de $currentUserName")
-                    notification.put("body", if (messageText != null && messageText.isNotEmpty()) messageText else "Te han enviado una foto 📸")
-                    
-                    data.put("authorId", currentUserId)
-                    if (imageUrl != null) data.put("imageUrl", imageUrl)
-                    if (type != null) data.put("click_type", type)
+                notification.put("title", title ?: "Nuevo mensaje de $currentUserName")
+                notification.put("body", if (messageText != null && messageText.isNotEmpty()) messageText else "Te han enviado una foto 📸")
+                
+                data.put("authorId", currentUserId)
+                if (imageUrl != null) data.put("imageUrl", imageUrl)
+                if (type != null) data.put("click_type", type)
 
-                    val topicName = "diario_" + currentCoupleId.lowercase()
-                        .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
-                        .replace("ñ", "n").replace(" ", "_")
-                    
-                    val android = JSONObject()
-                    val androidNotification = JSONObject()
-                    androidNotification.put("channel_id", "diario_channel")
-                    android.put("notification", androidNotification)
+                val topicName = "diario_" + currentCoupleId.lowercase()
+                    .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                    .replace("ñ", "n").replace(" ", "_")
+                
+                val android = JSONObject()
+                val androidNotification = JSONObject()
+                androidNotification.put("channel_id", "diario_channel")
+                android.put("notification", androidNotification)
 
-                    message.put("topic", topicName)
-                    message.put("notification", notification)
-                    message.put("data", data)
-                    message.put("android", android)
-                    jsonBody.put("message", message)
+                message.put("topic", topicName)
+                message.put("notification", notification)
+                message.put("data", data)
+                message.put("android", android)
+                jsonBody.put("message", message)
 
-                    val body = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-                    val request = Request.Builder()
-                        .url(url)
-                        .post(body)
-                        .addHeader("Authorization", "Bearer $token")
-                        .build()
+                val body = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+                val request = Request.Builder()
+                    .url(url)
+                    .post(body)
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
 
-                    val response = DiarioApp.getOkHttpClient().newCall(request).execute()
-                    var responseBody = ""
-                    if (response.body != null) {
-                        responseBody = response.body!!.string()
-                    }
-                    val code = response.code
-                    val finalResp = responseBody
-                    if (response.isSuccessful) {
-                        Log.d("FCM_V1", "Notificación enviada con éxito")
-                    } else {
-                        Log.e("FCM_V1", "Error al enviar notificación: $code - $finalResp")
-                        runOnUiThread {
-                            Toast.makeText(this@MainActivity, "⚠️ FCM Error: $code - $finalResp", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                    response.close()
+                val response = DiarioApp.getOkHttpClient().newCall(request).execute()
+                var responseBody = ""
+                if (response.body != null) {
+                    responseBody = response.body!!.string()
                 }
+                val code = response.code
+                val finalResp = responseBody
+                if (response.isSuccessful) {
+                    Log.d("FCM_V1", "Notificación enviada con éxito")
+                } else {
+                    Log.e("FCM_V1", "Error al enviar notificación: $code - $finalResp")
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity, "⚠️ FCM Error: $code - $finalResp", Toast.LENGTH_LONG).show()
+                    }
+                }
+                response.close()
             } catch (e: IOException) {
                 Log.e("FCM_V1", "ERROR: No se encontró o no se pudo leer service-account.json en assets. Las notificaciones no se enviarán.")
                 runOnUiThread {
@@ -1564,68 +1507,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     override fun getCurrentTheme(): String { return currentTheme }
 
     fun showStyledPixelToast(message: String) {
-        runOnUiThread {
-            try {
-                if (isFinishing || isDestroyed) return@runOnUiThread
-                val builder = AlertDialog.Builder(this@MainActivity)
-                val layout = LinearLayout(this@MainActivity).apply {
-                    orientation = LinearLayout.VERTICAL
-                    val density = resources.displayMetrics.density
-                    val paddingHorizontal = (24 * density).toInt()
-                    val paddingVertical = (16 * density).toInt()
-                    setPadding(paddingHorizontal, paddingVertical, paddingHorizontal, paddingVertical)
-                }
-                
-                val textView = TextView(this@MainActivity).apply {
-                    text = message
-                    textSize = 18f
-                    gravity = android.view.Gravity.CENTER
-                    try {
-                        typeface = androidx.core.content.res.ResourcesCompat.getFont(this@MainActivity, R.font.vt323)
-                    } catch (e: Exception) {
-                        // Ignorar
-                    }
-                }
-                
-                layout.addView(textView)
-                
-                val isDark = "Pixel Oscuro" == currentTheme
-                if (isDark) {
-                    layout.setBackgroundResource(R.drawable.bg_parchment_pixel_dark)
-                    textView.setTextColor(Color.WHITE)
-                } else {
-                    layout.setBackgroundResource(R.drawable.bg_parchment_pixel)
-                    textView.setTextColor(Color.parseColor("#4A2511"))
-                }
-                
-                builder.setView(layout)
-                val dialog = builder.create()
-                
-                dialog.window?.let { window ->
-                    window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-                    window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                    
-                    val wlp = window.attributes
-                    wlp.gravity = android.view.Gravity.BOTTOM
-                    wlp.y = (100 * resources.displayMetrics.density).toInt()
-                    window.attributes = wlp
-                }
-                
-                dialog.show()
-                
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    try {
-                        if (!isFinishing && !isDestroyed && dialog.isShowing) {
-                            dialog.dismiss()
-                        }
-                    } catch (e: Exception) {
-                        // Ignorar
-                    }
-                }, 2500)
-            } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
-            }
-        }
+        PixelToastHelper.showStyledPixelToast(this, message, currentTheme)
     }
     
     fun getUpdateManager(): UpdateManager = updateManager
@@ -1650,54 +1532,57 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         if (code == PICK_IMAGE_ALBUM) {
             albumManager.onAlbumUploadStarted()
         }
-        messageEditor.uploadImage(uri, object : UploadCallback {
-            override fun onStart(id: String) {} 
-            override fun onProgress(id: String, b: Long, t: Long) {}
-            override fun onSuccess(id: String, res: Map<*, *>) {
-                completedUploads++
-                updateUploadProgress()
-                val url = res["secure_url"] as? String ?: ""
-                runOnUiThread {
-                    if (code == PICK_IMAGE_PROFILE) { 
-                        currentUserImageUri = url 
-                        db.collection("users").document(currentUserId ?: "").update("profileImageUrl", url)
-                        updateAllAuthorMessagesWithProfileImage(url)
-                        val f = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
-                        if (f is ProfileFragment) f.setProfileImage(url)
+        fcmExecutor.execute {
+            val optimizedUri = calendario.kevshupp.diariokevinali.compose.compressImageForUpload(this@MainActivity, uri)
+            messageEditor.uploadImage(optimizedUri, object : UploadCallback {
+                override fun onStart(id: String) {} 
+                override fun onProgress(id: String, b: Long, t: Long) {}
+                override fun onSuccess(id: String, res: Map<*, *>) {
+                    completedUploads++
+                    updateUploadProgress()
+                    val url = res["secure_url"] as? String ?: ""
+                    runOnUiThread {
+                        if (code == PICK_IMAGE_PROFILE) { 
+                            currentUserImageUri = url 
+                            db.collection("users").document(currentUserId ?: "").update("profileImageUrl", url)
+                            updateAllAuthorMessagesWithProfileImage(url)
+                            val f = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
+                            if (f is ProfileFragment) f.setProfileImage(url)
+                        }
+                        else if (code == PICK_IMAGE_CARTA) {
+                            messageEditor.setImageUrl(url)
+                            currentSelectedImageUrlState.value = url
+                            selectedImageUrl = url
+                        }
+                        else if (code == PICK_IMAGE_ALBUM) {
+                            albumManager.addImageUrl(url)
+                            albumManager.onAlbumUploadFinished()
+                        }
+                        else if (code == PICK_IMAGE_RECIPE) {
+                            recipeManager.setImageUrl(url)
+                            val f = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
+                            if (f is RecipeFragment) f.setImageUrl(url)
+                        }
+                        
+                        if (completedUploads == pendingUploads) {
+                            Toast.makeText(this@MainActivity, "¡Todas las imágenes subidas!", Toast.LENGTH_SHORT).show()
+                            pendingUploads = 0
+                            completedUploads = 0
+                            updateUploadProgress()
+                        }
                     }
-                    else if (code == PICK_IMAGE_CARTA) {
-                        messageEditor.setImageUrl(url)
-                        currentSelectedImageUrlState.value = url
-                        selectedImageUrl = url
-                    }
-                    else if (code == PICK_IMAGE_ALBUM) {
-                        albumManager.addImageUrl(url)
+                }
+                override fun onError(id: String, e: ErrorInfo) {
+                    completedUploads++
+                    updateUploadProgress()
+                    if (code == PICK_IMAGE_ALBUM) {
                         albumManager.onAlbumUploadFinished()
                     }
-                    else if (code == PICK_IMAGE_RECIPE) {
-                        recipeManager.setImageUrl(url)
-                        val f = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
-                        if (f is RecipeFragment) f.setImageUrl(url)
-                    }
-                    
-                    if (completedUploads == pendingUploads) {
-                        Toast.makeText(this@MainActivity, "¡Todas las imágenes subidas!", Toast.LENGTH_SHORT).show()
-                        pendingUploads = 0
-                        completedUploads = 0
-                        updateUploadProgress()
-                    }
-                }
-            }
-            override fun onError(id: String, e: ErrorInfo) {
-                completedUploads++
-                updateUploadProgress()
-                if (code == PICK_IMAGE_ALBUM) {
-                    albumManager.onAlbumUploadFinished()
-                }
-                runOnUiThread { Toast.makeText(this@MainActivity, "Error al subir imagen", Toast.LENGTH_SHORT).show() }
-            } 
-            override fun onReschedule(id: String, e: ErrorInfo) {}
-        })
+                    runOnUiThread { Toast.makeText(this@MainActivity, "Error al subir imagen", Toast.LENGTH_SHORT).show() }
+                } 
+                override fun onReschedule(id: String, e: ErrorInfo) {}
+            })
+        }
     }
 
     private fun updateUploadProgress() {
@@ -1796,22 +1681,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         }
     }
 
-    private fun checkNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
-            }
-        }
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            if (!alarmManager.canScheduleExactAlarms()) {
-                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                startActivity(intent)
-                Toast.makeText(this, "Por favor, permite alarmas exactas para los recordatorios", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
+
 
     private fun getPastelColor(color: Int): Int {
         val hsv = FloatArray(3)

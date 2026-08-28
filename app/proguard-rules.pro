@@ -40,3 +40,36 @@
 
 -keepclassmembers class calendario.kevshupp.diariokevinali.SyncMetadata { *; }
 -keep class calendario.kevshupp.diariokevinali.SyncMetadata { *; }
+
+-keepclassmembers class calendario.kevshupp.diariokevinali.MedicationItem { *; }
+-keep class calendario.kevshupp.diariokevinali.MedicationItem { *; }
+
+# Google APIs & OAuth Client
+-keep class com.google.api.client.** { *; }
+-keep interface com.google.api.client.** { *; }
+-keep class com.google.api.services.drive.** { *; }
+-keep class com.google.auth.** { *; }
+-dontwarn com.google.api.client.**
+-dontwarn com.google.auth.**
+-dontwarn org.apache.commons.logging.**
+
+# Cloudinary
+-keep class com.cloudinary.** { *; }
+-dontwarn com.cloudinary.**
+
+# UCrop
+-keep class com.yalantis.ucrop.** { *; }
+
+# OkHttp
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# AndroidX WorkManager & Room
+-keep class androidx.work.** { *; }
+-keep interface androidx.work.** { *; }
+-keep class androidx.work.impl.** { *; }
+-keep class androidx.room.** { *; }
+-keep interface androidx.room.** { *; }
+-keep class * extends androidx.room.RoomDatabase
+-dontwarn androidx.work.**
+-dontwarn androidx.room.**

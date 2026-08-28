@@ -55,6 +55,9 @@ fun AnimeDashboardView(
     var showSearchDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(0) }
     
+    val activeAnimeList = remember(animeList) { animeList.filter { !it.isWatched } }
+    val watchedAnimeList = remember(animeList) { animeList.filter { it.isWatched } }
+    
     DisposableEffect(coupleId) {
         val listener = db.collection("couple_anime").document(coupleId)
             .addSnapshotListener { snapshot, e ->
@@ -300,7 +303,6 @@ fun AnimeDashboardView(
                 )
             }
         } else if (selectedTab == 0) {
-            val activeAnimeList = animeList.filter { !it.isWatched }
             if (activeAnimeList.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -481,7 +483,6 @@ fun AnimeDashboardView(
                 }
             }
         } else if (selectedTab == 1) {
-            val activeAnimeList = animeList.filter { !it.isWatched }
             val daysOfWeek = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -623,7 +624,6 @@ fun AnimeDashboardView(
                 }
             }
         } else {
-            val watchedAnimeList = animeList.filter { it.isWatched }
             if (watchedAnimeList.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),

@@ -63,3 +63,27 @@ fun decodeSampledBitmapFromUri(context: Context, uri: Uri, reqWidth: Int = 1200,
         null
     }
 }
+
+/**
+ * Comprime y reescala una imagen antes de subirla a Cloudinary.
+ * Genera un archivo temporal en cacheDir y retorna su Uri (o la original si falla).
+ */
+fun compressImageForUpload(
+    context: Context,
+    uri: Uri,
+    maxWidth: Int = 1920,
+    maxHeight: Int = 1920,
+    quality: Int = 85
+): Uri {
+    return try {
+        val bitmap = decodeSampledBitmapFromUri(context, uri, maxWidth, maxHeight) ?: return uri
+        val tempFile = java.io.File.createTempFile("upload_opt_", ".jpg", context.cacheDir)
+        java.io.FileOutputStream(tempFile).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
+        }
+        bitmap.recycle()
+        Uri.fromFile(tempFile)
+    } catch (e: Exception) {
+        uri
+    }
+}

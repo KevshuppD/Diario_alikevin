@@ -57,207 +57,20 @@ import java.util.Date
 import java.util.Locale
 
 // =========================================================================
-// MOTOR DE SONIDO RETRO 8-BIT (Chiptune Procedimental / SoundPool)
+// MOTOR DE SONIDO RETRO 8-BIT (Delegado a RetroGameAudioEngine)
 // =========================================================================
 
 object FlappyAudioEngine {
-    private val scope = CoroutineScope(Dispatchers.Default)
-    private var soundPool: SoundPool? = null
-    private var rawJumpId: Int = 0
-    private var rawPointId: Int = 0
-    private var rawHeartId: Int = 0
-    private var rawDieId: Int = 0
-    private var isInitialized = false
-
-    fun init(context: Context) {
-        if (isInitialized) return
-        isInitialized = true
-        try {
-            val audioAttributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_GAME)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-
-            val sp = SoundPool.Builder()
-                .setMaxStreams(4)
-                .setAudioAttributes(audioAttributes)
-                .build()
-
-            // Intentar cargar archivos de res/raw si el usuario los agrega
-            val res = context.resources
-            val pkg = context.packageName
-
-            val jId = res.getIdentifier("flappy_jump", "raw", pkg)
-            if (jId != 0) rawJumpId = sp.load(context, jId, 1)
-
-            val pId = res.getIdentifier("flappy_point", "raw", pkg)
-            if (pId != 0) rawPointId = sp.load(context, pId, 1)
-
-            val hId = res.getIdentifier("flappy_heart", "raw", pkg)
-            if (hId != 0) rawHeartId = sp.load(context, hId, 1)
-
-            val dId = res.getIdentifier("flappy_die", "raw", pkg)
-            if (dId != 0) rawDieId = sp.load(context, dId, 1)
-
-            soundPool = sp
-        } catch (_: Exception) {}
-    }
-
-    fun playJump(enabled: Boolean) {
-        if (!enabled) return
-        if (rawJumpId != 0) {
-            soundPool?.play(rawJumpId, 0.9f, 0.9f, 1, 0, 1.0f)
-            return
-        }
-        // Sintetizador Chiptune Flap / Jump (Pitch bend rápido hacia arriba: 380Hz -> 720Hz)
-        scope.launch {
-            playToneSweep(startFreq = 380.0, endFreq = 720.0, durationMs = 70, waveType = "SQUARE")
-        }
-    }
-
-    fun playPoint(enabled: Boolean) {
-        if (!enabled) return
-        if (rawPointId != 0) {
-            soundPool?.play(rawPointId, 0.9f, 0.9f, 1, 0, 1.0f)
-            return
-        }
-        // Sintetizador Chiptune Coin/Point (Doble pitido agudo: 880Hz -> 1320Hz)
-        scope.launch {
-            playTone(988.0, 50, "SQUARE")
-            delay(20)
-            playTone(1318.0, 80, "SQUARE")
-        }
-    }
-
-    fun playHeart(enabled: Boolean) {
-        if (!enabled) return
-        if (rawHeartId != 0) {
-            soundPool?.play(rawHeartId, 1.0f, 1.0f, 1, 0, 1.0f)
-            return
-        }
-        // Arpegio Mágico de Corazón (C5 - E5 - G5 - C6)
-        scope.launch {
-            val notes = doubleArrayOf(523.25, 659.25, 783.99, 1046.50)
-            for (freq in notes) {
-                playTone(freq, 40, "TRIANGLE")
-                delay(25)
-            }
-        }
-    }
-
-    fun playDie(enabled: Boolean) {
-        if (!enabled) return
-        if (rawDieId != 0) {
-            soundPool?.play(rawDieId, 1.0f, 1.0f, 1, 0, 1.0f)
-            return
-        }
-        // Sonido 8-bit Hit & Drop (480Hz bajando a 120Hz con ruido)
-        scope.launch {
-            playToneSweep(startFreq = 480.0, endFreq = 120.0, durationMs = 180, waveType = "NOISE")
-        }
-    }
-
-    private fun playTone(freq: Double, durationMs: Int, waveType: String) {
-        try {
-            val sampleRate = 22050
-            val numSamples = (durationMs * sampleRate) / 1000
-            val buffer = ShortArray(numSamples)
-
-            for (i in 0 until numSamples) {
-                val t = i.toDouble() / sampleRate
-                val sampleVal: Double = when (waveType) {
-                    "SQUARE" -> if (sin(2 * PI * freq * t) >= 0) 0.4 else -0.4
-                    "TRIANGLE" -> (2.0 / PI) * Math.asin(sin(2 * PI * freq * t)) * 0.5
-                    else -> sin(2 * PI * freq * t) * 0.4
-                }
-                // Decaimiento suave para evitar clics
-                val envelope = (1.0 - (i.toDouble() / numSamples))
-                buffer[i] = (sampleVal * envelope * Short.MAX_VALUE).toInt().toShort()
-            }
-
-            val track = AudioTrack.Builder()
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_GAME)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                )
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                        .setSampleRate(sampleRate)
-                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                        .build()
-                )
-                .setBufferSizeInBytes(buffer.size * 2)
-                .setTransferMode(AudioTrack.MODE_STATIC)
-                .build()
-
-            track.write(buffer, 0, buffer.size)
-            track.play()
-            track.setNotificationMarkerPosition(numSamples)
-            track.setPlaybackPositionUpdateListener(object : AudioTrack.OnPlaybackPositionUpdateListener {
-                override fun onPeriodicNotification(track: AudioTrack?) {}
-                override fun onMarkerReached(t: AudioTrack?) {
-                    t?.release()
-                }
-            })
-        } catch (_: Exception) {}
-    }
-
-    private fun playToneSweep(startFreq: Double, endFreq: Double, durationMs: Int, waveType: String) {
-        try {
-            val sampleRate = 22050
-            val numSamples = (durationMs * sampleRate) / 1000
-            val buffer = ShortArray(numSamples)
-
-            var phase = 0.0
-            for (i in 0 until numSamples) {
-                val progress = i.toDouble() / numSamples
-                val currentFreq = startFreq + (endFreq - startFreq) * progress
-                phase += 2 * PI * currentFreq / sampleRate
-
-                val sampleVal: Double = if (waveType == "NOISE") {
-                    val rnd = (Random.nextDouble() * 2.0 - 1.0) * 0.3
-                    val sine = sin(phase) * 0.3
-                    rnd + sine
-                } else {
-                    if (sin(phase) >= 0) 0.45 else -0.45
-                }
-                val envelope = (1.0 - progress)
-                buffer[i] = (sampleVal * envelope * Short.MAX_VALUE).toInt().toShort()
-            }
-
-            val track = AudioTrack.Builder()
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_GAME)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                )
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                        .setSampleRate(sampleRate)
-                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                        .build()
-                )
-                .setBufferSizeInBytes(buffer.size * 2)
-                .setTransferMode(AudioTrack.MODE_STATIC)
-                .build()
-
-            track.write(buffer, 0, buffer.size)
-            track.play()
-            track.setNotificationMarkerPosition(numSamples)
-            track.setPlaybackPositionUpdateListener(object : AudioTrack.OnPlaybackPositionUpdateListener {
-                override fun onPeriodicNotification(track: AudioTrack?) {}
-                override fun onMarkerReached(t: AudioTrack?) {
-                    t?.release()
-                }
-            })
-        } catch (_: Exception) {}
-    }
+    fun init(context: Context) = RetroGameAudioEngine.init(context)
+    fun startBgm(enabled: Boolean) = RetroGameAudioEngine.startBgm("FLAPPY", enabled)
+    fun stopBgm() = RetroGameAudioEngine.stopBgm()
+    fun playJump(enabled: Boolean) = RetroGameAudioEngine.playJump(enabled)
+    fun playPoint(enabled: Boolean) = RetroGameAudioEngine.playPoint(enabled)
+    fun playHeart(enabled: Boolean) = RetroGameAudioEngine.playHeart(enabled)
+    fun playDie(enabled: Boolean) = RetroGameAudioEngine.playDie(enabled)
 }
+
+
 
 // =========================================================================
 // MODELOS DEL JUEGO
@@ -349,10 +162,28 @@ fun FlappyThorGameDialog(
     }
     val thorBitmap = ImageBitmap.imageResource(id = thorResId)
 
+    // Control del BGM en bucle sincronizado con estado de juego, pausa y sonido
+    DisposableEffect(Unit) {
+        onDispose {
+            FlappyAudioEngine.stopBgm()
+        }
+    }
+
+    LaunchedEffect(gameState, isPaused, soundEnabled) {
+        if (gameState == "PLAYING" && !isPaused && soundEnabled) {
+            FlappyAudioEngine.startBgm(true)
+        } else {
+            FlappyAudioEngine.stopBgm()
+        }
+    }
+
     fun toggleSound() {
         val newVal = !soundEnabled
         soundEnabled = newVal
         prefs.edit().putBoolean("sound_enabled", newVal).apply()
+        if (!newVal) {
+            FlappyAudioEngine.stopBgm()
+        }
     }
 
     fun switchMode(newMode: String) {
@@ -389,13 +220,13 @@ fun FlappyThorGameDialog(
         gameState = "READY"
     }
 
-    // Configuración balanceada según el modo seleccionado
+    // Configuración balanceada y accesible
     val isFull = viewMode == "FULLSCREEN"
-    val jumpForce = if (isFull) -0.0084f else -0.0072f
-    val gravity = if (isFull) 0.00045f else 0.00034f
-    val maxFallVelocity = if (isFull) 0.0088f else 0.0075f
-    val baseSpeed = if (isFull) 0.0038f else 0.0030f
-    val spawnInterval = if (isFull) 120L else 145L
+    val jumpForce = if (isFull) -0.0078f else -0.0068f
+    val gravity = if (isFull) 0.00038f else 0.00030f
+    val maxFallVelocity = if (isFull) 0.0080f else 0.0070f
+    val baseSpeed = if (isFull) 0.0032f else 0.0028f
+    val spawnInterval = if (isFull) 140L else 160L
 
     fun jump() {
         if (gameState == "READY") {
@@ -413,141 +244,144 @@ fun FlappyThorGameDialog(
         }
     }
 
-    // Bucle de física a 60 FPS
+    // Bucle de física fluido adaptativo sincronizado con la tasa de refresco (60 / 90 / 120 FPS)
     LaunchedEffect(gameState, isPaused, viewMode) {
+        var lastFrameTimeNanos = 0L
+        var accumulatedTimeMs = 0.0
+        var lastSpawnTick = 0L
         while (gameState == "PLAYING" && !isPaused) {
-            delay(16L)
-            gameTicks++
-
-            // 1. Gravedad y posición
-            thorVelocity = (thorVelocity + gravity).coerceAtMost(maxFallVelocity)
-            thorY += thorVelocity
-
-            // Límites
-            if (thorY < 0.03f) {
-                thorY = 0.03f
-                thorVelocity = 0f
-            }
-            val floorLimit = if (isFull) 0.81f else 0.82f
-            if (thorY > floorLimit) {
-                thorY = floorLimit
-                gameState = "GAMEOVER"
-                FlappyAudioEngine.playDie(soundEnabled)
-                if (score > highScore) {
-                    highScore = score
-                    prefs.edit().putInt("high_score", highScore).apply()
+            withFrameNanos { nowNanos ->
+                if (lastFrameTimeNanos == 0L) {
+                    lastFrameTimeNanos = nowNanos
+                    return@withFrameNanos
                 }
-                triggerGameOverRewards(score, heartsCollected)
-                break
-            }
+                val deltaMs = (nowNanos - lastFrameTimeNanos) / 1_000_000.0
+                lastFrameTimeNanos = nowNanos
 
-            // 2. Generación progresiva de tuberías con dificultad y aperturas variables
-            if (pipes.isEmpty() || gameTicks % spawnInterval == 0L) {
-                val difficultyRoll = Random.nextFloat()
-                val isTight = difficultyRoll < (0.28f + (score * 0.012f).coerceAtMost(0.32f)) // Más tubos estrechos a mayor puntaje
-                val isExtreme = difficultyRoll > 0.80f // Tubos altos o bajos extremos
+                // Factor delta normalizado respecto a 60 FPS (16.666 ms)
+                val dtFactor = (deltaMs / 16.666).coerceIn(0.2, 3.0).toFloat()
+                accumulatedTimeMs += deltaMs
+                gameTicks = (accumulatedTimeMs / 16.666).toLong()
 
-                val currentPipeGap = when {
-                    isTight -> if (isFull) 0.195f else 0.285f // Apertura más estrecha y desafiante
-                    isExtreme -> if (isFull) 0.23f else 0.33f
-                    else -> if (isFull) 0.27f else 0.38f // Apertura amplia estándar
+                // 1. Gravedad y posición
+                thorVelocity = (thorVelocity + gravity * dtFactor).coerceAtMost(maxFallVelocity)
+                thorY += thorVelocity * dtFactor
+
+                // Límites
+                if (thorY < 0.03f) {
+                    thorY = 0.03f
+                    thorVelocity = 0f
                 }
-
-                val (minTop, maxTop) = when {
-                    isExtreme && Random.nextBoolean() -> if (isFull) 0.06f to 0.16f else 0.08f to 0.15f // Tubo muy arriba
-                    isExtreme -> if (isFull) 0.44f to 0.56f else 0.38f to 0.46f // Tubo muy abajo
-                    else -> if (isFull) 0.12f to 0.44f else 0.14f to 0.38f
-                }
-                val topH = Random.nextFloat() * (maxTop - minTop) + minTop
-                val spawnHeart = isTight || Random.nextFloat() < 0.42f // Recompensa con corazón en pasajes estrechos
-
-                pipes.add(
-                    Pipe(
-                        x = 1.15f,
-                        topHeight = topH,
-                        gap = currentPipeGap,
-                        hasHeart = spawnHeart
-                    )
-                )
-            }
-
-            // 3. Velocidad con aceleración progresiva por puntaje
-            val currentSpeed = baseSpeed + (score * 0.00004f).coerceAtMost(0.0018f)
-            val thorRadius = if (isFull) 0.034f else 0.032f
-
-            val iterator = pipes.iterator()
-            while (iterator.hasNext()) {
-                val pipe = iterator.next()
-                pipe.x -= currentSpeed
-
-                // Superar tubería -> Punto
-                if (!pipe.passed && pipe.x + 0.12f < thorX) {
-                    pipe.passed = true
-                    score++
-                    FlappyAudioEngine.playPoint(soundEnabled)
+                val floorLimit = if (isFull) 0.81f else 0.82f
+                if (thorY > floorLimit) {
+                    thorY = floorLimit
+                    gameState = "GAMEOVER"
+                    FlappyAudioEngine.playDie(soundEnabled)
                     if (score > highScore) {
                         highScore = score
                         prefs.edit().putInt("high_score", highScore).apply()
                     }
+                    triggerGameOverRewards(score, heartsCollected)
+                    return@withFrameNanos
                 }
 
-                // Recolectar corazón
-                if (pipe.hasHeart && !pipe.heartCollected) {
-                    val heartX = pipe.x + 0.07f
-                    val heartY = pipe.topHeight + (pipe.gap / 2f)
-                    val dx = heartX - thorX
-                    val dy = heartY - thorY
-                    if (dx * dx + dy * dy < 0.0038f) {
-                        pipe.heartCollected = true
-                        heartsCollected++
-                        score += 2
-                        FlappyAudioEngine.playHeart(soundEnabled)
-                        repeat(6) {
-                            particles.add(
-                                Particle(
-                                    x = heartX,
-                                    y = heartY,
-                                    vx = (Random.nextFloat() - 0.5f) * 0.012f,
-                                    vy = (Random.nextFloat() - 0.5f) * 0.012f,
-                                    color = Color(0xFFFF4081)
-                                )
-                            )
-                        }
-                    }
+                // 2. Generación progresiva de tuberías con aperturas amplias y cómodas
+                if (pipes.isEmpty() || gameTicks - lastSpawnTick >= spawnInterval) {
+                    lastSpawnTick = gameTicks
+                    val currentPipeGap = if (isFull) 0.32f else 0.38f // Apertura generosa para pasar con facilidad
+                    val minTop = if (isFull) 0.12f else 0.14f
+                    val maxTop = if (isFull) 0.40f else 0.36f
+                    val topH = Random.nextFloat() * (maxTop - minTop) + minTop
+                    val spawnHeart = Random.nextFloat() < 0.45f
+
+                    pipes.add(
+                        Pipe(
+                            x = 1.15f,
+                            topHeight = topH,
+                            gap = currentPipeGap,
+                            hasHeart = spawnHeart
+                        )
+                    )
                 }
 
-                // Colisión con tuberías
-                val pipeLeft = pipe.x
-                val pipeRight = pipe.x + 0.14f
-                if (thorX + thorRadius > pipeLeft && thorX - thorRadius < pipeRight) {
-                    val topPipeBottom = pipe.topHeight
-                    val bottomPipeTop = pipe.topHeight + pipe.gap
+                // 3. Velocidad suave y hitbox justa
+                val currentSpeed = (baseSpeed + (score * 0.00003f).coerceAtMost(0.0012f)) * dtFactor
+                val thorRadius = if (isFull) 0.024f else 0.022f // Hitbox más permisiva
 
-                    if (thorY - thorRadius < topPipeBottom || thorY + thorRadius > bottomPipeTop) {
-                        gameState = "GAMEOVER"
-                        FlappyAudioEngine.playDie(soundEnabled)
+                val iterator = pipes.iterator()
+                while (iterator.hasNext()) {
+                    val pipe = iterator.next()
+                    pipe.x -= currentSpeed
+
+                    // Superar tubería -> Punto
+                    if (!pipe.passed && pipe.x + 0.10f < thorX) {
+                        pipe.passed = true
+                        score++
+                        FlappyAudioEngine.playPoint(soundEnabled)
                         if (score > highScore) {
                             highScore = score
                             prefs.edit().putInt("high_score", highScore).apply()
                         }
-                        triggerGameOverRewards(score, heartsCollected)
-                        break
+                    }
+
+                    // Recolectar corazón
+                    if (pipe.hasHeart && !pipe.heartCollected) {
+                        val heartX = pipe.x + 0.06f
+                        val heartY = pipe.topHeight + (pipe.gap / 2f)
+                        val dx = heartX - thorX
+                        val dy = heartY - thorY
+                        if (dx * dx + dy * dy < 0.0045f) {
+                            pipe.heartCollected = true
+                            heartsCollected++
+                            score += 2
+                            FlappyAudioEngine.playHeart(soundEnabled)
+                            repeat(6) {
+                                particles.add(
+                                    Particle(
+                                        x = heartX,
+                                        y = heartY,
+                                        vx = (Random.nextFloat() - 0.5f) * 0.012f,
+                                        vy = (Random.nextFloat() - 0.5f) * 0.012f,
+                                        color = Color(0xFFFF4081)
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    // Colisión con tuberías
+                    val pipeLeft = pipe.x
+                    val pipeRight = pipe.x + 0.12f
+                    if (thorX + thorRadius > pipeLeft && thorX - thorRadius < pipeRight) {
+                        val topPipeBottom = pipe.topHeight
+                        val bottomPipeTop = pipe.topHeight + pipe.gap
+
+                        if (thorY - thorRadius < topPipeBottom || thorY + thorRadius > bottomPipeTop) {
+                            gameState = "GAMEOVER"
+                            FlappyAudioEngine.playDie(soundEnabled)
+                            if (score > highScore) {
+                                highScore = score
+                                prefs.edit().putInt("high_score", highScore).apply()
+                            }
+                            triggerGameOverRewards(score, heartsCollected)
+                            return@withFrameNanos
+                        }
+                    }
+
+                    if (pipe.x < -0.25f) {
+                        iterator.remove()
                     }
                 }
 
-                if (pipe.x < -0.25f) {
-                    iterator.remove()
+                // 4. Actualizar partículas
+                val pIterator = particles.iterator()
+                while (pIterator.hasNext()) {
+                    val p = pIterator.next()
+                    p.x += p.vx * dtFactor
+                    p.y += p.vy * dtFactor
+                    p.alpha -= 0.035f * dtFactor
+                    if (p.alpha <= 0f) pIterator.remove()
                 }
-            }
-
-            // 4. Actualizar partículas
-            val pIterator = particles.iterator()
-            while (pIterator.hasNext()) {
-                val p = pIterator.next()
-                p.x += p.vx
-                p.y += p.vy
-                p.alpha -= 0.035f
-                if (p.alpha <= 0f) pIterator.remove()
             }
         }
     }
@@ -572,7 +406,9 @@ fun FlappyThorGameDialog(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) {
-                        jump()
+                        if (gameState != "GAMEOVER") {
+                            jump()
+                        }
                     }
             ) {
                 // Lienzo Pantalla Completa
@@ -586,20 +422,7 @@ fun FlappyThorGameDialog(
                     val cloudOffset2 = ((gameTicks * 0.35f) + w * 0.5f) % (w + 180f)
                     drawPixelCloud(w - cloudOffset2, h * 0.15f, isDark)
 
-                    // 2. Colinas de fondo
-                    val hillY = h * 0.73f
-                    drawCircle(
-                        color = if (isDark) Color(0xFF243B55).copy(alpha = 0.5f) else Color(0xFF81C784).copy(alpha = 0.65f),
-                        radius = w * 0.6f,
-                        center = Offset(w * 0.3f, hillY + w * 0.4f)
-                    )
-                    drawCircle(
-                        color = if (isDark) Color(0xFF141E30).copy(alpha = 0.5f) else Color(0xFFA5D6A7).copy(alpha = 0.65f),
-                        radius = w * 0.7f,
-                        center = Offset(w * 0.85f, hillY + w * 0.45f)
-                    )
-
-                    // 3. Tuberías
+                    // 2. Tuberías
                     pipes.forEach { pipe ->
                         val pX = pipe.x * w
                         val pW = 0.15f * w
@@ -650,20 +473,20 @@ fun FlappyThorGameDialog(
                         )
                     }
 
-                    // 6. Thor Volador
+                    // 6. Thor Pájaro Blanco Sprite Dedicado Flappy
                     val thorDrawX = thorX * w
                     val thorDrawY = thorY * h
-                    val thorSizePx = 52.dp.toPx()
-                    val angle = (thorVelocity * 4200f).coerceIn(-24f, 40f)
+                    val thorSizePx = 54.dp.toPx()
+                    val angle = (thorVelocity * 4200f).coerceIn(-26f, 45f)
 
                     rotate(degrees = angle, pivot = Offset(thorDrawX, thorDrawY)) {
-                        drawImage(
-                            image = thorBitmap,
-                            dstOffset = IntOffset(
-                                (thorDrawX - thorSizePx / 2f).toInt(),
-                                (thorDrawY - thorSizePx / 2f).toInt()
-                            ),
-                            dstSize = IntSize(thorSizePx.toInt(), thorSizePx.toInt())
+                        drawWhiteThorBirdSprite(
+                            cx = thorDrawX,
+                            cy = thorDrawY,
+                            sizePx = thorSizePx,
+                            velocity = thorVelocity,
+                            ticks = gameTicks,
+                            accessory = pet.equippedAccessory ?: ""
                         )
                     }
                 }
@@ -1042,17 +865,18 @@ fun FlappyThorGameDialog(
 
                                 val thorDrawX = thorX * w
                                 val thorDrawY = thorY * h
-                                val thorSizePx = 38.dp.toPx()
+                                val thorSizePx = 40.dp.toPx()
                                 val angle = (thorVelocity * 3000f).coerceIn(-24f, 40f)
 
                                 rotate(degrees = angle, pivot = Offset(thorDrawX, thorDrawY)) {
-                                    drawImage(
-                                        image = thorBitmap,
-                                        dstOffset = IntOffset(
-                                            (thorDrawX - thorSizePx / 2f).toInt(),
-                                            (thorDrawY - thorSizePx / 2f).toInt()
-                                        ),
-                                        dstSize = IntSize(thorSizePx.toInt(), thorSizePx.toInt())
+                                    drawWhiteThorBirdSprite(
+                                        cx = thorDrawX,
+                                        cy = thorDrawY,
+                                        sizePx = thorSizePx,
+                                        velocity = thorVelocity,
+                                        ticks = gameTicks,
+                                        accessory = pet.equippedAccessory ?: "",
+                                        isPocket = true
                                     )
                                 }
                             }
@@ -1337,3 +1161,107 @@ private fun DrawScope.drawPixelCloud(x: Float, y: Float, isDark: Boolean) {
         cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
     )
 }
+
+/**
+ * Dibuja el sprite pixel-art dedicado y limpio de Thor Blanco (Perrito/Pájaro volador).
+ * Diseño limpio sin bordes extraños, con pelaje blanco puro, orejitas esponjosas, ojitos negros tiernos y alitas batientes.
+ */
+private fun DrawScope.drawWhiteThorBirdSprite(
+    cx: Float,
+    cy: Float,
+    sizePx: Float,
+    velocity: Float,
+    ticks: Long,
+    accessory: String,
+    isPocket: Boolean = false
+) {
+    val pixel = sizePx / 16f
+    val startX = cx - (sizePx / 2f)
+    val startY = cy - (sizePx / 2f)
+
+    // Paleta limpia
+    val white = if (isPocket) Color(0xFFE0F8D0) else Color(0xFFFFFFFF)
+    val softGray = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFE2E8F0)
+    val darkOutline = if (isPocket) Color(0xFF0F380F) else Color(0xFF2D3748)
+    val eyeColor = if (isPocket) Color(0xFF0F380F) else Color(0xFF1A202C)
+    val blush = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFFFB2D6)
+    val noseColor = if (isPocket) Color(0xFF0F380F) else Color(0xFF1A202C)
+    val wingFeather = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFEDF2F7)
+
+    // Aleteo animado suave
+    val flapFrame = ((ticks / 4) % 3).toInt()
+
+    // Matriz de Thor Blanco 16x14 píxeles (cabeza y cuerpo adorable)
+    // 0: Vacío, 1: Contorno, 2: Blanco, 3: Sombra suave, 4: Ojos, 5: Brillo, 6: Nariz/Hocico, 7: Rubor
+    val thorMatrix = arrayOf(
+        // Orejitas
+        intArrayOf(0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0),
+        intArrayOf(1, 2, 2, 1, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0),
+        intArrayOf(1, 2, 3, 1, 1, 1, 1, 1, 1, 1, 3, 2, 1, 0),
+        // Cabeza
+        intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
+        intArrayOf(1, 2, 4, 5, 2, 2, 2, 2, 4, 5, 2, 2, 1, 0),
+        intArrayOf(1, 2, 4, 4, 2, 2, 2, 2, 4, 4, 2, 2, 1, 0),
+        intArrayOf(1, 7, 2, 2, 2, 6, 6, 2, 2, 2, 7, 2, 1, 0),
+        // Cuerpo esponjoso
+        intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
+        intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
+        intArrayOf(1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 0),
+        intArrayOf(0, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0, 0),
+        intArrayOf(0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0)
+    )
+
+    thorMatrix.forEachIndexed { r, row ->
+        row.forEachIndexed { c, cell ->
+            val col = when (cell) {
+                1 -> darkOutline
+                2 -> white
+                3 -> softGray
+                4 -> eyeColor
+                5 -> Color.White
+                6 -> noseColor
+                7 -> blush
+                else -> null
+            }
+            if (col != null) {
+                drawRect(
+                    color = col,
+                    topLeft = Offset(startX + c * pixel, startY + r * pixel),
+                    size = Size(pixel, pixel)
+                )
+            }
+        }
+    }
+
+    // Alita blanca pixelada que bate
+    val wingDY = when (flapFrame) {
+        0 -> -2 * pixel
+        1 -> 0f
+        else -> 2 * pixel
+    }
+
+    // Ala batiente pixel art
+    drawRect(color = darkOutline, topLeft = Offset(startX + 1 * pixel, startY + 6 * pixel + wingDY), size = Size(5 * pixel, 4 * pixel))
+    drawRect(color = wingFeather, topLeft = Offset(startX + 2 * pixel, startY + 7 * pixel + wingDY), size = Size(3 * pixel, 2 * pixel))
+    drawRect(color = white, topLeft = Offset(startX + 2 * pixel, startY + 7 * pixel + wingDY), size = Size(2 * pixel, 1 * pixel))
+
+    // Accesorios
+    when (accessory) {
+        "crown" -> {
+            val cx = startX + 4 * pixel
+            val cy = startY - 2 * pixel
+            drawRect(color = Color(0xFFFFD700), topLeft = Offset(cx, cy), size = Size(5 * pixel, 2 * pixel))
+            drawRect(color = Color(0xFFFF1744), topLeft = Offset(cx + 2 * pixel, cy - 1 * pixel), size = Size(1 * pixel, 1 * pixel))
+        }
+        "bow" -> {
+            drawRect(color = Color(0xFFFF4081), topLeft = Offset(startX + 2 * pixel, startY + 1 * pixel), size = Size(3 * pixel, 2 * pixel))
+        }
+        "glasses" -> {
+            drawRect(color = darkOutline, topLeft = Offset(startX + 2 * pixel, startY + 4 * pixel), size = Size(9 * pixel, 2 * pixel), style = androidx.compose.ui.graphics.drawscope.Stroke(1.2f * pixel))
+        }
+        "bandana" -> {
+            drawRect(color = Color(0xFFE53935), topLeft = Offset(startX + 2 * pixel, startY + 7 * pixel), size = Size(9 * pixel, 2 * pixel))
+        }
+    }
+}
+

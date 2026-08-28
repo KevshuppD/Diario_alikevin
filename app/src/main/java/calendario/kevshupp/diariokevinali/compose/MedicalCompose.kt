@@ -947,7 +947,7 @@ fun MedicalEmergencyDialog(
 
                                         if (myMedicalData.lastUpdated > 0) {
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                                            val sdf = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
                                             val dateStr = sdf.format(Date(myMedicalData.lastUpdated))
                                             Text(
                                                 text = "Última actualización: $dateStr",
@@ -1206,7 +1206,7 @@ fun MedicalEmergencyDialog(
 
                                     if (pData.lastUpdated > 0) {
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                                        val sdf = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
                                         val dateStr = sdf.format(Date(pData.lastUpdated))
                                         Text(
                                             text = "Última actualización de $partnerName: $dateStr",

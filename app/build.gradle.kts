@@ -12,8 +12,8 @@ android {
         applicationId = "calendario.kevshupp.diariokevinali"
         minSdk = 24
         targetSdk = 35
-        versionCode = 82
-        versionName = "1.7.37"
+        versionCode = 83
+        versionName = "1.7.38"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -33,7 +33,8 @@ android {
             versionNameSuffix = "-DEBUG"
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -101,10 +102,6 @@ dependencies {
 
     // Cloudinary (Opción gratuita sin tarjeta)
     implementation(libs.cloudinary.android)
-
-    // Glide
-    implementation(libs.glide)
-    annotationProcessor(libs.glide.compiler)
 
     // UCrop para recortar imágenes
     implementation(libs.ucrop)

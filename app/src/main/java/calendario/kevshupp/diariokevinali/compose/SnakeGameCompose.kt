@@ -102,10 +102,27 @@ fun SnakeGameDialog(
     val particles = remember { mutableStateListOf<SnakeParticle>() }
     val appleBitmap = ImageBitmap.imageResource(id = R.drawable.ic_game_apple)
 
+    DisposableEffect(Unit) {
+        onDispose {
+            RetroGameAudioEngine.stopBgm()
+        }
+    }
+
+    LaunchedEffect(isPlaying, isGameOver, soundEnabled) {
+        if (isPlaying && !isGameOver && soundEnabled) {
+            RetroGameAudioEngine.startBgm("SNAKE", true)
+        } else {
+            RetroGameAudioEngine.stopBgm()
+        }
+    }
+
     fun toggleSound() {
         val newVal = !soundEnabled
         soundEnabled = newVal
         prefs.edit().putBoolean("sound_enabled", newVal).apply()
+        if (!newVal) {
+            RetroGameAudioEngine.stopBgm()
+        }
     }
 
     fun switchMode(newMode: String) {
@@ -160,10 +177,10 @@ fun SnakeGameDialog(
         }
     }
 
-    // Bucle del juego
+    // Bucle del juego Snake
     LaunchedEffect(isPlaying, isGameOver, viewMode) {
         while (isPlaying && !isGameOver) {
-            val speed = (190 - (score * 5)).coerceAtLeast(75)
+            val speed = (180 - (score * 4)).coerceAtLeast(75)
             delay(speed.toLong())
             gameTicks++
 
@@ -174,7 +191,7 @@ fun SnakeGameDialog(
             // Colisión con bordes
             if (newHead.first < 0 || newHead.first >= gridCols || newHead.second < 0 || newHead.second >= gridRows) {
                 isGameOver = true
-                FlappyAudioEngine.playDie(soundEnabled)
+                RetroGameAudioEngine.playDie(soundEnabled)
                 if (score > highScore) {
                     highScore = score
                     prefs.edit().putInt("high_score", highScore).apply()
@@ -186,7 +203,7 @@ fun SnakeGameDialog(
             // Colisión consigo misma
             if (snake.contains(newHead)) {
                 isGameOver = true
-                FlappyAudioEngine.playDie(soundEnabled)
+                RetroGameAudioEngine.playDie(soundEnabled)
                 if (score > highScore) {
                     highScore = score
                     prefs.edit().putInt("high_score", highScore).apply()
@@ -198,7 +215,7 @@ fun SnakeGameDialog(
             val newSnake = mutableListOf(newHead)
             if (newHead == food) {
                 score++
-                FlappyAudioEngine.playPoint(soundEnabled)
+                RetroGameAudioEngine.playPoint(soundEnabled)
                 if (score > highScore) {
                     highScore = score
                     prefs.edit().putInt("high_score", highScore).apply()
