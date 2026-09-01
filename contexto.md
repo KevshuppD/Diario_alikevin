@@ -268,6 +268,28 @@ graph TD
 
 ---
 
+## 12. Rediseño y Optimización del Horario de Clases (`ScheduleCompose.kt`)
+
+1. **Selector Dual de Vistas (Agenda Diaria & Grilla Semanal):**
+   - Selector en cabecera dedicada `[📋 Día] / [📅 Semana]` organizado en dos filas para evitar que los botones se aprieten o deformen en pantallas angostas.
+   - **Vista Agenda Diaria (`📋 Día`):** Diseñada para móviles en vertical con pestañas de lunes a viernes, conteo de materias por día, tarjetas amplias con duración calculada (`1h 30m`), badges claros de dueño, sala y profesor, evitando cualquier corte de texto.
+2. **Arquitectura de Columnas Paralelas en Grilla Semanal (`📅 Semana`):**
+   - En el modo "👥 Ambos", cada día se divide limpiamente en dos subcolumnas paralelas de 145dp dedicadas (`👦 Kevin` | `👧 Ali`), eliminando el problema de tarjetas solapadas que estiran y aplastan los bloques de clases en todo el día.
+   - Al filtrar por persona individual (`👦 Kevin` o `👧 Ali`), el día se expande a columna completa de 200dp.
+3. **Cálculo Dinámico de Contraste (`getContrastingTextColor`):**
+   - Algoritmo de luminancia sRGB que adapta el color de los textos y badges a negro/oscuro o blanco nítido según la luminosidad del color de la asignatura (`colorHex`), garantizando legibilidad en cualquier color pastel.
+4. **Optimización de Grilla Semanal:**
+   - Aprovechamiento del 100% del ancho de pantalla de borde a borde.
+   - Columnas proporcionales dinámicas según resolución (`screenWidthDp`), permitiendo ver 2 días completos a la vez en modo "Ambos" y más de 3 días en modo individual.
+   - Altura de filas compacta (48dp) y columna de horas simplificada (46dp).
+5. **Limpieza de Configuración:**
+   - Eliminada la tarjeta y lógica en desuso de migración de espíritus a Cloudinary dentro de la sección *Avanzado (Diagnóstico)*.
+6. **Manejo Integral del Botón Atrás del Sistema (`BackHandler`):**
+   - Integrado `BackHandler` en **Configuración**, **Álbum** (Álbum General / Momentos) y **Misceláneos** (Espíritus, Anime, Medicamentos, Horario, Web).
+   - Ahora, presionar el botón físico o gesto de volver del celular regresa limpiamente al menú de carpetas o menú raíz de la sección en lugar de salir abruptamente hacia la vista de Cartas (Home).
+
+---
+
 ## 12. Tareas Pendientes / Backlog
 
 *(Sin tareas pendientes inmediatas).*

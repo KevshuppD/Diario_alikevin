@@ -1,5 +1,6 @@
 package calendario.kevshupp.diariokevinali.compose
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -103,6 +104,11 @@ fun AlbumScreen(
     var gridColumnsGeneral by remember { mutableStateOf(2) }
     var showColumnsMenu by remember { mutableStateOf(false) }
     var menuPage by remember { mutableStateOf("MAIN") }
+
+    // Interceptar el botón Atrás del sistema cuando se esté dentro de un álbum
+    BackHandler(enabled = selectedAlbum != null) {
+        selectedAlbum = null
+    }
 
     // Estados de orden y filtrado
     var sortBy by remember { mutableStateOf("fecha_desc") }

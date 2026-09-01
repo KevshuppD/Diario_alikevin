@@ -1,5 +1,6 @@
 package calendario.kevshupp.diariokevinali.compose
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -706,7 +707,6 @@ fun SettingsScreen(
     onIncorrectPassword: () -> Unit = {},
     onTestFirestore: ( (String) -> Unit ) -> Unit = {},
     onTestGoogleDrive: ( (String) -> Unit ) -> Unit = {},
-    onMigrateSpirits: ( (String) -> Unit ) -> Unit = {},
     onRenamePhotosByDate: () -> Unit = {},
     coupleId: String? = null
 ) {
@@ -733,6 +733,15 @@ fun SettingsScreen(
     }
 
     var appSettingsSubView by remember { mutableStateOf("menu") }
+
+    // Interceptar el botón Atrás del sistema cuando se esté dentro de una subcategoría
+    BackHandler(enabled = appSettingsSubView != "menu") {
+        if (appSettingsSubView == "duplicates") {
+            appSettingsSubView = "cache"
+        } else {
+            appSettingsSubView = "menu"
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1205,8 +1214,7 @@ fun SettingsScreen(
                         syncState = syncState,
                         coupleId = coupleId,
                         onTestFirestore = onTestFirestore,
-                        onTestGoogleDrive = onTestGoogleDrive,
-                        onMigrateSpirits = onMigrateSpirits
+                        onTestGoogleDrive = onTestGoogleDrive
                     )
                 }
             }
@@ -1674,8 +1682,7 @@ fun AdvancedSettingsCompose(
     syncState: String,
     coupleId: String?,
     onTestFirestore: ( (String) -> Unit ) -> Unit,
-    onTestGoogleDrive: ( (String) -> Unit ) -> Unit,
-    onMigrateSpirits: ( (String) -> Unit ) -> Unit
+    onTestGoogleDrive: ( (String) -> Unit ) -> Unit
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val textColor = if (isDark) Color.White else Color(0xFF4A2511)
@@ -1686,9 +1693,6 @@ fun AdvancedSettingsCompose(
     var driveTestResult by remember { mutableStateOf<String?>(null) }
     var isTestingFirestore by remember { mutableStateOf(false) }
     var isTestingDrive by remember { mutableStateOf(false) }
-
-    var isUpdatingSpirits by remember { mutableStateOf(false) }
-    var spiritsUpdateResult by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -1753,32 +1757,6 @@ fun AdvancedSettingsCompose(
                 onTestFirestore { result ->
                     firestoreTestResult = result
                     isTestingFirestore = false
-                }
-            }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        ConnectionCard(
-            title = "Migración de Espíritus",
-            status = if (spiritsUpdateResult?.contains("exitosa") == true) "COMPLETADO" else "PENDIENTE",
-            statusColor = if (spiritsUpdateResult?.contains("exitosa") == true) Color(0xFF2E7D32) else Color(0xFFE65100),
-            details = listOf(
-                "Nube de Destino: Cloudinary (dhaqjw7se)",
-                "Espíritus a migrar: 150+ sprites (coleccionables, mascota, accesorios y fondos)"
-            ),
-            isDark = isDark,
-            textColor = textColor,
-            borderColor = borderColor,
-            testButtonText = "SUBIR ESPÍRITUS A CLOUDINARY 📤",
-            isTesting = isUpdatingSpirits,
-            testResult = spiritsUpdateResult,
-            onTest = {
-                isUpdatingSpirits = true
-                spiritsUpdateResult = "Iniciando subida de imágenes..."
-                onMigrateSpirits { result ->
-                    spiritsUpdateResult = result
-                    isUpdatingSpirits = false
                 }
             }
         )

@@ -1,5 +1,6 @@
 package calendario.kevshupp.diariokevinali.compose
 
+import androidx.activity.compose.BackHandler
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -41,6 +42,11 @@ fun MiscScreen(
 
     // View state: "grid", "checklist", "anime", "meds", "web", "schedule"
     var currentView by remember(initialView) { mutableStateOf(initialView) }
+
+    // Interceptar el botón Atrás del sistema cuando se esté dentro de una sub-sección de Misceláneos
+    BackHandler(enabled = currentView != "grid") {
+        currentView = "grid"
+    }
 
     if (currentView == "grid") {
         MiscGridView(
