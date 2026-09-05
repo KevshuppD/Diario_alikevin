@@ -36,6 +36,11 @@ object PermissionHelper {
             }
         }
 
+        if (ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+
         if (permissions.isNotEmpty()) {
             ActivityCompat.requestPermissions(activity, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
         }
@@ -65,6 +70,69 @@ object PermissionHelper {
                     Log.e("PermissionHelper", "Error opening exact alarm settings: ${e.message}")
                 }
             }
+        }
+    }
+
+    fun hasLocationPermission(context: Context): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun hasBackgroundLocationPermission(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
+
+    fun requestLocationPermissions(activity: Activity) {
+        val permissions = mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        ActivityCompat.requestPermissions(activity, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+    }
+
+    fun requestBackgroundLocationPermission(activity: Activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (!hasBackgroundLocationPermission(activity)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // En Android 11+, solicitar ACCESS_BACKGROUND_LOCATION abre la pantalla del sistema
+                    // donde el usuario debe elegir 'Permitir todo el tiempo'
+                    ActivityCompat.requestPermissions(
+                        activity,
+                        arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+                        PERMISSION_REQUEST_CODE
+                    )
+                } else {
+                    ActivityCompat.requestPermissions(
+                        activity,
+                        arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+                        PERMISSION_REQUEST_CODE
+                    )
+                }
+            }
+        }
+    }
+
+    fun openAppSettings(context: Context) {
+        try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:${context.packageName}")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("PermissionHelper", "Error opening app settings: ${e.message}")
         }
     }
 

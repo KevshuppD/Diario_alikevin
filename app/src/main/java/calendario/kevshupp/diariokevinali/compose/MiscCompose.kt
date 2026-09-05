@@ -40,7 +40,7 @@ fun MiscScreen(
     val borderColor = if (isDark) Color(0xFF91465F) else if (isMono) Color.Black else Color(0xFF4A2511)
     val cardBg = if (isDark) Color(0xFF1E1E1E) else if (isMono) Color.White else Color(0xFFFFFBEA)
 
-    // View state: "grid", "checklist", "anime", "meds", "web", "schedule"
+    // View state: "grid", "checklist", "anime", "meds", "web", "schedule", "radar"
     var currentView by remember(initialView) { mutableStateOf(initialView) }
 
     // Interceptar el botón Atrás del sistema cuando se esté dentro de una sub-sección de Misceláneos
@@ -59,7 +59,8 @@ fun MiscScreen(
             onSelectAnime = { currentView = "anime" },
             onSelectMeds = { currentView = "meds" },
             onSelectWeb = { currentView = "web" },
-            onSelectSchedule = { currentView = "schedule" }
+            onSelectSchedule = { currentView = "schedule" },
+            onSelectRadar = { currentView = "radar" }
         )
     } else if (currentView == "checklist") {
         SpiritsChecklistView(
@@ -91,6 +92,11 @@ fun MiscScreen(
             textColor = textColor,
             borderColor = borderColor,
             cardBg = cardBg,
+            onBack = { currentView = "grid" }
+        )
+    } else if (currentView == "radar") {
+        ThorRadarScreen(
+            theme = theme,
             onBack = { currentView = "grid" }
         )
     } else {
@@ -145,7 +151,8 @@ fun MiscGridView(
     onSelectAnime: () -> Unit,
     onSelectMeds: () -> Unit,
     onSelectWeb: () -> Unit,
-    onSelectSchedule: () -> Unit
+    onSelectSchedule: () -> Unit,
+    onSelectRadar: () -> Unit
 ) {
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
@@ -191,7 +198,7 @@ fun MiscGridView(
             )
         }
 
-        // 2x2 Grid Layout
+        // 2x3 Grid Layout
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize(),
@@ -368,8 +375,40 @@ fun MiscGridView(
                     }
                 }
             }
+
+            // Sixth item: Thor Radar (Ubicación en tiempo real y Zonas)
+            item {
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .border(3.dp, borderColor)
+                        .background(cardBg)
+                        .clickable { onSelectRadar() }
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "🧭",
+                            fontSize = 44.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Thor Radar",
+                            fontFamily = Vt323,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 22.sp
+                        )
+                    }
+                }
+            }
         }
     }
-
-    // showWebDialog fue eliminado
 }

@@ -15,6 +15,7 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
 7. **Gestión de Medicamentos de Rutina (Misc -> Medicamentos)**: Módulo interactivo para programar tomas diarias/periódicas de remedios con alarmas exactas gestionadas vía `AlarmManager` y notificación push persistente (`MedicationReceiver`).
 8. **Lista de Anime Compartida (Misc -> Anime)**: Dashboard interactivo para llevar el registro de animes vistos o por ver juntos, episodios actuales, calificación y estado de emisión.
 9. **Checklist de Espíritus Fortnite & Web de Gestión (Misc -> Espíritus / Web)**: Coleccionable interactivo de 117 espíritus con maestrías, categorías y renombrado en tiempo real, sincronizado mediante Firestore (`fortnite_spirits/<coupleId>`) con una Web de Gestión externa en Node.js / Vercel Serverless.
+10. **Thor Radar (Ubicación en Tiempo Real, Brújula & Geocercas - Misc -> Thor Radar)**: Módulo interactivo estilo Life360 con estética retro. Integra mapa OpenStreetMap con Osmdroid, marcadores pixelados personalizados, brújula de amor giratoria con distancia (km/m) y rumbo, monitoreo de batería (%), velocidad y actividad (caminando/auto/reposo), zonas seguras (geocercas con radio ajustable), historial del día, botón de pánico SOS con notificación push FCM y servicio en background (`ThorRadarService` / `ThorRadarManager`).
 
 ---
 
@@ -57,6 +58,7 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 - [SyncDriveWorker.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/SyncDriveWorker.kt): Trabajador de primer plano (`CoroutineWorker` promovido a Foreground Service). Maneja la lógica de subir/descargar fotos pendientes de forma optimizada y control de borrados bidireccionales.
 - [SyncScheduler.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/SyncScheduler.kt): Orquestador de WorkManager. Agenda sincronizaciones periódicas (con restricciones de red Wi-Fi y carga eléctrica) o inmediatas bajo demanda.
 - [DuplicateManager.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/DuplicateManager.kt): Gestor de detección y limpieza de imágenes duplicadas mediante pre-filtrado por tamaño y comparación MD5.
+- [ThorRadarManager.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/ThorRadarManager.kt) & [ThorRadarService.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/ThorRadarService.kt): Gestor y Foreground Service (`location`) para rastreo en tiempo real, cálculo de distancias Haversine, rumbo (bearing), batería, velocidad, detección de zonas seguras y alertas SOS.
 
 ### 📁 Notificaciones y Widgets
 - [ThorWidgetProvider.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/ThorWidgetProvider.kt): Widget de escritorio que dibuja el estado actual de Thor y sus accesorios equipados.
@@ -83,7 +85,8 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 - [ScheduleCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/ScheduleCompose.kt): Grilla de Horario de Clases compartido de Lunes a Viernes con superposición Overlay, tarjetas de 145dp, cálculo proporcional y soporte horizontal.
 - [FlappyThorCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/FlappyThorCompose.kt): Minijuego arcade retro Flappy Thor con selector de modo (Pantalla Completa / Consola Pocket), física calibrada, motor de sonido 8-bits procedimental, corazones coleccionables y recompensas.
 - [SnakeGameCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/SnakeGameCompose.kt): Minijuego clásico La Serpiente con selector de modo (Pantalla Completa con gestos táctiles Swipe y D-PAD ergonómico / Consola Pocket), efectos de sonido y puntuación.
-- [MiscCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MiscCompose.kt): Menú principal misceláneo que da acceso a Espíritus, Anime, Web de Gestión, Medicamentos y Horario.
+- [ThorRadarCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/ThorRadarCompose.kt): Módulo completo de ubicación y radar para parejas (Mapa interactivo Osmdroid, brújula giratoria, zonas seguras con geocercas, historial de ruta, batería en vivo y alertas SOS).
+- [MiscCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MiscCompose.kt): Menú principal misceláneo con acceso a Espíritus, Anime, Web de Gestión, Medicamentos, Horario y Thor Radar.
 
 ---
 
@@ -126,10 +129,20 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 ### F. Anime (`anime_list/<coupleId>`) - `AnimeCompose.kt`
 - `title: String`, `episodesWatched: Int`, `totalEpisodes: Int`, `rating: Float`, `status: String` (`"WATCHING"`, `"COMPLETED"`, `"PLAN_TO_WATCH"`)
 
-### G. Metadatos de Sincronización Drive (`pets/<coupleId>/drive_sync_metadata/<docId>`)
+### G. Ubicación y Geocercas de Thor Radar (`locations/<coupleId>`) - `ThorRadarCompose.kt`
+- **Usuarios (`locations/<coupleId>/users/<kevin|ali>`)**:
+  - `latitude: Double`, `longitude: Double`, `accuracy: Float`, `speedKmh: Float`
+  - `batteryLevel: Int`, `isCharging: Boolean`, `activity: String` (`"STILL"`, `"WALKING"`, `"IN_VEHICLE"`)
+  - `currentZone: String`, `address: String`, `timestamp: Long`, `isSharing: Boolean`, `sosActive: Boolean`, `sosTimestamp: Long`
+- **Zonas Seguras (`locations/<coupleId>/zones/<zoneId>`)**:
+  - `id: String`, `name: String`, `icon: String`, `latitude: Double`, `longitude: Double`, `radiusMeters: Float`, `addedBy: String`
+- **Historial (`locations/<coupleId>/history_<userId>/<timestamp>`)**:
+  - `latitude: Double`, `longitude: Double`, `placeName: String`, `timestamp: Long`, `speedKmh: Float`
+
+### H. Metadatos de Sincronización Drive (`pets/<coupleId>/drive_sync_metadata/<docId>`)
 - `idLocal: String`, `idDrive: String`, `nombreArchivo: String`, `uriLocal: String`, `md5Checksum: String`, `fechaModificacion: Long`, `sincronizadoPor: String`, `eliminado: Boolean`.
 
-### H. Colección de Espíritus Fortnite (`fortnite_spirits/<coupleId>` para Temporada 1 / `fortnite_spirits_s2/<coupleId>` para Temporada 2)
+### I. Colección de Espíritus Fortnite (`fortnite_spirits/<coupleId>` para Temporada 1 / `fortnite_spirits_s2/<coupleId>` para Temporada 2)
 - **Soporte Multitemporada:**
   - **Temporada 1**: Contiene la colección original de espíritus (1 a 141), categorías y estado histórico de checks y maestrías.
   - **Temporada 2 (Por defecto)**: Colección activa para los nuevos espíritus, variantes y categorías creadas en la Web de Gestión con registro independiente de checks y maestrías.
@@ -186,7 +199,7 @@ graph TD
 - **Fallback Automático (Android 11 o inferior):** Si la API nativa de Android 12+ no está disponible o falla, la app abre directamente el instalador con `Intent.ACTION_VIEW`.
 
 ### Conexión ADB Multidispositivo (`conectar_adb.sh`)
-- Script interactivo en el escritorio para mDNS QR code pairing, selección múltiple en Zenity e instalación directa acelerada por Gradle cache.
+- Script interactivo en el escritorio (`/home/kevin/Escritorio/sh/conectar_adb.sh`) para mDNS QR code pairing, vinculación automática, selector inteligente multidispositivo (instalar en 1 celular individual o en todos/2 a la vez en 1 solo paso con Gradle cache) y cambio dinámico de dispositivos destino en caliente (`[d]`).
 
 ---
 
@@ -228,9 +241,10 @@ graph TD
    - **Temporada 2:** Nueva colección activa por defecto en `fortnite_spirits_s2/<coupleId>`.
    - Selector de temporada interactivo integrado en la App (`[T2] / [T1]`) y en la Web (`[🌟 Temporada 2] / [🕰️ Temporada 1]`).
 2. **Extracción y Procesamiento de la Planilla Fortnite Override (Capítulo 7 T4):**
-   - Recorte y limpieza con transparencia antialiasing de **36 nuevos espíritus** (12 personajes con 3 variantes: *Normal*, *Dorado*, *Hacker*).
-   - Subida y alojamiento automático en Cloudinary (`spirits_s2/ic_spirit_s2_01` a `36`).
-   - Activos individuales preservados localmente en `scripts/spirits_s2_extracted/` (`spirit_s2_01.png` a `spirit_s2_36.png`).
+   - **Tanda 1 (01 a 36):** Recorte y limpieza de 36 espíritus iniciales (12 personajes con variantes: *Normal*, *Dorado*, *Hacker*).
+   - **Tanda 2 (37 a 61):** Extracción, recorte y limpieza con transparencia antialiasing de 25 nuevos espíritus (Caballero, Onigiri, Científico con variantes Normal/Matrix/Dorado/Galaxia, Megabot, variantes Matrix de Pirata, Táctico, Erizo, Gabardina, Game Boy, Conejo, Demonio, Sonic, Shadow, Tails, Rey Llama y Klombo).
+   - **Total Temporada 2:** 61 espíritus completamente alojados en Cloudinary (`spirits/ic_spirit_01` a `61`), vinculados en Firestore (`fortnite_spirits_s2/<coupleId>`) y compatibles con sincronización en tiempo real en Web y Android Compose.
+   - Activos individuales preservados localmente en `scripts/spirits_s2_extracted/` y `scripts/spirits_s2_new_extracted/`.
 3. **Sincronización Automática de Nombres al Renombrar Categorías:**
    - Al cambiar el nombre de cualquier categoría (ej. *"Espíritu de Rex"* ➔ *"Espíritu de Klombo"*), tanto la Web (`web/config.html`, `/edit`) como la App Android (`SpiritsCompose.kt`) detectan todos los espíritus pertenecientes a esa categoría, preservan sus sufijos de tipo (*Normal, Dorado, Hacker, etc.*) y actualizan en tiempo real los registros en `custom_names` y `custom_categories` en Firestore.
 4. **Rediseño Completo del Editor de Imágenes Studio (Recorte & Quitar Fondo):**

@@ -340,12 +340,19 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         }
         setupDynamicMargins()
         setupOfflineStatusListener()
+        setupSosEmergencyListener()
         
         btnMenuMore.setOnClickListener { showOverflowMenu(it) }
 
         setupRecyclerView()
         PermissionHelper.checkAndRequestPermissions(this)
         setupFirebaseMessaging()
+
+        if (prefs.getBoolean("radar_is_sharing", true) && PermissionHelper.hasLocationPermission(this)) {
+            ThorRadarService.startService(this)
+            ThorRadarManager.publishHeartbeat(this)
+        }
+
         btnSend.setOnClickListener { sendMessage() }
         btnRemovePreview.setOnClickListener {
             selectedImageUrl = null
@@ -703,6 +710,12 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         super.onResume()
         viewModel.startActiveListeners()
         enableImmersiveMode()
+
+        val prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE)
+        if (prefs.getBoolean("radar_is_sharing", true) && PermissionHelper.hasLocationPermission(this)) {
+            ThorRadarService.startService(this)
+            ThorRadarManager.publishHeartbeat(this)
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -712,7 +725,50 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         }
     }
 
+    private var sosListener: ListenerRegistration? = null
+    private var lastSosTimestamp: Long = 0L
+
+    private fun setupSosEmergencyListener() {
+        val partnerDocName = if (ThorRadarManager.isAli(currentUserId, currentUserName)) "kevin" else "ali"
+        val partnerDisplayName = if (ThorRadarManager.isAli(currentUserId, currentUserName)) "Kevin" else "Ali"
+        val safeCoupleId = ThorRadarManager.normalizeCoupleId(currentCoupleId)
+
+        sosListener?.remove()
+        sosListener = db.collection("locations").document(safeCoupleId)
+            .collection("users").document(partnerDocName)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && snapshot.exists()) {
+                    val isSos = snapshot.getBoolean("sosActive") ?: false
+                    val sosTs = snapshot.getLong("sosTimestamp") ?: 0L
+                    if (isSos && sosTs > lastSosTimestamp && (System.currentTimeMillis() - sosTs) < 300_000L) {
+                        lastSosTimestamp = sosTs
+                        runOnUiThread {
+                            val vibrator = getSystemService(Vibrator::class.java)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 200, 500, 200, 500), -1))
+                            } else {
+                                @Suppress("DEPRECATION")
+                                vibrator?.vibrate(1200L)
+                            }
+
+                            AlertDialog.Builder(this)
+                                .setTitle("🚨 ¡ALERTA SOS DE $partnerDisplayName!")
+                                .setMessage("¡$partnerDisplayName ha activado la alarma de emergencia en Thor Radar!\n¿Deseas abrir el mapa para ver su ubicación en vivo?")
+                                .setCancelable(false)
+                                .setPositiveButton("🗺️ VER EN MAPA") { _, _ ->
+                                    updateTabSelection(R.id.btnMisc)
+                                    showFragment(MiscFragment.newInstance(currentTheme, "radar"))
+                                }
+                                .setNegativeButton("CERRAR", null)
+                                .show()
+                        }
+                    }
+                }
+            }
+    }
+
     override fun onDestroy() {
+        sosListener?.remove()
         networkStatusTracker?.stopListening()
         try {
             fcmExecutor.shutdown()
@@ -973,6 +1029,10 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                 "espiritus", "spirits", "checklist" -> {
                     updateTabSelection(R.id.btnMisc)
                     showFragment(MiscFragment.newInstance(currentTheme, "checklist"))
+                }
+                "sos", "radar", "thor_radar", "location" -> {
+                    updateTabSelection(R.id.btnMisc)
+                    showFragment(MiscFragment.newInstance(currentTheme, "radar"))
                 }
             }
         }

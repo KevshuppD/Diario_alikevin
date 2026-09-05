@@ -68,8 +68,12 @@
 -keep class androidx.work.** { *; }
 -keep interface androidx.work.** { *; }
 -keep class androidx.work.impl.** { *; }
--keep class androidx.room.** { *; }
--keep interface androidx.room.** { *; }
--keep class * extends androidx.room.RoomDatabase
--dontwarn androidx.work.**
--dontwarn androidx.room.**
+# Osmdroid
+-keep class org.osmdroid.** { *; }
+-dontwarn org.osmdroid.**
+
+# Thor Radar Models
+-keepclassmembers class calendario.kevshupp.diariokevinali.compose.RadarLocationData { *; }
+-keep class calendario.kevshupp.diariokevinali.compose.RadarLocationData { *; }
+-keepclassmembers class calendario.kevshupp.diariokevinali.compose.RadarPlaceZone { *; }
+-keep class calendario.kevshupp.diariokevinali.compose.RadarPlaceZone { *; }

@@ -12,8 +12,8 @@ android {
         applicationId = "calendario.kevshupp.diariokevinali"
         minSdk = 24
         targetSdk = 35
-        versionCode = 84
-        versionName = "1.7.39"
+        versionCode = 85
+        versionName = "1.7.40"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -109,8 +109,10 @@ dependencies {
     // OkHttp para la API de GitHub y FCM
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // Google Drive & Auth
+    // Google Drive & Auth & Location
     implementation(libs.play.services.auth)
+    implementation(libs.play.services.location)
+    implementation(libs.osmdroid.android)
     implementation(libs.google.api.services.drive) {
         exclude(group = "org.apache.httpcomponents")
     }
