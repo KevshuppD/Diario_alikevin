@@ -131,13 +131,12 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 
 ### G. Ubicación y Geocercas de Thor Radar (`locations/<coupleId>`) - `ThorRadarCompose.kt`
 - **Usuarios (`locations/<coupleId>/users/<kevin|ali>`)**:
+  - `userId: String`, `userName: String`, `profileImageUrl: String` (Foto de perfil del usuario cargada con Coil en marcadores)
   - `latitude: Double`, `longitude: Double`, `accuracy: Float`, `speedKmh: Float`
   - `batteryLevel: Int`, `isCharging: Boolean`, `activity: String` (`"STILL"`, `"WALKING"`, `"IN_VEHICLE"`)
   - `currentZone: String`, `address: String`, `timestamp: Long`, `isSharing: Boolean`, `sosActive: Boolean`, `sosTimestamp: Long`
 - **Zonas Seguras (`locations/<coupleId>/zones/<zoneId>`)**:
-  - `id: String`, `name: String`, `icon: String`, `latitude: Double`, `longitude: Double`, `radiusMeters: Float`, `addedBy: String`
-- **Historial (`locations/<coupleId>/history_<userId>/<timestamp>`)**:
-  - `latitude: Double`, `longitude: Double`, `placeName: String`, `timestamp: Long`, `speedKmh: Float`
+  - `id: String`, `name: String`, `icon: String`, `latitude: Double`, `longitude: Double`, `radiusMeters: Float` (30m a 800m ajustable), `addedBy: String`
 
 ### H. Metadatos de Sincronización Drive (`pets/<coupleId>/drive_sync_metadata/<docId>`)
 - `idLocal: String`, `idDrive: String`, `nombreArchivo: String`, `uriLocal: String`, `md5Checksum: String`, `fechaModificacion: Long`, `sincronizadoPor: String`, `eliminado: Boolean`.
@@ -304,6 +303,36 @@ graph TD
 
 ---
 
-## 12. Tareas Pendientes / Backlog
+## 13. Thor Radar: Ubicación en Tiempo Real, Geocercas & Alertas SOS (v1.7.40)
+
+1. **Arquitectura y Servicios de Rastreo (`ThorRadarManager.kt` & `ThorRadarService.kt`):**
+   - **Foreground Service con Notificación Persistente:** `ThorRadarService` utiliza `LocationManager` y `FusedLocationProviderClient` con prioridad `PRIORITY_HIGH_ACCURACY` para emitir actualizaciones de ubicación, porcentaje de batería en tiempo real y estado de carga (`isCharging`).
+   - **Mapeo Robusto de Identidad:** Detección confiable de usuario (`ali` vs `kevin`) basada en `userId` y `userName` en `SharedPreferences`, normalizando automáticamente la ruta `locations/<coupleId>/users/<docName>`.
+   - **Emisión de Latidos (Heartbeats):** Registro automático de cambios de estado, detección de actividad (`STILL`, `WALKING`, `IN_VEHICLE`) por velocidad GPS y geocodificación inversa para dirección física (`thoroughfare`, `locality`).
+
+2. **Renderizado de Mapas Limpio & Sin Marcas de Agua:**
+   - **Fuente de Teselas Estándar de Google Maps (`GOOGLE_MAPS_TILES`):** Implementada mediante `OnlineTileSourceBase` en Osmdroid sin necesidad de API keys de pago, marcas de agua ni saturación visual de POIs.
+   - **Filtro de Modo Oscuro Dinámico:** Aplicación de `ColorMatrixColorFilter` en `overlayManager.tilesOverlay` cuando el tema activo es *Pixel Oscuro*, adaptando las calles y fondos al modo nocturno.
+   - **Marcadores con Fotos de Perfil Reales:** Renderizado asíncrono con Coil (`allowHardware(false)`) y `BitmapShader` para recortar en círculo perfecto las fotos de Kevin y Ali dentro de pines vectoriales con anillos temáticos (Azul para ti, Rosa para tu pareja, y Rojo Neón pulsante si SOS está activo).
+
+3. **Selector Visual e Interactivo de Zonas Seguras:**
+   - **Mini-Mapa en Vivo:** Diálogo de creación y edición (`AddZoneDialog`) que incrusta un mapa interactivo centrado en la ubicación fijada con el icono emoji elegido.
+   - **Círculo de Cobertura en Tiempo Real:** Círculo translúcido (`Polygon.pointsAsCircle`) que se expande y contrae en vivo sobre el mapa a medida que se desplaza el control deslizante (Slider de 30m a 800m) o se tocan los chips de acceso rápido (`50m`, `100m`, `200m`, `350m`, `500m`).
+   - **Compatibilidad con Modo Oscuro:** Corrección integral de contraste en campos de texto (`OutlinedTextField`) y botones para evitar texto ilegible en temas oscuros.
+
+4. **Sistema de Alerta de Emergencia SOS:**
+   - **Notificaciones Push de Alta Prioridad (FCM v1):** Envío directo al proyecto `diario-pareja-a2d35` y topic `diario_vinculo_unico_123` con canal prioritario `diario_channel`.
+   - **Listener en Tiempo Real en la App (`MainActivity.kt`):** Escucha instantánea del documento de la pareja. En cuanto se activa la alerta, el dispositivo receptor vibra y despliega un cuadro emergente de emergencia con el botón directo `[ VER EN MAPA ]`.
+   - **Cuenta Regresiva de Seguridad y Cancelación:** Diálogo visual con cuenta atrás de 3 segundos (`[ ❌ CANCELAR ]` / `[ 🚨 ENVIAR YA ]`), banner rojo pulsante y botón de desactivación segura (`[ ✅ DESACTIVAR SOS (ESTOY BIEN) ]`).
+
+5. **Módulos Optimizados (4 Pestañas Claras):**
+   - `🗺️ MAPA`: Mapa satelital con auto-centrado inteligente (`BoundingBox`), controles flotantes de zoom, centrado en ambos, centrado en pareja y centrado en uno mismo.
+   - `🧭 BRÚJULA`: Brújula de amor con rotación animada suave (`spring`), ángulo exacto, distancia calculada (`km`/`m`) y estado "¡Juntos en el mismo lugar!".
+   - `🏠 ZONAS`: Listado de geocercas registradas con opción de creación y eliminación instantánea.
+   - `⚙️ AJUSTES`: Configuración de compartición de ubicación, modo ahorro de batería, permisos y estado de los sensores.
+
+---
+
+## 14. Tareas Pendientes / Backlog
 
 *(Sin tareas pendientes inmediatas).*
