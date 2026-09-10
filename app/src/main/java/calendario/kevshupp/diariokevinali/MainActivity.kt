@@ -160,6 +160,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     private lateinit var navBarPadding: View
     private lateinit var downloadProgressContainer: LinearLayout
     private lateinit var downloadProgressBar: ProgressBar
+    private lateinit var appBarLayout: View
     private lateinit var toolbarBorder: View
     private lateinit var bottomActionsBarBorder: View
     private lateinit var tvTabHome: TextView
@@ -474,6 +475,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         navBarPadding = findViewById(R.id.navBarPadding)
         downloadProgressContainer = findViewById(R.id.downloadProgressContainer)
         downloadProgressBar = findViewById(R.id.downloadProgressBar)
+        appBarLayout = findViewById(R.id.appBarLayout)
         toolbarBorder = findViewById(R.id.toolbarBorder)
         bottomActionsBarBorder = findViewById(R.id.bottomActionsBarBorder)
         tvTabHome = findViewById(R.id.tvTabHome)
@@ -483,6 +485,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         tvTabProfile = findViewById(R.id.tvTabProfile)
         tvTabMisc = findViewById(R.id.tvTabMisc)
         tvTabSettings = findViewById(R.id.tvTabSettings)
+        updateTopBarVisibility()
     }
 
     private fun showOverflowMenu(v: View) {
@@ -1079,13 +1082,12 @@ class MainActivity : AppCompatActivity(), AppNavigation {
 
                 val jsonBody = JSONObject()
                 val message = JSONObject()
-                val notification = JSONObject()
                 val data = JSONObject()
 
-                notification.put("title", title ?: "Nuevo mensaje de $currentUserName")
-                notification.put("body", if (messageText != null && messageText.isNotEmpty()) messageText else "Te han enviado una foto 📸")
-                
+                data.put("title", title ?: "Nuevo mensaje de $currentUserName")
+                data.put("body", if (messageText != null && messageText.isNotEmpty()) messageText else "Te han enviado una foto 📸")
                 data.put("authorId", currentUserId)
+                data.put("authorName", currentUserName)
                 if (imageUrl != null) data.put("imageUrl", imageUrl)
                 if (type != null) data.put("click_type", type)
 
@@ -1094,12 +1096,9 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     .replace("ñ", "n").replace(" ", "_")
                 
                 val android = JSONObject()
-                val androidNotification = JSONObject()
-                androidNotification.put("channel_id", "diario_channel")
-                android.put("notification", androidNotification)
+                android.put("priority", "HIGH")
 
                 message.put("topic", topicName)
-                message.put("notification", notification)
                 message.put("data", data)
                 message.put("android", android)
                 jsonBody.put("message", message)
@@ -1465,14 +1464,14 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                 Color.parseColor("#0D0D2B")
             }
 
-            inputBg = when (finalDarkColor.uppercase()) {
-                "#0D47A1" -> Color.parseColor("#1976D2")
-                "#1B5E20" -> Color.parseColor("#388E3C")
-                "#C2185B" -> Color.parseColor("#D81B60")
-                "#E65100" -> Color.parseColor("#FB8C00")
-                "#006064" -> Color.parseColor("#00838F")
-                "#3E2723" -> Color.parseColor("#5D4037")
-                else -> Color.parseColor("#6B21A8")
+            inputBg = try {
+                val hsv = FloatArray(3)
+                Color.colorToHSV(tb, hsv)
+                hsv[1] = (hsv[1] * 0.85f).coerceIn(0f, 1f)
+                hsv[2] = (hsv[2] * 1.4f).coerceIn(0f, 0.85f)
+                Color.HSVToColor(hsv)
+            } catch (e: Exception) {
+                Color.parseColor("#6B21A8")
             }
 
             etBg = Color.parseColor("#1A1A2E")
@@ -1487,14 +1486,14 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                 Color.parseColor("#F5E6BE")
             }
             
-            inputBg = when (actualLightColor.uppercase()) {
-                "#B3E5FC" -> Color.parseColor("#81D4FA")
-                "#C8E6C9" -> Color.parseColor("#A5D6A7")
-                "#F8BBD0", "#C2185B" -> Color.parseColor("#F48FB1")
-                "#FFE0B2" -> Color.parseColor("#FFCC80")
-                "#B2EBF2" -> Color.parseColor("#80DEEA")
-                "#D7CCC8" -> Color.parseColor("#BCAAA4")
-                else -> Color.parseColor("#B39DDB")
+            inputBg = try {
+                val hsv = FloatArray(3)
+                Color.colorToHSV(tb, hsv)
+                hsv[1] = (hsv[1] * 1.35f).coerceIn(0f, 1f)
+                hsv[2] = (hsv[2] * 0.95f).coerceIn(0f, 1f)
+                Color.HSVToColor(hsv)
+            } catch (e: Exception) {
+                Color.parseColor("#B39DDB")
             }
             
             etBg = Color.parseColor("#FFFFFF") 
@@ -1553,6 +1552,13 @@ class MainActivity : AppCompatActivity(), AppNavigation {
 
         etMessage.setTextColor(etText)
         etMessage.setHintTextColor(etHint)
+        updateTopBarVisibility()
+    }
+
+    fun updateTopBarVisibility() {
+        val prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE)
+        val showTopBar = prefs.getBoolean("showTopBar", true)
+        appBarLayout.visibility = if (showTopBar) View.VISIBLE else View.GONE
     }
 
     override fun pickImage(requestCode: Int) {

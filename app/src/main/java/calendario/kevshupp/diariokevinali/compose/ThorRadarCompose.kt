@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
@@ -72,11 +73,13 @@ import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
+import android.graphics.Point
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.util.MapTileIndex
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.Polygon
 import java.text.SimpleDateFormat
 import java.util.*
@@ -159,6 +162,48 @@ fun createResizeHandleBitmap(colorArgb: Int): Bitmap {
 }
 
 /**
+ * Overlay de renderizado en tiempo real para dibujar el círculo de cobertura
+ * alrededor del centro del mapa de forma suave y precisa sin interferir con los toques.
+ */
+class CenterZoneOverlay(
+    private val getRadiusMeters: () -> Float
+) : Overlay() {
+    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = android.graphics.Color.argb(55, 233, 30, 99)
+    }
+    private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 4f
+        color = android.graphics.Color.argb(230, 233, 30, 99)
+    }
+    private val dashPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+        color = android.graphics.Color.argb(120, 233, 30, 99)
+        pathEffect = android.graphics.DashPathEffect(floatArrayOf(10f, 6f), 0f)
+    }
+
+    override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
+        if (shadow) return
+        val proj = mapView.projection ?: return
+        val center = (mapView.mapCenter as? GeoPoint) ?: return
+        val centerScreenX = mapView.width / 2f
+        val centerScreenY = mapView.height / 2f
+        val eastGeo = calculateOffsetGeoPoint(center.latitude, center.longitude, getRadiusMeters().toDouble(), 90.0)
+        val eastScreen = proj.toPixels(eastGeo, Point())
+        val centerGeoScreen = proj.toPixels(center, Point())
+        val radiusPx = Math.hypot((eastScreen.x - centerGeoScreen.x).toDouble(), (eastScreen.y - centerGeoScreen.y).toDouble()).toFloat()
+
+        if (radiusPx > 2f) {
+            canvas.drawCircle(centerScreenX, centerScreenY, radiusPx, fillPaint)
+            canvas.drawCircle(centerScreenX, centerScreenY, radiusPx, strokePaint)
+            canvas.drawCircle(centerScreenX, centerScreenY, radiusPx * 0.5f, dashPaint)
+        }
+    }
+}
+
+/**
  * Animación cinemática suave para volar hacia un objetivo en el mapa.
  */
 fun smoothFlyTo(map: MapView, target: GeoPoint, targetZoom: Double = 16.5) {
@@ -211,7 +256,8 @@ fun ThorRadarScreen(
         )
     }
 
-    var showAddZoneDialog by remember { mutableStateOf(false) }
+    var showAddEditZoneDialog by remember { mutableStateOf(false) }
+    var editingZone by remember { mutableStateOf<RadarPlaceZone?>(null) }
     var showSosDialog by remember { mutableStateOf(false) }
     var sosCountdown by remember { mutableStateOf(3) }
     var isSosCountingDown by remember { mutableStateOf(false) }
@@ -721,7 +767,14 @@ fun ThorRadarScreen(
                     cardBg = cardBg,
                     textColor = textColor,
                     accentColor = accentColor,
-                    onOpenAddZone = { showAddZoneDialog = true },
+                    onOpenAddZone = {
+                        editingZone = null
+                        showAddEditZoneDialog = true
+                    },
+                    onEditZone = { zone ->
+                        editingZone = zone
+                        showAddEditZoneDialog = true
+                    },
                     onTriggerSos = {
                         isSosCountingDown = true
                         sosCountdown = 3
@@ -748,7 +801,14 @@ fun ThorRadarScreen(
                     borderColor = borderColor,
                     cardBg = cardBg,
                     accentColor = accentColor,
-                    onAddZoneClick = { showAddZoneDialog = true }
+                    onAddZoneClick = {
+                        editingZone = null
+                        showAddEditZoneDialog = true
+                    },
+                    onEditZoneClick = { zone ->
+                        editingZone = zone
+                        showAddEditZoneDialog = true
+                    }
                 )
                 3 -> RadarSettingsView(
                     isSharing = isSharingLocation,
@@ -784,19 +844,23 @@ fun ThorRadarScreen(
         }
     }
 
-    // Diálogo para Añadir Zona Segura
-    if (showAddZoneDialog) {
-        AddZoneDialog(
+    // Diálogo para Añadir / Editar Zona Segura
+    if (showAddEditZoneDialog) {
+        AddEditZoneDialog(
             coupleId = coupleId,
             userId = currentUserId,
             currentLat = myLocationData.latitude,
             currentLng = myLocationData.longitude,
+            existingZone = editingZone,
             theme = theme,
             textColor = textColor,
             borderColor = borderColor,
             cardBg = cardBg,
             accentColor = accentColor,
-            onDismiss = { showAddZoneDialog = false }
+            onDismiss = {
+                showAddEditZoneDialog = false
+                editingZone = null
+            }
         )
     }
 
@@ -1041,12 +1105,14 @@ fun RadarMapView(
     textColor: Color,
     accentColor: Color,
     onOpenAddZone: () -> Unit,
+    onEditZone: (RadarPlaceZone) -> Unit,
     onTriggerSos: () -> Unit
 ) {
     val context = LocalContext.current
     val isDark = theme == "Pixel Oscuro"
     var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
     var hasAutoCentered by remember { mutableStateOf(false) }
+    var selectedMapZone by remember { mutableStateOf<RadarPlaceZone?>(null) }
 
     fun centerBothLocations(animate: Boolean = true) {
         val map = mapViewInstance ?: return
@@ -1164,7 +1230,7 @@ fun RadarMapView(
                 update = { mapView ->
                     mapView.overlays.clear()
 
-                    // Dibujar Zonas Seguras (Sin globos de texto molestos al tocar)
+                    // Dibujar Zonas Seguras
                     zones.forEach { zone ->
                         if (zone.latitude != 0.0) {
                             val circlePoints = Polygon.pointsAsCircle(
@@ -1177,7 +1243,10 @@ fun RadarMapView(
                                 outlinePaint.color = android.graphics.Color.argb(160, 233, 30, 99)
                                 outlinePaint.strokeWidth = 3f
                                 infoWindow = null
-                                setOnClickListener { _, _, _ -> true }
+                                setOnClickListener { _, _, _ ->
+                                    selectedMapZone = zone
+                                    true
+                                }
                             }
                             mapView.overlays.add(polygon)
 
@@ -1189,7 +1258,10 @@ fun RadarMapView(
                                 icon = BitmapDrawable(context.resources, createTextMarkerBitmap(zone.icon, 32))
                                 infoWindow = null
                                 setInfoWindow(null)
-                                setOnMarkerClickListener { _, _ -> true }
+                                setOnMarkerClickListener { _, _ ->
+                                    selectedMapZone = zone
+                                    true
+                                }
                             }
                             mapView.overlays.add(zoneMarker)
                         }
@@ -1271,7 +1343,7 @@ fun RadarMapView(
                     centerBothLocations(true)
                 }
 
-                // Centrar en Pareja (Vuelo suave hacia la persona)
+                // Centrar en Pareja
                 FloatingMapButton(
                     icon = if (partnerName.contains("Ali", ignoreCase = true)) "👧" else "👦",
                     label = partnerName,
@@ -1287,7 +1359,7 @@ fun RadarMapView(
                     }
                 }
 
-                // Centrar en Mí (Vuelo suave hacia mí)
+                // Centrar en Mí
                 FloatingMapButton(
                     icon = if (userName.contains("Ali", ignoreCase = true)) "👧" else "👦",
                     label = "Yo",
@@ -1298,12 +1370,79 @@ fun RadarMapView(
                         mapViewInstance?.let { map ->
                             smoothFlyTo(map, GeoPoint(myLocation.latitude, myLocation.longitude), 16.5)
                         }
+                    } else {
+                        Toast.makeText(context, "Tu ubicación GPS no está disponible", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
+            // Tarjeta Flotante cuando se toca una Zona Segura en el mapa
+            if (selectedMapZone != null) {
+                val zone = selectedMapZone!!
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(8.dp)
+                ) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                        border = androidx.compose.foundation.BorderStroke(2.dp, accentColor),
+                        shape = RoundedCornerShape(0.dp),
+                        modifier = Modifier.fillMaxWidth(0.95f)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(text = zone.icon, fontSize = 28.sp)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = zone.name,
+                                    fontFamily = Vt323,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "Radio de detección: ${zone.radiusMeters.roundToInt()}m",
+                                    fontFamily = Vt323,
+                                    fontSize = 13.sp,
+                                    color = textColor.copy(alpha = 0.8f)
+                                )
+                            }
+                            Button(
+                                onClick = {
+                                    val z = zone
+                                    selectedMapZone = null
+                                    onEditZone(z)
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                                shape = RoundedCornerShape(0.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text("✏️ EDITAR", fontFamily = Vt323, fontSize = 14.sp, color = Color.White)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .border(1.dp, borderColor)
+                                    .clickable { selectedMapZone = null },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("✖", fontSize = 11.sp, color = textColor)
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // Barra inferior de Acciones Rápidas (Dentro del marco retro)
+        // Barra Inferior de Acciones Rápidas
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1565,7 +1704,8 @@ fun RadarZonesView(
     borderColor: Color,
     cardBg: Color,
     accentColor: Color,
-    onAddZoneClick: () -> Unit
+    onAddZoneClick: () -> Unit,
+    onEditZoneClick: (RadarPlaceZone) -> Unit
 ) {
     val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
@@ -1628,6 +1768,7 @@ fun RadarZonesView(
                             .fillMaxWidth()
                             .border(2.dp, borderColor)
                             .background(if (theme == "Pixel Oscuro") Color(0xFF282828) else Color(0xFFFFF7DB))
+                            .clickable { onEditZoneClick(zone) }
                             .padding(10.dp)
                     ) {
                         Row(
@@ -1652,21 +1793,41 @@ fun RadarZonesView(
                                 )
                             }
 
-                            // Botón Borrar Zona
-                            Text(
-                                text = "🗑️",
-                                fontSize = 20.sp,
-                                modifier = Modifier
-                                    .clickable {
-                                        db.collection("locations").document(coupleId)
-                                            .collection("zones").document(zone.id)
-                                            .delete()
-                                            .addOnSuccessListener {
-                                                Toast.makeText(context, "Zona '${zone.name}' eliminada", Toast.LENGTH_SHORT).show()
-                                            }
-                                    }
-                                    .padding(6.dp)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                // Botón Editar Zona
+                                Box(
+                                    modifier = Modifier
+                                        .border(1.dp, borderColor)
+                                        .background(accentColor.copy(alpha = 0.15f))
+                                        .clickable { onEditZoneClick(zone) }
+                                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("✏️ EDITAR", fontFamily = Vt323, fontSize = 13.sp, color = accentColor, fontWeight = FontWeight.Bold)
+                                }
+
+                                // Botón Borrar Zona
+                                Box(
+                                    modifier = Modifier
+                                        .border(1.dp, borderColor)
+                                        .background(Color.Red.copy(alpha = 0.1f))
+                                        .clickable {
+                                            db.collection("locations").document(coupleId)
+                                                .collection("zones").document(zone.id)
+                                                .delete()
+                                                .addOnSuccessListener {
+                                                    Toast.makeText(context, "Zona '${zone.name}' eliminada", Toast.LENGTH_SHORT).show()
+                                                }
+                                        }
+                                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("🗑️", fontSize = 13.sp)
+                                }
+                            }
                         }
                     }
                 }
@@ -1915,28 +2076,43 @@ fun SettingToggleCard(
 }
 
 @Composable
-fun AddZoneDialog(
+fun AddEditZoneDialog(
     coupleId: String,
     userId: String,
     currentLat: Double,
     currentLng: Double,
+    existingZone: RadarPlaceZone? = null,
     theme: String,
     textColor: Color,
     borderColor: Color,
     cardBg: Color,
     accentColor: Color,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onZoneSaved: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val isDark = theme == "Pixel Oscuro"
+    val isEditing = existingZone != null
 
-    var name by remember { mutableStateOf("") }
-    var selectedEmoji by remember { mutableStateOf("🏠") }
-    var radiusMeters by remember { mutableStateOf(150f) }
+    var name by remember { mutableStateOf(existingZone?.name ?: "") }
+    var selectedEmoji by remember { mutableStateOf(existingZone?.icon ?: "🏠") }
+    var radiusMeters by remember { mutableStateOf(existingZone?.radiusMeters ?: 150f) }
 
-    var selectedLat by remember { mutableStateOf(if (currentLat != 0.0) currentLat else -33.4489) }
-    var selectedLng by remember { mutableStateOf(if (currentLng != 0.0) currentLng else -70.6693) }
+    var selectedLat by remember {
+        mutableStateOf(
+            if (existingZone != null && existingZone.latitude != 0.0) existingZone.latitude
+            else if (currentLat != 0.0) currentLat
+            else -33.4489
+        )
+    }
+    var selectedLng by remember {
+        mutableStateOf(
+            if (existingZone != null && existingZone.longitude != 0.0) existingZone.longitude
+            else if (currentLng != 0.0) currentLng
+            else -70.6693
+        )
+    }
     var addressText by remember { mutableStateOf("") }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -1953,6 +2129,23 @@ fun AddZoneDialog(
         val addr = ThorRadarManager.getReverseAddress(context, selectedLat, selectedLng)
         if (addr.isNotEmpty()) {
             addressText = addr
+        }
+    }
+
+    // Búsqueda en vivo tipo Google Maps con debounce
+    LaunchedEffect(searchQuery) {
+        val q = searchQuery.trim()
+        if (q.length >= 2) {
+            delay(350)
+            isSearching = true
+            val results = ThorRadarManager.searchPlaces(context, q)
+            searchResults = results
+            showSearchResults = results.isNotEmpty()
+            isSearching = false
+        } else {
+            searchResults = emptyList()
+            showSearchResults = false
+            isSearching = false
         }
     }
 
@@ -1980,51 +2173,49 @@ fun AddZoneDialog(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.92f)
+                .fillMaxWidth(0.96f)
+                .fillMaxHeight(0.88f)
                 .border(3.dp, borderColor)
                 .background(cardBg)
-                .padding(14.dp)
+                .padding(12.dp)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Cabecera del diálogo
+                // Cabecera fija
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "➕ NUEVA ZONA SEGURA",
+                        text = if (isEditing) "✏️ EDITAR ZONA SEGURA" else "➕ NUEVA ZONA SEGURA",
                         fontFamily = Vt323,
-                        fontSize = 24.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
                     )
                     Box(
                         modifier = Modifier
-                            .size(28.dp)
+                            .size(26.dp)
                             .border(1.5.dp, borderColor)
                             .clickable { onDismiss() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("❌", fontSize = 12.sp)
+                        Text("❌", fontSize = 11.sp)
                     }
                 }
 
-                // 1. Barra de Búsqueda de Direcciones (Google / Geocoding)
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "🔍 Buscar dirección o lugar en el mapa:",
-                        fontFamily = Vt323,
-                        fontSize = 15.sp,
-                        color = textColor
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+                // Contenido Scrolleable en el centro
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // 1. Buscador compacto con búsqueda en vivo
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -2034,34 +2225,23 @@ fun AddZoneDialog(
                             value = searchQuery,
                             onValueChange = {
                                 searchQuery = it
-                                if (it.isEmpty()) showSearchResults = false
                             },
                             placeholder = {
-                                Text(
-                                    text = "Ej. Universidad, Casa, Calle 123...",
-                                    fontFamily = Vt323,
-                                    fontSize = 16.sp,
-                                    color = textColor.copy(alpha = 0.5f)
-                                )
+                                Text("Buscar calle, comuna o lugar...", fontFamily = Vt323, fontSize = 14.sp, color = textColor.copy(alpha = 0.5f))
                             },
                             singleLine = true,
+                            maxLines = 1,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                             keyboardActions = KeyboardActions(onSearch = { performSearch() }),
-                            textStyle = TextStyle(fontFamily = Vt323, fontSize = 17.sp, color = textColor),
+                            textStyle = TextStyle(fontFamily = Vt323, fontSize = 15.sp, color = textColor),
                             trailingIcon = {
                                 if (searchQuery.isNotEmpty()) {
                                     Text(
                                         text = "✖",
                                         fontFamily = Vt323,
-                                        fontSize = 16.sp,
+                                        fontSize = 14.sp,
                                         color = textColor.copy(alpha = 0.7f),
-                                        modifier = Modifier
-                                            .clickable {
-                                                searchQuery = ""
-                                                showSearchResults = false
-                                                searchResults = emptyList()
-                                            }
-                                            .padding(6.dp)
+                                        modifier = Modifier.clickable { searchQuery = ""; showSearchResults = false }.padding(4.dp)
                                     )
                                 }
                             },
@@ -2074,27 +2254,23 @@ fun AddZoneDialog(
                                 unfocusedBorderColor = borderColor,
                                 cursorColor = accentColor
                             ),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f).height(48.dp)
                         )
 
                         Button(
                             onClick = { performSearch() },
                             colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                             shape = RoundedCornerShape(0.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                            modifier = Modifier.height(48.dp),
                             enabled = !isSearching
                         ) {
-                            if (isSearching) {
-                                Text("...", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
-                            } else {
-                                Text("BUSCAR", fontFamily = Vt323, fontSize = 15.sp, color = Color.White)
-                            }
+                            Text(if (isSearching) "..." else "BUSCAR", fontFamily = Vt323, fontSize = 14.sp, color = Color.White)
                         }
                     }
 
-                    // Lista desplegable de resultados encontrados
+                    // Resultados búsqueda si hay
                     if (showSearchResults && searchResults.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(4.dp))
                         Card(
                             colors = CardDefaults.cardColors(containerColor = cardBg),
                             border = androidx.compose.foundation.BorderStroke(2.dp, accentColor),
@@ -2103,14 +2279,12 @@ fun AddZoneDialog(
                         ) {
                             Column(modifier = Modifier.padding(4.dp)) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Resultados encontrados (${searchResults.size}):",
+                                        text = "Sugerencias (${searchResults.size}):",
                                         fontFamily = Vt323,
                                         fontSize = 13.sp,
                                         color = accentColor,
@@ -2131,7 +2305,7 @@ fun AddZoneDialog(
                                             .clickable {
                                                 selectedLat = item.latitude
                                                 selectedLng = item.longitude
-                                                addressText = item.subtitle.ifEmpty { item.title }
+                                                addressText = if (item.subtitle.isNotBlank()) "${item.title}, ${item.subtitle}" else item.title
                                                 if (name.isBlank()) {
                                                     name = item.title
                                                 }
@@ -2141,11 +2315,11 @@ fun AddZoneDialog(
                                                 mapViewRef?.controller?.animateTo(target)
                                                 mapViewRef?.controller?.setZoom(17.0)
                                             }
-                                            .padding(horizontal = 6.dp, vertical = 6.dp),
+                                            .padding(horizontal = 6.dp, vertical = 5.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        Text("📍", fontSize = 18.sp)
+                                        Text("📍", fontSize = 16.sp)
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = item.title,
@@ -2156,431 +2330,373 @@ fun AddZoneDialog(
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
-                                            if (item.subtitle.isNotEmpty() && item.subtitle != item.title) {
+                                            if (item.subtitle.isNotBlank()) {
                                                 Text(
                                                     text = item.subtitle,
                                                     fontFamily = Vt323,
-                                                    fontSize = 13.sp,
-                                                    color = textColor.copy(alpha = 0.75f),
+                                                    fontSize = 12.sp,
+                                                    color = textColor.copy(alpha = 0.7f),
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
                                             }
                                         }
-                                        Text("ELEGIR ➔", fontFamily = Vt323, fontSize = 13.sp, color = accentColor)
+                                        Text("ELEGIR ➔", fontFamily = Vt323, fontSize = 12.sp, color = accentColor)
                                     }
                                     HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 0.8.dp)
                                 }
                             }
                         }
                     }
-                }
 
-                // 2. Mapa interactivo de selección de zona
-                Column(modifier = Modifier.fillMaxWidth()) {
+                    // 2. Mapa ampliado y cómodo (270.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(270.dp)
+                            .border(2.dp, borderColor)
+                            .clipToBounds()
+                    ) {
+                        AndroidView(
+                            factory = { ctx ->
+                                MapView(ctx).apply {
+                                    setTileSource(GOOGLE_MAPS_TILES)
+                                    setMultiTouchControls(true)
+                                    controller.setZoom(16.5)
+                                    controller.setCenter(GeoPoint(selectedLat, selectedLng))
+
+                                    if (isDark) {
+                                        val matrix = ColorMatrix(floatArrayOf(
+                                            -0.85f, 0f, 0f, 0f, 240f,
+                                            0f, -0.85f, 0f, 0f, 240f,
+                                            0f, 0f, -0.75f, 0f, 255f,
+                                            0f, 0f, 0f, 1f, 0f
+                                        ))
+                                        overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(matrix))
+                                    }
+
+                                    overlays.add(CenterZoneOverlay { radiusMeters })
+
+                                    addMapListener(object : org.osmdroid.events.MapListener {
+                                        override fun onScroll(event: org.osmdroid.events.ScrollEvent?): Boolean {
+                                            val c = mapCenter as? GeoPoint
+                                            if (c != null) {
+                                                selectedLat = c.latitude
+                                                selectedLng = c.longitude
+                                            }
+                                            return false
+                                        }
+
+                                        override fun onZoom(event: org.osmdroid.events.ZoomEvent?): Boolean {
+                                            val c = mapCenter as? GeoPoint
+                                            if (c != null) {
+                                                selectedLat = c.latitude
+                                                selectedLng = c.longitude
+                                            }
+                                            return false
+                                        }
+                                    })
+
+                                    setOnTouchListener { v, event ->
+                                        when (event.actionMasked) {
+                                            MotionEvent.ACTION_DOWN -> v.parent?.requestDisallowInterceptTouchEvent(true)
+                                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                                v.parent?.requestDisallowInterceptTouchEvent(false)
+                                                val c = (v as? MapView)?.mapCenter as? GeoPoint
+                                                if (c != null) {
+                                                    selectedLat = c.latitude
+                                                    selectedLng = c.longitude
+                                                }
+                                            }
+                                        }
+                                        false
+                                    }
+
+                                    mapViewRef = this
+                                }
+                            },
+                            update = { mapView ->
+                                mapViewRef = mapView
+                                @Suppress("UNUSED_VARIABLE")
+                                val currentRadius = radiusMeters
+                                mapView.postInvalidate()
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        // Retículo Central Fijo
+                        Box(
+                            modifier = Modifier.align(Alignment.Center),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            androidx.compose.foundation.Canvas(modifier = Modifier.size(56.dp)) {
+                                val midX = size.width / 2f
+                                val midY = size.height / 2f
+                                val strokeW = 2.dp.toPx()
+                                val c = Color(0xFFE91E63)
+                                drawLine(c.copy(alpha = 0.7f), Offset(0f, midY), Offset(midX - 16.dp.toPx(), midY), strokeWidth = strokeW)
+                                drawLine(c.copy(alpha = 0.7f), Offset(midX + 16.dp.toPx(), midY), Offset(size.width, midY), strokeWidth = strokeW)
+                                drawLine(c.copy(alpha = 0.7f), Offset(midX, 0f), Offset(midX, midY - 16.dp.toPx()), strokeWidth = strokeW)
+                                drawLine(c.copy(alpha = 0.7f), Offset(midX, midY + 16.dp.toPx()), Offset(midX, size.height), strokeWidth = strokeW)
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(cardBg, CircleShape)
+                                    .border(2.dp, Color(0xFFE91E63), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = selectedEmoji, fontSize = 18.sp)
+                            }
+                        }
+
+                        // Banner informativo superior
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 6.dp)
+                                .background(Color(0xDD000000), RoundedCornerShape(10.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "📍 Mueve el mapa para ubicar el centro",
+                                fontFamily = Vt323,
+                                fontSize = 12.sp,
+                                color = Color.White
+                            )
+                        }
+
+                        // Controles Zoom
+                        Column(
+                            modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(cardBg.copy(alpha = 0.9f), RoundedCornerShape(4.dp))
+                                    .border(1.2.dp, borderColor, RoundedCornerShape(4.dp))
+                                    .clickable { mapViewRef?.controller?.zoomIn() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("➕", fontSize = 12.sp)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(cardBg.copy(alpha = 0.9f), RoundedCornerShape(4.dp))
+                                    .border(1.2.dp, borderColor, RoundedCornerShape(4.dp))
+                                    .clickable { mapViewRef?.controller?.zoomOut() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("➖", fontSize = 12.sp)
+                            }
+                        }
+
+                        // Botón GPS
+                        if (currentLat != 0.0 && currentLng != 0.0) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(6.dp)
+                                    .background(cardBg.copy(alpha = 0.92f), RoundedCornerShape(4.dp))
+                                    .border(1.2.dp, accentColor, RoundedCornerShape(4.dp))
+                                    .clickable {
+                                        selectedLat = currentLat
+                                        selectedLng = currentLng
+                                        mapViewRef?.controller?.animateTo(GeoPoint(currentLat, currentLng))
+                                        mapViewRef?.controller?.setZoom(16.5)
+                                    }
+                                    .padding(horizontal = 6.dp, vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("📍 Mi GPS", fontFamily = Vt323, fontSize = 13.sp, color = accentColor, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    // Dirección compacta
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(textColor.copy(alpha = 0.05f))
+                            .padding(horizontal = 6.dp, vertical = 3.dp)
+                    ) {
+                        if (addressText.isNotEmpty()) {
+                            Text(
+                                text = "📍 $addressText",
+                                fontFamily = Vt323,
+                                fontSize = 13.sp,
+                                color = textColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Text(
+                            text = "Coords: (${String.format(Locale.US, "%.5f", selectedLat)}, ${String.format(Locale.US, "%.5f", selectedLng)})",
+                            fontFamily = Vt323,
+                            fontSize = 11.sp,
+                            color = textColor.copy(alpha = 0.65f)
+                        )
+                    }
+
+                    // 3. Input de Nombre de la Zona
+                    Text(text = "Nombre de la Zona:", fontFamily = Vt323, fontSize = 14.sp, color = textColor)
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        placeholder = {
+                            Text(
+                                text = "Ej. Casa, Universidad, Trabajo...",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                color = textColor.copy(alpha = 0.5f)
+                            )
+                        },
+                        singleLine = true,
+                        maxLines = 1,
+                        textStyle = TextStyle(
+                            fontFamily = Vt323,
+                            fontSize = 16.sp,
+                            color = textColor
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = textColor,
+                            unfocusedTextColor = textColor,
+                            focusedContainerColor = cardBg,
+                            unfocusedContainerColor = cardBg,
+                            focusedBorderColor = accentColor,
+                            unfocusedBorderColor = borderColor,
+                            cursorColor = accentColor
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    )
+
+                    // 4. Selector de Icono / Emoji
+                    Text(text = "Icono de la Zona:", fontFamily = Vt323, fontSize = 14.sp, color = textColor)
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(emojis) { emoji ->
+                            val isSel = selectedEmoji == emoji
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .border(2.dp, if (isSel) accentColor else borderColor)
+                                    .background(if (isSel) accentColor.copy(alpha = 0.35f) else Color.Transparent)
+                                    .clickable { selectedEmoji = emoji },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = emoji, fontSize = 18.sp)
+                            }
+                        }
+                    }
+
+                    // 5. Selector de Radio de Cobertura
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "📍 Ubicación y Tamaño de la Zona:",
-                            fontFamily = Vt323,
-                            fontSize = 15.sp,
-                            color = textColor
-                        )
-                    }
-                    Text(
-                        text = "💡 Arrastra el centro 🏠 para mover • Arrastra el borde ↔️ o pellizca con 2 dedos para el radio",
-                        fontFamily = Vt323,
-                        fontSize = 13.sp,
-                        color = accentColor
-                    )
-                }
-
-                val scaleDetector = remember {
-                    ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-                        override fun onScale(detector: ScaleGestureDetector): Boolean {
-                            val factor = detector.scaleFactor
-                            if (factor > 0.05f && factor < 20f) {
-                                radiusMeters = (radiusMeters * factor).coerceIn(30f, 1000f)
-                            }
-                            return true
-                        }
-                    })
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp)
-                        .border(2.dp, borderColor)
-                        .clipToBounds()
-                ) {
-                    AndroidView(
-                        factory = { ctx ->
-                            MapView(ctx).apply {
-                                setTileSource(GOOGLE_MAPS_TILES)
-                                setMultiTouchControls(true)
-                                controller.setZoom(16.5)
-                                controller.setCenter(GeoPoint(selectedLat, selectedLng))
-
-                                setOnTouchListener { _, event ->
-                                    if (event.pointerCount >= 2) {
-                                        scaleDetector.onTouchEvent(event)
-                                    }
-                                    false
-                                }
-
-                                if (isDark) {
-                                    val matrix = ColorMatrix(floatArrayOf(
-                                        -0.85f, 0f, 0f, 0f, 240f,
-                                        0f, -0.85f, 0f, 0f, 240f,
-                                        0f, 0f, -0.75f, 0f, 255f,
-                                        0f, 0f, 0f, 1f, 0f
-                                    ))
-                                    overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(matrix))
-                                }
-
-                                val eventsReceiver = object : MapEventsReceiver {
-                                    override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
-                                        if (p != null) {
-                                            selectedLat = p.latitude
-                                            selectedLng = p.longitude
-                                            controller.animateTo(p)
-                                            return true
-                                        }
-                                        return false
-                                    }
-                                    override fun longPressHelper(p: GeoPoint?): Boolean {
-                                        if (p != null) {
-                                            selectedLat = p.latitude
-                                            selectedLng = p.longitude
-                                            controller.animateTo(p)
-                                            return true
-                                        }
-                                        return false
-                                    }
-                                }
-                                overlays.add(MapEventsOverlay(eventsReceiver))
-                                mapViewRef = this
-                            }
-                        },
-                        update = { mapView ->
-                            mapViewRef = mapView
-                            val centerGeo = GeoPoint(selectedLat, selectedLng)
-
-                            val eventsOverlay = mapView.overlays.firstOrNull { it is MapEventsOverlay }
-                            mapView.overlays.clear()
-                            if (eventsOverlay != null) {
-                                mapView.overlays.add(eventsOverlay)
-                            }
-
-                            // Dibujar círculo de cobertura de la geocerca (Sin globos de texto al tocar)
-                            val circlePoints = Polygon.pointsAsCircle(centerGeo, radiusMeters.toDouble())
-                            val circlePolygon = Polygon(mapView).apply {
-                                points = circlePoints
-                                fillPaint.color = android.graphics.Color.argb(55, 233, 30, 99)
-                                outlinePaint.color = android.graphics.Color.argb(220, 233, 30, 99)
-                                outlinePaint.strokeWidth = 3.5f
-                                infoWindow = null
-                                setOnClickListener { _, _, _ -> true }
-                            }
-                            mapView.overlays.add(circlePolygon)
-
-                            // Marcador central con el emoji seleccionado (Arrastrable para mover la zona)
-                            val centerMarker = Marker(mapView).apply {
-                                position = centerGeo
-                                title = selectedEmoji
-                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                                icon = BitmapDrawable(context.resources, createTextMarkerBitmap(selectedEmoji, 30))
-                                isDraggable = true
-                                infoWindow = null
-                                setInfoWindow(null)
-                                setOnMarkerClickListener { _, _ -> true }
-                                setOnMarkerDragListener(object : Marker.OnMarkerDragListener {
-                                    override fun onMarkerDragStart(marker: Marker?) {}
-                                    override fun onMarkerDrag(marker: Marker?) {
-                                        if (marker != null) {
-                                            selectedLat = marker.position.latitude
-                                            selectedLng = marker.position.longitude
-                                        }
-                                    }
-                                    override fun onMarkerDragEnd(marker: Marker?) {
-                                        if (marker != null) {
-                                            selectedLat = marker.position.latitude
-                                            selectedLng = marker.position.longitude
-                                        }
-                                    }
-                                })
-                            }
-                            mapView.overlays.add(centerMarker)
-
-                            // Manejador interactivo en el borde este del círculo (Arrastrable para redimensionar el radio)
-                            val handlePos = calculateOffsetGeoPoint(selectedLat, selectedLng, radiusMeters.toDouble(), 90.0)
-                            val resizeHandleMarker = Marker(mapView).apply {
-                                position = handlePos
-                                title = "Radio: ${radiusMeters.roundToInt()}m"
-                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                                icon = BitmapDrawable(context.resources, createResizeHandleBitmap(android.graphics.Color.parseColor("#E91E63")))
-                                isDraggable = true
-                                infoWindow = null
-                                setInfoWindow(null)
-                                setOnMarkerClickListener { _, _ -> true }
-                                setOnMarkerDragListener(object : Marker.OnMarkerDragListener {
-                                    override fun onMarkerDragStart(marker: Marker?) {}
-                                    override fun onMarkerDrag(marker: Marker?) {
-                                        if (marker != null) {
-                                            val dist = ThorRadarManager.calculateDistance(
-                                                selectedLat,
-                                                selectedLng,
-                                                marker.position.latitude,
-                                                marker.position.longitude
-                                            )
-                                            radiusMeters = dist.coerceIn(30f, 1000f)
-                                        }
-                                    }
-                                    override fun onMarkerDragEnd(marker: Marker?) {
-                                        if (marker != null) {
-                                            val dist = ThorRadarManager.calculateDistance(
-                                                selectedLat,
-                                                selectedLng,
-                                                marker.position.latitude,
-                                                marker.position.longitude
-                                            )
-                                            radiusMeters = dist.coerceIn(30f, 1000f)
-                                        }
-                                    }
-                                })
-                            }
-                            mapView.overlays.add(resizeHandleMarker)
-
-                            mapView.invalidate()
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
-
-                    // Controles flotantes de Zoom
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(cardBg.copy(alpha = 0.9f), RoundedCornerShape(4.dp))
-                                .border(1.5.dp, borderColor, RoundedCornerShape(4.dp))
-                                .clickable { mapViewRef?.controller?.zoomIn() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("➕", fontSize = 14.sp)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(cardBg.copy(alpha = 0.9f), RoundedCornerShape(4.dp))
-                                .border(1.5.dp, borderColor, RoundedCornerShape(4.dp))
-                                .clickable { mapViewRef?.controller?.zoomOut() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("➖", fontSize = 14.sp)
-                        }
-                    }
-
-                    // Botón para volver a mi ubicación GPS actual
-                    if (currentLat != 0.0 && currentLng != 0.0) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(8.dp)
-                                .background(cardBg.copy(alpha = 0.92f), RoundedCornerShape(4.dp))
-                                .border(1.5.dp, accentColor, RoundedCornerShape(4.dp))
-                                .clickable {
-                                    selectedLat = currentLat
-                                    selectedLng = currentLng
-                                    mapViewRef?.controller?.animateTo(GeoPoint(currentLat, currentLng))
-                                    mapViewRef?.controller?.setZoom(16.5)
-                                }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("🎯 Mi GPS Actual", fontFamily = Vt323, fontSize = 14.sp, color = accentColor, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-
-                // Dirección y coordenadas del punto actual
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(textColor.copy(alpha = 0.05f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    if (addressText.isNotEmpty()) {
-                        Text(
-                            text = "📍 $addressText",
+                            text = "Radio de Cobertura:",
                             fontFamily = Vt323,
                             fontSize = 14.sp,
-                            color = textColor,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            color = textColor
+                        )
+                        Text(
+                            text = "${radiusMeters.roundToInt()} metros",
+                            fontFamily = Vt323,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = accentColor
                         )
                     }
-                    Text(
-                        text = "Coordenadas: (${String.format(Locale.US, "%.5f", selectedLat)}, ${String.format(Locale.US, "%.5f", selectedLng)})",
-                        fontFamily = Vt323,
-                        fontSize = 12.sp,
-                        color = textColor.copy(alpha = 0.65f)
+
+                    Slider(
+                        value = radiusMeters,
+                        onValueChange = {
+                            radiusMeters = it
+                            mapViewRef?.postInvalidate()
+                        },
+                        valueRange = 30f..800f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = accentColor,
+                            activeTrackColor = accentColor,
+                            inactiveTrackColor = borderColor.copy(alpha = 0.3f)
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(28.dp)
                     )
-                }
 
-                // 3. Input de Nombre de la Zona
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = {
-                        Text(
-                            text = "Nombre de la zona (ej. Casa, Universidad, Trabajo)",
-                            fontFamily = Vt323,
-                            color = textColor.copy(alpha = 0.7f)
-                        )
-                    },
-                    singleLine = true,
-                    textStyle = TextStyle(
-                        fontFamily = Vt323,
-                        fontSize = 18.sp,
-                        color = textColor
-                    ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = textColor,
-                        unfocusedTextColor = textColor,
-                        focusedContainerColor = cardBg,
-                        unfocusedContainerColor = cardBg,
-                        focusedLabelColor = accentColor,
-                        unfocusedLabelColor = textColor.copy(alpha = 0.7f),
-                        focusedBorderColor = accentColor,
-                        unfocusedBorderColor = borderColor,
-                        cursorColor = accentColor
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // 4. Selector de Icono / Emoji Ampliado
-                Text(text = "Icono de la Zona:", fontFamily = Vt323, fontSize = 15.sp, color = textColor)
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(emojis) { emoji ->
-                        val isSel = selectedEmoji == emoji
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .border(2.dp, if (isSel) accentColor else borderColor)
-                                .background(if (isSel) accentColor.copy(alpha = 0.35f) else Color.Transparent)
-                                .clickable { selectedEmoji = emoji },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = emoji, fontSize = 22.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf(50f to "50m", 100f to "100m", 200f to "200m", 350f to "350m", 500f to "500m").forEach { (r, label) ->
+                            val isSel = (radiusMeters.roundToInt() == r.roundToInt())
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .border(1.2.dp, if (isSel) accentColor else borderColor)
+                                    .background(if (isSel) accentColor.copy(alpha = 0.35f) else Color.Transparent)
+                                    .clickable {
+                                        radiusMeters = r
+                                        mapViewRef?.postInvalidate()
+                                    }
+                                    .padding(vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontFamily = Vt323,
+                                    fontSize = 13.sp,
+                                    color = textColor,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }
 
-                // 5. Selector de Radio de Cobertura con Feedback
+                Spacer(modifier = Modifier.height(4.dp))
+                HorizontalDivider(color = borderColor.copy(alpha = 0.35f), thickness = 1.dp)
+
+                // 3. Botones de acción fijos en la parte inferior
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Radio de Cobertura:",
-                        fontFamily = Vt323,
-                        fontSize = 15.sp,
-                        color = textColor
-                    )
-                    Text(
-                        text = "${radiusMeters.roundToInt()} metros",
-                        fontFamily = Vt323,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = accentColor
-                    )
-                }
-
-                Slider(
-                    value = radiusMeters,
-                    onValueChange = { radiusMeters = it },
-                    valueRange = 30f..1000f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = accentColor,
-                        activeTrackColor = accentColor,
-                        inactiveTrackColor = borderColor.copy(alpha = 0.3f)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Botones rápidos de preset de radio
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    listOf(50f to "50m", 100f to "100m", 150f to "150m", 250f to "250m", 500f to "500m", 800f to "800m", 1000f to "1km").forEach { (r, label) ->
-                        val isSel = (radiusMeters.roundToInt() == r.roundToInt())
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .border(1.5.dp, if (isSel) accentColor else borderColor)
-                                .background(if (isSel) accentColor.copy(alpha = 0.35f) else Color.Transparent)
-                                .clickable { radiusMeters = r }
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                fontFamily = Vt323,
-                                fontSize = 13.sp,
-                                color = textColor,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Botones de acción
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
                     TextButton(onClick = onDismiss) {
-                        Text("CANCELAR", fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                        Text("CANCELAR", fontFamily = Vt323, fontSize = 15.sp, color = textColor)
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Button(
                         onClick = {
                             if (name.isBlank()) {
                                 Toast.makeText(context, "Ingresa un nombre para el lugar", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            val zoneId = UUID.randomUUID().toString()
-                            val newZone = RadarPlaceZone(
+                            val zoneId = existingZone?.id?.ifEmpty { UUID.randomUUID().toString() } ?: UUID.randomUUID().toString()
+                            val placeZone = RadarPlaceZone(
                                 id = zoneId,
                                 name = name.trim(),
                                 icon = selectedEmoji,
                                 latitude = selectedLat,
                                 longitude = selectedLng,
                                 radiusMeters = radiusMeters,
-                                addedBy = userId
+                                addedBy = existingZone?.addedBy?.ifEmpty { userId } ?: userId
                             )
                             FirebaseFirestore.getInstance()
                                 .collection("locations").document(coupleId)
                                 .collection("zones").document(zoneId)
-                                .set(newZone.toMap())
+                                .set(placeZone.toMap())
                                 .addOnSuccessListener {
-                                    Toast.makeText(context, "Zona '${name.trim()}' guardada con éxito", Toast.LENGTH_SHORT).show()
+                                    val msg = if (isEditing) "Zona '${name.trim()}' actualizada con éxito" else "Zona '${name.trim()}' guardada con éxito"
+                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    onZoneSaved?.invoke()
                                     onDismiss()
                                 }
                                 .addOnFailureListener { e ->
@@ -2588,9 +2704,11 @@ fun AddZoneDialog(
                                 }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                        shape = RoundedCornerShape(0.dp)
+                        shape = RoundedCornerShape(0.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Text("💾 GUARDAR ZONA", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                        val btnText = if (isEditing) "💾 GUARDAR CAMBIOS" else "💾 GUARDAR ZONA"
+                        Text(btnText, fontFamily = Vt323, fontSize = 15.sp, color = Color.White)
                     }
                 }
             }

@@ -73,6 +73,15 @@ class SettingsFragment : Fragment() {
                 var useCustomBg by remember {
                     mutableStateOf(prefs?.getBoolean("useCustomBg", false) ?: false)
                 }
+                var currentLightColor by remember {
+                    mutableStateOf(prefs?.getString("lightColor", "#D1C4E9") ?: "#D1C4E9")
+                }
+                var currentDarkColor by remember {
+                    mutableStateOf(prefs?.getString("darkColor", "#4A148C") ?: "#4A148C")
+                }
+                var showTopBar by remember {
+                    mutableStateOf(prefs?.getBoolean("showTopBar", true) ?: true)
+                }
                 var currentCacheLimit by remember { 
                     mutableStateOf(prefs?.getLong("cacheSizeLimit", 100L) ?: 100L) 
                 }
@@ -343,19 +352,22 @@ class SettingsFragment : Fragment() {
                         onBgPreferenceChange = { newVal ->
                             useCustomBg = newVal
                             prefs?.edit()?.putBoolean("useCustomBg", newVal)?.apply()
-                            val lightCol = prefs?.getString("lightColor", "#D1C4E9")
-                            val darkCol = prefs?.getString("darkColor", "#4A148C")
-                            act?.applyTheme(currentTheme, lightCol, darkCol)
+                            act?.applyTheme(currentTheme, currentLightColor, currentDarkColor)
                             updateFirestoreSetting("useCustomBg", newVal)
+                        },
+                        showTopBar = showTopBar,
+                        onShowTopBarChange = { newVal ->
+                            showTopBar = newVal
+                            prefs?.edit()?.putBoolean("showTopBar", newVal)?.apply()
+                            act?.updateTopBarVisibility()
+                            updateFirestoreSetting("showTopBar", newVal)
                         },
                         versionName = BuildConfig.VERSION_NAME,
                         onThemeChange = { newTheme ->
                             currentTheme = newTheme
                             theme = newTheme // Actualizar la propiedad del fragmento también
                             prefs?.edit()?.putString("theme", newTheme)?.apply()
-                            val lightCol = prefs?.getString("lightColor", "#D1C4E9")
-                            val darkCol = prefs?.getString("darkColor", "#4A148C")
-                            act?.applyTheme(newTheme, lightCol, darkCol)
+                            act?.applyTheme(newTheme, currentLightColor, currentDarkColor)
                             updateFirestoreSetting("theme", newTheme)
                         },
                         onCheckUpdates = {
@@ -375,15 +387,19 @@ class SettingsFragment : Fragment() {
                         onColorSelect = { colorHex ->
                             val isDark = currentTheme == "Pixel Oscuro"
                             if (isDark) {
+                                currentDarkColor = colorHex
                                 prefs?.edit()?.putString("darkColor", colorHex)?.apply()
-                                act?.applyTheme(currentTheme, null, colorHex)
+                                act?.applyTheme(currentTheme, currentLightColor, colorHex)
                                 updateFirestoreSetting("darkColor", colorHex)
                             } else {
+                                currentLightColor = colorHex
                                 prefs?.edit()?.putString("lightColor", colorHex)?.apply()
-                                act?.applyTheme(currentTheme, colorHex, null)
+                                act?.applyTheme(currentTheme, colorHex, currentDarkColor)
                                 updateFirestoreSetting("lightColor", colorHex)
                             }
                         },
+                        currentLightColor = currentLightColor,
+                        currentDarkColor = currentDarkColor,
                         currentCacheLimit = currentCacheLimit,
                         onCacheLimitChange = { newLimit ->
                             currentCacheLimit = newLimit

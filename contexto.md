@@ -136,7 +136,10 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
   - `batteryLevel: Int`, `isCharging: Boolean`, `activity: String` (`"STILL"`, `"WALKING"`, `"IN_VEHICLE"`)
   - `currentZone: String`, `address: String`, `timestamp: Long`, `isSharing: Boolean`, `sosActive: Boolean`, `sosTimestamp: Long`
 - **Zonas Seguras (`locations/<coupleId>/zones/<zoneId>`)**:
-  - `id: String`, `name: String`, `icon: String`, `latitude: Double`, `longitude: Double`, `radiusMeters: Float` (30m a 800m ajustable), `addedBy: String`
+  - `id: String`, `name: String`, `icon: String`, `latitude: Double`, `longitude: Double`, `radiusMeters: Float` (30m a 800m ajustable con slider y chips rápidos 50m, 100m, 200m, 350m, 500m), `addedBy: String`
+  - **Selector de Zonas con Retículo Central Fijo**: Modelo estilo Uber / Life360 donde el mapa se desplaza suavemente bajo una mira central con el emoji del lugar y `CenterZoneOverlay` dibuja el círculo de geocerca en tiempo real en la GPU a 60/120 FPS sin recomposiciones ni saltos de puntero.
+  - **Edición Completa**: Soporte para crear y editar zonas existentes (cambiar nombre, icono, radio y ubicación) mediante el botón `✏️ EDITAR`.
+  - **Filtrado de Notificaciones Push FCM**: `MyFirebaseMessagingService` y `ThorRadarManager` envían y procesan Data-Only messages filtrando para que solo lleguen alertas de entrada/salida y SOS emitidas por la pareja, suprimiendo las autogeneradas.
 
 ### H. Metadatos de Sincronización Drive (`pets/<coupleId>/drive_sync_metadata/<docId>`)
 - `idLocal: String`, `idDrive: String`, `nombreArchivo: String`, `uriLocal: String`, `md5Checksum: String`, `fechaModificacion: Long`, `sincronizadoPor: String`, `eliminado: Boolean`.
@@ -300,22 +303,42 @@ graph TD
 6. **Manejo Integral del Botón Atrás del Sistema (`BackHandler`):**
    - Integrado `BackHandler` en **Configuración**, **Álbum** (Álbum General / Momentos) y **Misceláneos** (Espíritus, Anime, Medicamentos, Horario, Web).
    - Ahora, presionar el botón físico o gesto de volver del celular regresa limpiamente al menú de carpetas o menú raíz de la sección en lugar de salir abruptamente hacia la vista de Cartas (Home).
+7. **Optimización en Diseño y Tema (`SettingsFragment.kt` & `ProfileSettingsCompose.kt`):**
+   - **Agrupación por Familias Cromáticas en Filas Dedicadas:**
+     - **Modo Claro:**
+       - *🌸 Rosas y Corales:* Rosa Bebé (`#F8BBD0`), Flor de Cerezo (`#FFCDD2`), Leche de Fresa (`#FCE4EC`), Rosa Niebla (`#F3E5F5`).
+       - *💜 Púrpuras y Lilas:* Lavanda (`#D1C4E9`), Lila Pastel (`#E1BEE7`), Bígaro (`#C5CAE9`).
+       - *🩵 Azules y Aqua:* Algodón de Azúcar (`#E1F5FE`), Azul Cielo (`#B3E5FC`), Aqua Turquesa (`#B2EBF2`).
+       - *🍃 Verdes y Matcha:* Menta Dulce (`#C8E6C9`), Matcha (`#DCEDC8`), Oliva Suave (`#DCE775`).
+       - *☀️ Cálidos y Latte:* Amarillo Mantequilla (`#FFF59D`), Mandarina (`#FFE57F`), Durazno (`#FFE0B2`), Beige Latte (`#D7CCC8`).
+     - **Modo Oscuro:**
+       - *❤️ Rojos y Vinos:* Carmesí Sangre (`#B71C1C`), Magenta Neón (`#C2185B`), Burdeos (`#880E4F`), Óxido Caoba (`#BF360C`).
+       - *💜 Púrpuras y Violetas:* Púrpura Imperial (`#4A148C`), Violeta Synthwave (`#6A1B9A`), Casis Ciruela (`#4A0E4E`).
+       - *💙 Azules e Índigos:* Azul Marino Noche (`#0D47A1`), Índigo Profundo (`#1A237E`), Pizarra Denim (`#37474F`).
+       - *🌲 Verdes y Teals:* Océano Profundo (`#006064`), Jade Esmeralda (`#004D40`), Verde Bosque (`#1B5E20`), Oliva Oscuro (`#33691E`).
+       - *🔥 Cálidos y Neutros:* Ámbar Quemado (`#E65100`), Chocolate Espresso (`#3E2723`), Grafito Carbón (`#263238`).
+   - **Indicador Visual de Color Activo:** Resalta nítidamente el color seleccionado con un borde reforzado (3dp), tamaño destacado (38dp vs 32dp) y un checkmark `✓` retro centrado de alto contraste (blanco o negro según la luminosidad del color).
+   - **Interruptor para Barra Superior ('Nuestro Diario'):** Nueva opción en *Diseño y Tema* para ocultar o mostrar el recuadro superior del título (`showTopBar`), permitiendo una experiencia inmersiva a pantalla completa o con cabecera tradicional.
+   - **Actualización Reactiva Inmediata del Fondo y Contenedores:** El fondo de la pantalla y de toda la app (`getAppBackgroundColor`) y los contenedores de texto se recalculan dinámicamente en tiempo real al instante al cambiar de color o al alternar la casilla *"Aplicar color también al fondo"* (`useCustomBg`).
 
 ---
 
-## 13. Thor Radar: Ubicación en Tiempo Real, Geocercas, Notificaciones de Zonas & Alertas SOS (v1.7.41)
+## 13. Thor Radar: Ubicación en Tiempo Real, Geocercas, Edición de Zonas, Notificaciones & Alertas SOS
 
 1. **Arquitectura y Servicios de Rastreo (`ThorRadarManager.kt` & `ThorRadarService.kt`):**
    - **Foreground Service con Notificación Persistente:** `ThorRadarService` utiliza `LocationManager` y `FusedLocationProviderClient` con prioridad `PRIORITY_HIGH_ACCURACY` para emitir actualizaciones de ubicación, porcentaje de batería en tiempo real y estado de carga (`isCharging`).
    - **Mapeo Robusto de Identidad:** Detección confiable de usuario (`ali` vs `kevin`) basada en `userId` y `userName` en `SharedPreferences`, normalizando automáticamente la ruta `locations/<coupleId>/users/<docName>`.
    - **Emisión de Latidos (Heartbeats):** Registro automático de cambios de estado, detección de actividad (`STILL`, `WALKING`, `IN_VEHICLE`) por velocidad GPS y geocodificación inversa para dirección física (`thoroughfare`, `locality`).
-   - **Notificaciones Push Automáticas de Zonas Seguras (FCM v1):** Detección en segundo plano de transiciones de geocerca con histeresis (+20m buffer) y debounce anti-spam. Notifica automáticamente a la pareja al llegar (`🏠 ¡[Nombre] llegó a [Zona]!`) o salir (`🚗 ¡[Nombre] salió de [Zona]!`). Al pulsar la notificación, abre la app directamente en Thor Radar.
+   - **Notificaciones Push Automáticas de Zonas Seguras (FCM v1 Data-Only):** Detección en segundo plano de transiciones de geocerca con histeresis (+20m buffer) y debounce anti-spam. Notifica automáticamente a la pareja al llegar (`🏠 ¡[Nombre] llegó a [Zona]!`) o salir (`🚗 ¡[Nombre] salió de [Zona]!`). Se envían payloads *Data-Only* con `authorId` y `authorName` filtrados en `MyFirebaseMessagingService.kt` para garantizar que la persona que se mueve nunca reciba sus propias notificaciones.
 
-2. **Buscador de Direcciones & Selector Cómodo de Zonas (`AddZoneDialog`):**
-   - **Búsqueda Geocodificada Inteligente:** Campo de búsqueda por dirección o nombre de lugar (ej. universidades, calles, locales) con doble motor (Android `Geocoder` + fallback OpenStreetMap Nominatim), desplegable de resultados con botón directo `ELEGIR ➔` y auto-completado de nombre.
-   - **Interacción Táctil en Mapa:** Permite mover la zona tocando cualquier punto en el mapa interactivo (`MapEventsOverlay`), con controles flotantes de zoom (`➕`/`➖`) y botón directo `🎯 Mi GPS Actual`.
+2. **Editor Interactivo de Zonas (`AddEditZoneDialog` & `CenterZoneOverlay`):**
+   - **Sistema de Retícula Central Fija (`CenterZoneOverlay`):** El mapa se mueve libremente por debajo del visor manteniendo una retícula central fija con radio de cobertura visible en tiempo real (círculo proporcional con borde punteado y radio en metros `R: 120m`). Al mover el mapa o ajustar el radio con el slider o presets (`50m` a `1km`), la zona se actualiza instantáneamente con las coordenadas del centro del mapa.
+   - **Búsqueda en Vivo Tipo Google Maps con Formato Chileno:** Búsqueda reactiva con autocompletado en tiempo real mientras el usuario escribe (debounce de 350ms). Prioriza resultados de Chile (`Locale("es", "CL")` y OpenStreetMap Nominatim con `countrycodes=cl`), formateando explícitamente:
+     - **Título:** Calle y Número / Nombre del Lugar (ej. *Av. Providencia 1234*, *Mall Plaza Vespucio*).
+     - **Subtítulo:** Comuna, Región y País (ej. *Providencia, Región Metropolitana, Chile*).
+   - **Controles de Precisión:** Slider de 30m a 1000m, botones de micro-ajuste fino `[-10]` y `[+10]` metros, chips de radio rápido (`50m` a `1km`), botón `🎯 Centrar Aquí` y botón `📍 Mi GPS`.
+   - **Edición Completa de Zonas Creadas:** Capacidad de editar nombre, emoji, coordenadas y radio de zonas existentes directamente desde la lista de `🏠 ZONAS` (botón `✏️ EDITAR` o tocar la tarjeta) y desde el mapa `🗺️ MAPA` al pulsar sobre cualquier zona.
    - **Selector de Iconos Ampliado:** Emojis retro ampliados (`🏠`, `🎓`, `💼`, `🏋️`, `☕`, `🍔`, `🛒`, `❤️`, `🌲`, `🏥`, `🎮`, `🚗`, `✈️`, `🏖️`, `🐾`).
-   - **Control de Radio con Feedback:** Slider interactivo de 30m a 1000m con valor numérico en vivo y chips rápidos (`50m`, `100m`, `150m`, `250m`, `500m`, `800m`, `1km`).
 
 3. **Renderizado de Mapas Limpio & Sin Marcas de Agua:**
    - **Fuente de Teselas Estándar de Google Maps (`GOOGLE_MAPS_TILES`):** Implementada mediante `OnlineTileSourceBase` en Osmdroid sin necesidad de API keys de pago, marcas de agua ni saturación visual de POIs.
@@ -328,9 +351,9 @@ graph TD
    - **Cuenta Regresiva de Seguridad y Cancelación:** Diálogo visual con cuenta atrás de 3 segundos (`[ ❌ CANCELAR ]` / `[ 🚨 ENVIAR YA ]`), banner rojo pulsante y botón de desactivación segura (`[ ✅ DESACTIVAR SOS (ESTOY BIEN) ]`).
 
 5. **Módulos Optimizados (4 Pestañas Claras):**
-   - `🗺️ MAPA`: Mapa satelital con auto-centrado inteligente (`BoundingBox`), controles flotantes de zoom, centrado en ambos, centrado en pareja y centrado en uno mismo.
+   - `🗺️ MAPA`: Mapa satelital con auto-centrado inteligente (`BoundingBox`), controles flotantes de zoom, centrado en ambos, centrado en pareja y centrado en uno mismo, y tarjeta emergente de edición al tocar zonas.
    - `🧭 BRÚJULA`: Brújula de amor con rotación animada suave (`spring`), ángulo exacto, distancia calculada (`km`/`m`) y estado "¡Juntos en el mismo lugar!".
-   - `🏠 ZONAS`: Listado de geocercas registradas con opción de creación y eliminación instantánea.
+   - `🏠 ZONAS`: Listado de geocercas registradas con botón `✏️ EDITAR`, eliminación instantánea y creación.
    - `⚙️ AJUSTES`: Configuración de compartición de ubicación, modo ahorro de batería, permisos y estado de los sensores.
 
 ---

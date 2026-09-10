@@ -634,13 +634,9 @@ object ThorRadarManager {
                 val jsonBody = JSONObject().apply {
                     val message = JSONObject().apply {
                         put("topic", topicName)
-                        val notification = JSONObject().apply {
-                            put("title", "🚨 ¡ALERTA SOS DE $senderName!")
-                            put("body", "¡$senderName ha activado la alerta de emergencia en Thor Radar! Toca para ver su ubicación en vivo.")
-                        }
-                        put("notification", notification)
                         val data = JSONObject().apply {
                             put("authorId", senderId)
+                            put("authorName", senderName)
                             put("click_type", "sos")
                             put("type", "sos")
                             put("title", "🚨 ¡ALERTA SOS DE $senderName!")
@@ -649,12 +645,6 @@ object ThorRadarManager {
                         put("data", data)
                         val android = JSONObject().apply {
                             put("priority", "HIGH")
-                            val androidNotif = JSONObject().apply {
-                                put("channel_id", "diario_channel")
-                                put("sound", "default")
-                                put("default_vibrate_timings", true)
-                            }
-                            put("notification", androidNotif)
                         }
                         put("android", android)
                     }
@@ -780,13 +770,9 @@ object ThorRadarManager {
                 val jsonBody = JSONObject().apply {
                     val message = JSONObject().apply {
                         put("topic", topicName)
-                        val notification = JSONObject().apply {
-                            put("title", title)
-                            put("body", body)
-                        }
-                        put("notification", notification)
                         val data = JSONObject().apply {
                             put("authorId", senderId)
+                            put("authorName", senderName)
                             put("click_type", "radar")
                             put("type", "radar")
                             put("title", title)
@@ -795,12 +781,6 @@ object ThorRadarManager {
                         put("data", data)
                         val android = JSONObject().apply {
                             put("priority", "HIGH")
-                            val androidNotif = JSONObject().apply {
-                                put("channel_id", "diario_channel")
-                                put("sound", "default")
-                                put("default_vibrate_timings", true)
-                            }
-                            put("notification", androidNotif)
                         }
                         put("android", android)
                     }
@@ -828,31 +808,127 @@ object ThorRadarManager {
         val cleanQuery = query.trim()
         if (cleanQuery.length < 2) return@withContext emptyList()
         val results = mutableListOf<RadarSearchResult>()
+        val seenCoords = mutableSetOf<String>()
 
-        // 1. Intentar Geocoder nativo de Android
+        fun addResult(title: String, subtitle: String, lat: Double, lon: Double) {
+            val key = "${String.format(Locale.US, "%.4f", lat)}_${String.format(Locale.US, "%.4f", lon)}"
+            if (!seenCoords.contains(key)) {
+                seenCoords.add(key)
+                results.add(RadarSearchResult(title, subtitle, lat, lon))
+            }
+        }
+
+        // 1. Intentar Geocoder nativo de Android con Locale de Chile
         try {
-            val geocoder = Geocoder(context, Locale.getDefault())
+            val chileLocale = Locale("es", "CL")
+            val geocoder = Geocoder(context, chileLocale)
             @Suppress("DEPRECATION")
             val addresses = geocoder.getFromLocationName(cleanQuery, 6)
             if (!addresses.isNullOrEmpty()) {
                 for (addr in addresses) {
-                    val title = addr.featureName ?: addr.thoroughfare ?: addr.locality ?: cleanQuery
-                    val parts = listOfNotNull(
-                        addr.thoroughfare?.takeIf { it != title },
-                        addr.subLocality,
-                        addr.locality,
-                        addr.adminArea,
-                        addr.countryName
-                    ).filter { it.isNotBlank() }
-                    val subtitle = if (parts.isNotEmpty()) parts.joinToString(", ") else "(${String.format(Locale.US, "%.4f", addr.latitude)}, ${String.format(Locale.US, "%.4f", addr.longitude)})"
-                    results.add(RadarSearchResult(title, subtitle, addr.latitude, addr.longitude))
+                    val street = listOfNotNull(addr.thoroughfare, addr.subThoroughfare).filter { it.isNotBlank() }.joinToString(" ")
+                    val placeName = addr.featureName?.takeIf { it.isNotBlank() && it != addr.subThoroughfare && it != addr.thoroughfare }
+
+                    val title = when {
+                        placeName != null && street.isNotEmpty() -> "$placeName ($street)"
+                        placeName != null -> placeName
+                        street.isNotEmpty() -> street
+                        !addr.locality.isNullOrBlank() -> addr.locality
+                        else -> cleanQuery
+                    }
+
+                    val comuna = listOfNotNull(addr.subLocality, addr.locality, addr.subAdminArea).firstOrNull { it.isNotBlank() && it != title }
+                    val region = addr.adminArea?.takeIf { it.isNotBlank() && it != comuna }
+                    val country = addr.countryName?.takeIf { it.isNotBlank() } ?: "Chile"
+
+                    val subtitleParts = listOfNotNull(comuna, region, country).distinct()
+                    val subtitle = if (subtitleParts.isNotEmpty()) {
+                        subtitleParts.joinToString(", ")
+                    } else {
+                        "(${String.format(Locale.US, "%.4f", addr.latitude)}, ${String.format(Locale.US, "%.4f", addr.longitude)})"
+                    }
+
+                    addResult(title, subtitle, addr.latitude, addr.longitude)
                 }
             }
         } catch (e: Exception) {
             Log.w(TAG, "Geocoder search error: ${e.message}")
         }
 
-        // 2. Fallback con OpenStreetMap Nominatim si Geocoder da 0 resultados o falla
+        // 2. OpenStreetMap Nominatim con prioridad Chile (countrycodes=cl)
+        if (results.size < 6) {
+            try {
+                val encoded = URLEncoder.encode(cleanQuery, "UTF-8")
+                val url = "https://nominatim.openstreetmap.org/search?q=$encoded&format=json&addressdetails=1&countrycodes=cl&limit=8"
+                val request = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "DiarioAliKevin/1.0 (contact@diarioapp.local)")
+                    .build()
+                val response = DiarioApp.getOkHttpClient().newCall(request).execute()
+                if (response.isSuccessful) {
+                    val body = response.body?.string()
+                    if (!body.isNullOrEmpty()) {
+                        val arr = JSONArray(body)
+                        for (i in 0 until arr.length()) {
+                            val obj = arr.getJSONObject(i)
+                            val lat = obj.getDouble("lat")
+                            val lon = obj.getDouble("lon")
+                            val name = obj.optString("name")
+                            val addrDetails = obj.optJSONObject("address")
+
+                            var road = ""
+                            var houseNum = ""
+                            var comuna = ""
+                            var region = ""
+                            var country = "Chile"
+
+                            if (addrDetails != null) {
+                                road = addrDetails.optString("road")
+                                houseNum = addrDetails.optString("house_number")
+                                comuna = addrDetails.optString("municipality").ifEmpty {
+                                    addrDetails.optString("city_district").ifEmpty {
+                                        addrDetails.optString("suburb").ifEmpty {
+                                            addrDetails.optString("city").ifEmpty {
+                                                addrDetails.optString("town").ifEmpty {
+                                                    addrDetails.optString("county")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                region = addrDetails.optString("state").ifEmpty {
+                                    addrDetails.optString("region")
+                                }
+                                country = addrDetails.optString("country", "Chile")
+                            }
+
+                            val streetPart = listOf(road, houseNum).filter { it.isNotBlank() }.joinToString(" ")
+                            val title = when {
+                                name.isNotBlank() && streetPart.isNotBlank() && name != road -> "$name ($streetPart)"
+                                name.isNotBlank() -> name
+                                streetPart.isNotBlank() -> streetPart
+                                else -> obj.getString("display_name").split(",").firstOrNull()?.trim() ?: cleanQuery
+                            }
+
+                            val subtitleParts = listOf(comuna, region, country).filter { it.isNotBlank() && it != title }.distinct()
+                            val subtitle = if (subtitleParts.isNotEmpty()) {
+                                subtitleParts.joinToString(", ")
+                            } else {
+                                val disp = obj.optString("display_name")
+                                if (disp.contains(",")) disp.substringAfter(",").trim() else disp
+                            }
+
+                            addResult(title, subtitle, lat, lon)
+                        }
+                    }
+                }
+                response.close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Nominatim search error: ${e.message}")
+            }
+        }
+
+        // 3. Fallback a Nominatim global si aún no hay resultados
         if (results.isEmpty()) {
             try {
                 val encoded = URLEncoder.encode(cleanQuery, "UTF-8")
@@ -875,13 +951,13 @@ object ThorRadarManager {
                                 disp.split(",").firstOrNull()?.trim() ?: cleanQuery
                             }
                             val subtitle = if (disp.contains(",")) disp.substringAfter(",").trim() else disp
-                            results.add(RadarSearchResult(name, subtitle, lat, lon))
+                            addResult(name, subtitle, lat, lon)
                         }
                     }
                 }
                 response.close()
             } catch (e: Exception) {
-                Log.w(TAG, "Nominatim search error: ${e.message}")
+                Log.w(TAG, "Global nominatim error: ${e.message}")
             }
         }
 
@@ -891,21 +967,22 @@ object ThorRadarManager {
     suspend fun getReverseAddress(context: Context, lat: Double, lon: Double): String = withContext(Dispatchers.IO) {
         if (lat == 0.0 && lon == 0.0) return@withContext ""
         try {
-            val geocoder = Geocoder(context, Locale.getDefault())
+            val geocoder = Geocoder(context, Locale("es", "CL"))
             @Suppress("DEPRECATION")
             val addresses = geocoder.getFromLocation(lat, lon, 1)
             if (!addresses.isNullOrEmpty()) {
                 val addr = addresses[0]
                 val thoroughfare = addr.thoroughfare ?: ""
                 val subThoroughfare = addr.subThoroughfare ?: ""
-                val locality = addr.locality ?: addr.subAdminArea ?: ""
                 val street = if (thoroughfare.isNotEmpty()) {
                     if (subThoroughfare.isNotEmpty()) "$thoroughfare $subThoroughfare" else thoroughfare
                 } else ""
-                if (street.isNotEmpty()) {
-                    return@withContext if (locality.isNotEmpty()) "$street, $locality" else street
-                } else if (locality.isNotEmpty()) {
-                    return@withContext locality
+                val comuna = listOfNotNull(addr.subLocality, addr.locality, addr.subAdminArea).firstOrNull { it.isNotBlank() } ?: ""
+                val region = addr.adminArea?.takeIf { it.isNotBlank() && it != comuna } ?: ""
+
+                val parts = listOf(street, comuna, region).filter { it.isNotBlank() }
+                if (parts.isNotEmpty()) {
+                    return@withContext parts.joinToString(", ")
                 }
             }
         } catch (e: Exception) {

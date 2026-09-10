@@ -80,18 +80,22 @@ fun setOverlayContent(
 }
 
 @Composable
-fun getAppBackgroundColor(theme: String): Color {
+fun getAppBackgroundColor(
+    theme: String,
+    useCustomBg: Boolean? = null,
+    customColor: String? = null
+): Color {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
-    val useCustomBg = prefs.getBoolean("useCustomBg", false)
+    val isCustomBg = useCustomBg ?: prefs.getBoolean("useCustomBg", false)
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
     
     return when {
         isMono -> Color.White
         isDark -> {
-            if (useCustomBg) {
-                val darkColorStr = prefs.getString("darkColor", "#4A148C") ?: "#4A148C"
+            if (isCustomBg) {
+                val darkColorStr = customColor ?: prefs.getString("darkColor", "#4A148C") ?: "#4A148C"
                 try {
                     val baseColor = Color(android.graphics.Color.parseColor(darkColorStr))
                     baseColor.toDarkVariant()
@@ -103,8 +107,8 @@ fun getAppBackgroundColor(theme: String): Color {
             }
         }
         else -> {
-            if (useCustomBg) {
-                val lightColorStr = prefs.getString("lightColor", "#D1C4E9") ?: "#D1C4E9"
+            if (isCustomBg) {
+                val lightColorStr = customColor ?: prefs.getString("lightColor", "#D1C4E9") ?: "#D1C4E9"
                 try {
                     val baseColor = Color(android.graphics.Color.parseColor(lightColorStr))
                     baseColor.toPastelVariant()
@@ -115,6 +119,16 @@ fun getAppBackgroundColor(theme: String): Color {
                 Color(0xFFF5E6BE) // Cream / Stardew Valley color
             }
         }
+    }
+}
+
+fun isColorLight(colorHex: String): Boolean {
+    return try {
+        val colorInt = android.graphics.Color.parseColor(colorHex)
+        val darkness = 1 - (0.299 * android.graphics.Color.red(colorInt) + 0.587 * android.graphics.Color.green(colorInt) + 0.114 * android.graphics.Color.blue(colorInt)) / 255
+        darkness < 0.5
+    } catch (e: Exception) {
+        false
     }
 }
 

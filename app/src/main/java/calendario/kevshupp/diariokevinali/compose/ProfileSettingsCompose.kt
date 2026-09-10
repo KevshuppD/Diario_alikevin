@@ -649,12 +649,16 @@ fun SettingsScreen(
     currentTheme: String,
     useCustomBg: Boolean,
     onBgPreferenceChange: (Boolean) -> Unit,
+    showTopBar: Boolean = true,
+    onShowTopBarChange: (Boolean) -> Unit = {},
     versionName: String,
     onThemeChange: (String) -> Unit,
     onCheckUpdates: () -> Unit,
     onLogout: () -> Unit,
     onBack: () -> Unit,
     onColorSelect: (String) -> Unit,
+    currentLightColor: String = "#D1C4E9",
+    currentDarkColor: String = "#4A148C",
     currentCacheLimit: Long,
     onCacheLimitChange: (Long) -> Unit,
     onTestNotification: () -> Unit,
@@ -712,7 +716,8 @@ fun SettingsScreen(
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val isMono = currentTheme == "Pixel Monocromático"
-    val backgroundColor = getAppBackgroundColor(currentTheme)
+    val activeColorHex = if (isDark) currentDarkColor else currentLightColor
+    val backgroundColor = getAppBackgroundColor(currentTheme, useCustomBg, activeColorHex)
     
     val textColor = when {
         isDark -> Color.White
@@ -862,31 +867,78 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Text(
-                        text = if (isDark) "COLOR DE BARRAS (OSCURO)" else "COLOR DE BARRAS (CLARO)",
+                        text = if (isDark) "COLOR DE BARRAS (OSCURO - POR TONALIDADES)" else "COLOR DE BARRAS (CLARO PASTEL - POR TONALIDADES)",
                         fontFamily = Vt323, fontSize = 18.sp, color = textColor
                     )
                     
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    val colorFamilies = if (isDark) {
+                        listOf(
+                            "❤️ ROJOS Y VINOS" to listOf("#B71C1C", "#C2185B", "#880E4F", "#BF360C"),
+                            "💜 PÚRPURAS Y VIOLETAS" to listOf("#4A148C", "#6A1B9A", "#4A0E4E"),
+                            "💙 AZULES E ÍNDIGOS" to listOf("#0D47A1", "#1A237E", "#37474F"),
+                            "🌲 VERDES Y TEALS" to listOf("#006064", "#004D40", "#1B5E20", "#33691E"),
+                            "🔥 CÁLIDOS Y NEUTROS" to listOf("#E65100", "#3E2723", "#263238")
+                        )
+                    } else {
+                        listOf(
+                            "🌸 ROSAS Y CORALES" to listOf("#F8BBD0", "#FFCDD2", "#FCE4EC", "#F3E5F5"),
+                            "💜 PÚRPURAS Y LILAS" to listOf("#D1C4E9", "#E1BEE7", "#C5CAE9"),
+                            "🩵 AZULES Y AQUA" to listOf("#E1F5FE", "#B3E5FC", "#B2EBF2"),
+                            "🍃 VERDES Y MATCHA" to listOf("#C8E6C9", "#DCEDC8", "#DCE775"),
+                            "☀️ CÁLIDOS Y LATTE" to listOf("#FFF59D", "#FFE57F", "#FFE0B2", "#D7CCC8")
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val colors = if (isDark) {
-                            listOf("#4A148C", "#0D47A1", "#1B5E20", "#C2185B", "#E65100", "#006064", "#3E2723")
-                        } else {
-                            listOf("#D1C4E9", "#B3E5FC", "#C8E6C9", "#C2185B", "#FFE0B2", "#B2EBF2", "#D7CCC8")
-                        }
-                        colors.forEach { colorHex ->
-                            Box(
-                                modifier = Modifier
-                                    .size(35.dp)
-                                    .background(Color(android.graphics.Color.parseColor(colorHex)), CircleShape)
-                                    .border(2.dp, borderColor, CircleShape)
-                                    .clickable {
-                                        if (!isMono) {
-                                            onColorSelect(colorHex)
+                        colorFamilies.forEach { (familyLabel, familyColors) ->
+                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(
+                                    text = familyLabel,
+                                    fontFamily = Vt323,
+                                    fontSize = 14.sp,
+                                    color = textColor.copy(alpha = 0.7f)
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    familyColors.forEach { colorHex ->
+                                        val isSelected = colorHex.equals(activeColorHex, ignoreCase = true)
+                                        val circleColor = Color(android.graphics.Color.parseColor(colorHex))
+                                        val isLightCircle = isColorLight(colorHex)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(if (isSelected) 38.dp else 32.dp)
+                                                .background(circleColor, CircleShape)
+                                                .border(
+                                                    width = if (isSelected) 3.dp else 1.5.dp,
+                                                    color = if (isSelected) (if (isDark) Color.White else Color(0xFF4A2511)) else borderColor.copy(alpha = 0.5f),
+                                                    shape = CircleShape
+                                                )
+                                                .clickable {
+                                                    if (!isMono) {
+                                                        onColorSelect(colorHex)
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isSelected) {
+                                                Text(
+                                                    text = "✓",
+                                                    fontFamily = Vt323,
+                                                    fontSize = 20.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isLightCircle) Color.Black else Color.White
+                                                )
+                                            }
                                         }
                                     }
-                            )
+                                }
+                            }
                         }
                     }
 
@@ -896,7 +948,7 @@ fun SettingsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onBgPreferenceChange(!useCustomBg) }
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
@@ -923,6 +975,49 @@ fun SettingsScreen(
                             fontSize = 18.sp,
                             color = textColor
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onShowTopBarChange(!showTopBar) }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .border(2.dp, borderColor)
+                                .background(if (showTopBar) Color(0xFF81C784) else Color(0x22000000)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (showTopBar) {
+                                Text(
+                                    text = "✓",
+                                    fontFamily = Vt323,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Mostrar barra superior ('Nuestro Diario')",
+                                fontFamily = Vt323,
+                                fontSize = 18.sp,
+                                color = textColor
+                            )
+                            Text(
+                                text = "Oculta o muestra el recuadro superior con el título",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                color = textColor.copy(alpha = 0.6f)
+                            )
+                        }
                     }
                 }
                 "alerts" -> {

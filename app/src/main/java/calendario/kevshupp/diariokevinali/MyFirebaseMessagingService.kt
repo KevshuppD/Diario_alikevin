@@ -29,25 +29,35 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         var title = "Nuevo mensaje"
         var body = ""
 
-        // FCM v1 puede enviar los datos en el objeto 'notification' o 'data'
-        val notification = remoteMessage.notification
-        if (notification != null) {
-            notification.title?.let { title = it }
-            notification.body?.let { body = it }
-        } else if (remoteMessage.data.isNotEmpty()) {
+        // FCM v1 puede enviar los datos en el objeto 'data' o 'notification'
+        if (remoteMessage.data.isNotEmpty()) {
             remoteMessage.data["title"]?.let { title = it }
             remoteMessage.data["body"]?.let { body = it }
+        } else if (remoteMessage.notification != null) {
+            remoteMessage.notification?.title?.let { title = it }
+            remoteMessage.notification?.body?.let { body = it }
         }
 
         val imageUrl = remoteMessage.data["imageUrl"]
         val authorId = remoteMessage.data["authorId"]
+        val authorName = remoteMessage.data["authorName"]
 
-        Log.d("FCM", "Datos recibidos - Title: $title, Body: $body, AuthorId: $authorId")
+        Log.d("FCM", "Datos recibidos - Title: $title, Body: $body, AuthorId: $authorId, AuthorName: $authorName")
 
-        // Evitar mostrar mi propia notificación
-        val myId = getSharedPreferences("DiarioPrefs", MODE_PRIVATE).getString("userId", "")
-        if (authorId != null && authorId == myId) {
-            Log.d("FCM", "Ignorando notificación propia")
+        // Evitar mostrar mi propia notificación (comparar con userId y userName)
+        val prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE)
+        val myId = prefs.getString("userId", "")?.trim()?.lowercase() ?: ""
+        val myName = prefs.getString("userName", "")?.trim()?.lowercase() ?: ""
+
+        val authIdNorm = authorId?.trim()?.lowercase() ?: ""
+        val authNameNorm = authorName?.trim()?.lowercase() ?: ""
+
+        if (authIdNorm.isNotEmpty() && (authIdNorm == myId || (myName.isNotEmpty() && authIdNorm == myName))) {
+            Log.d("FCM", "Ignorando notificación propia por authorId: $authIdNorm")
+            return
+        }
+        if (authNameNorm.isNotEmpty() && myName.isNotEmpty() && authNameNorm == myName) {
+            Log.d("FCM", "Ignorando notificación propia por authorName: $authNameNorm")
             return
         }
 

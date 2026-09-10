@@ -54,3 +54,4 @@ web/dist/
 # Variables de entorno locales (nunca subir al repo)
 .env
 web/.env
+scripts/
