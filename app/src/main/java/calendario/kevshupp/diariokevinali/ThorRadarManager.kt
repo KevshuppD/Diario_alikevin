@@ -13,16 +13,27 @@ import android.util.Log
 import com.google.android.gms.location.*
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
+import java.net.URLEncoder
 import java.util.Locale
 import kotlin.math.*
+
+data class RadarSearchResult(
+    val title: String,
+    val subtitle: String,
+    val latitude: Double,
+    val longitude: Double
+)
 
 data class RadarLocationData(
     val userId: String = "",
@@ -123,6 +134,11 @@ data class RadarPlaceZone(
                 addedBy = map["addedBy"] as? String ?: ""
             )
         }
+
+        fun fromSnapshot(doc: DocumentSnapshot): RadarPlaceZone {
+            val data = doc.data ?: return RadarPlaceZone(id = doc.id)
+            return fromMap(data.plus("id" to doc.id))
+        }
     }
 }
 
@@ -167,6 +183,7 @@ object ThorRadarManager {
     private var lastUploadedLng: Double = 0.0
     private var lastUploadedTime: Long = 0L
     private var cachedZones: List<RadarPlaceZone> = emptyList()
+    private var zonesListener: ListenerRegistration? = null
 
     fun isAli(userId: String?, userName: String?): Boolean {
         val uid = (userId ?: "").lowercase()
@@ -201,6 +218,27 @@ object ThorRadarManager {
     fun init(context: Context) {
         if (fusedLocationClient == null) {
             fusedLocationClient = LocationServices.getFusedLocationProviderClient(context.applicationContext)
+        }
+        val prefs = context.applicationContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+        val coupleId = normalizeCoupleId(prefs.getString("coupleId", "vínculo_único_123"))
+        startListeningToZones(coupleId)
+    }
+
+    fun startListeningToZones(coupleId: String) {
+        val safeCoupleId = normalizeCoupleId(coupleId)
+        if (zonesListener != null) return
+        try {
+            zonesListener = db.collection("locations").document(safeCoupleId)
+                .collection("zones")
+                .addSnapshotListener { snapshot, error ->
+                    if (error == null && snapshot != null) {
+                        val list = snapshot.documents.mapNotNull { RadarPlaceZone.fromSnapshot(it) }
+                        cachedZones = list
+                        Log.d(TAG, "Zonas seguras sincronizadas en memoria: ${list.size}")
+                    }
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error iniciando listener de zonas", e)
         }
     }
 
@@ -298,8 +336,14 @@ object ThorRadarManager {
             else -> "STILL"
         }
 
+        startListeningToZones(coupleId)
+
         val matchingZone = if (lat != 0.0) findMatchingZone(lat, lon, cachedZones) else null
         val zoneName = matchingZone?.name ?: ""
+
+        if (isSharing && lat != 0.0 && lon != 0.0) {
+            checkAndNotifyZoneTransitions(appContext, coupleId, finalUserId, displayName, lat, lon, accuracy)
+        }
 
         var address = ""
         if (lat != 0.0) {
@@ -632,5 +676,241 @@ object ThorRadarManager {
                 Log.e(TAG, "Error enviando notificación SOS FCM", e)
             }
         }
+    }
+
+    private fun checkAndNotifyZoneTransitions(
+        context: Context,
+        coupleId: String,
+        senderId: String,
+        senderName: String,
+        lat: Double,
+        lon: Double,
+        accuracy: Float
+    ) {
+        if (lat == 0.0 || lon == 0.0) return
+        if (accuracy > 85f) return // Ignorar lecturas imprecisas de GPS
+
+        val prefs = context.getSharedPreferences("ThorRadarZonePrefs", Context.MODE_PRIVATE)
+        val lastZoneId = prefs.getString("last_active_zone_id", "") ?: ""
+        val lastZoneName = prefs.getString("last_active_zone_name", "") ?: ""
+        val lastZoneIcon = prefs.getString("last_active_zone_icon", "📍") ?: "📍"
+        val lastEventType = prefs.getString("last_event_type", "") ?: ""
+        val lastEventTime = prefs.getLong("last_event_time", 0L)
+        val now = System.currentTimeMillis()
+
+        val currentMatching = findMatchingZone(lat, lon, cachedZones)
+
+        if (currentMatching != null) {
+            // Usuario está actualmente dentro de una zona segura
+            if (currentMatching.id != lastZoneId) {
+                // Cambio o entrada a nueva zona
+                val isRecentSameEntry = (lastZoneId == currentMatching.id && lastEventType == "ENTER" && (now - lastEventTime) < 90_000L)
+                if (!isRecentSameEntry) {
+                    prefs.edit()
+                        .putString("last_active_zone_id", currentMatching.id)
+                        .putString("last_active_zone_name", currentMatching.name)
+                        .putString("last_active_zone_icon", currentMatching.icon)
+                        .putString("last_event_type", "ENTER")
+                        .putLong("last_event_time", now)
+                        .apply()
+
+                    val title = "${currentMatching.icon} ¡$senderName llegó a ${currentMatching.name}!"
+                    val body = "$senderName ha llegado a ${currentMatching.name} (${currentMatching.icon})."
+                    sendZonePushNotification(context, coupleId, senderId, senderName, title, body)
+                    Log.d(TAG, "Notificación de llegada emitida: ${currentMatching.name}")
+                }
+            }
+        } else {
+            // Usuario está actualmente fuera de cualquier zona segura
+            if (lastZoneId.isNotEmpty()) {
+                val prevZone = cachedZones.firstOrNull { it.id == lastZoneId }
+                if (prevZone != null) {
+                    val dist = calculateDistance(lat, lon, prevZone.latitude, prevZone.longitude)
+                    // Histeresis con margen de 20 metros adicionales para no disparar alertas por jitter GPS
+                    if (dist > (prevZone.radiusMeters + 20f)) {
+                        val isRecentExit = (lastEventType == "EXIT" && (now - lastEventTime) < 90_000L)
+                        if (!isRecentExit) {
+                            prefs.edit()
+                                .putString("last_active_zone_id", "")
+                                .putString("last_active_zone_name", "")
+                                .putString("last_active_zone_icon", "")
+                                .putString("last_event_type", "EXIT")
+                                .putLong("last_event_time", now)
+                                .apply()
+
+                            val title = "🚗 ¡$senderName salió de $lastZoneName!"
+                            val body = "$senderName ha salido de $lastZoneName ($lastZoneIcon)."
+                            sendZonePushNotification(context, coupleId, senderId, senderName, title, body)
+                            Log.d(TAG, "Notificación de salida emitida: $lastZoneName")
+                        }
+                    }
+                } else {
+                    // La zona fue eliminada
+                    prefs.edit()
+                        .putString("last_active_zone_id", "")
+                        .putString("last_active_zone_name", "")
+                        .putString("last_active_zone_icon", "")
+                        .putString("last_event_type", "EXIT")
+                        .putLong("last_event_time", now)
+                        .apply()
+                }
+            }
+        }
+    }
+
+    private fun sendZonePushNotification(
+        context: Context,
+        coupleId: String,
+        senderId: String,
+        senderName: String,
+        title: String,
+        body: String
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val creds = MainActivity.getGoogleCredentials(context)
+                val token = creds.accessToken.tokenValue
+                val projectId = "diario-pareja-a2d35"
+                val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
+
+                val topicName = "diario_" + coupleId.lowercase()
+                    .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                    .replace("ñ", "n").replace(" ", "_")
+
+                val jsonBody = JSONObject().apply {
+                    val message = JSONObject().apply {
+                        put("topic", topicName)
+                        val notification = JSONObject().apply {
+                            put("title", title)
+                            put("body", body)
+                        }
+                        put("notification", notification)
+                        val data = JSONObject().apply {
+                            put("authorId", senderId)
+                            put("click_type", "radar")
+                            put("type", "radar")
+                            put("title", title)
+                            put("body", body)
+                        }
+                        put("data", data)
+                        val android = JSONObject().apply {
+                            put("priority", "HIGH")
+                            val androidNotif = JSONObject().apply {
+                                put("channel_id", "diario_channel")
+                                put("sound", "default")
+                                put("default_vibrate_timings", true)
+                            }
+                            put("notification", androidNotif)
+                        }
+                        put("android", android)
+                    }
+                    put("message", message)
+                }
+
+                val mediaType = "application/json; charset=utf-8".toMediaType()
+                val reqBody = jsonBody.toString().toRequestBody(mediaType)
+                val request = Request.Builder()
+                    .url(url)
+                    .post(reqBody)
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
+
+                val response = DiarioApp.getOkHttpClient().newCall(request).execute()
+                Log.d(TAG, "Zone FCM push status code: ${response.code}")
+                response.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error enviando notificación push de zona", e)
+            }
+        }
+    }
+
+    suspend fun searchPlaces(context: Context, query: String): List<RadarSearchResult> = withContext(Dispatchers.IO) {
+        val cleanQuery = query.trim()
+        if (cleanQuery.length < 2) return@withContext emptyList()
+        val results = mutableListOf<RadarSearchResult>()
+
+        // 1. Intentar Geocoder nativo de Android
+        try {
+            val geocoder = Geocoder(context, Locale.getDefault())
+            @Suppress("DEPRECATION")
+            val addresses = geocoder.getFromLocationName(cleanQuery, 6)
+            if (!addresses.isNullOrEmpty()) {
+                for (addr in addresses) {
+                    val title = addr.featureName ?: addr.thoroughfare ?: addr.locality ?: cleanQuery
+                    val parts = listOfNotNull(
+                        addr.thoroughfare?.takeIf { it != title },
+                        addr.subLocality,
+                        addr.locality,
+                        addr.adminArea,
+                        addr.countryName
+                    ).filter { it.isNotBlank() }
+                    val subtitle = if (parts.isNotEmpty()) parts.joinToString(", ") else "(${String.format(Locale.US, "%.4f", addr.latitude)}, ${String.format(Locale.US, "%.4f", addr.longitude)})"
+                    results.add(RadarSearchResult(title, subtitle, addr.latitude, addr.longitude))
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Geocoder search error: ${e.message}")
+        }
+
+        // 2. Fallback con OpenStreetMap Nominatim si Geocoder da 0 resultados o falla
+        if (results.isEmpty()) {
+            try {
+                val encoded = URLEncoder.encode(cleanQuery, "UTF-8")
+                val url = "https://nominatim.openstreetmap.org/search?q=$encoded&format=json&addressdetails=1&limit=6"
+                val request = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "DiarioAliKevin/1.0 (contact@diarioapp.local)")
+                    .build()
+                val response = DiarioApp.getOkHttpClient().newCall(request).execute()
+                if (response.isSuccessful) {
+                    val body = response.body?.string()
+                    if (!body.isNullOrEmpty()) {
+                        val arr = JSONArray(body)
+                        for (i in 0 until arr.length()) {
+                            val obj = arr.getJSONObject(i)
+                            val lat = obj.getDouble("lat")
+                            val lon = obj.getDouble("lon")
+                            val disp = obj.getString("display_name")
+                            val name = obj.optString("name").ifEmpty {
+                                disp.split(",").firstOrNull()?.trim() ?: cleanQuery
+                            }
+                            val subtitle = if (disp.contains(",")) disp.substringAfter(",").trim() else disp
+                            results.add(RadarSearchResult(name, subtitle, lat, lon))
+                        }
+                    }
+                }
+                response.close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Nominatim search error: ${e.message}")
+            }
+        }
+
+        return@withContext results
+    }
+
+    suspend fun getReverseAddress(context: Context, lat: Double, lon: Double): String = withContext(Dispatchers.IO) {
+        if (lat == 0.0 && lon == 0.0) return@withContext ""
+        try {
+            val geocoder = Geocoder(context, Locale.getDefault())
+            @Suppress("DEPRECATION")
+            val addresses = geocoder.getFromLocation(lat, lon, 1)
+            if (!addresses.isNullOrEmpty()) {
+                val addr = addresses[0]
+                val thoroughfare = addr.thoroughfare ?: ""
+                val subThoroughfare = addr.subThoroughfare ?: ""
+                val locality = addr.locality ?: addr.subAdminArea ?: ""
+                val street = if (thoroughfare.isNotEmpty()) {
+                    if (subThoroughfare.isNotEmpty()) "$thoroughfare $subThoroughfare" else thoroughfare
+                } else ""
+                if (street.isNotEmpty()) {
+                    return@withContext if (locality.isNotEmpty()) "$street, $locality" else street
+                } else if (locality.isNotEmpty()) {
+                    return@withContext locality
+                }
+            }
+        } catch (e: Exception) {
+            // Ignorar y retornar coordenadas
+        }
+        return@withContext "${String.format(Locale.US, "%.4f", lat)}, ${String.format(Locale.US, "%.4f", lon)}"
     }
 }

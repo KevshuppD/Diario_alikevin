@@ -303,22 +303,24 @@ graph TD
 
 ---
 
-## 13. Thor Radar: Ubicación en Tiempo Real, Geocercas & Alertas SOS (v1.7.40)
+## 13. Thor Radar: Ubicación en Tiempo Real, Geocercas, Notificaciones de Zonas & Alertas SOS (v1.7.41)
 
 1. **Arquitectura y Servicios de Rastreo (`ThorRadarManager.kt` & `ThorRadarService.kt`):**
    - **Foreground Service con Notificación Persistente:** `ThorRadarService` utiliza `LocationManager` y `FusedLocationProviderClient` con prioridad `PRIORITY_HIGH_ACCURACY` para emitir actualizaciones de ubicación, porcentaje de batería en tiempo real y estado de carga (`isCharging`).
    - **Mapeo Robusto de Identidad:** Detección confiable de usuario (`ali` vs `kevin`) basada en `userId` y `userName` en `SharedPreferences`, normalizando automáticamente la ruta `locations/<coupleId>/users/<docName>`.
    - **Emisión de Latidos (Heartbeats):** Registro automático de cambios de estado, detección de actividad (`STILL`, `WALKING`, `IN_VEHICLE`) por velocidad GPS y geocodificación inversa para dirección física (`thoroughfare`, `locality`).
+   - **Notificaciones Push Automáticas de Zonas Seguras (FCM v1):** Detección en segundo plano de transiciones de geocerca con histeresis (+20m buffer) y debounce anti-spam. Notifica automáticamente a la pareja al llegar (`🏠 ¡[Nombre] llegó a [Zona]!`) o salir (`🚗 ¡[Nombre] salió de [Zona]!`). Al pulsar la notificación, abre la app directamente en Thor Radar.
 
-2. **Renderizado de Mapas Limpio & Sin Marcas de Agua:**
+2. **Buscador de Direcciones & Selector Cómodo de Zonas (`AddZoneDialog`):**
+   - **Búsqueda Geocodificada Inteligente:** Campo de búsqueda por dirección o nombre de lugar (ej. universidades, calles, locales) con doble motor (Android `Geocoder` + fallback OpenStreetMap Nominatim), desplegable de resultados con botón directo `ELEGIR ➔` y auto-completado de nombre.
+   - **Interacción Táctil en Mapa:** Permite mover la zona tocando cualquier punto en el mapa interactivo (`MapEventsOverlay`), con controles flotantes de zoom (`➕`/`➖`) y botón directo `🎯 Mi GPS Actual`.
+   - **Selector de Iconos Ampliado:** Emojis retro ampliados (`🏠`, `🎓`, `💼`, `🏋️`, `☕`, `🍔`, `🛒`, `❤️`, `🌲`, `🏥`, `🎮`, `🚗`, `✈️`, `🏖️`, `🐾`).
+   - **Control de Radio con Feedback:** Slider interactivo de 30m a 1000m con valor numérico en vivo y chips rápidos (`50m`, `100m`, `150m`, `250m`, `500m`, `800m`, `1km`).
+
+3. **Renderizado de Mapas Limpio & Sin Marcas de Agua:**
    - **Fuente de Teselas Estándar de Google Maps (`GOOGLE_MAPS_TILES`):** Implementada mediante `OnlineTileSourceBase` en Osmdroid sin necesidad de API keys de pago, marcas de agua ni saturación visual de POIs.
    - **Filtro de Modo Oscuro Dinámico:** Aplicación de `ColorMatrixColorFilter` en `overlayManager.tilesOverlay` cuando el tema activo es *Pixel Oscuro*, adaptando las calles y fondos al modo nocturno.
    - **Marcadores con Fotos de Perfil Reales:** Renderizado asíncrono con Coil (`allowHardware(false)`) y `BitmapShader` para recortar en círculo perfecto las fotos de Kevin y Ali dentro de pines vectoriales con anillos temáticos (Azul para ti, Rosa para tu pareja, y Rojo Neón pulsante si SOS está activo).
-
-3. **Selector Visual e Interactivo de Zonas Seguras:**
-   - **Mini-Mapa en Vivo:** Diálogo de creación y edición (`AddZoneDialog`) que incrusta un mapa interactivo centrado en la ubicación fijada con el icono emoji elegido.
-   - **Círculo de Cobertura en Tiempo Real:** Círculo translúcido (`Polygon.pointsAsCircle`) que se expande y contrae en vivo sobre el mapa a medida que se desplaza el control deslizante (Slider de 30m a 800m) o se tocan los chips de acceso rápido (`50m`, `100m`, `200m`, `350m`, `500m`).
-   - **Compatibilidad con Modo Oscuro:** Corrección integral de contraste en campos de texto (`OutlinedTextField`) y botones para evitar texto ilegible en temas oscuros.
 
 4. **Sistema de Alerta de Emergencia SOS:**
    - **Notificaciones Push de Alta Prioridad (FCM v1):** Envío directo al proyecto `diario-pareja-a2d35` y topic `diario_vinculo_unico_123` con canal prioritario `diario_channel`.
