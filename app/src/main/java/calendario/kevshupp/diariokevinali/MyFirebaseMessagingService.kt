@@ -61,20 +61,54 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             return
         }
 
-        val clickType = remoteMessage.data["click_type"] ?: remoteMessage.data["type"]
-        sendNotification(title, body, imageUrl, clickType)
+        val rawType = remoteMessage.data["click_type"]
+            ?: remoteMessage.data["type"]
+            ?: remoteMessage.data["destination"]
+            ?: remoteMessage.data["screen"]
+            ?: remoteMessage.data["tab"]
+            ?: remoteMessage.data["action"]
+
+        val clickType = if (!rawType.isNullOrBlank()) {
+            rawType
+        } else {
+            val combined = "$title $body".lowercase(java.util.Locale.ROOT)
+            when {
+                combined.contains("receta") -> "receta"
+                combined.contains("cita") || combined.contains("evento") || combined.contains("calendario") -> "cita"
+                combined.contains("medicamento") || combined.contains("pastilla") || combined.contains("remedio") -> "medicamento"
+                combined.contains("thor") || combined.contains("mascota") -> "mascota"
+                combined.contains("radar") || combined.contains("ubicación") || combined.contains("ubicacion") || combined.contains("sos") -> "radar"
+                combined.contains("álbum") || combined.contains("album") || combined.contains("recuerdo") || combined.contains("foto") -> "album"
+                combined.contains("horario") || combined.contains("clase") -> "horario"
+                combined.contains("anime") -> "anime"
+                combined.contains("espíritu") || combined.contains("espiritu") || combined.contains("checklist") -> "espiritus"
+                else -> "carta"
+            }
+        }
+
+        sendNotification(title, body, imageUrl, clickType, remoteMessage.data)
     }
 
-    private fun sendNotification(title: String, messageBody: String, imageUrl: String?, clickType: String?) {
+    private fun sendNotification(
+        title: String,
+        messageBody: String,
+        imageUrl: String?,
+        clickType: String?,
+        dataMap: Map<String, String> = emptyMap()
+    ) {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            for ((key, value) in dataMap) {
+                putExtra(key, value)
+            }
             if (clickType != null) {
                 putExtra("click_type", clickType)
             }
         }
+        val requestCode = (System.currentTimeMillis() % 100000).toInt()
         val pendingIntent = PendingIntent.getActivity(
             this,
-            System.currentTimeMillis().toInt(),
+            requestCode,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -86,6 +120,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setContentText(messageBody)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setContentIntent(pendingIntent)
 
         if (!imageUrl.isNullOrBlank()) {

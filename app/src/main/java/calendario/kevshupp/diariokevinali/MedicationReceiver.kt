@@ -159,12 +159,15 @@ class MedicationReceiver : BroadcastReceiver() {
         val mainIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("click_type", "medicamento")
+            putExtra("med_id", medicationId)
+            putExtra("med_name", name)
         }
+        val requestCode = (medicationId.hashCode() + (if (isOwner) 0 else 10000))
         val pendingIntent = PendingIntent.getActivity(
             context,
-            System.currentTimeMillis().toInt(),
+            requestCode,
             mainIntent,
-            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         // Título diferente para la pareja

@@ -55,6 +55,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -402,10 +404,28 @@ fun ThorRadarScreen(
         }
     }
 
-    // Actualización periódica en primer plano
+    // Actualización de alta frecuencia en tiempo real mientras se visualiza la pantalla (4s)
     LaunchedEffect(isSharingLocation) {
         if (isSharingLocation && PermissionHelper.hasLocationPermission(context)) {
-            ThorRadarManager.forceLocationUpdate(context)
+            ThorRadarManager.startLiveTracking(context, 4000L)
+            while (isActive) {
+                ThorRadarManager.forceLocationUpdate(context)
+                delay(4000L)
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            val prefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+            val isSharing = prefs.getBoolean("radar_is_sharing", true)
+            if (isSharing && PermissionHelper.hasLocationPermission(context)) {
+                val isBatterySaver = prefs.getBoolean("radar_battery_saver", false)
+                val interval = if (isBatterySaver) 30_000L else 10_000L
+                ThorRadarManager.startLiveTracking(context, interval)
+            } else {
+                ThorRadarManager.stopLiveTracking()
+            }
         }
     }
 
@@ -441,7 +461,13 @@ fun ThorRadarScreen(
     // Vibración y alerta si la pareja tiene SOS activo
     LaunchedEffect(partnerLocationData.sosActive) {
         if (partnerLocationData.sosActive) {
-            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 200, 500), -1))
             } else {
@@ -913,11 +939,12 @@ fun PartnerLiveCard(
         else -> "Calculando distancia..."
     }
 
-    val activityIcon = when {
+    val activityText = when {
         !hasValidData -> "📡 Desconectado"
-        partnerData.activity == "IN_VEHICLE" -> "🚗 Auto (${partnerData.speedKmh.roundToInt()} km/h)"
-        partnerData.activity == "WALKING" -> "🚶 Caminando"
-        else -> "🏠 En reposo"
+        partnerData.activity == "IN_VEHICLE" -> "🚗 En auto (${partnerData.speedKmh.roundToInt()} km/h)"
+        partnerData.activity == "RUNNING" -> "🚴 En movimiento (${partnerData.speedKmh.roundToInt()} km/h)"
+        partnerData.activity == "WALKING" -> "🚶 Caminando (${partnerData.speedKmh.roundToInt()} km/h)"
+        else -> "🛋️ En reposo"
     }
 
     val timeAgo = remember(partnerData.timestamp) {
@@ -1015,7 +1042,7 @@ fun PartnerLiveCard(
                     )
                 }
 
-                // Batería
+                // Batería & Actividad (Auto/Caminando/Reposo)
                 Column(horizontalAlignment = Alignment.End) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -1037,11 +1064,16 @@ fun PartnerLiveCard(
                         )
                     }
                     Text(
-                        text = if (partnerData.isCharging) "⚡ Cargando" else activityIcon,
+                        text = activityText,
                         fontFamily = Vt323,
-                        fontSize = 12.sp,
-                        fontWeight = if (partnerData.isCharging) FontWeight.Bold else FontWeight.Normal,
-                        color = if (partnerData.isCharging) Color(0xFF4CAF50) else textColor.copy(alpha = 0.8f)
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = when (partnerData.activity) {
+                            "IN_VEHICLE" -> Color(0xFF2196F3)
+                            "RUNNING" -> Color(0xFFFF9800)
+                            "WALKING" -> Color(0xFF4CAF50)
+                            else -> textColor.copy(alpha = 0.75f)
+                        }
                     )
                 }
             }
@@ -1182,8 +1214,9 @@ fun RadarMapView(
                 Text(text = "🛰️ RADAR SATELITAL", fontFamily = Vt323, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textColor)
             }
 
+            val speedText = if (myLocation.speedKmh >= 2.0f) " • 🚀 ${myLocation.speedKmh.roundToInt()} km/h" else ""
             Text(
-                text = if (myLocation.accuracy > 0) "PRECISIÓN: ±${myLocation.accuracy.roundToInt()}m" else "GPS ACTIVO",
+                text = (if (myLocation.accuracy > 0) "PRECISIÓN: ±${myLocation.accuracy.roundToInt()}m" else "GPS ACTIVO") + speedText,
                 fontFamily = Vt323,
                 fontSize = 13.sp,
                 color = textColor.copy(alpha = 0.8f)
@@ -1274,13 +1307,20 @@ fun RadarMapView(
                             title = "Tú ($userName)"
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                             val avatarChar = if (userName.contains("Ali", ignoreCase = true)) "👧" else "👦"
+                            val myBadge = when (myLocation.activity) {
+                                "IN_VEHICLE" -> "🚗"
+                                "RUNNING" -> "🚴"
+                                "WALKING" -> "🚶"
+                                else -> null
+                            }
                             icon = BitmapDrawable(
                                 context.resources,
                                 createAvatarMarkerBitmap(
                                     avatarBitmap = myAvatarBitmap,
                                     avatarEmoji = avatarChar,
                                     name = "Tú",
-                                    colorArgb = android.graphics.Color.parseColor("#1976D2")
+                                    colorArgb = android.graphics.Color.parseColor("#1976D2"),
+                                    activityBadgeEmoji = myBadge
                                 )
                             )
                             infoWindow = null
@@ -1298,13 +1338,20 @@ fun RadarMapView(
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                             val partnerChar = if (partnerName.contains("Ali", ignoreCase = true)) "👧" else "👦"
                             val ringColor = if (partnerLocation.sosActive) android.graphics.Color.RED else android.graphics.Color.parseColor("#E91E63")
+                            val partnerBadge = when (partnerLocation.activity) {
+                                "IN_VEHICLE" -> "🚗"
+                                "RUNNING" -> "🚴"
+                                "WALKING" -> "🚶"
+                                else -> null
+                            }
                             icon = BitmapDrawable(
                                 context.resources,
                                 createAvatarMarkerBitmap(
                                     avatarBitmap = partnerAvatarBitmap,
                                     avatarEmoji = partnerChar,
                                     name = partnerName,
-                                    colorArgb = ringColor
+                                    colorArgb = ringColor,
+                                    activityBadgeEmoji = partnerBadge
                                 )
                             )
                             infoWindow = null
@@ -1819,6 +1866,7 @@ fun RadarZonesView(
                                                 .collection("zones").document(zone.id)
                                                 .delete()
                                                 .addOnSuccessListener {
+                                                    ThorRadarManager.removeZoneFromCache(context, zone.id)
                                                     Toast.makeText(context, "Zona '${zone.name}' eliminada", Toast.LENGTH_SHORT).show()
                                                 }
                                         }
@@ -1971,6 +2019,50 @@ fun RadarSettingsView(
                     modifier = Modifier.height(30.dp)
                 ) {
                     Text(if (hasBgLoc) "VER" else "ACTIVAR", fontFamily = Vt323, fontSize = 14.sp, color = Color.White)
+                }
+            }
+        }
+
+        // Tarjeta de Optimización de Batería (Sin Restricciones)
+        var isIgnoringBattery by remember { mutableStateOf(PermissionHelper.isIgnoringBatteryOptimizations(context)) }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(2.dp, if (isIgnoringBattery) borderColor else Color(0xFFFF9800))
+                .background(if (theme == "Pixel Oscuro") (if (isIgnoringBattery) Color(0xFF282828) else Color(0xFF332005)) else (if (isIgnoringBattery) Color(0xFFFFF7DB) else Color(0xFFFFF3E0)))
+                .padding(10.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "BATERÍA: SIN RESTRICCIONES",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isIgnoringBattery) textColor else (if (theme == "Pixel Oscuro") Color(0xFFFFB74D) else Color(0xFFE65100))
+                    )
+                    Text(
+                        text = if (isIgnoringBattery) "✅ Optimización desactivada: Android no suspenderá la app" else "⚠️ Recomendado: Desactivar optimización de batería para evitar que Android congele el GPS.",
+                        fontFamily = Vt323,
+                        fontSize = 13.sp,
+                        color = textColor.copy(alpha = 0.85f)
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Button(
+                    onClick = {
+                        PermissionHelper.requestIgnoreBatteryOptimizations(context)
+                        isIgnoringBattery = PermissionHelper.isIgnoringBatteryOptimizations(context)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isIgnoringBattery) Color(0xFF4CAF50) else Color(0xFFFF9800)),
+                    shape = RoundedCornerShape(0.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    modifier = Modifier.height(30.dp)
+                ) {
+                    Text(if (isIgnoringBattery) "OK" else "QUITAR LÍMITE", fontFamily = Vt323, fontSize = 14.sp, color = Color.White)
                 }
             }
         }
@@ -2694,6 +2786,7 @@ fun AddEditZoneDialog(
                                 .collection("zones").document(zoneId)
                                 .set(placeZone.toMap())
                                 .addOnSuccessListener {
+                                    ThorRadarManager.updateZoneInCache(context, placeZone)
                                     val msg = if (isEditing) "Zona '${name.trim()}' actualizada con éxito" else "Zona '${name.trim()}' guardada con éxito"
                                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                     onZoneSaved?.invoke()
@@ -2829,7 +2922,8 @@ private fun createAvatarMarkerBitmap(
     avatarBitmap: Bitmap? = null,
     avatarEmoji: String,
     name: String,
-    colorArgb: Int
+    colorArgb: Int,
+    activityBadgeEmoji: String? = null
 ): Bitmap {
     val width = 120
     val height = 140
@@ -2892,6 +2986,28 @@ private fun createAvatarMarkerBitmap(
         paint.textAlign = Paint.Align.CENTER
         val baseline = 60f - ((paint.descent() + paint.ascent()) / 2)
         canvas.drawText(avatarEmoji, 60f, baseline, paint)
+    }
+
+    // Badge flotante de actividad (🚗 En auto / 🚴 En movimiento / 🚶 Caminando)
+    if (!activityBadgeEmoji.isNullOrBlank()) {
+        val badgeX = 96f
+        val badgeY = 24f
+        val badgeRadius = 18f
+
+        // Borde exterior del badge
+        paint.shader = null
+        paint.color = colorArgb
+        canvas.drawCircle(badgeX, badgeY, badgeRadius + 2f, paint)
+
+        // Fondo del badge
+        paint.color = android.graphics.Color.WHITE
+        canvas.drawCircle(badgeX, badgeY, badgeRadius, paint)
+
+        // Emoji dentro del badge
+        paint.textSize = 20f
+        paint.textAlign = Paint.Align.CENTER
+        val badgeBaseline = badgeY - ((paint.descent() + paint.ascent()) / 2)
+        canvas.drawText(activityBadgeEmoji, badgeX, badgeBaseline, paint)
     }
 
     return bitmap

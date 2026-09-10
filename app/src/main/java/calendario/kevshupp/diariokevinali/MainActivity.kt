@@ -410,6 +410,12 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         viewModel.startAllListeners()
         setupOverlays()
         PermissionHelper.checkNotificationAndAlarmPermissions(this)
+        val prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE)
+        if (prefs.getBoolean("radar_is_sharing", true) && PermissionHelper.hasLocationPermission(this)) {
+            ThorRadarService.startService(this)
+            ThorRadarManager.publishHeartbeat(this)
+            ThorRadarManager.forceLocationUpdate(this)
+        }
         try {
             registerReceiver(dndReceiver, IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED))
             viewModel.syncDndStateWithPet()
@@ -976,21 +982,36 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     intent.removeExtra("sync_error_msg")
                 }
             }
-            if (intent.hasExtra("click_type")) {
-                val clickType = intent.getStringExtra("click_type")
-                if (clickType != null) {
-                    navigateToClickType(clickType)
-                    intent.removeExtra("click_type")
-                }
+            val clickType = intent.getStringExtra("click_type")
+                ?: intent.getStringExtra("type")
+                ?: intent.getStringExtra("destination")
+                ?: intent.getStringExtra("screen")
+                ?: intent.getStringExtra("tab")
+                ?: intent.getStringExtra("action")
+
+            if (clickType != null) {
+                navigateToClickType(clickType)
+                intent.removeExtra("click_type")
+                intent.removeExtra("type")
+                intent.removeExtra("destination")
+                intent.removeExtra("screen")
+                intent.removeExtra("tab")
+                intent.removeExtra("action")
             }
         }
     }
 
     fun navigateToClickType(clickType: String?) {
-        if (clickType == null) return
+        if (clickType.isNullOrBlank()) return
         runOnUiThread {
-            when (clickType.lowercase(Locale.ROOT)) {
-                "mascota", "pet", "thor" -> {
+            // Limpiar la pila de fragmentos para llegar directo a la sección deseada
+            if (supportFragmentManager.backStackEntryCount > 0) {
+                supportFragmentManager.popBackStackImmediate(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
+            }
+
+            val target = clickType.trim().lowercase(Locale.ROOT)
+            when (target) {
+                "mascota", "pet", "thor", "pet_care", "hungry", "hambre", "energy", "sueno", "sueño", "sleep", "tired", "bano", "baño", "bath", "play" -> {
                     updateTabSelection(R.id.btnHome)
                     fragmentContainer.visibility = View.GONE
                     composeFeed.visibility = View.VISIBLE
@@ -998,30 +1019,30 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     btnMenuMore.visibility = View.VISIBLE
                     showPetDialogState.value = true
                 }
-                "carta", "like", "mensaje", "feed" -> {
+                "carta", "cartas", "mensaje", "mensajes", "like", "feed", "home", "chat", "new_letter", "letter", "letters", "diario" -> {
                     updateTabSelection(R.id.btnHome)
                     fragmentContainer.visibility = View.GONE
                     composeFeed.visibility = View.VISIBLE
                     inputArea.visibility = View.VISIBLE
                     btnMenuMore.visibility = View.VISIBLE
                 }
-                "receta", "recipe" -> {
+                "receta", "recetas", "recipe", "recipes", "cocina", "comida" -> {
                     updateTabSelection(R.id.btnRecipes)
                     showFragment(RecipeFragment.newInstance(currentCoupleId, currentTheme))
                 }
-                "cita", "calendar", "calendario" -> {
+                "cita", "citas", "calendar", "calendario", "event", "evento", "eventos", "recordatorio", "recordatorios", "appointment", "date" -> {
                     updateTabSelection(R.id.btnCalendar)
                     showFragment(CalendarFragment.newInstance(currentCoupleId, currentUserId ?: "", currentTheme))
                 }
-                "album", "foto", "recuerdo" -> {
+                "album", "albumes", "foto", "fotos", "photo", "photos", "recuerdo", "recuerdos", "gallery", "galeria", "memories", "momento", "momentos" -> {
                     updateTabSelection(R.id.btnAlbum)
                     showFragment(AlbumFragment.newInstance(currentCoupleId, currentUserId ?: "", currentUserName ?: "", currentUserImageUri ?: "", currentTheme))
                 }
-                "medicamento", "meds", "remedio", "remedios" -> {
+                "medicamento", "medicamentos", "meds", "med", "medication", "remedio", "remedios", "pill", "pills", "pastilla", "pastillas", "dose" -> {
                     updateTabSelection(R.id.btnMisc)
                     showFragment(MiscFragment.newInstance(currentTheme, "meds"))
                 }
-                "horario", "schedule", "clases" -> {
+                "horario", "horarios", "schedule", "clases", "class", "classes", "timetable" -> {
                     updateTabSelection(R.id.btnMisc)
                     showFragment(MiscFragment.newInstance(currentTheme, "schedule"))
                 }
@@ -1029,13 +1050,28 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     updateTabSelection(R.id.btnMisc)
                     showFragment(MiscFragment.newInstance(currentTheme, "anime"))
                 }
-                "espiritus", "spirits", "checklist" -> {
+                "espiritus", "espíritus", "spirits", "spirit", "checklist", "lista", "tareas" -> {
                     updateTabSelection(R.id.btnMisc)
                     showFragment(MiscFragment.newInstance(currentTheme, "checklist"))
                 }
-                "sos", "radar", "thor_radar", "location" -> {
+                "sos", "radar", "thor_radar", "location", "ubicacion", "ubicación", "emergency", "emergencia", "geofence", "zone_enter", "zone_exit", "zone", "map", "mapa" -> {
                     updateTabSelection(R.id.btnMisc)
                     showFragment(MiscFragment.newInstance(currentTheme, "radar"))
+                }
+                "perfil", "profile" -> {
+                    updateTabSelection(R.id.btnProfile)
+                    showFragment(ProfileFragment.newInstance(currentUserId ?: "", currentCoupleId, currentTheme))
+                }
+                "settings", "configuracion", "configuración", "config", "ajustes", "sync", "sincronizacion", "sincronización", "drive" -> {
+                    updateTabSelection(R.id.btnSettings)
+                    showFragment(SettingsFragment.newInstance(currentUserId ?: "", currentCoupleId, currentTheme))
+                }
+                else -> {
+                    updateTabSelection(R.id.btnHome)
+                    fragmentContainer.visibility = View.GONE
+                    composeFeed.visibility = View.VISIBLE
+                    inputArea.visibility = View.VISIBLE
+                    btnMenuMore.visibility = View.VISIBLE
                 }
             }
         }
@@ -1147,12 +1183,25 @@ class MainActivity : AppCompatActivity(), AppNavigation {
 
     fun testLocalNotification() {
         Toast.makeText(this, "Enviando notificación de prueba...", Toast.LENGTH_SHORT).show()
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("click_type", "carta")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            999,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val builder = NotificationCompat.Builder(this, "diario_channel")
             .setSmallIcon(R.drawable.ic_heart_pixel)
             .setContentTitle("Prueba de Diario Pixel 🔔")
             .setContentText("¡Funciona! Esta es una notificación de prueba local.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
 
         val notificationManager = NotificationManagerCompat.from(this)
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {

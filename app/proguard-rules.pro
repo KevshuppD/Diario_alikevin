@@ -20,6 +20,10 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
+# Acelerar compilación Release desactivando optimizaciones de múltiples pasadas
+# Mantiene 100% el ofuscado y reducción de código/recursos no usados (shrinking/minification)
+-dontoptimize
+
 # Firebase Firestore Serialization Keep Rules
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 

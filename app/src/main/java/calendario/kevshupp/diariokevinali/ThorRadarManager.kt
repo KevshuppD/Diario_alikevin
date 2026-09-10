@@ -182,6 +182,10 @@ object ThorRadarManager {
     private var lastUploadedLat: Double = 0.0
     private var lastUploadedLng: Double = 0.0
     private var lastUploadedTime: Long = 0L
+    private var lastSpeedCalcLat: Double = 0.0
+    private var lastSpeedCalcLng: Double = 0.0
+    private var lastSpeedCalcTime: Long = 0L
+    private var smoothedSpeedKmh: Float = 0f
     private var cachedZones: List<RadarPlaceZone> = emptyList()
     private var zonesListener: ListenerRegistration? = null
 
@@ -215,17 +219,23 @@ object ThorRadarManager {
         return if (isAli(userId, userName)) "Kevin" else "Ali"
     }
 
+    private var appContextRef: Context? = null
+
     fun init(context: Context) {
+        appContextRef = context.applicationContext
         if (fusedLocationClient == null) {
             fusedLocationClient = LocationServices.getFusedLocationProviderClient(context.applicationContext)
         }
         val prefs = context.applicationContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
         val coupleId = normalizeCoupleId(prefs.getString("coupleId", "vínculo_único_123"))
-        startListeningToZones(coupleId)
+        startListeningToZones(coupleId, context.applicationContext)
     }
 
-    fun startListeningToZones(coupleId: String) {
+    fun startListeningToZones(coupleId: String, context: Context? = null) {
         val safeCoupleId = normalizeCoupleId(coupleId)
+        if (context != null) {
+            appContextRef = context.applicationContext
+        }
         if (zonesListener != null) return
         try {
             zonesListener = db.collection("locations").document(safeCoupleId)
@@ -235,10 +245,60 @@ object ThorRadarManager {
                         val list = snapshot.documents.mapNotNull { RadarPlaceZone.fromSnapshot(it) }
                         cachedZones = list
                         Log.d(TAG, "Zonas seguras sincronizadas en memoria: ${list.size}")
+
+                        val ctx = appContextRef ?: context
+                        if (ctx != null) {
+                            val prefs = ctx.getSharedPreferences("ThorRadarZonePrefs", Context.MODE_PRIVATE)
+                            val lastZoneId = prefs.getString("last_active_zone_id", "") ?: ""
+                            if (lastZoneId.isNotEmpty()) {
+                                val activeZone = list.firstOrNull { it.id == lastZoneId }
+                                if (activeZone != null) {
+                                    prefs.edit()
+                                        .putString("last_active_zone_name", activeZone.name)
+                                        .putString("last_active_zone_icon", activeZone.icon)
+                                        .apply()
+                                }
+                            }
+                        }
                     }
                 }
         } catch (e: Exception) {
             Log.e(TAG, "Error iniciando listener de zonas", e)
+        }
+    }
+
+    fun updateZoneInCache(context: Context, zone: RadarPlaceZone) {
+        appContextRef = context.applicationContext
+        val current = cachedZones.toMutableList()
+        val index = current.indexOfFirst { it.id == zone.id }
+        if (index >= 0) {
+            current[index] = zone
+        } else {
+            current.add(zone)
+        }
+        cachedZones = current
+
+        val prefs = context.applicationContext.getSharedPreferences("ThorRadarZonePrefs", Context.MODE_PRIVATE)
+        val lastZoneId = prefs.getString("last_active_zone_id", "") ?: ""
+        if (lastZoneId == zone.id) {
+            prefs.edit()
+                .putString("last_active_zone_name", zone.name)
+                .putString("last_active_zone_icon", zone.icon)
+                .apply()
+        }
+    }
+
+    fun removeZoneFromCache(context: Context, zoneId: String) {
+        appContextRef = context.applicationContext
+        cachedZones = cachedZones.filterNot { it.id == zoneId }
+        val prefs = context.applicationContext.getSharedPreferences("ThorRadarZonePrefs", Context.MODE_PRIVATE)
+        val lastZoneId = prefs.getString("last_active_zone_id", "") ?: ""
+        if (lastZoneId == zoneId) {
+            prefs.edit()
+                .putString("last_active_zone_id", "")
+                .putString("last_active_zone_name", "")
+                .putString("last_active_zone_icon", "")
+                .apply()
         }
     }
 
@@ -328,11 +388,42 @@ object ThorRadarManager {
         val lat = activeLoc?.latitude ?: lastUploadedLat
         val lon = activeLoc?.longitude ?: lastUploadedLng
         val accuracy = activeLoc?.accuracy ?: 0f
-        val speedKmh = if (activeLoc != null && activeLoc.hasSpeed()) activeLoc.speed * 3.6f else 0f
+
+        var calculatedSpeedKmh = 0f
+        if (activeLoc != null && activeLoc.hasSpeed() && activeLoc.speed > 0.35f) {
+            calculatedSpeedKmh = activeLoc.speed * 3.6f
+        } else if (lastSpeedCalcTime > 0L && lastSpeedCalcLat != 0.0 && lat != 0.0) {
+            val timeDiffSec = (now - lastSpeedCalcTime) / 1000f
+            if (timeDiffSec in 1.2f..90.0f) {
+                val distMeters = calculateDistance(lastSpeedCalcLat, lastSpeedCalcLng, lat, lon)
+                val minMoveThreshold = maxOf(3.5f, accuracy * 0.35f)
+                if (distMeters > minMoveThreshold) {
+                    val rawSpeed = (distMeters / timeDiffSec) * 3.6f
+                    if (rawSpeed in 0.5f..220f) {
+                        calculatedSpeedKmh = rawSpeed
+                    }
+                }
+            }
+        }
+
+        smoothedSpeedKmh = if (smoothedSpeedKmh == 0f || calculatedSpeedKmh == 0f) {
+            calculatedSpeedKmh
+        } else {
+            (smoothedSpeedKmh * 0.35f + calculatedSpeedKmh * 0.65f)
+        }
+
+        val speedKmh = if (smoothedSpeedKmh < 1.8f) 0f else smoothedSpeedKmh
+
+        if (lat != 0.0 && lon != 0.0) {
+            lastSpeedCalcLat = lat
+            lastSpeedCalcLng = lon
+            lastSpeedCalcTime = now
+        }
 
         val activity = when {
-            speedKmh > 20f -> "IN_VEHICLE"
-            speedKmh > 2.5f -> "WALKING"
+            speedKmh >= 20f -> "IN_VEHICLE"
+            speedKmh >= 7.5f -> "RUNNING"
+            speedKmh >= 2.0f -> "WALKING"
             else -> "STILL"
         }
 
@@ -348,15 +439,29 @@ object ThorRadarManager {
         var address = ""
         if (lat != 0.0) {
             try {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                val geocoder = Geocoder(appContext, Locale.getDefault())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    geocoder.getFromLocation(lat, lon, 1) { addresses ->
+                        if (addresses.isNotEmpty()) {
+                            val addr = addresses[0]
+                            val thoroughfare = addr.thoroughfare ?: ""
+                            val locality = addr.locality ?: addr.subAdminArea ?: addr.adminArea ?: ""
+                            val resAddr = if (thoroughfare.isNotEmpty() && locality.isNotEmpty()) "$thoroughfare, $locality" else thoroughfare.ifEmpty { locality }
+                            if (resAddr.isNotEmpty()) {
+                                db.collection("locations").document(coupleId)
+                                    .collection("users").document(docName)
+                                    .update("address", resAddr)
+                            }
+                        }
+                    }
+                } else {
                     @Suppress("DEPRECATION")
-                    val geocoder = Geocoder(appContext, Locale.getDefault())
                     val addresses = geocoder.getFromLocation(lat, lon, 1)
                     if (!addresses.isNullOrEmpty()) {
                         val addr = addresses[0]
                         val thoroughfare = addr.thoroughfare ?: ""
-                        val locality = addr.locality ?: addr.subAdminArea ?: ""
-                        address = if (thoroughfare.isNotEmpty()) "$thoroughfare, $locality" else locality
+                        val locality = addr.locality ?: addr.subAdminArea ?: addr.adminArea ?: ""
+                        address = if (thoroughfare.isNotEmpty() && locality.isNotEmpty()) "$thoroughfare, $locality" else thoroughfare.ifEmpty { locality }
                     }
                 }
             } catch (e: Exception) {
@@ -415,57 +520,41 @@ object ThorRadarManager {
         }
     }
 
+    private var nativeLocationListener: android.location.LocationListener? = null
+
     @SuppressLint("MissingPermission")
     fun forceLocationUpdate(context: Context, onComplete: ((Boolean) -> Unit)? = null) {
         val appContext = context.applicationContext
         init(appContext)
 
-        // 1. Emitir estado y batería de inmediato
-        publishHeartbeat(appContext, getLastKnownLocationFallback(appContext))
-
         if (!PermissionHelper.hasLocationPermission(appContext)) {
+            publishHeartbeat(appContext, getLastKnownLocationFallback(appContext))
             onComplete?.invoke(true)
             return
         }
 
+        val bestFallback = getLastKnownLocationFallback(appContext)
+        publishHeartbeat(appContext, bestFallback)
+
         try {
-            fusedLocationClient?.lastLocation?.addOnSuccessListener { loc ->
-                if (loc != null) {
-                    handleNewLocation(appContext, loc)
-                    onComplete?.invoke(true)
-                }
-            }
             fusedLocationClient?.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 ?.addOnSuccessListener { loc ->
                     if (loc != null) {
                         handleNewLocation(appContext, loc)
-                        onComplete?.invoke(true)
-                    } else {
-                        fusedLocationClient?.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
-                            ?.addOnSuccessListener { balancedLoc ->
-                                if (balancedLoc != null) {
-                                    handleNewLocation(appContext, balancedLoc)
-                                    onComplete?.invoke(true)
-                                } else {
-                                    publishHeartbeat(appContext)
-                                    onComplete?.invoke(true)
-                                }
-                            }
                     }
+                    onComplete?.invoke(true)
                 }
                 ?.addOnFailureListener {
-                    publishHeartbeat(appContext)
                     onComplete?.invoke(true)
                 }
         } catch (e: Exception) {
             Log.e(TAG, "Error en forceLocationUpdate", e)
-            publishHeartbeat(appContext)
             onComplete?.invoke(true)
         }
     }
 
     @SuppressLint("MissingPermission")
-    fun startLiveTracking(context: Context, intervalMillis: Long = 15000L) {
+    fun startLiveTracking(context: Context, intervalMillis: Long = 10000L) {
         val appContext = context.applicationContext
         init(appContext)
 
@@ -496,8 +585,9 @@ object ThorRadarManager {
         }
 
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMillis)
-            .setMinUpdateIntervalMillis(intervalMillis / 2)
+            .setMinUpdateIntervalMillis(maxOf(2000L, intervalMillis / 2))
             .setMinUpdateDistanceMeters(0f)
+            .setMaxUpdateDelayMillis(intervalMillis * 2)
             .setWaitForAccurateLocation(false)
             .build()
 
@@ -514,9 +604,38 @@ object ThorRadarManager {
                 locationCallback!!,
                 Looper.getMainLooper()
             )
-            Log.d(TAG, "Tracking de ubicación iniciado con intervalo $intervalMillis ms")
+            Log.d(TAG, "Tracking de ubicación Fused iniciado con intervalo $intervalMillis ms")
         } catch (e: Exception) {
             Log.e(TAG, "Error iniciando requestLocationUpdates", e)
+        }
+
+        try {
+            val locMan = appContext.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+            if (locMan != null) {
+                nativeLocationListener = android.location.LocationListener { loc ->
+                    handleNewLocation(appContext, loc)
+                }
+                if (locMan.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
+                    locMan.requestLocationUpdates(
+                        android.location.LocationManager.GPS_PROVIDER,
+                        intervalMillis,
+                        0f,
+                        nativeLocationListener!!,
+                        Looper.getMainLooper()
+                    )
+                }
+                if (locMan.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)) {
+                    locMan.requestLocationUpdates(
+                        android.location.LocationManager.NETWORK_PROVIDER,
+                        intervalMillis,
+                        0f,
+                        nativeLocationListener!!,
+                        Looper.getMainLooper()
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error iniciando LocationManager nativo", e)
         }
     }
 
@@ -528,6 +647,16 @@ object ThorRadarManager {
                 Log.e(TAG, "Error deteniendo location updates", e)
             }
             locationCallback = null
+        }
+
+        nativeLocationListener?.let { listener ->
+            try {
+                val locMan = appContextRef?.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+                locMan?.removeUpdates(listener)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deteniendo LocationManager nativo", e)
+            }
+            nativeLocationListener = null
         }
     }
 
@@ -709,6 +838,14 @@ object ThorRadarManager {
                     sendZonePushNotification(context, coupleId, senderId, senderName, title, body)
                     Log.d(TAG, "Notificación de llegada emitida: ${currentMatching.name}")
                 }
+            } else {
+                // Sigue en la misma zona: si el nombre o el ícono cambiaron tras editarse, sincronizar prefs silenciosamente
+                if (lastZoneName != currentMatching.name || lastZoneIcon != currentMatching.icon) {
+                    prefs.edit()
+                        .putString("last_active_zone_name", currentMatching.name)
+                        .putString("last_active_zone_icon", currentMatching.icon)
+                        .apply()
+                }
             }
         } else {
             // Usuario está actualmente fuera de cualquier zona segura
@@ -728,10 +865,13 @@ object ThorRadarManager {
                                 .putLong("last_event_time", now)
                                 .apply()
 
-                            val title = "🚗 ¡$senderName salió de $lastZoneName!"
-                            val body = "$senderName ha salido de $lastZoneName ($lastZoneIcon)."
+                            val exitZoneName = prevZone.name.takeIf { it.isNotBlank() } ?: lastZoneName
+                            val exitZoneIcon = prevZone.icon.takeIf { it.isNotBlank() } ?: lastZoneIcon
+
+                            val title = "🚗 ¡$senderName salió de $exitZoneName!"
+                            val body = "$senderName ha salido de $exitZoneName ($exitZoneIcon)."
                             sendZonePushNotification(context, coupleId, senderId, senderName, title, body)
-                            Log.d(TAG, "Notificación de salida emitida: $lastZoneName")
+                            Log.d(TAG, "Notificación de salida emitida: $exitZoneName")
                         }
                     }
                 } else {

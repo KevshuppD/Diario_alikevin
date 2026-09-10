@@ -40,7 +40,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease --no-daemon --parallel --build-cache
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

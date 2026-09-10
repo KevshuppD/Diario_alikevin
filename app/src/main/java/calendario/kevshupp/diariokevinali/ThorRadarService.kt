@@ -13,9 +13,17 @@ import android.content.pm.ServiceInfo
 import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.*
 
 class ThorRadarService : Service() {
+
+    private val serviceJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
+    private var heartbeatJob: Job? = null
+    private var wakeLock: PowerManager.WakeLock? = null
 
     private var lastChargingState: Boolean? = null
     private var lastBatteryLevel: Int? = null
@@ -54,6 +62,7 @@ class ThorRadarService : Service() {
     companion object {
         const val CHANNEL_ID = "radar_channel"
         const val NOTIFICATION_ID = 2024
+        private const val TAG = "ThorRadarService"
 
         fun startService(context: Context) {
             val intent = Intent(context, ThorRadarService::class.java)
@@ -74,6 +83,15 @@ class ThorRadarService : Service() {
         super.onCreate()
         createNotificationChannel()
         try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Diario:ThorRadarWakeLock")?.apply {
+                setReferenceCounted(false)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "No se pudo inicializar WakeLock: ${e.message}")
+        }
+
+        try {
             val filter = IntentFilter().apply {
                 addAction(Intent.ACTION_POWER_CONNECTED)
                 addAction(Intent.ACTION_POWER_DISCONNECTED)
@@ -88,33 +106,74 @@ class ThorRadarService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = createNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-                )
-            } else {
-                startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-                )
-            }
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            )
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
 
         val prefs = getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
         val isBatterySaver = prefs.getBoolean("radar_battery_saver", false)
-        val interval = if (isBatterySaver) 60_000L else 20_000L
+        val interval = if (isBatterySaver) 30_000L else 12_000L
 
+        // Iniciar tracking continuo por callbacks GPS
         ThorRadarManager.startLiveTracking(this, interval)
+
+        // Iniciar bucle de latido continuo en segundo plano (Heartbeat Pulse)
+        // Garantiza que aunque el teléfono esté quieto o en reposo, el timestamp y la batería se sincronicen en vivo
+        startHeartbeatLoop(interval)
 
         return START_STICKY
     }
 
+    private fun startHeartbeatLoop(intervalMs: Long) {
+        heartbeatJob?.cancel()
+        heartbeatJob = serviceScope.launch {
+            while (isActive) {
+                try {
+                    acquireWakeLock(4000L)
+                    ThorRadarManager.forceLocationUpdate(applicationContext)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error en ciclo heartbeat en segundo plano", e)
+                } finally {
+                    releaseWakeLock()
+                }
+                delay(intervalMs)
+            }
+        }
+    }
+
+    private fun acquireWakeLock(timeoutMs: Long) {
+        try {
+            wakeLock?.let {
+                if (!it.isHeld) {
+                    it.acquire(timeoutMs)
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+    }
+
     override fun onDestroy() {
+        heartbeatJob?.cancel()
+        serviceJob.cancelChildren()
+        releaseWakeLock()
         try {
             unregisterReceiver(powerReceiver)
         } catch (e: Exception) {
@@ -143,10 +202,11 @@ class ThorRadarService : Service() {
     private fun createNotification(): Notification {
         val launchIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("click_type", "radar")
         }
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            1005,
             launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

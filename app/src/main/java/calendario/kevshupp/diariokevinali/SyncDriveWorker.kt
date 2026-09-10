@@ -734,6 +734,7 @@ class SyncDriveWorker(
             
             val intent = android.content.Intent(applicationContext, MainActivity::class.java).apply {
                 flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("click_type", "settings")
                 if (!isSuccess && !isCancelled) {
                     putExtra("sync_error_msg", status)
                 }
@@ -920,6 +921,7 @@ class SyncDriveWorker(
 
         val intent = android.content.Intent(applicationContext, MainActivity::class.java).apply {
             flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("click_type", "settings")
         }
         val pendingIntent = android.app.PendingIntent.getActivity(
             applicationContext,

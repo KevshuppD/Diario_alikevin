@@ -21,7 +21,11 @@ class LoginActivity : AppCompatActivity() {
         // Verificar si ya hay sesión
         val prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE)
         if (prefs.contains("userId")) {
-            startActivity(Intent(this, MainActivity::class.java))
+            val mainIntent = Intent(this, MainActivity::class.java).apply {
+                intent?.extras?.let { putExtras(it) }
+                flags = Intent.FLAG_ACTIVITY_FORWARD_RESULT
+            }
+            startActivity(mainIntent)
             finish()
             return
         }
@@ -66,7 +70,10 @@ class LoginActivity : AppCompatActivity() {
         }
         sendBroadcast(wIntent)
 
-        startActivity(Intent(this, MainActivity::class.java))
+        val mainIntent = Intent(this, MainActivity::class.java).apply {
+            intent?.extras?.let { putExtras(it) }
+        }
+        startActivity(mainIntent)
         finish()
     }
 }
