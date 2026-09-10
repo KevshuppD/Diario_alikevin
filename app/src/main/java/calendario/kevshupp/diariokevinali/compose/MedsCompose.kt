@@ -226,7 +226,10 @@ fun MedsDashboardView(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(medsList) { med ->
+                        items(
+                            items = medsList,
+                            key = { it.id }
+                        ) { med ->
                             val canEdit = med.createdBy.isBlank() || med.createdBy.equals(currentUserName, ignoreCase = true)
                             MedicationCard(
                                 med = med,

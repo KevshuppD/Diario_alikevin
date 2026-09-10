@@ -12,8 +12,8 @@ android {
         applicationId = "calendario.kevshupp.diariokevinali"
         minSdk = 24
         targetSdk = 35
-        versionCode = 88
-        versionName = "1.7.43"
+        versionCode = 89
+        versionName = "1.7.44"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -127,6 +127,9 @@ dependencies {
     implementation(libs.google.http.client.gson) {
         exclude(group = "org.apache.httpcomponents")
     }
+
+    // Baseline Profile Installer para acelerar AOT y tiempo de inicio
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 

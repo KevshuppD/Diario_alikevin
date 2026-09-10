@@ -1178,11 +1178,48 @@ fun RadarMapView(
     }
 
     // Auto-centrar en ambas ubicaciones la primera vez que se cargan
-    LaunchedEffect(myLocation.latitude, partnerLocation.latitude, mapViewInstance) {
-        if (!hasAutoCentered && mapViewInstance != null && (myLocation.latitude != 0.0 || partnerLocation.latitude != 0.0)) {
-            centerBothLocations(false)
-            hasAutoCentered = true
+    LaunchedEffect(myLocation.latitude, partnerLocation.latitude) {
+        if (!hasAutoCentered && (myLocation.latitude != 0.0 || partnerLocation.latitude != 0.0)) {
+            mapViewInstance?.let {
+                centerBothLocations(animate = false)
+                hasAutoCentered = true
+            }
         }
+    }
+
+    val avatarChar = if (userName.contains("Ali", ignoreCase = true)) "👧" else "👦"
+    val myBadge = when (myLocation.activity) {
+        "IN_VEHICLE" -> "🚗"
+        "RUNNING" -> "🚴"
+        "WALKING" -> "🚶"
+        else -> null
+    }
+    val myMarkerBitmap = remember(myAvatarBitmap, myBadge, avatarChar) {
+        createAvatarMarkerBitmap(
+            avatarBitmap = myAvatarBitmap,
+            avatarEmoji = avatarChar,
+            name = "Tú",
+            colorArgb = android.graphics.Color.parseColor("#1976D2"),
+            activityBadgeEmoji = myBadge
+        )
+    }
+
+    val partnerChar = if (partnerName.contains("Ali", ignoreCase = true)) "👧" else "👦"
+    val ringColor = if (partnerLocation.sosActive) android.graphics.Color.RED else android.graphics.Color.parseColor("#E91E63")
+    val partnerBadge = when (partnerLocation.activity) {
+        "IN_VEHICLE" -> "🚗"
+        "RUNNING" -> "🚴"
+        "WALKING" -> "🚶"
+        else -> null
+    }
+    val partnerMarkerBitmap = remember(partnerAvatarBitmap, partnerBadge, ringColor, partnerChar) {
+        createAvatarMarkerBitmap(
+            avatarBitmap = partnerAvatarBitmap,
+            avatarEmoji = partnerChar,
+            name = partnerName,
+            colorArgb = ringColor,
+            activityBadgeEmoji = partnerBadge
+        )
     }
 
     // Ciclo de vida del MapView
@@ -1263,32 +1300,23 @@ fun RadarMapView(
                 update = { mapView ->
                     mapView.overlays.clear()
 
-                    // Dibujar Zonas Seguras
+                    // Marcadores de Zonas Seguras con radio visual
                     zones.forEach { zone ->
-                        if (zone.latitude != 0.0) {
-                            val circlePoints = Polygon.pointsAsCircle(
-                                GeoPoint(zone.latitude, zone.longitude),
-                                zone.radiusMeters.toDouble()
-                            )
-                            val polygon = Polygon(mapView).apply {
-                                points = circlePoints
-                                fillPaint.color = android.graphics.Color.argb(40, 233, 30, 99)
-                                outlinePaint.color = android.graphics.Color.argb(160, 233, 30, 99)
-                                outlinePaint.strokeWidth = 3f
-                                infoWindow = null
-                                setOnClickListener { _, _, _ ->
-                                    selectedMapZone = zone
-                                    true
-                                }
+                        if (zone.latitude != 0.0 && zone.longitude != 0.0) {
+                            val circle = Polygon(mapView).apply {
+                                points = Polygon.pointsAsCircle(GeoPoint(zone.latitude, zone.longitude), zone.radiusMeters.toDouble())
+                                val zoneColor = if (isDark) android.graphics.Color.parseColor("#4A148C") else android.graphics.Color.parseColor("#CE93D8")
+                                fillPaint.color = android.graphics.Color.argb(45, android.graphics.Color.red(zoneColor), android.graphics.Color.green(zoneColor), android.graphics.Color.blue(zoneColor))
+                                outlinePaint.color = android.graphics.Color.argb(180, android.graphics.Color.red(zoneColor), android.graphics.Color.green(zoneColor), android.graphics.Color.blue(zoneColor))
+                                outlinePaint.strokeWidth = 2.5f
                             }
-                            mapView.overlays.add(polygon)
+                            mapView.overlays.add(circle)
 
-                            // Marcador de la Zona
                             val zoneMarker = Marker(mapView).apply {
                                 position = GeoPoint(zone.latitude, zone.longitude)
                                 title = "${zone.icon} ${zone.name}"
                                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                                icon = BitmapDrawable(context.resources, createTextMarkerBitmap(zone.icon, 32))
+                                icon = BitmapDrawable(context.resources, createTextMarkerBitmap(zone.icon, 28))
                                 infoWindow = null
                                 setInfoWindow(null)
                                 setOnMarkerClickListener { _, _ ->
@@ -1306,23 +1334,7 @@ fun RadarMapView(
                             position = GeoPoint(myLocation.latitude, myLocation.longitude)
                             title = "Tú ($userName)"
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                            val avatarChar = if (userName.contains("Ali", ignoreCase = true)) "👧" else "👦"
-                            val myBadge = when (myLocation.activity) {
-                                "IN_VEHICLE" -> "🚗"
-                                "RUNNING" -> "🚴"
-                                "WALKING" -> "🚶"
-                                else -> null
-                            }
-                            icon = BitmapDrawable(
-                                context.resources,
-                                createAvatarMarkerBitmap(
-                                    avatarBitmap = myAvatarBitmap,
-                                    avatarEmoji = avatarChar,
-                                    name = "Tú",
-                                    colorArgb = android.graphics.Color.parseColor("#1976D2"),
-                                    activityBadgeEmoji = myBadge
-                                )
-                            )
+                            icon = BitmapDrawable(context.resources, myMarkerBitmap)
                             infoWindow = null
                             setInfoWindow(null)
                             setOnMarkerClickListener { _, _ -> true }
@@ -1336,24 +1348,7 @@ fun RadarMapView(
                             position = GeoPoint(partnerLocation.latitude, partnerLocation.longitude)
                             title = partnerName
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                            val partnerChar = if (partnerName.contains("Ali", ignoreCase = true)) "👧" else "👦"
-                            val ringColor = if (partnerLocation.sosActive) android.graphics.Color.RED else android.graphics.Color.parseColor("#E91E63")
-                            val partnerBadge = when (partnerLocation.activity) {
-                                "IN_VEHICLE" -> "🚗"
-                                "RUNNING" -> "🚴"
-                                "WALKING" -> "🚶"
-                                else -> null
-                            }
-                            icon = BitmapDrawable(
-                                context.resources,
-                                createAvatarMarkerBitmap(
-                                    avatarBitmap = partnerAvatarBitmap,
-                                    avatarEmoji = partnerChar,
-                                    name = partnerName,
-                                    colorArgb = ringColor,
-                                    activityBadgeEmoji = partnerBadge
-                                )
-                            )
+                            icon = BitmapDrawable(context.resources, partnerMarkerBitmap)
                             infoWindow = null
                             setInfoWindow(null)
                             setOnMarkerClickListener { _, _ -> true }
@@ -1809,7 +1804,10 @@ fun RadarZonesView(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(zones) { zone ->
+                items(
+                    items = zones,
+                    key = { it.id }
+                ) { zone ->
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2671,7 +2669,10 @@ fun AddEditZoneDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        items(emojis) { emoji ->
+                        items(
+                            items = emojis,
+                            key = { it }
+                        ) { emoji ->
                             val isSel = selectedEmoji == emoji
                             Box(
                                 modifier = Modifier

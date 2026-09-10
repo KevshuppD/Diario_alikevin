@@ -473,6 +473,12 @@ fun MessageCard(
                     lineHeight = 22.sp
                 )
             } else {
+                val parsedHtml = remember(message.content) {
+                    android.text.Html.fromHtml(
+                        message.content ?: "",
+                        android.text.Html.FROM_HTML_MODE_LEGACY
+                    )
+                }
                 AndroidView(
                     factory = { ctx ->
                         TextView(ctx).apply {
@@ -483,10 +489,7 @@ fun MessageCard(
                     },
                     update = { textView ->
                         textView.setTextColor(contentColor.toArgb())
-                        textView.text = android.text.Html.fromHtml(
-                            message.content ?: "",
-                            android.text.Html.FROM_HTML_MODE_LEGACY
-                        )
+                        textView.text = parsedHtml
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -499,7 +502,10 @@ fun MessageCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(message.imageUrls ?: emptyList()) { url ->
+                    items(
+                        items = message.imageUrls ?: emptyList(),
+                        key = { it }
+                    ) { url ->
                         val optimizedUrl = remember(url) { url.optimizeCloudinary(400) }
                         AsyncImage(
                             model = optimizedUrl,
@@ -513,7 +519,8 @@ fun MessageCard(
                 }
             } else if (!message.imageUrls.isNullOrEmpty() && message.imageUrls!!.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
-                val optimizedUrl = remember(message.imageUrls) { message.imageUrls!![0].optimizeCloudinary(800) }
+                val firstUrl = message.imageUrls!![0]
+                val optimizedUrl = remember(firstUrl) { firstUrl.optimizeCloudinary(800) }
                 AsyncImage(
                     model = optimizedUrl,
                     contentDescription = null,

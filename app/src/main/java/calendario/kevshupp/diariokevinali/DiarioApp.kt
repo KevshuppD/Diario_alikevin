@@ -19,6 +19,7 @@ import com.cloudinary.android.signed.SignatureProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import okhttp3.OkHttpClient
+import kotlinx.coroutines.*
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import java.util.HashMap
@@ -40,6 +41,13 @@ class DiarioApp : Application(), ImageLoaderFactory {
             )
             .build()
         db.firestoreSettings = settings
+
+        // Configuración y límite estricto de caché de mapa Osmdroid
+        org.osmdroid.config.Configuration.getInstance().apply {
+            load(this@DiarioApp, getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE))
+            tileFileSystemCacheMaxBytes = 100L * 1024 * 1024 // 100 MB max
+            tileFileSystemCacheTrimBytes = 80L * 1024 * 1024 // Recorte a 80 MB
+        }
 
         val config: MutableMap<String, Any> = HashMap()
         config["cloud_name"] = "dhaqjw7se"
@@ -96,11 +104,15 @@ class DiarioApp : Application(), ImageLoaderFactory {
             }
         }, config)
 
-        val interval = getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
-            .getLong("updateInterval", 720L) // 12h por defecto
-        rescheduleUpdateCheck(this, interval, ExistingPeriodicWorkPolicy.KEEP)
         createNotificationChannel()
-        schedulePetCareCheck(this)
+
+        // Inicializaciones en segundo plano para arranque en frío ultrarrápido (< 300 ms)
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            val interval = getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+                .getLong("updateInterval", 720L) // 12h por defecto
+            rescheduleUpdateCheck(this@DiarioApp, interval, ExistingPeriodicWorkPolicy.KEEP)
+            schedulePetCareCheck(this@DiarioApp)
+        }
     }
 
     private fun schedulePetCareCheck(context: Context) {

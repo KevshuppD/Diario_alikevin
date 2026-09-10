@@ -786,7 +786,10 @@ fun PetMenuDialog(
                                 contentPadding = PaddingValues(top = 4.dp, bottom = 64.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                items(items) { (id, name, cost) ->
+                                items(
+                                    items = items,
+                                    key = { it.first }
+                                ) { (id, name, cost) ->
                                     val isUnlocked = pet.unlockedAccessories.contains(id)
                                     val isEquipped = pet.equippedAccessory == id
                                     val isPreviewed = previewAccessory == id
@@ -821,7 +824,10 @@ fun PetMenuDialog(
                                 contentPadding = PaddingValues(top = 4.dp, bottom = 64.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                items(backgrounds) { (id, name, cost) ->
+                                items(
+                                    items = backgrounds,
+                                    key = { it.first }
+                                ) { (id, name, cost) ->
                                     val isUnlocked = pet.unlockedBackgrounds.contains(id)
                                     val isEquipped = pet.equippedBackground == id
                                     val isPreviewed = previewBackground == id
@@ -877,7 +883,10 @@ fun PetMenuDialog(
                             contentPadding = PaddingValues(top = 4.dp, bottom = 64.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            items(foods) { (id, name, pair) ->
+                            items(
+                                items = foods,
+                                key = { it.first }
+                            ) { (id, name, pair) ->
                                 val (cost, gain) = pair
                                 FoodRow(
                                     name = name,

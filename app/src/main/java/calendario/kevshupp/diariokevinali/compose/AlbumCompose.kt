@@ -756,8 +756,9 @@ private fun AlbumGridItem(
                     )
                 }
             } else {
+                val optimizedDisplayUrl = remember(displayUrl) { displayUrl.optimizeCloudinary(400) }
                 AsyncImage(
-                    model = displayUrl.optimizeCloudinary(400),
+                    model = optimizedDisplayUrl,
                     contentDescription = "Foto del album",
                     modifier = Modifier
                         .fillMaxWidth()

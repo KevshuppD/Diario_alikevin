@@ -489,7 +489,7 @@ fun AnimeDashboardView(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
-                items(daysOfWeek) { day ->
+                items(daysOfWeek, key = { it }) { day ->
                     val animesForDay = activeAnimeList.filter { it.airingDay == day }
                     
                     Column(
@@ -827,7 +827,7 @@ fun AnimeDashboardView(
                             modifier = Modifier.fillMaxWidth().height(250.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(searchResults) { anime ->
+                            items(searchResults, key = { it.id }) { anime ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()

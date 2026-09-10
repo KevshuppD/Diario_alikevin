@@ -1267,13 +1267,22 @@ fun SpiritsChecklistView(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        val orderedIds = remember(categories) { categories.flatMap { it.spiritIds }.distinct() }
+        val sortedSpirits = remember(orderedIds, spiritsList) {
+            orderedIds.filter { spiritsList.contains(it) } + spiritsList.filter { !orderedIds.contains(it) }
+        }
+        val filteredSpirits = remember(sortedSpirits, filterMode, isKevin, kevinList, aliList, kevinMastery, aliMastery) {
+            sortedSpirits.filter { matchesFilter(it) }
+        }
+        val chunkedSpirits = remember(filteredSpirits) { filteredSpirits.chunked(3) }
+
         // Checklist Items List
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
-            val totalFiltered = spiritsList.count { matchesFilter(it) }
+            val totalFiltered = filteredSpirits.size
             if (totalFiltered == 0) {
                 item {
                     Box(
@@ -1289,11 +1298,10 @@ fun SpiritsChecklistView(
                     }
                 }
             } else if (viewMode == "fortnite") {
-                val orderedIds = categories.flatMap { it.spiritIds }.distinct()
-                val sortedSpirits = orderedIds.filter { spiritsList.contains(it) } + spiritsList.filter { !orderedIds.contains(it) }
-                val filteredSpirits = sortedSpirits.filter { matchesFilter(it) }
-                val chunkedSpirits = filteredSpirits.chunked(3)
-                items(chunkedSpirits) { rowSpirits ->
+                items(
+                    items = chunkedSpirits,
+                    key = { it.joinToString("_") }
+                ) { rowSpirits ->
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1343,9 +1351,6 @@ fun SpiritsChecklistView(
                     }
                 }
             } else if (viewMode == "lista") {
-                val orderedIds = categories.flatMap { it.spiritIds }.distinct()
-                val sortedSpirits = orderedIds.filter { spiritsList.contains(it) } + spiritsList.filter { !orderedIds.contains(it) }
-                val filteredSpirits = sortedSpirits.filter { matchesFilter(it) }
                 items(filteredSpirits, key = { "spirit_$it" }) { spiritId ->
                     val nameIndex = spiritId.toInt() - 1
                     val hasKevin = kevinList.contains(spiritId)
@@ -1667,7 +1672,10 @@ fun SpiritsChecklistView(
                                         )
                                     }
                                 }
-                                items(categories) { cat ->
+                                items(
+                                    items = categories,
+                                    key = { it.name }
+                                ) { cat ->
                                     val displayCat = customCategories[cat.name] ?: cat.name
                                     val isSelected = selectedCategoryName == cat.name
                                     Box(
@@ -1710,7 +1718,10 @@ fun SpiritsChecklistView(
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 val types = listOf("Normal", "Dorado", "Gomita", "Galaxia", "Gema", "Holofoil", "Cubo", "Extra", "Especial")
-                                items(types) { t ->
+                                items(
+                                    items = types,
+                                    key = { it }
+                                ) { t ->
                                     val isSelected = selectedType == t
                                     Box(
                                         modifier = Modifier

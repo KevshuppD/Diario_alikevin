@@ -1,0 +1,52 @@
+# Baseline Profile for Diario AliKevin
+# Optimizes Startup (Cold/Warm) and Jetpack Compose frame rendering
+
+# Application and Core Activities
+Lcalendario/kevshupp/diariokevinali/DiarioApp;
+HSPLcalendario/kevshupp/diariokevinali/DiarioApp;-><init>()V
+HSPLcalendario/kevshupp/diariokevinali/DiarioApp;->onCreate()V
+HSPLcalendario/kevshupp/diariokevinali/DiarioApp;->newImageLoader()Lcoil/ImageLoader;
+
+Lcalendario/kevshupp/diariokevinali/MainActivity;
+HSPLcalendario/kevshupp/diariokevinali/MainActivity;-><init>()V
+HSPLcalendario/kevshupp/diariokevinali/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLcalendario/kevshupp/diariokevinali/MainActivity;->onResume()V
+HSPLcalendario/kevshupp/diariokevinali/MainActivity;->onPause()V
+HSPLcalendario/kevshupp/diariokevinali/MainActivity;->onDestroy()V
+
+Lcalendario/kevshupp/diariokevinali/MainViewModel;
+HSPLcalendario/kevshupp/diariokevinali/MainViewModel;-><init>(Landroid/app/Application;)V
+HSPLcalendario/kevshupp/diariokevinali/MainViewModel;->startAllListeners()V
+HSPLcalendario/kevshupp/diariokevinali/MainViewModel;->stopAllListeners()V
+
+# Thor Radar Manager & Background Services
+Lcalendario/kevshupp/diariokevinali/ThorRadarManager;
+HSPLcalendario/kevshupp/diariokevinali/ThorRadarManager;->init(Landroid/content/Context;)V
+HSPLcalendario/kevshupp/diariokevinali/ThorRadarManager;->publishLocation(Landroid/content/Context;DDFF)V
+HSPLcalendario/kevshupp/diariokevinali/ThorRadarManager;->calculateDistance(DDDD)F
+
+Lcalendario/kevshupp/diariokevinali/ThorRadarService;
+HSPLcalendario/kevshupp/diariokevinali/ThorRadarService;-><init>()V
+HSPLcalendario/kevshupp/diariokevinali/ThorRadarService;->onStartCommand(Landroid/content/Intent;II)I
+
+# Jetpack Compose Screens and Components
+Lcalendario/kevshupp/diariokevinali/compose/MainScreenKt;
+Lcalendario/kevshupp/diariokevinali/compose/MessageFeedComposeKt;
+Lcalendario/kevshupp/diariokevinali/compose/AlbumComposeKt;
+Lcalendario/kevshupp/diariokevinali/compose/ThorRadarComposeKt;
+Lcalendario/kevshupp/diariokevinali/compose/PetDialogComposeKt;
+Lcalendario/kevshupp/diariokevinali/compose/SpiritsComposeKt;
+Lcalendario/kevshupp/diariokevinali/compose/ScheduleComposeKt;
+Lcalendario/kevshupp/diariokevinali/compose/AnimeComposeKt;
+Lcalendario/kevshupp/diariokevinali/compose/MedsComposeKt;
+Lcalendario/kevshupp/diariokevinali/compose/MedicalComposeKt;
+Lcalendario/kevshupp/diariokevinali/compose/CalendarComposeKt;
+Lcalendario/kevshupp/diariokevinali/compose/RecipeComposeKt;
+Lcalendario/kevshupp/diariokevinali/compose/ThemeUtilsKt;
+Lcalendario/kevshupp/diariokevinali/compose/ImageUtilsKt;
+
+# Compose Runtime & Foundation Critical Paths
+Landroidx/compose/runtime/ComposerImpl;
+Landroidx/compose/runtime/Recomposer;
+Landroidx/compose/foundation/lazy/LazyListState;
+Landroidx/compose/foundation/lazy/grid/LazyGridState;

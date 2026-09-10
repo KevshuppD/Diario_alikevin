@@ -186,6 +186,10 @@ object ThorRadarManager {
     private var lastSpeedCalcLng: Double = 0.0
     private var lastSpeedCalcTime: Long = 0L
     private var smoothedSpeedKmh: Float = 0f
+    private var lastGeocodedLat: Double = 0.0
+    private var lastGeocodedLng: Double = 0.0
+    private var lastGeocodedTime: Long = 0L
+    private var cachedAddress: String = ""
     private var cachedZones: List<RadarPlaceZone> = emptyList()
     private var zonesListener: ListenerRegistration? = null
 
@@ -436,36 +440,57 @@ object ThorRadarManager {
             checkAndNotifyZoneTransitions(appContext, coupleId, finalUserId, displayName, lat, lon, accuracy)
         }
 
-        var address = ""
-        if (lat != 0.0) {
-            try {
-                val geocoder = Geocoder(appContext, Locale.getDefault())
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    geocoder.getFromLocation(lat, lon, 1) { addresses ->
-                        if (addresses.isNotEmpty()) {
+        var address = cachedAddress
+        if (lat != 0.0 && lon != 0.0) {
+            val distFromLastGeocode = if (lastGeocodedLat != 0.0 && lastGeocodedLng != 0.0) {
+                calculateDistance(lat, lon, lastGeocodedLat, lastGeocodedLng)
+            } else {
+                Float.MAX_VALUE
+            }
+            val timeSinceLastGeocode = System.currentTimeMillis() - lastGeocodedTime
+            val needsGeocoding = cachedAddress.isEmpty() || distFromLastGeocode >= 40.0f || timeSinceLastGeocode >= 5 * 60 * 1000L
+
+            if (needsGeocoding) {
+                try {
+                    val geocoder = Geocoder(appContext, Locale.getDefault())
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        geocoder.getFromLocation(lat, lon, 1) { addresses ->
+                            if (addresses.isNotEmpty()) {
+                                val addr = addresses[0]
+                                val thoroughfare = addr.thoroughfare ?: ""
+                                val locality = addr.locality ?: addr.subAdminArea ?: addr.adminArea ?: ""
+                                val resAddr = if (thoroughfare.isNotEmpty() && locality.isNotEmpty()) "$thoroughfare, $locality" else thoroughfare.ifEmpty { locality }
+                                if (resAddr.isNotEmpty()) {
+                                    cachedAddress = resAddr
+                                    lastGeocodedLat = lat
+                                    lastGeocodedLng = lon
+                                    lastGeocodedTime = System.currentTimeMillis()
+                                    db.collection("locations").document(coupleId)
+                                        .collection("users").document(docName)
+                                        .update("address", resAddr)
+                                }
+                            }
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        val addresses = geocoder.getFromLocation(lat, lon, 1)
+                        if (!addresses.isNullOrEmpty()) {
                             val addr = addresses[0]
                             val thoroughfare = addr.thoroughfare ?: ""
                             val locality = addr.locality ?: addr.subAdminArea ?: addr.adminArea ?: ""
                             val resAddr = if (thoroughfare.isNotEmpty() && locality.isNotEmpty()) "$thoroughfare, $locality" else thoroughfare.ifEmpty { locality }
                             if (resAddr.isNotEmpty()) {
-                                db.collection("locations").document(coupleId)
-                                    .collection("users").document(docName)
-                                    .update("address", resAddr)
+                                cachedAddress = resAddr
+                                address = resAddr
+                                lastGeocodedLat = lat
+                                lastGeocodedLng = lon
+                                lastGeocodedTime = System.currentTimeMillis()
                             }
                         }
                     }
-                } else {
-                    @Suppress("DEPRECATION")
-                    val addresses = geocoder.getFromLocation(lat, lon, 1)
-                    if (!addresses.isNullOrEmpty()) {
-                        val addr = addresses[0]
-                        val thoroughfare = addr.thoroughfare ?: ""
-                        val locality = addr.locality ?: addr.subAdminArea ?: addr.adminArea ?: ""
-                        address = if (thoroughfare.isNotEmpty() && locality.isNotEmpty()) "$thoroughfare, $locality" else thoroughfare.ifEmpty { locality }
-                    }
+                } catch (e: Exception) {
+                    // Ignore geocoding failure
                 }
-            } catch (e: Exception) {
-                // Ignore geocoding failure
             }
         }
 

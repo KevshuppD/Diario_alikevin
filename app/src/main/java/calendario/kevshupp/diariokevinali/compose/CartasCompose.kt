@@ -89,7 +89,7 @@ fun CartasScreen(
             contentPadding = PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(messages) { message ->
+            items(messages, key = { it.messageId ?: "msg_${it.timestamp}" }) { message ->
                 CartaItem(message, cardBg, textColor, borderColor, onMessageClick)
             }
         }
