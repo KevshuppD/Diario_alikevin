@@ -257,6 +257,37 @@ fun ThorRadarScreen(
             locationManager?.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER) == true
         )
     }
+    val activity = context as? android.app.Activity
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var hasBgPermission by remember { mutableStateOf(PermissionHelper.hasBackgroundLocationPermission(context)) }
+    var isIgnoringBattery by remember { mutableStateOf(PermissionHelper.isIgnoringBatteryOptimizations(context)) }
+    var isBannerDismissed by remember { mutableStateOf(prefs.getBoolean("radar_bg_banner_dismissed", false)) }
+    var showSetupWizardDialog by remember {
+        mutableStateOf(
+            !prefs.getBoolean("radar_setup_wizard_dismissed", false) &&
+            (!isSharingLocation || !isGpsEnabled || !hasBgPermission || !isIgnoringBattery)
+        )
+    }
+
+    // Re-evaluar permisos y estado de GPS al volver de Ajustes o poner la app en primer plano
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                hasBgPermission = PermissionHelper.hasBackgroundLocationPermission(context)
+                isIgnoringBattery = PermissionHelper.isIgnoringBatteryOptimizations(context)
+                val locMan = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+                isGpsEnabled = locMan?.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) == true ||
+                               locMan?.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER) == true
+                if (hasBgPermission && isSharingLocation) {
+                    ThorRadarManager.forceLocationUpdate(context)
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     var showAddEditZoneDialog by remember { mutableStateOf(false) }
     var editingZone by remember { mutableStateOf<RadarPlaceZone?>(null) }
@@ -412,6 +443,8 @@ fun ThorRadarScreen(
                 ThorRadarManager.forceLocationUpdate(context)
                 delay(4000L)
             }
+        } else {
+            ThorRadarManager.stopLiveTracking()
         }
     }
 
@@ -518,11 +551,12 @@ fun ThorRadarScreen(
             Box(
                 modifier = Modifier
                     .border(2.dp, borderColor)
-                    .background(if (isSharingLocation) Color(0xFF2E7D32) else Color(0xFF757575))
+                    .background(if (isSharingLocation) Color(0xFF2E7D32) else Color(0xFFD32F2F))
+                    .clickable { selectedTab = 3 }
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
-                    text = if (isSharingLocation) "🔴 EN VIVO" else "💤 PAUSA",
+                    text = if (isSharingLocation) "🔴 EN VIVO" else "🛑 APAGADO",
                     fontFamily = Vt323,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
@@ -531,29 +565,6 @@ fun ThorRadarScreen(
             }
         }
 
-    val activity = context as? android.app.Activity
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    var hasBgPermission by remember { mutableStateOf(PermissionHelper.hasBackgroundLocationPermission(context)) }
-    var isBannerDismissed by remember { mutableStateOf(prefs.getBoolean("radar_bg_banner_dismissed", false)) }
-
-    // Re-evaluar permisos y estado de GPS al volver de Ajustes o poner la app en primer plano
-    DisposableEffect(lifecycleOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                hasBgPermission = PermissionHelper.hasBackgroundLocationPermission(context)
-                val locMan = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
-                isGpsEnabled = locMan?.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) == true ||
-                               locMan?.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER) == true
-                if (hasBgPermission) {
-                    ThorRadarManager.forceLocationUpdate(context)
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
 
     // Banner de Alerta SOS si la pareja activó emergencia
     if (partnerLocationData.sosActive) {
@@ -705,7 +716,60 @@ fun ThorRadarScreen(
         }
     }
 
-        // Tarjeta Resumen de la Pareja (Live Partner Card)
+    // Banner cuando Thor Radar está Apagado (Solo visible fuera de la pestaña Ajustes)
+    if (!isSharingLocation && selectedTab != 3) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .border(2.dp, Color(0xFFD32F2F))
+                .background(if (isDark) Color(0xFF330A0A) else Color(0xFFFFEBEE))
+                .padding(8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = "🛑", fontSize = 22.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "THOR RADAR APAGADO (0% BATERÍA)",
+                        fontFamily = Vt323,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFD32F2F)
+                    )
+                    Text(
+                        text = "El servicio de rastreo GPS está detenido para ahorrar batería.",
+                        fontFamily = Vt323,
+                        fontSize = 13.sp,
+                        color = textColor
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Button(
+                    onClick = {
+                        isSharingLocation = true
+                        prefs.edit().putBoolean("radar_is_sharing", true).apply()
+                        if (PermissionHelper.hasLocationPermission(context)) {
+                            ThorRadarService.startService(context)
+                            ThorRadarManager.forceLocationUpdate(context)
+                            Toast.makeText(context, "⚡ Thor Radar encendido. Rastreo activado.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "⚠️ Se requieren permisos de ubicación.", Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                    shape = RoundedCornerShape(0.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Text("ENCENDER", fontFamily = Vt323, fontSize = 13.sp, color = Color.White)
+                }
+            }
+        }
+    }
+
+    // Tarjeta Resumen de la Pareja (Live Partner Card) - Oculta en pestaña Ajustes para dar máximo espacio
+    if (selectedTab != 3) {
         PartnerLiveCard(
             partnerName = partnerName,
             partnerData = partnerLocationData,
@@ -733,10 +797,20 @@ fun ThorRadarScreen(
                 } else {
                     Toast.makeText(context, "Ubicación de $partnerName aún no disponible", Toast.LENGTH_SHORT).show()
                 }
+            },
+            onPingPartner = {
+                ThorRadarManager.sendLocationRequestPing(
+                    context = context,
+                    coupleId = coupleId,
+                    senderId = currentUserId,
+                    senderName = myDisplayName,
+                    partnerName = partnerName
+                )
+                Toast.makeText(context, "🔔 Solicitud de ubicación enviada a $partnerName", Toast.LENGTH_SHORT).show()
             }
         )
-
         Spacer(modifier = Modifier.height(6.dp))
+    }
 
         // Pestañas / Selector de Módulos Retro
         Row(
@@ -853,9 +927,18 @@ fun ThorRadarScreen(
                         isSharingLocation = enabled
                         prefs.edit().putBoolean("radar_is_sharing", enabled).apply()
                         if (enabled) {
-                            ThorRadarService.startService(context)
+                            if (PermissionHelper.hasLocationPermission(context)) {
+                                ThorRadarService.startService(context)
+                                ThorRadarManager.forceLocationUpdate(context)
+                                Toast.makeText(context, "⚡ Thor Radar encendido. Rastreo activado.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "⚠️ Se requieren permisos de ubicación para activar el radar", Toast.LENGTH_LONG).show()
+                            }
                         } else {
                             ThorRadarService.stopService(context)
+                            ThorRadarManager.stopLiveTracking()
+                            ThorRadarManager.publishHeartbeat(context)
+                            Toast.makeText(context, "🛑 Thor Radar apagado. Servicio detenido para ahorrar batería.", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onToggleBatterySaver = { enabled ->
@@ -864,7 +947,11 @@ fun ThorRadarScreen(
                         if (isSharingLocation) {
                             ThorRadarService.startService(context)
                         }
-                    }
+                    },
+                    isGpsEnabled = isGpsEnabled,
+                    hasBgLoc = hasBgPermission,
+                    isIgnoringBattery = isIgnoringBattery,
+                    onOpenSetupWizard = { showSetupWizardDialog = true }
                 )
             }
         }
@@ -910,6 +997,56 @@ fun ThorRadarScreen(
             }
         )
     }
+
+    // Diálogo Asistente de Configuración Requerida
+    if (showSetupWizardDialog) {
+        RadarSetupWizardDialog(
+            isSharing = isSharingLocation,
+            isGpsEnabled = isGpsEnabled,
+            hasBgPermission = hasBgPermission,
+            isIgnoringBattery = isIgnoringBattery,
+            onToggleSharing = { enabled ->
+                isSharingLocation = enabled
+                prefs.edit().putBoolean("radar_is_sharing", enabled).apply()
+                if (enabled) {
+                    if (PermissionHelper.hasLocationPermission(context)) {
+                        ThorRadarService.startService(context)
+                        ThorRadarManager.forceLocationUpdate(context)
+                    }
+                } else {
+                    ThorRadarService.stopService(context)
+                    ThorRadarManager.stopLiveTracking()
+                    ThorRadarManager.publishHeartbeat(context)
+                }
+            },
+            onEnableGps = {
+                try {
+                    context.startActivity(Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                } catch (e: Exception) {
+                    PermissionHelper.openAppSettings(context)
+                }
+            },
+            onRequestBgPermission = {
+                if (activity != null) {
+                    PermissionHelper.requestBackgroundLocationPermission(activity)
+                } else {
+                    PermissionHelper.openAppSettings(context)
+                }
+            },
+            onRequestIgnoreBattery = {
+                PermissionHelper.requestIgnoreBatteryOptimizations(context)
+                isIgnoringBattery = PermissionHelper.isIgnoringBatteryOptimizations(context)
+            },
+            onDismiss = {
+                showSetupWizardDialog = false
+            },
+            theme = theme,
+            textColor = textColor,
+            borderColor = borderColor,
+            cardBg = cardBg,
+            accentColor = accentColor
+        )
+    }
 }
 
 @Composable
@@ -925,11 +1062,14 @@ fun PartnerLiveCard(
     borderColor: Color,
     cardBg: Color,
     accentColor: Color,
-    onNavigate: () -> Unit
+    onNavigate: () -> Unit,
+    onPingPartner: () -> Unit
 ) {
     val isDark = theme == "Pixel Oscuro"
     val hasValidData = partnerData.timestamp > 0L && partnerData.latitude != 0.0
     val isOnline = hasValidData && (System.currentTimeMillis() - partnerData.timestamp) < 600_000L // Activo en los últimos 10 min
+    val timeDiffMs = if (partnerData.timestamp > 0L) System.currentTimeMillis() - partnerData.timestamp else Long.MAX_VALUE
+    val isStale = !hasValidData || timeDiffMs >= 8 * 60 * 1000L // Más de 8 min
 
     val distanceText = when {
         !hasValidData -> "Esperando señal GPS de $partnerName..."
@@ -1075,6 +1215,61 @@ fun PartnerLiveCard(
                             else -> textColor.copy(alpha = 0.75f)
                         }
                     )
+                }
+            }
+
+            // Diagnóstico y Aviso Inteligente si la Pareja no está enviando ubicación reciente
+            if (isStale) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100))
+                        .background(if (isDark) Color(0xFF332005) else Color(0xFFFFF3E0))
+                        .padding(6.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = when {
+                                    !partnerData.isSharing -> "🛑 RADAR APAGADO EN SU CELULAR"
+                                    partnerData.batteryLevel in 1..15 -> "🪫 BATERÍA MUY BAJA (${partnerData.batteryLevel}%)"
+                                    timeDiffMs >= 30 * 60 * 1000L -> "⚠️ SEÑAL SUSPENDIDA / INACTIVA"
+                                    else -> "📡 ESPERANDO SEÑAL GPS"
+                                },
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100),
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            Button(
+                                onClick = onPingPartner,
+                                colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFFE65100) else Color(0xFFFF9800)),
+                                shape = RoundedCornerShape(0.dp),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                                modifier = Modifier.height(24.dp)
+                            ) {
+                                Text("🔔 PEDIR UBICACIÓN", fontFamily = Vt323, fontSize = 12.sp, color = Color.White)
+                            }
+                        }
+
+                        Text(
+                            text = when {
+                                !partnerData.isSharing -> "$partnerName tiene Thor Radar apagado en este momento."
+                                partnerData.batteryLevel in 1..15 -> "Con poca batería su teléfono pudo haber activado el modo de ahorro de energía y suspendido el GPS en segundo plano."
+                                timeDiffMs >= 30 * 60 * 1000L -> "Hace $timeAgo no se reciben datos. Es muy probable que Android haya congelado la app por 'Optimización de batería' o que falte el permiso 'Permitir todo el tiempo'."
+                                else -> "El dispositivo de $partnerName no ha emitido señal reciente ($timeAgo). Pulsa 'Pedir Ubicación' para solicitar actualización."
+                            },
+                            fontFamily = Vt323,
+                            fontSize = 12.sp,
+                            color = textColor.copy(alpha = 0.85f)
+                        )
+                    }
                 }
             }
 
@@ -1897,72 +2092,37 @@ fun RadarSettingsView(
     cardBg: Color,
     accentColor: Color,
     onToggleSharing: (Boolean) -> Unit,
-    onToggleBatterySaver: (Boolean) -> Unit
+    onToggleBatterySaver: (Boolean) -> Unit,
+    isGpsEnabled: Boolean,
+    hasBgLoc: Boolean,
+    isIgnoringBattery: Boolean,
+    onOpenSetupWizard: () -> Unit
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val isDark = theme == "Pixel Oscuro"
+    val activity = context as? android.app.Activity
+    var localIgnoringBattery by remember { mutableStateOf(PermissionHelper.isIgnoringBatteryOptimizations(context)) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .border(3.dp, borderColor)
+            .border(2.dp, borderColor)
             .background(cardBg)
-            .padding(14.dp)
+            .padding(10.dp)
             .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(
-            text = "⚙️ AJUSTES DE THOR RADAR",
-            fontFamily = Vt323,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = textColor
-        )
-
-        // Tarjeta de Identidad y Dispositivo Actual
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(2.dp, borderColor)
-                .background(if (theme == "Pixel Oscuro") Color(0xFF2C2230) else Color(0xFFFCE4EC))
-                .padding(10.dp)
-        ) {
-            Column {
-                Text(
-                    text = "👤 IDENTIDAD EN ESTE DISPOSITIVO",
-                    fontFamily = Vt323,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = accentColor
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Estás identificado como: $myDisplayName ($currentUserId)",
-                    fontFamily = Vt323,
-                    fontSize = 15.sp,
-                    color = textColor
-                )
-                Text(
-                    text = "Pareja vinculada: $partnerName | Vínculo: $coupleId",
-                    fontFamily = Vt323,
-                    fontSize = 14.sp,
-                    color = textColor.copy(alpha = 0.8f)
-                )
-            }
-        }
-
-        // Toggle Compartir Ubicación
-        SettingToggleCard(
-            title = "COMPARTIR UBICACIÓN EN VIVO",
-            description = "Permite que tu pareja vea tu ubicación en tiempo real y estado de batería.",
-            checked = isSharing,
-            onCheckedChange = onToggleSharing,
+        // 1. Tarjeta Maestra de Control de Encendido / Apagado
+        RadarMasterPowerCard(
+            isSharing = isSharing,
+            onToggleSharing = onToggleSharing,
+            theme = theme,
             textColor = textColor,
-            borderColor = borderColor,
-            theme = theme
+            borderColor = borderColor
         )
 
-        // Toggle Ahorro de Batería
+        // 2. Toggle Modo Ahorro de Batería
         SettingToggleCard(
             title = "MODO AHORRO DE BATERÍA",
             description = "Actualiza cada 60s en vez de 15s para reducir el consumo en viajes largos.",
@@ -1973,131 +2133,125 @@ fun RadarSettingsView(
             theme = theme
         )
 
-        // Tarjeta de Permisos Segundo Plano (Todo el tiempo)
-        val hasBgLoc = PermissionHelper.hasBackgroundLocationPermission(context)
-        val activity = context as? android.app.Activity
+        // 3. Panel Consolidado de Requisitos y Permisos
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(2.dp, if (hasBgLoc) borderColor else Color(0xFFFF9800))
-                .background(if (theme == "Pixel Oscuro") (if (hasBgLoc) Color(0xFF282828) else Color(0xFF332005)) else (if (hasBgLoc) Color(0xFFFFF7DB) else Color(0xFFFFF3E0)))
+                .border(2.dp, borderColor)
+                .background(if (isDark) Color(0xFF252028) else Color(0xFFF3E5F5))
                 .padding(10.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("🩺", fontSize = 20.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "PERMISO 'TODO EL TIEMPO'",
+                        text = "REQUISITOS EN TU CELULAR",
                         fontFamily = Vt323,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (hasBgLoc) textColor else (if (theme == "Pixel Oscuro") Color(0xFFFFB74D) else Color(0xFFE65100))
+                        color = textColor,
+                        modifier = Modifier.weight(1f)
                     )
-                    Text(
-                        text = if (hasBgLoc) "✅ Activo: La app puede rastrear en segundo plano" else "⚠️ Inactivo: Se requiere 'Permitir todo el tiempo' para funcionar con la app cerrada.",
-                        fontFamily = Vt323,
-                        fontSize = 13.sp,
-                        color = textColor.copy(alpha = 0.85f)
-                    )
+                    Button(
+                        onClick = onOpenSetupWizard,
+                        colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                        shape = RoundedCornerShape(0.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.height(28.dp)
+                    ) {
+                        Text("ASISTENTE 🛠️", fontFamily = Vt323, fontSize = 13.sp, color = Color.White)
+                    }
                 }
-                Spacer(modifier = Modifier.width(6.dp))
-                Button(
-                    onClick = {
+
+                // GPS
+                RadarRequirementRow(
+                    icon = if (isGpsEnabled) "✅" else "⚠️",
+                    title = "Sensor GPS",
+                    subtitle = if (isGpsEnabled) "Ubicación del sistema encendida" else "Ubicación desactivada en Android",
+                    isOk = isGpsEnabled,
+                    buttonText = if (isGpsEnabled) null else "ACTIVAR",
+                    onButtonClick = {
+                        try {
+                            context.startActivity(Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                        } catch (e: Exception) {
+                            PermissionHelper.openAppSettings(context)
+                        }
+                    },
+                    textColor = textColor,
+                    isDark = isDark
+                )
+
+                // Segundo Plano
+                RadarRequirementRow(
+                    icon = if (hasBgLoc) "✅" else "⚠️",
+                    title = "Segundo plano (Todo el tiempo)",
+                    subtitle = if (hasBgLoc) "Permiso concedido para app cerrada" else "Se requiere 'Permitir todo el tiempo'",
+                    isOk = hasBgLoc,
+                    buttonText = if (hasBgLoc) null else "ACTIVAR",
+                    onButtonClick = {
                         if (activity != null) {
                             PermissionHelper.requestBackgroundLocationPermission(activity)
                         } else {
                             PermissionHelper.openAppSettings(context)
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = if (hasBgLoc) Color(0xFF4CAF50) else Color(0xFFFF9800)),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                    modifier = Modifier.height(30.dp)
-                ) {
-                    Text(if (hasBgLoc) "VER" else "ACTIVAR", fontFamily = Vt323, fontSize = 14.sp, color = Color.White)
-                }
-            }
-        }
+                    textColor = textColor,
+                    isDark = isDark
+                )
 
-        // Tarjeta de Optimización de Batería (Sin Restricciones)
-        var isIgnoringBattery by remember { mutableStateOf(PermissionHelper.isIgnoringBatteryOptimizations(context)) }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(2.dp, if (isIgnoringBattery) borderColor else Color(0xFFFF9800))
-                .background(if (theme == "Pixel Oscuro") (if (isIgnoringBattery) Color(0xFF282828) else Color(0xFF332005)) else (if (isIgnoringBattery) Color(0xFFFFF7DB) else Color(0xFFFFF3E0)))
-                .padding(10.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "BATERÍA: SIN RESTRICCIONES",
-                        fontFamily = Vt323,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isIgnoringBattery) textColor else (if (theme == "Pixel Oscuro") Color(0xFFFFB74D) else Color(0xFFE65100))
-                    )
-                    Text(
-                        text = if (isIgnoringBattery) "✅ Optimización desactivada: Android no suspenderá la app" else "⚠️ Recomendado: Desactivar optimización de batería para evitar que Android congele el GPS.",
-                        fontFamily = Vt323,
-                        fontSize = 13.sp,
-                        color = textColor.copy(alpha = 0.85f)
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Button(
-                    onClick = {
+                // Batería
+                RadarRequirementRow(
+                    icon = if (localIgnoringBattery) "✅" else "⚠️",
+                    title = "Batería sin restricciones",
+                    subtitle = if (localIgnoringBattery) "Optimización desactivada" else "Android podría pausar el radar",
+                    isOk = localIgnoringBattery,
+                    buttonText = if (localIgnoringBattery) null else "QUITAR LÍMITE",
+                    onButtonClick = {
                         PermissionHelper.requestIgnoreBatteryOptimizations(context)
-                        isIgnoringBattery = PermissionHelper.isIgnoringBatteryOptimizations(context)
+                        localIgnoringBattery = PermissionHelper.isIgnoringBatteryOptimizations(context)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isIgnoringBattery) Color(0xFF4CAF50) else Color(0xFFFF9800)),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                    modifier = Modifier.height(30.dp)
-                ) {
-                    Text(if (isIgnoringBattery) "OK" else "QUITAR LÍMITE", fontFamily = Vt323, fontSize = 14.sp, color = Color.White)
-                }
+                    textColor = textColor,
+                    isDark = isDark
+                )
             }
         }
 
-        // Tarjeta de Diagnóstico GPS
+        // 4. Tarjeta de Diagnóstico / Telemetría GPS e Identidad
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .border(2.dp, borderColor)
-                .background(if (theme == "Pixel Oscuro") Color(0xFF222222) else Color(0xFFF3E5F5))
+                .background(if (isDark) Color(0xFF222222) else Color(0xFFFFF7DB))
                 .padding(10.dp)
         ) {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "📡 ESTADO DE TU GPS",
+                    text = "📡 DISPOSITIVO Y TELEMETRÍA GPS",
                     fontFamily = Vt323,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = textColor
+                    color = accentColor
                 )
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Lat: ${String.format(Locale.US, "%.5f", myLocation.latitude)} | Lng: ${String.format(Locale.US, "%.5f", myLocation.longitude)}",
+                    text = "Usuario: $myDisplayName ($currentUserId) | Pareja: $partnerName",
                     fontFamily = Vt323,
                     fontSize = 14.sp,
                     color = textColor
                 )
                 Text(
-                    text = "Precisión: ±${myLocation.accuracy.roundToInt()}m | Batería: ${myLocation.batteryLevel}%",
+                    text = "Lat: ${String.format(Locale.US, "%.5f", myLocation.latitude)} | Lng: ${String.format(Locale.US, "%.5f", myLocation.longitude)} | ±${myLocation.accuracy.roundToInt()}m | 🔋 ${myLocation.batteryLevel}%",
                     fontFamily = Vt323,
                     fontSize = 14.sp,
-                    color = textColor
+                    color = textColor.copy(alpha = 0.85f)
                 )
             }
         }
 
-        // Botón Forzar Actualización Manual
+        // 5. Botón Forzar Actualización Manual
         Button(
             onClick = {
                 ThorRadarManager.forceLocationUpdate(context) { success ->
@@ -2110,9 +2264,62 @@ fun RadarSettingsView(
             },
             colors = ButtonDefaults.buttonColors(containerColor = accentColor),
             shape = RoundedCornerShape(0.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().height(42.dp)
         ) {
-            Text(text = "🔄 ACTUALIZAR MI UBICACIÓN AHORA", fontFamily = Vt323, fontSize = 18.sp, color = Color.White)
+            Text(text = "🔄 ACTUALIZAR MI UBICACIÓN AHORA", fontFamily = Vt323, fontSize = 17.sp, color = Color.White)
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+    }
+}
+
+@Composable
+fun RadarRequirementRow(
+    icon: String,
+    title: String,
+    subtitle: String,
+    isOk: Boolean,
+    buttonText: String?,
+    onButtonClick: () -> Unit,
+    textColor: Color,
+    isDark: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, if (isOk) Color(0xFF4CAF50).copy(alpha = 0.4f) else Color(0xFFFF9800))
+            .background(if (isDark) (if (isOk) Color(0xFF1E281E) else Color(0xFF332005)) else (if (isOk) Color(0xFFE8F5E9) else Color(0xFFFFF3E0)))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = icon, fontSize = 16.sp)
+        Spacer(modifier = Modifier.width(6.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontFamily = Vt323,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor
+            )
+            Text(
+                text = subtitle,
+                fontFamily = Vt323,
+                fontSize = 12.sp,
+                color = textColor.copy(alpha = 0.8f)
+            )
+        }
+        if (buttonText != null) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Button(
+                onClick = onButtonClick,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
+                shape = RoundedCornerShape(0.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                modifier = Modifier.height(28.dp)
+            ) {
+                Text(buttonText, fontFamily = Vt323, fontSize = 13.sp, color = Color.White)
+            }
         }
     }
 }
@@ -2161,6 +2368,292 @@ fun SettingToggleCard(
                     checkedTrackColor = Color(0xFF91465F)
                 )
             )
+        }
+    }
+}
+
+@Composable
+fun RadarMasterPowerCard(
+    isSharing: Boolean,
+    onToggleSharing: (Boolean) -> Unit,
+    theme: String,
+    textColor: Color,
+    borderColor: Color
+) {
+    val isDark = theme == "Pixel Oscuro"
+    val cardBorder = if (isSharing) Color(0xFF2E7D32) else Color(0xFFD32F2F)
+    val cardBg = if (isSharing) {
+        if (isDark) Color(0xFF1B3B1D) else Color(0xFFE8F5E9)
+    } else {
+        if (isDark) Color(0xFF3B1B1B) else Color(0xFFFFEBEE)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(3.dp, cardBorder)
+            .background(cardBg)
+            .padding(12.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (isSharing) "🟢" else "🛑",
+                    fontSize = 26.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isSharing) "RADAR ENCENDIDO (TRANSMITIENDO)" else "RADAR APAGADO (AHORRO 100%)",
+                        fontFamily = Vt323,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSharing) (if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)) else (if (isDark) Color(0xFFE57373) else Color(0xFFD32F2F))
+                    )
+                    Text(
+                        text = if (isSharing) {
+                            "Rastreo en segundo plano activo. Tu pareja puede ver tu ubicación."
+                        } else {
+                            "Servicio en segundo plano y GPS 100% detenidos. Cero consumo de batería."
+                        },
+                        fontFamily = Vt323,
+                        fontSize = 13.sp,
+                        color = textColor.copy(alpha = 0.9f)
+                    )
+                }
+            }
+
+            // Botón Maestro de Encendido / Apagado
+            Button(
+                onClick = { onToggleSharing(!isSharing) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isSharing) Color(0xFFD32F2F) else Color(0xFF2E7D32)
+                ),
+                shape = RoundedCornerShape(0.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp)
+            ) {
+                Text(
+                    text = if (isSharing) "🛑 APAGAR THOR RADAR" else "⚡ ENCENDER THOR RADAR",
+                    fontFamily = Vt323,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            Text(
+                text = if (isSharing) {
+                    "💡 Apagar el radar detiene por completo el servicio en segundo plano (Foreground Service) y el GPS para ahorrar batería."
+                } else {
+                    "💡 Enciende el radar cuando salgas o quieras que tu pareja vea tu ubicación y zonas seguras en tiempo real."
+                },
+                fontFamily = Vt323,
+                fontSize = 12.sp,
+                color = textColor.copy(alpha = 0.75f)
+            )
+        }
+    }
+}
+
+@Composable
+fun RadarSetupWizardDialog(
+    isSharing: Boolean,
+    isGpsEnabled: Boolean,
+    hasBgPermission: Boolean,
+    isIgnoringBattery: Boolean,
+    onToggleSharing: (Boolean) -> Unit,
+    onEnableGps: () -> Unit,
+    onRequestBgPermission: () -> Unit,
+    onRequestIgnoreBattery: () -> Unit,
+    onDismiss: () -> Unit,
+    theme: String,
+    textColor: Color,
+    borderColor: Color,
+    cardBg: Color,
+    accentColor: Color
+) {
+    val isDark = theme == "Pixel Oscuro"
+    val allReady = isSharing && isGpsEnabled && hasBgPermission && isIgnoringBattery
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(3.dp, borderColor)
+                .background(cardBg)
+                .padding(14.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("🛠️", fontSize = 24.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "CONFIGURACIÓN DEL RADAR",
+                        fontFamily = Vt323,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "✕",
+                        fontFamily = Vt323,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .clickable { onDismiss() }
+                            .padding(4.dp)
+                    )
+                }
+
+                Text(
+                    text = if (allReady) {
+                        "✨ ¡Excelente! Todos los requisitos están activos para que tu pareja vea tu ubicación en tiempo real sin interrupciones."
+                    } else {
+                        "Para que el radar funcione en segundo plano y Android no congele la ubicación con la app cerrada, activa estos 4 elementos:"
+                    },
+                    fontFamily = Vt323,
+                    fontSize = 14.sp,
+                    color = textColor.copy(alpha = 0.85f)
+                )
+
+                Divider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
+
+                // Item 1: Thor Radar Encendido
+                SetupCheckItem(
+                    title = "1. THOR RADAR ENCENDIDO",
+                    subtitle = if (isSharing) "Radar activo en la app" else "El radar está apagado",
+                    isReady = isSharing,
+                    buttonText = "ENCENDER",
+                    onAction = { onToggleSharing(true) },
+                    textColor = textColor,
+                    isDark = isDark
+                )
+
+                // Item 2: Sensor GPS del Teléfono
+                SetupCheckItem(
+                    title = "2. SENSOR GPS DEL TELÉFONO",
+                    subtitle = if (isGpsEnabled) "Ubicación del sistema encendida" else "GPS apagado en Android",
+                    isReady = isGpsEnabled,
+                    buttonText = "ACTIVAR GPS",
+                    onAction = onEnableGps,
+                    textColor = textColor,
+                    isDark = isDark
+                )
+
+                // Item 3: Permiso Todo el Tiempo
+                SetupCheckItem(
+                    title = "3. PERMISO 'TODO EL TIEMPO'",
+                    subtitle = if (hasBgPermission) "Rastreo con pantalla bloqueada activo" else "Solo 'Mientras la app está en uso'",
+                    isReady = hasBgPermission,
+                    buttonText = "ACTIVAR",
+                    onAction = onRequestBgPermission,
+                    textColor = textColor,
+                    isDark = isDark
+                )
+
+                // Item 4: Batería Sin Restricciones
+                SetupCheckItem(
+                    title = "4. BATERÍA: SIN RESTRICCIONES",
+                    subtitle = if (isIgnoringBattery) "Android no congelará el proceso" else "Optimización activa (puede suspender el GPS)",
+                    isReady = isIgnoringBattery,
+                    buttonText = "QUITAR LÍMITE",
+                    onAction = onRequestIgnoreBattery,
+                    textColor = textColor,
+                    isDark = isDark
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = if (allReady) Color(0xFF2E7D32) else accentColor),
+                    shape = RoundedCornerShape(0.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                ) {
+                    Text(
+                        text = if (allReady) "✅ TODO LISTO • CONTINUAR AL MAPA" else "ENTENDIDO • IR AL MAPA",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SetupCheckItem(
+    title: String,
+    subtitle: String,
+    isReady: Boolean,
+    buttonText: String,
+    onAction: () -> Unit,
+    textColor: Color,
+    isDark: Boolean
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, if (isReady) Color(0xFF4CAF50) else Color(0xFFFF9800))
+            .background(
+                if (isReady) {
+                    if (isDark) Color(0xFF1B3B1D) else Color(0xFFE8F5E9)
+                } else {
+                    if (isDark) Color(0xFF332005) else Color(0xFFFFF3E0)
+                }
+            )
+            .padding(8.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = if (isReady) "✅" else "⚠️",
+                fontSize = 18.sp
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontFamily = Vt323,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isReady) (if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)) else (if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100))
+                )
+                Text(
+                    text = subtitle,
+                    fontFamily = Vt323,
+                    fontSize = 12.sp,
+                    color = textColor.copy(alpha = 0.8f)
+                )
+            }
+            if (!isReady) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Button(
+                    onClick = onAction,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
+                    shape = RoundedCornerShape(0.dp),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Text(buttonText, fontFamily = Vt323, fontSize = 13.sp, color = Color.White)
+                }
+            }
         }
     }
 }

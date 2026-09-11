@@ -104,6 +104,20 @@ class ThorRadarService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val prefs = getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+        val isSharing = prefs.getBoolean("radar_is_sharing", true)
+        if (!isSharing) {
+            Log.d(TAG, "ThorRadarService iniciado con radar_is_sharing=false. Deteniendo servicio...")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         val notification = createNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
@@ -115,7 +129,6 @@ class ThorRadarService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        val prefs = getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
         val isBatterySaver = prefs.getBoolean("radar_battery_saver", false)
         val interval = if (isBatterySaver) 30_000L else 12_000L
 

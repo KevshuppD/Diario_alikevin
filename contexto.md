@@ -368,7 +368,14 @@ graph TD
    - `🗺️ MAPA`: Mapa satelital con auto-centrado inteligente (`BoundingBox`), controles flotantes de zoom, centrado en ambos, centrado en pareja y centrado en uno mismo, y tarjeta emergente de edición al tocar zonas.
    - `🧭 BRÚJULA`: Brújula de amor con rotación animada suave (`spring`), ángulo exacto, distancia calculada (`km`/`m`) y estado "¡Juntos en el mismo lugar!".
    - `🏠 ZONAS`: Listado de geocercas registradas con botón `✏️ EDITAR`, eliminación instantánea y creación.
-   - `⚙️ AJUSTES`: Configuración de compartición de ubicación, modo ahorro de batería, permisos y estado de los sensores.
+   - `⚙️ AJUSTES`: **Espacio Ampliado y Rediseño Ergonómico:** En la pestaña de Ajustes se oculta la tarjeta flotante de la pareja y los banners redundantes para otorgar el 100% del alto de la pantalla a la configuración.
+     - **Botón Maestro de Encendido y Apagado (`RadarMasterPowerCard`):** Permite encender o apagar el radar con 1 solo toque (`[ 🛑 APAGAR THOR RADAR ]` / `[ ⚡ ENCENDER THOR RADAR ]`), deteniendo el Foreground Service (`ThorRadarService`) y los sensores GPS a cero consumo de batería.
+     - **Toggle Modo Ahorro:** Alternar entre 15s y 60s de intervalo para viajes largos.
+     - **Panel Consolidado de Requisitos (`RadarRequirementRow`):** Estado en tiempo real de Sensor GPS, Permiso Segundo Plano ("Todo el tiempo") y Batería sin restricciones con botones de acción directa integrados (`[ ACTIVAR ]` / `[ QUITAR LÍMITE ]`) y acceso al asistente modal.
+     - **Telemetría GPS e Identidad:** Coordenadas `Lat/Lng`, precisión `±Xm`, porcentaje de batería y botón `[ 🔄 ACTUALIZAR MI UBICACIÓN AHORA ]`.
+   - **Asistente de Configuración Inicial / Requisitos (`RadarSetupWizardDialog`):** Al abrir el radar, si el usuario carece de algún permiso crítico (Radar encendido, GPS activado, Ubicación en segundo plano "Permitir todo el tiempo", u Optimización de Batería "Sin restricciones"), se despliega un diálogo retro interactivo con checklist y botones de acción directa para guiar paso a paso la configuración y evitar que Android congele el servicio.
+   - **Diagnóstico Inteligente de Desconexión / Inactividad:** Si la pareja lleva más de 8 minutos sin reportar señal (`isStale`), la tarjeta en vivo de la pareja (`PartnerLiveCard`) muestra una caja de diagnóstico retro en color naranja advirtiendo las causas más probables: Radar apagado por la pareja, batería crítica ($\le 15\%$), suspensión por modo ahorro de Android/Doze mode, o falta de cobertura GPS/Red.
+   - **Botón de Solicitud de Ubicación en Vivo (`[ 🔔 PEDIR UBICACIÓN ]`):** Envía un ping de datos prioritario vía FCM (`radar_ping`) al teléfono de la pareja. Al recibirlo, `MyFirebaseMessagingService` despierta en segundo plano a `ThorRadarService` y fuerza un refresco inmediato de GPS (`ThorRadarManager.forceLocationUpdate`), actualizando la ubicación sin que la pareja tenga que abrir la app manualmente.
 
 ---
 

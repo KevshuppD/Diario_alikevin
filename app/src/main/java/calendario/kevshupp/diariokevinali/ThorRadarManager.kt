@@ -523,7 +523,7 @@ object ThorRadarManager {
                 Log.e(TAG, "Error emitiendo heartbeat", e)
             }
 
-        if (lat != 0.0 && lon != 0.0) {
+        if (isSharing && lat != 0.0 && lon != 0.0) {
             val distMoved = calculateDistance(lastUploadedLat, lastUploadedLng, lat, lon)
             if (distMoved > 50f || (now - lastUploadedTime) > 300_000L) {
                 lastUploadedLat = lat
@@ -550,7 +550,15 @@ object ThorRadarManager {
     @SuppressLint("MissingPermission")
     fun forceLocationUpdate(context: Context, onComplete: ((Boolean) -> Unit)? = null) {
         val appContext = context.applicationContext
+        val prefs = appContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+        val isSharing = prefs.getBoolean("radar_is_sharing", true)
         init(appContext)
+
+        if (!isSharing) {
+            publishHeartbeat(appContext, null)
+            onComplete?.invoke(true)
+            return
+        }
 
         if (!PermissionHelper.hasLocationPermission(appContext)) {
             publishHeartbeat(appContext, getLastKnownLocationFallback(appContext))
@@ -581,6 +589,13 @@ object ThorRadarManager {
     @SuppressLint("MissingPermission")
     fun startLiveTracking(context: Context, intervalMillis: Long = 10000L) {
         val appContext = context.applicationContext
+        val prefs = appContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+        val isSharing = prefs.getBoolean("radar_is_sharing", true)
+        if (!isSharing) {
+            Log.d(TAG, "startLiveTracking cancelado: radar_is_sharing está desactivado")
+            stopLiveTracking()
+            return
+        }
         init(appContext)
 
         // Emitir heartbeat inmediato con batería y estado
@@ -965,6 +980,61 @@ object ThorRadarManager {
                 response.close()
             } catch (e: Exception) {
                 Log.e(TAG, "Error enviando notificación push de zona", e)
+            }
+        }
+    }
+
+    fun sendLocationRequestPing(
+        context: Context,
+        coupleId: String,
+        senderId: String,
+        senderName: String,
+        partnerName: String
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val creds = MainActivity.getGoogleCredentials(context)
+                val token = creds.accessToken.tokenValue
+                val projectId = "diario-pareja-a2d35"
+                val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
+
+                val topicName = "diario_" + coupleId.lowercase()
+                    .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                    .replace("ñ", "n").replace(" ", "_")
+
+                val jsonBody = JSONObject().apply {
+                    val message = JSONObject().apply {
+                        put("topic", topicName)
+                        val data = JSONObject().apply {
+                            put("authorId", senderId)
+                            put("authorName", senderName)
+                            put("click_type", "radar_ping")
+                            put("type", "radar_ping")
+                            put("title", "📍 Actualización de Thor Radar")
+                            put("body", "¡$senderName está viendo el radar! Se ha actualizado tu ubicación en tiempo real.")
+                        }
+                        put("data", data)
+                        val android = JSONObject().apply {
+                            put("priority", "HIGH")
+                        }
+                        put("android", android)
+                    }
+                    put("message", message)
+                }
+
+                val mediaType = "application/json; charset=utf-8".toMediaType()
+                val reqBody = jsonBody.toString().toRequestBody(mediaType)
+                val request = Request.Builder()
+                    .url(url)
+                    .post(reqBody)
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
+
+                val response = DiarioApp.getOkHttpClient().newCall(request).execute()
+                Log.d(TAG, "Ping FCM push status code: ${response.code}")
+                response.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error enviando ping de ubicación FCM", e)
             }
         }
     }
