@@ -168,21 +168,38 @@ fun createResizeHandleBitmap(colorArgb: Int): Bitmap {
  * alrededor del centro del mapa de forma suave y precisa sin interferir con los toques.
  */
 class CenterZoneOverlay(
+    private val isDark: Boolean = false,
     private val getRadiusMeters: () -> Float
 ) : Overlay() {
+    private val themeColor = if (isDark) android.graphics.Color.parseColor("#00E5FF") else android.graphics.Color.parseColor("#E91E63")
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = android.graphics.Color.argb(55, 233, 30, 99)
+        color = android.graphics.Color.argb(
+            if (isDark) 55 else 55,
+            android.graphics.Color.red(themeColor),
+            android.graphics.Color.green(themeColor),
+            android.graphics.Color.blue(themeColor)
+        )
     }
     private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 4f
-        color = android.graphics.Color.argb(230, 233, 30, 99)
+        strokeWidth = if (isDark) 4.5f else 4f
+        color = android.graphics.Color.argb(
+            if (isDark) 245 else 230,
+            android.graphics.Color.red(themeColor),
+            android.graphics.Color.green(themeColor),
+            android.graphics.Color.blue(themeColor)
+        )
     }
     private val dashPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 2f
-        color = android.graphics.Color.argb(120, 233, 30, 99)
+        strokeWidth = 2.5f
+        color = android.graphics.Color.argb(
+            if (isDark) 160 else 120,
+            android.graphics.Color.red(themeColor),
+            android.graphics.Color.green(themeColor),
+            android.graphics.Color.blue(themeColor)
+        )
         pathEffect = android.graphics.DashPathEffect(floatArrayOf(10f, 6f), 0f)
     }
 
@@ -242,11 +259,25 @@ fun ThorRadarScreen(
     val partnerName = remember(isUserAli) { if (isUserAli) "Kevin" else "Ali" }
     val myDisplayName = remember(isUserAli) { if (isUserAli) "Ali" else "Kevin" }
 
-    // Estados
+    // Estados cargados desde caché inmediato para evitar cualquier parpadeo inicial
     var selectedTab by remember { mutableStateOf(0) } // 0: Mapa, 1: Brújula, 2: Zonas, 3: Ajustes
-    var myLocationData by remember { mutableStateOf(RadarLocationData(userId = currentUserId, userName = myDisplayName)) }
-    var partnerLocationData by remember { mutableStateOf(RadarLocationData(userName = partnerName)) }
-    var placeZones by remember { mutableStateOf<List<RadarPlaceZone>>(emptyList()) }
+    var myLocationData by remember {
+        mutableStateOf(
+            ThorRadarManager.loadCachedLocation(context, myDocName)
+                ?: RadarLocationData(userId = currentUserId, userName = myDisplayName)
+        )
+    }
+    var partnerLocationData by remember {
+        mutableStateOf(
+            ThorRadarManager.loadCachedLocation(context, partnerDocName)
+                ?: RadarLocationData(userName = partnerName)
+        )
+    }
+    var placeZones by remember {
+        mutableStateOf<List<RadarPlaceZone>>(
+            ThorRadarManager.loadCachedZonesFromPrefs(context)
+        )
+    }
     var isSharingLocation by remember { mutableStateOf(prefs.getBoolean("radar_is_sharing", true)) }
     var isBatterySaver by remember { mutableStateOf(prefs.getBoolean("radar_battery_saver", false)) }
 
@@ -262,12 +293,7 @@ fun ThorRadarScreen(
     var hasBgPermission by remember { mutableStateOf(PermissionHelper.hasBackgroundLocationPermission(context)) }
     var isIgnoringBattery by remember { mutableStateOf(PermissionHelper.isIgnoringBatteryOptimizations(context)) }
     var isBannerDismissed by remember { mutableStateOf(prefs.getBoolean("radar_bg_banner_dismissed", false)) }
-    var showSetupWizardDialog by remember {
-        mutableStateOf(
-            !prefs.getBoolean("radar_setup_wizard_dismissed", false) &&
-            (!isSharingLocation || !isGpsEnabled || !hasBgPermission || !isIgnoringBattery)
-        )
-    }
+    var showSetupWizardDialog by remember { mutableStateOf(false) }
 
     // Re-evaluar permisos y estado de GPS al volver de Ajustes o poner la app en primer plano
     DisposableEffect(lifecycleOwner) {
@@ -404,7 +430,9 @@ fun ThorRadarScreen(
         val myListener: ListenerRegistration = locRef.collection("users").document(myDocName)
             .addSnapshotListener { snapshot, error ->
                 if (error == null && snapshot != null && snapshot.exists()) {
-                    myLocationData = RadarLocationData.fromDocument(snapshot)
+                    val data = RadarLocationData.fromDocument(snapshot)
+                    myLocationData = data
+                    ThorRadarManager.saveCachedLocation(context, myDocName, data)
                 }
             }
 
@@ -412,7 +440,9 @@ fun ThorRadarScreen(
         val partnerListener: ListenerRegistration = locRef.collection("users").document(partnerDocName)
             .addSnapshotListener { snapshot, error ->
                 if (error == null && snapshot != null && snapshot.exists()) {
-                    partnerLocationData = RadarLocationData.fromDocument(snapshot)
+                    val data = RadarLocationData.fromDocument(snapshot)
+                    partnerLocationData = data
+                    ThorRadarManager.saveCachedLocation(context, partnerDocName, data)
                 }
             }
 
@@ -425,6 +455,7 @@ fun ThorRadarScreen(
                     }
                     placeZones = list
                     ThorRadarManager.setCachedZones(list)
+                    ThorRadarManager.saveCachedZonesToPrefs(context, list)
                 }
             }
 
@@ -1039,6 +1070,7 @@ fun ThorRadarScreen(
             },
             onDismiss = {
                 showSetupWizardDialog = false
+                prefs.edit().putBoolean("radar_setup_wizard_dismissed", true).apply()
             },
             theme = theme,
             textColor = textColor,
@@ -1069,7 +1101,7 @@ fun PartnerLiveCard(
     val hasValidData = partnerData.timestamp > 0L && partnerData.latitude != 0.0
     val isOnline = hasValidData && (System.currentTimeMillis() - partnerData.timestamp) < 600_000L // Activo en los últimos 10 min
     val timeDiffMs = if (partnerData.timestamp > 0L) System.currentTimeMillis() - partnerData.timestamp else Long.MAX_VALUE
-    val isStale = !hasValidData || timeDiffMs >= 8 * 60 * 1000L // Más de 8 min
+    val isStale = hasValidData && (!partnerData.isSharing || timeDiffMs >= 15 * 60 * 1000L) // Solo aviso de inactividad si hay datos y pasaron >15m o si apagó el radar
 
     val distanceText = when {
         !hasValidData -> "Esperando señal GPS de $partnerName..."
@@ -1495,15 +1527,25 @@ fun RadarMapView(
                 update = { mapView ->
                     mapView.overlays.clear()
 
-                    // Marcadores de Zonas Seguras con radio visual
+                    // Marcadores de Zonas Seguras con radio visual nítido y de alto contraste
                     zones.forEach { zone ->
                         if (zone.latitude != 0.0 && zone.longitude != 0.0) {
                             val circle = Polygon(mapView).apply {
                                 points = Polygon.pointsAsCircle(GeoPoint(zone.latitude, zone.longitude), zone.radiusMeters.toDouble())
-                                val zoneColor = if (isDark) android.graphics.Color.parseColor("#4A148C") else android.graphics.Color.parseColor("#CE93D8")
-                                fillPaint.color = android.graphics.Color.argb(45, android.graphics.Color.red(zoneColor), android.graphics.Color.green(zoneColor), android.graphics.Color.blue(zoneColor))
-                                outlinePaint.color = android.graphics.Color.argb(180, android.graphics.Color.red(zoneColor), android.graphics.Color.green(zoneColor), android.graphics.Color.blue(zoneColor))
-                                outlinePaint.strokeWidth = 2.5f
+                                val zoneColor = if (isDark) android.graphics.Color.parseColor("#00E5FF") else android.graphics.Color.parseColor("#AB47BC")
+                                fillPaint.color = android.graphics.Color.argb(
+                                    if (isDark) 55 else 45,
+                                    android.graphics.Color.red(zoneColor),
+                                    android.graphics.Color.green(zoneColor),
+                                    android.graphics.Color.blue(zoneColor)
+                                )
+                                outlinePaint.color = android.graphics.Color.argb(
+                                    if (isDark) 245 else 200,
+                                    android.graphics.Color.red(zoneColor),
+                                    android.graphics.Color.green(zoneColor),
+                                    android.graphics.Color.blue(zoneColor)
+                                )
+                                outlinePaint.strokeWidth = if (isDark) 4f else 3f
                             }
                             mapView.overlays.add(circle)
 
@@ -2526,7 +2568,7 @@ fun RadarSetupWizardDialog(
                     color = textColor.copy(alpha = 0.85f)
                 )
 
-                Divider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
+                HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
 
                 // Item 1: Thor Radar Encendido
                 SetupCheckItem(
@@ -2958,7 +3000,7 @@ fun AddEditZoneDialog(
                                         overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(matrix))
                                     }
 
-                                    overlays.add(CenterZoneOverlay { radiusMeters })
+                                    overlays.add(CenterZoneOverlay(isDark = isDark) { radiusMeters })
 
                                     addMapListener(object : org.osmdroid.events.MapListener {
                                         override fun onScroll(event: org.osmdroid.events.ScrollEvent?): Boolean {

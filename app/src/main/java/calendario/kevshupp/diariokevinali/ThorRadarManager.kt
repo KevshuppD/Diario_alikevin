@@ -245,6 +245,63 @@ object ThorRadarManager {
         }
     }
 
+    fun saveCachedLocation(context: Context, docName: String, data: RadarLocationData) {
+        if (data.latitude == 0.0 && data.longitude == 0.0 && data.timestamp == 0L) return
+        try {
+            val prefs = context.applicationContext.getSharedPreferences("ThorRadarLocationPrefs", Context.MODE_PRIVATE)
+            val obj = JSONObject().apply {
+                put("userId", data.userId)
+                put("userName", data.userName)
+                put("profileImageUrl", data.profileImageUrl)
+                put("latitude", data.latitude)
+                put("longitude", data.longitude)
+                put("accuracy", data.accuracy.toDouble())
+                put("speedKmh", data.speedKmh.toDouble())
+                put("batteryLevel", data.batteryLevel)
+                put("isCharging", data.isCharging)
+                put("activity", data.activity)
+                put("currentZone", data.currentZone)
+                put("address", data.address)
+                put("timestamp", data.timestamp)
+                put("isSharing", data.isSharing)
+                put("sosActive", data.sosActive)
+                put("sosTimestamp", data.sosTimestamp)
+            }
+            prefs.edit().putString("loc_$docName", obj.toString()).apply()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error guardando ubicación en cache ($docName): ${e.message}")
+        }
+    }
+
+    fun loadCachedLocation(context: Context, docName: String): RadarLocationData? {
+        try {
+            val prefs = context.applicationContext.getSharedPreferences("ThorRadarLocationPrefs", Context.MODE_PRIVATE)
+            val jsonStr = prefs.getString("loc_$docName", null) ?: return null
+            val obj = JSONObject(jsonStr)
+            return RadarLocationData(
+                userId = obj.optString("userId", ""),
+                userName = obj.optString("userName", ""),
+                profileImageUrl = obj.optString("profileImageUrl", ""),
+                latitude = obj.optDouble("latitude", 0.0),
+                longitude = obj.optDouble("longitude", 0.0),
+                accuracy = obj.optDouble("accuracy", 0.0).toFloat(),
+                speedKmh = obj.optDouble("speedKmh", 0.0).toFloat(),
+                batteryLevel = obj.optInt("batteryLevel", 100),
+                isCharging = obj.optBoolean("isCharging", false),
+                activity = obj.optString("activity", "STILL"),
+                currentZone = obj.optString("currentZone", ""),
+                address = obj.optString("address", ""),
+                timestamp = obj.optLong("timestamp", 0L),
+                isSharing = obj.optBoolean("isSharing", true),
+                sosActive = obj.optBoolean("sosActive", false),
+                sosTimestamp = obj.optLong("sosTimestamp", 0L)
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Error cargando ubicación de cache ($docName): ${e.message}")
+            return null
+        }
+    }
+
     fun isAli(userId: String?, userName: String?): Boolean {
         val uid = (userId ?: "").lowercase()
         val uname = (userName ?: "").lowercase()
@@ -605,6 +662,8 @@ object ThorRadarManager {
             timestamp = now,
             isSharing = isSharing
         )
+
+        saveCachedLocation(context, docName, locationData)
 
         db.collection("locations").document(coupleId)
             .collection("users").document(docName)
