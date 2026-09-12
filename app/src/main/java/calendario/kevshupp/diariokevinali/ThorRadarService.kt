@@ -81,6 +81,7 @@ class ThorRadarService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        ThorRadarManager.init(this)
         createNotificationChannel()
         try {
             val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager

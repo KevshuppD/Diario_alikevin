@@ -267,7 +267,7 @@ graph TD
    - Opciones dinámicas de **60 Hz (Batería), 90 Hz (Por Defecto / Recomendado), 100 Hz y 120 Hz (Ultra Fluido)**.
    - Sincronización en tiempo real en Firestore (`users/<userId>/refreshRate`) con persistencia local en `SharedPreferences`.
    - Aplicación técnica a bajo nivel en Android mediante `preferredDisplayModeId` (API 23+) y coincidencia óptima con la resolución activa de la pantalla.
-7. **Release v1.7.45 (Build 90):** Publicada en GitHub Releases vía CI/CD con tag `v1.7.45` (versionCode 90). Incluye optimizaciones de Thor Radar (asistente de requisitos, diagnóstico de inactividad, ping de ubicación FCM, rediseño de ajustes espacioso y tasa de refresco a 90 Hz por defecto).
+7. **Release v1.7.46 (Build 91):** Publicada en GitHub Releases vía CI/CD con tag `v1.7.46` (versionCode 91). Corrige falsas notificaciones repetidas de llegada/salida en zonas seguras de Thor Radar mediante caché local instantáneo (0ms) en SharedPreferences, eliminación del reinicio accidental de estado de zona al iniciar la app, sistema de doble confirmación multi-muestra con histéresis aumentada (+45m / +85m en reposo), ventana de cooldown de 5 minutos y descarte de pings de GPS con baja precisión.
 
 ---
 
@@ -343,7 +343,11 @@ graph TD
        - $< 2.0\text{ km/h}$: `STILL` (🛋️ En reposo)
      - Visualización en tiempo real en la tarjeta `PartnerRadarCard` (`🚗 En auto (45 km/h)` / `🚶 Caminando (4 km/h)` / `🛋️ En reposo`), en la barra superior del radar satelital (`🛰️ RADAR SATELITAL • PRECISIÓN: ±8m • 🚀 45 km/h`), y como badge flotante sobre los pines/avatares en el mapa interactivo.
    - **Emisión de Latidos (Heartbeats):** Registro automático de cambios de estado, velocidad, actividad y geocodificación inversa para dirección física (`thoroughfare`, `locality`).
-   - **Notificaciones Push Automáticas de Zonas Seguras (FCM v1 Data-Only):** Detección en segundo plano de transiciones de geocerca con histeresis (+20m buffer) y debounce anti-spam. Notifica automáticamente a la pareja al llegar (`🏠 ¡[Nombre] llegó a [Zona]!`) o salir (`🚗 ¡[Nombre] salió de [Zona]!`). Se envían payloads *Data-Only* con `authorId` y `authorName` filtrados en `MyFirebaseMessagingService.kt` para garantizar que la persona que se mueve nunca reciba sus propias notificaciones.
+    - **Notificaciones Push Automáticas de Zonas Seguras y Filtro Anti-Spam / Anti-Jitter (FCM v1 Data-Only):**
+      - **Caché Local Síncrono de Zonas (`ThorRadarZonePrefs`):** Persistencia instantánea en JSON de las zonas seguras en almacenamiento local para disponibilidad inmediata (0ms) en arranques en frío y reinicios de background service, eliminando falsas salidas o falsas llegadas al abrir la app.
+      - **Doble Confirmación Multi-Muestra y Margen de Histéresis:** Margen de salida aumentado ($\ge 45\text{m}$ más error de precisión del GPS), supresión de falso jitter GPS de interior cuando el usuario está en reposo (`STILL` / $\le 85\text{m}$ de buffer), y confirmación de 2 lecturas consecutivas fuera antes de emitir alerta de salida.
+      - **Ventana de Cooldown de 5 Minutos y Filtro de Precisión:** Ventana de cooldown de 300s para no re-notificar la misma zona y descarte de pings GPS con precisión deficiente ($> 65\text{m}$) para evitar rebotes de geocerca.
+      - Payloads *Data-Only* con `authorId` y `authorName` filtrados en `MyFirebaseMessagingService.kt` para garantizar que la persona que se mueve nunca reciba sus propias notificaciones.
 
 2. **Editor Interactivo de Zonas (`AddEditZoneDialog` & `CenterZoneOverlay`):**
    - **Sistema de Retícula Central Fija (`CenterZoneOverlay`):** El mapa se mueve libremente por debajo del visor manteniendo una retícula central fija con radio de cobertura visible en tiempo real (círculo proporcional con borde punteado y radio en metros `R: 120m`). Al mover el mapa o ajustar el radio con el slider o presets (`50m` a `1km`), la zona se actualiza instantáneamente con las coordenadas del centro del mapa.
