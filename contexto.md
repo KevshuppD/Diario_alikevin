@@ -377,8 +377,10 @@ graph TD
      - **Toggle Modo Ahorro:** Alternar entre 15s y 60s de intervalo para viajes largos.
      - **Panel Consolidado de Requisitos (`RadarRequirementRow`):** Estado en tiempo real de Sensor GPS, Permiso Segundo Plano ("Todo el tiempo") y Batería sin restricciones con botones de acción directa integrados (`[ ACTIVAR ]` / `[ QUITAR LÍMITE ]`) y acceso al asistente modal.
      - **Telemetría GPS e Identidad:** Coordenadas `Lat/Lng`, precisión `±Xm`, porcentaje de batería y botón `[ 🔄 ACTUALIZAR MI UBICACIÓN AHORA ]`.
-   - **Asistente de Configuración Inicial / Requisitos (`RadarSetupWizardDialog`):** Al abrir el radar, si el usuario carece de algún permiso crítico (Radar encendido, GPS activado, Ubicación en segundo plano "Permitir todo el tiempo", u Optimización de Batería "Sin restricciones"), se despliega un diálogo retro interactivo con checklist y botones de acción directa para guiar paso a paso la configuración y evitar que Android congele el servicio.
-   - **Diagnóstico Inteligente de Desconexión / Inactividad:** Si la pareja lleva más de 8 minutos sin reportar señal (`isStale`), la tarjeta en vivo de la pareja (`PartnerLiveCard`) muestra una caja de diagnóstico retro en color naranja advirtiendo las causas más probables: Radar apagado por la pareja, batería crítica ($\le 15\%$), suspensión por modo ahorro de Android/Doze mode, o falta de cobertura GPS/Red.
+   - **Caché Instantáneo y Arranque Suave Estilo Life360 (v1.7.47):** `ThorRadarManager.kt` persiste las ubicaciones en disco (`ThorRadarLocationPrefs`). Al abrir `ThorRadarCompose.kt`, `myLocationData`, `partnerLocationData` y `placeZones` se cargan en el **Frame 0**, eliminando pantallas en blanco, saltos de layout o valores en cero.
+   - **Diagnóstico Silencioso e Inteligente:** La tarjeta en vivo de la pareja (`PartnerLiveCard`) solo activa el estado `isStale` si ya existen datos válidos y la última señal supera los 15 minutos o si la pareja apagó voluntariamente el radar, evitando el parpadeo de cajas y botones naranjas durante la conexión inicial.
+   - **Zonas Seguras de Alto Contraste en Modo Oscuro:** En el mapa satelital oscuro, las geocercas y retículas interactivas (`CenterZoneOverlay`) se dibujan en **Cyan Neón Eléctrico** (`#00E5FF`) con bordes reforzados (`4f`/`4.5f`) y relleno translúcido brillante, garantizando máxima visibilidad sobre los tiles invertidos.
+   - **Asistente de Configuración Requisitos (`RadarSetupWizardDialog`):** Diálogo retro interactivo con checklist paso a paso. Se persiste el flag de descarte (`radar_setup_wizard_dismissed`) para no interrumpir al usuario en aperturas posteriores y permanece accesible desde la pestaña Ajustes.
    - **Botón de Solicitud de Ubicación en Vivo (`[ 🔔 PEDIR UBICACIÓN ]`):** Envía un ping de datos prioritario vía FCM (`radar_ping`) al teléfono de la pareja. Al recibirlo, `MyFirebaseMessagingService` despierta en segundo plano a `ThorRadarService` y fuerza un refresco inmediato de GPS (`ThorRadarManager.forceLocationUpdate`), actualizando la ubicación sin que la pareja tenga que abrir la app manualmente.
 
 ---
@@ -405,6 +407,11 @@ graph TD
 
 6. **Compilación Anticipada ART (Baseline Profiles & ProfileInstaller):**
    - Integración de `androidx.profileinstaller` y definición de [`app/src/main/baseline-prof.txt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/baseline-prof.txt) con las rutas de ejecución críticas (`DiarioApp`, `MainActivity`, `MainViewModel`, `ThorRadar`, `compose/**`). El compilador ART de Android pre-compila el código a binario nativo (AOT) durante la instalación, reduciendo los tiempos de arranque y los cuadros perdidos en Compose un 15-20%.
+
+7. **Purga de Código Legacy y Unificación de Broadcasts (v1.7.48):**
+   - Eliminación de 11 archivos de layouts XML huérfanos sin uso tras la migración a Compose.
+   - Unificación de `PackageReplacedReceiver` dentro de [`BootReceiver.kt`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/BootReceiver.kt), reduciendo redundancia en el `AndroidManifest.xml`.
+   - Limpieza de binarios locales y scripts temporales de desarrollo.
 
 ---
 
