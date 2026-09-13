@@ -87,15 +87,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
 
         if (rawType == "radar_ping" || clickType == "radar_ping") {
-            Log.d("FCM", "Petición radar_ping recibida. Despertando servicio y actualizando ubicación...")
+            Log.d("FCM", "⚡ [MAGIC PACKET] Petición radar_ping recibida. Ejecutando handleMagicLocationPing de forma silenciosa...")
             try {
-                if (prefs.getBoolean("radar_is_sharing", true) && PermissionHelper.hasLocationPermission(this)) {
-                    ThorRadarService.startService(this)
-                    ThorRadarManager.forceLocationUpdate(this)
-                }
+                ThorRadarManager.handleMagicLocationPing(this)
             } catch (e: Exception) {
-                Log.e("FCM", "Error en wakeup de radar tras radar_ping", e)
+                Log.e("FCM", "Error en handleMagicLocationPing tras radar_ping", e)
             }
+            return
         }
 
         sendNotification(title, body, imageUrl, clickType, remoteMessage.data)

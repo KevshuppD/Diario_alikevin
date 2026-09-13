@@ -830,14 +830,20 @@ fun ThorRadarScreen(
                 }
             },
             onPingPartner = {
+                Toast.makeText(context, "⚡ Sincronizando ubicación de $partnerName...", Toast.LENGTH_SHORT).show()
                 ThorRadarManager.sendLocationRequestPing(
                     context = context,
                     coupleId = coupleId,
                     senderId = currentUserId,
                     senderName = myDisplayName,
                     partnerName = partnerName
-                )
-                Toast.makeText(context, "🔔 Solicitud de ubicación enviada a $partnerName", Toast.LENGTH_SHORT).show()
+                ) { success ->
+                    if (success) {
+                        Toast.makeText(context, "📡 Señal enviada: actualizando radar de $partnerName...", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "⚠️ Error de red al sincronizar", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         )
         Spacer(modifier = Modifier.height(6.dp))
@@ -1193,6 +1199,16 @@ fun PartnerLiveCard(
                             fontSize = 13.sp,
                             color = if (isOnline) Color(0xFF4CAF50) else Color(0xFFFF9800)
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .border(1.dp, if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100))
+                                .background(if (isDark) Color(0xFF332005) else Color(0xFFFFF3E0))
+                                .clickable { onPingPartner() }
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text("🔄 ACTUALIZAR", fontFamily = Vt323, fontSize = 11.sp, color = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100), fontWeight = FontWeight.Bold)
+                        }
                     }
 
                     // Lugar / Dirección
@@ -1286,7 +1302,7 @@ fun PartnerLiveCard(
                                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                                 modifier = Modifier.height(24.dp)
                             ) {
-                                Text("🔔 PEDIR UBICACIÓN", fontFamily = Vt323, fontSize = 12.sp, color = Color.White)
+                                Text("🔄 ACTUALIZAR AHORA", fontFamily = Vt323, fontSize = 12.sp, color = Color.White)
                             }
                         }
 
@@ -1295,7 +1311,7 @@ fun PartnerLiveCard(
                                 !partnerData.isSharing -> "$partnerName tiene Thor Radar apagado en este momento."
                                 partnerData.batteryLevel in 1..15 -> "Con poca batería su teléfono pudo haber activado el modo de ahorro de energía y suspendido el GPS en segundo plano."
                                 timeDiffMs >= 30 * 60 * 1000L -> "Hace $timeAgo no se reciben datos. Es muy probable que Android haya congelado la app por 'Optimización de batería' o que falte el permiso 'Permitir todo el tiempo'."
-                                else -> "El dispositivo de $partnerName no ha emitido señal reciente ($timeAgo). Pulsa 'Pedir Ubicación' para solicitar actualización."
+                                else -> "El dispositivo de $partnerName no ha emitido señal reciente ($timeAgo). Pulsa 'Actualizar Ahora' para forzar una sincronización remota."
                             },
                             fontFamily = Vt323,
                             fontSize = 12.sp,

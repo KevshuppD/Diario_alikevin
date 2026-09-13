@@ -6,17 +6,23 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.location.Geocoder
 import android.location.Location
+import android.location.LocationManager
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import com.google.android.gms.location.*
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -1207,7 +1213,8 @@ object ThorRadarManager {
         coupleId: String,
         senderId: String,
         senderName: String,
-        partnerName: String
+        partnerName: String,
+        onComplete: ((Boolean) -> Unit)? = null
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -1228,12 +1235,15 @@ object ThorRadarManager {
                             put("authorName", senderName)
                             put("click_type", "radar_ping")
                             put("type", "radar_ping")
+                            put("magic_packet", "WOL_LOCATION_WAKEUP")
+                            put("timestamp", System.currentTimeMillis().toString())
                             put("title", "📍 Actualización de Thor Radar")
-                            put("body", "¡$senderName está viendo el radar! Se ha actualizado tu ubicación en tiempo real.")
+                            put("body", "¡$senderName ha solicitado tu ubicación en vivo!")
                         }
                         put("data", data)
                         val android = JSONObject().apply {
                             put("priority", "HIGH")
+                            put("ttl", "120s")
                         }
                         put("android", android)
                     }
@@ -1249,11 +1259,193 @@ object ThorRadarManager {
                     .build()
 
                 val response = DiarioApp.getOkHttpClient().newCall(request).execute()
-                Log.d(TAG, "Ping FCM push status code: ${response.code}")
+                val isSuccess = response.isSuccessful
+                Log.d(TAG, "⚡ [MAGIC PACKET] Push FCM status code: ${response.code}")
                 response.close()
+                withContext(Dispatchers.Main) {
+                    onComplete?.invoke(isSuccess)
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Error enviando ping de ubicación FCM", e)
+                Log.e(TAG, "⚡ [MAGIC PACKET] Error enviando ping de ubicación FCM", e)
+                withContext(Dispatchers.Main) {
+                    onComplete?.invoke(false)
+                }
             }
+        }
+    }
+
+    /**
+     * Manejador del Magic Packet tipo Wake-on-LAN al recibir un radar_ping de FCM.
+     * Adquiere un WakeLock, emite un Heartbeat instantáneo con batería/última ubicación,
+     * reactiva el servicio si es necesario y adquiere un Fix GPS de alta precisión fresco.
+     */
+    fun handleMagicLocationPing(context: Context) {
+        val appContext = context.applicationContext
+        Log.d(TAG, "⚡ [MAGIC PACKET] Activando Wake-on-LAN Location Wakeup...")
+
+        val powerManager = appContext.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Diario:MagicLocationWakeLock")
+        try {
+            wakeLock?.acquire(45_000L)
+        } catch (e: Exception) {
+            Log.w(TAG, "No se pudo adquirir WakeLock: ${e.message}")
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                init(appContext)
+
+                // 1. Respuesta Inmediata (<300ms): Emitir Heartbeat con batería y última ubicación conocida
+                val lastKnown = getLastKnownLocationFallback(appContext)
+                publishHeartbeat(appContext, lastKnown)
+                Log.d(TAG, "⚡ [MAGIC PACKET] Heartbeat inmediato emitido a Firestore con batería y estado")
+
+                val prefs = appContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+                val isSharing = prefs.getBoolean("radar_is_sharing", true)
+
+                if (isSharing && PermissionHelper.hasLocationPermission(appContext)) {
+                    // 2. Intentar despertar / asegurar Foreground Service
+                    try {
+                        ThorRadarService.startService(appContext)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "No se pudo iniciar ForegroundService desde background: ${e.message}")
+                    }
+
+                    // 3. Adquirir Fix GPS fresco de alta precisión
+                    requestHighAccuracyFix(appContext, timeoutMs = 25_000L) { freshLoc ->
+                        if (freshLoc != null) {
+                            Log.d(TAG, "⚡ [MAGIC PACKET] Ubicación GPS fresca obtenida: lat=${freshLoc.latitude}, lon=${freshLoc.longitude}, acc=${freshLoc.accuracy}m")
+                            handleNewLocation(appContext, freshLoc)
+                        } else {
+                            Log.w(TAG, "⚡ [MAGIC PACKET] No se obtuvo fix fresco a tiempo; Heartbeat previo ya emitido")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "⚡ [MAGIC PACKET] Error procesando wakeup", e)
+            } finally {
+                delay(2000L)
+                try {
+                    if (wakeLock != null && wakeLock.isHeld) {
+                        wakeLock.release()
+                        Log.d(TAG, "⚡ [MAGIC PACKET] WakeLock liberado con éxito")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error liberando WakeLock: ${e.message}")
+                }
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun requestHighAccuracyFix(
+        context: Context,
+        timeoutMs: Long = 25_000L,
+        onResult: (Location?) -> Unit
+    ) {
+        val appContext = context.applicationContext
+        if (!PermissionHelper.hasLocationPermission(appContext)) {
+            onResult(null)
+            return
+        }
+
+        val completed = java.util.concurrent.atomic.AtomicBoolean(false)
+        val locationManager = appContext.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+
+        var fusedCallback: LocationCallback? = null
+        var nativeListener: android.location.LocationListener? = null
+
+        fun finish(loc: Location?) {
+            if (completed.compareAndSet(false, true)) {
+                try {
+                    fusedCallback?.let { fusedLocationClient?.removeLocationUpdates(it) }
+                } catch (e: Exception) {}
+                try {
+                    nativeListener?.let { locationManager?.removeUpdates(it) }
+                } catch (e: Exception) {}
+
+                onResult(loc)
+            }
+        }
+
+        val mainHandler = Handler(Looper.getMainLooper())
+        val timeoutRunnable = Runnable {
+            Log.d(TAG, "requestHighAccuracyFix: timeout de ${timeoutMs}ms alcanzado")
+            val bestFallback = getLastKnownLocationFallback(appContext)
+            finish(bestFallback)
+        }
+        mainHandler.postDelayed(timeoutRunnable, timeoutMs)
+
+        // 1. FusedLocation getCurrentLocation
+        try {
+            val cts = CancellationTokenSource()
+            fusedLocationClient?.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token)
+                ?.addOnSuccessListener { loc ->
+                    if (loc != null && loc.accuracy <= 70f) {
+                        mainHandler.removeCallbacks(timeoutRunnable)
+                        finish(loc)
+                    }
+                }
+        } catch (e: Exception) {
+            Log.w(TAG, "getCurrentLocation error: ${e.message}")
+        }
+
+        // 2. FusedLocation requestLocationUpdates (rápido de 3 muestras)
+        try {
+            val locRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1500L)
+                .setMinUpdateIntervalMillis(1000L)
+                .setMaxUpdates(3)
+                .build()
+
+            fusedCallback = object : LocationCallback() {
+                override fun onLocationResult(result: LocationResult) {
+                    val loc = result.lastLocation
+                    if (loc != null && loc.accuracy <= 70f) {
+                        mainHandler.removeCallbacks(timeoutRunnable)
+                        finish(loc)
+                    }
+                }
+            }
+            fusedLocationClient?.requestLocationUpdates(locRequest, fusedCallback!!, Looper.getMainLooper())
+        } catch (e: Exception) {
+            Log.w(TAG, "requestLocationUpdates error: ${e.message}")
+        }
+
+        // 3. LocationManager Nativo (GPS y Red)
+        try {
+            nativeListener = object : android.location.LocationListener {
+                override fun onLocationChanged(loc: Location) {
+                    if (loc.accuracy <= 70f) {
+                        mainHandler.removeCallbacks(timeoutRunnable)
+                        finish(loc)
+                    }
+                }
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
+                @Deprecated("Deprecated in Java")
+                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+            }
+
+            if (locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true) {
+                locationManager.requestLocationUpdates(
+                    LocationManager.GPS_PROVIDER,
+                    1000L,
+                    0f,
+                    nativeListener,
+                    Looper.getMainLooper()
+                )
+            }
+            if (locationManager?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true) {
+                locationManager.requestLocationUpdates(
+                    LocationManager.NETWORK_PROVIDER,
+                    1000L,
+                    0f,
+                    nativeListener,
+                    Looper.getMainLooper()
+                )
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "LocationManager nativo error: ${e.message}")
         }
     }
 

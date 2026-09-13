@@ -183,7 +183,6 @@ class MainActivity : AppCompatActivity(), AppNavigation {
 
     lateinit var viewModel: MainViewModel
     private lateinit var updateManager: UpdateManager
-    private lateinit var messageEditor: MessageEditor
     lateinit var recipeManager: RecipeManager
     private lateinit var albumManager: AlbumManager
 
@@ -309,7 +308,6 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         ensureUserInFirestore()
         
         updateManager = UpdateManager(this)
-        messageEditor = MessageEditor(this, currentCoupleId, currentUserId ?: "", currentUserName ?: "", currentUserImageUri)
         albumManager = AlbumManager(this, currentCoupleId, currentUserId ?: "", currentUserName ?: "", currentUserImageUri)
         recipeManager = RecipeManager(this, currentCoupleId, currentUserId ?: "", currentUserName ?: "") { pickImage(PICK_IMAGE_RECIPE) }
         recipeManager.setTheme(currentTheme)
@@ -1495,7 +1493,6 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         themeState.value = theme
         albumManager.setTheme(theme)
         recipeManager.setTheme(theme)
-        messageEditor.setTheme(theme)
         var bg: Int
         var tb: Int
         var inputBg: Int
@@ -1626,15 +1623,9 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     }
     
     fun getUpdateManager(): UpdateManager = updateManager
-    fun getDownloadProgressBar(): ProgressBar = downloadProgressBar
-    fun getDownloadProgressContainer(): View = downloadProgressContainer
-
+ 
     fun openAddRecipeDialog() {
         recipeManager.showAddRecipeDialog(null)
-    }
-
-    fun openRecipeDetailDialog(recipe: Recipe) {
-        recipeManager.showRecipeDetailDialog(recipe)
     }
 
     private var pendingUploads = 0
@@ -1649,7 +1640,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         }
         fcmExecutor.execute {
             val optimizedUri = calendario.kevshupp.diariokevinali.compose.compressImageForUpload(this@MainActivity, uri)
-            messageEditor.uploadImage(optimizedUri, object : UploadCallback {
+            com.cloudinary.android.MediaManager.get().upload(optimizedUri).callback(object : UploadCallback {
                 override fun onStart(id: String) {} 
                 override fun onProgress(id: String, b: Long, t: Long) {}
                 override fun onSuccess(id: String, res: Map<*, *>) {
@@ -1665,7 +1656,6 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                             if (f is ProfileFragment) f.setProfileImage(url)
                         }
                         else if (code == PICK_IMAGE_CARTA) {
-                            messageEditor.setImageUrl(url)
                             currentSelectedImageUrlState.value = url
                             selectedImageUrl = url
                         }
@@ -1675,8 +1665,6 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                         }
                         else if (code == PICK_IMAGE_RECIPE) {
                             recipeManager.setImageUrl(url)
-                            val f = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
-                            if (f is RecipeFragment) f.setImageUrl(url)
                         }
                         
                         if (completedUploads == pendingUploads) {
@@ -1733,10 +1721,11 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     fun getAlbumManager(): AlbumManager = albumManager
 
     fun onMessageClick(v: View?, msg: Message) { 
-        if (msg.content != null && msg.content!!.startsWith("[ALBUM]")) {
-            albumManager.showAlbumDetail(msg)
+        val imgUrl = msg.imageUrl
+        if (imgUrl != null) {
+            albumManager.showFullScreenImage(imgUrl, msg)
         } else {
-            messageEditor.showMessageDetail(msg)
+            albumManager.showAlbumDetail(msg)
         }
     }
     

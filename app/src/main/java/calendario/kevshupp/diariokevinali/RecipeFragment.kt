@@ -44,8 +44,6 @@ class RecipeFragment : Fragment() {
         currentUserId = prefs?.getString("userId", null)
     }
 
-    fun setImageUrl(url: String) {}
-
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return ComposeView(requireContext()).apply {
             setContent {
@@ -126,16 +124,5 @@ class RecipeFragment : Fragment() {
                 )
             }
         }
-    }
-
-    private fun normalizeCoupleId(value: String?): String? {
-        return value
-            ?.lowercase()
-            ?.replace("á", "a")
-            ?.replace("é", "e")
-            ?.replace("í", "i")
-            ?.replace("ó", "o")
-            ?.replace("ú", "u")
-            ?.replace("ñ", "n")
     }
 }
