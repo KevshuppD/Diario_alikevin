@@ -24,6 +24,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -205,7 +206,7 @@ fun SpiritRow(
     ) {
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(78.dp)
                 .border(1.dp, borderColor.copy(alpha = 0.5f))
                 .background(if (isDark) Color(0xFF121212) else Color(0xFFFFFDF5)),
             contentAlignment = Alignment.Center
@@ -246,7 +247,10 @@ fun SpiritRow(
                 contentDescription = "Espíritu $spiritId",
                 placeholder = if (spiritResId != 0) painterResource(id = spiritResId) else null,
                 error = if (spiritResId != 0) painterResource(id = spiritResId) else null,
-                modifier = Modifier.size(64.dp)
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(2.dp)
             )
         }
 
@@ -953,6 +957,10 @@ fun SpiritsChecklistView(
                 val ownedByOther = if (isKevin) aliList.contains(spiritId) else kevinList.contains(spiritId)
                 ownedByMe && !ownedByOther
             }
+            "obtenidos_sin_maestria" -> {
+                val ownedByMe = if (isKevin) kevinList.contains(spiritId) else aliList.contains(spiritId)
+                ownedByMe && !myMastery
+            }
             "sin_maestria" -> {
                 !myMastery
             }
@@ -1112,7 +1120,21 @@ fun SpiritsChecklistView(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = if (filterMode == "sin_maestria") "✓ SIN MAESTRÍA 👑" else "SIN MAESTRÍA 👑",
+                                text = if (filterMode == "obtenidos_sin_maestria") "✓ OBTENIDOS SIN MAESTRÍA 👑" else "OBTENIDOS SIN MAESTRÍA 👑",
+                                fontFamily = Vt323,
+                                fontSize = 16.sp,
+                                color = textColor
+                            )
+                        },
+                        onClick = {
+                            filterMode = "obtenidos_sin_maestria"
+                            showFiltersMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (filterMode == "sin_maestria") "✓ SIN MAESTRÍA (TODOS) 👑" else "SIN MAESTRÍA (TODOS) 👑",
                                 fontFamily = Vt323,
                                 fontSize = 16.sp,
                                 color = textColor

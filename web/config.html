@@ -1008,7 +1008,7 @@
 
     .spirit-slots-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: 12px;
       min-height: 80px;
       border: 2px dashed rgba(255, 255, 255, 0.05);
@@ -1119,8 +1119,8 @@
     }
 
     .spirit-slot img {
-      width: 72px;
-      height: 72px;
+      width: 86px;
+      height: 86px;
       object-fit: contain;
       image-rendering: pixelated;
       margin-bottom: 6px;
@@ -1647,6 +1647,7 @@
           <button class="filter-btn" onclick="setFilter('obtenidos_otro_no_yo', this)">🔁 Tiene mi pareja (no yo)</button>
           <button class="filter-btn" onclick="setFilter('obtenidos_yo_no_otro', this)">⭐ Solo yo</button>
           <button class="filter-btn" onclick="setFilter('obtenidos_ambos', this)">💜 Ambos</button>
+          <button class="filter-btn" onclick="setFilter('obtenidos_sin_maestria', this)">👑 Obtenidos sin Maestría</button>
           <button class="filter-btn" onclick="setFilter('sin_maestria', this)">☆ Sin Maestría</button>
           <button class="filter-btn" onclick="setFilter('maestria_otro_no_yo', this)">👑 Pareja Maestría (yo no)</button>
           <button class="filter-btn" onclick="setFilter('maestria_yo_no_otro', this)">👑 Mi Maestría (pareja no)</button>
@@ -3483,6 +3484,8 @@
           return isOwnedByCurrent && !isOwnedByOther;
         case "obtenidos_ambos":
           return isKevinOwned && isAliOwned;
+        case "obtenidos_sin_maestria":
+          return isOwnedByCurrent && !isMasteredByCurrent;
         case "sin_maestria":
           return !isMasteredByCurrent;
         case "maestria_otro_no_yo":
