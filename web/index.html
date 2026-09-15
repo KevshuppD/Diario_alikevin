@@ -276,6 +276,11 @@
       color: #ffffff;
     }
 
+    html {
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -304,6 +309,7 @@
         radial-gradient(circle at 10% 20%, rgba(156, 39, 176, 0.15) 0%, transparent 40%),
         radial-gradient(circle at 90% 80%, rgba(33, 150, 243, 0.15) 0%, transparent 40%);
       pointer-events: none;
+      transform: translateZ(0);
     }
 
     header {
@@ -575,6 +581,9 @@
       grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
       gap: 8px;
       align-content: start;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      transform: translateZ(0);
     }
 
     .gallery-item {
@@ -588,7 +597,9 @@
       justify-content: center;
       position: relative;
       cursor: grab;
-      transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+      transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      contain: layout style paint;
+      transform: translateZ(0);
     }
 
     .gallery-item:hover {
@@ -695,6 +706,9 @@
       display: flex;
       flex-direction: column;
       gap: 20px;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      transform: translateZ(0);
     }
 
     /* Stats & Filter Bar for Normal Mode */
@@ -748,15 +762,131 @@
       align-items: center;
       gap: 3px;
       margin-left: 8px;
-      padding: 2px 8px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 11px;
       background: rgba(251, 191, 36, 0.15);
       border: 1px solid rgba(251, 191, 36, 0.4);
-      border-radius: 12px;
       color: #fbbf24;
-      font-size: 13px;
+      font-family: monospace;
       font-weight: 700;
-      vertical-align: middle;
-      box-shadow: 0 0 8px rgba(251, 191, 36, 0.2);
+    }
+
+    .stat-pill.total {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .season-badge-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, rgba(156, 39, 176, 0.2), rgba(33, 150, 243, 0.2));
+      border: 1px solid var(--accent-color);
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-color);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .season-select-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+
+    .season-select-btn:hover {
+      opacity: 1;
+    }
+
+    /* Filter and Search Bar Row */
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 260px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      transition: border-color 0.2s;
+    }
+
+    .search-input-wrapper:focus-within {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .search-input-wrapper .search-icon {
+      color: var(--text-muted);
+      font-size: 16px;
+      margin-right: 8px;
+    }
+
+    .search-input-wrapper input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-color);
+      font-size: 13px;
+      padding: 10px 0;
+      outline: none;
+      width: 100%;
+    }
+
+    .search-input-wrapper .clear-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      cursor: pointer;
+      display: none;
+      padding: 4px;
+    }
+
+    .search-input-wrapper .clear-btn:hover {
+      color: var(--text-color);
+    }
+
+    .empty-search-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-search-state .empty-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      opacity: 0.6;
+    }
+
+    .empty-search-state h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      color: var(--text-color);
+      margin-bottom: 6px;
     }
 
     .cat-stat-badge {
@@ -781,82 +911,6 @@
       border-color: rgba(244, 114, 182, 0.3);
     }
 
-    /* Search Bar Styles */
-    .search-bar-container {
-      width: 100%;
-    }
-
-    .search-input-wrapper {
-      position: relative;
-      display: flex;
-      align-items: center;
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 6px 14px;
-      transition: border-color 0.25s, box-shadow 0.25s;
-    }
-
-    .search-input-wrapper:focus-within {
-      border-color: var(--accent-color);
-      box-shadow: 0 0 14px var(--accent-glow);
-    }
-
-    .search-icon {
-      font-size: 15px;
-      margin-right: 10px;
-      opacity: 0.7;
-    }
-
-    .search-input-wrapper input {
-      width: 100%;
-      background: transparent !important;
-      border: none !important;
-      color: var(--text-color) !important;
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      outline: none;
-      padding: 4px 0;
-    }
-
-    .clear-search-btn {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid var(--card-border);
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      padding: 2px 8px;
-      border-radius: 12px;
-      margin-left: 8px;
-      white-space: nowrap;
-      transition: color 0.2s, background-color 0.2s, border-color 0.2s;
-    }
-
-    .clear-search-btn:hover {
-      color: #fff;
-      background: rgba(239, 68, 68, 0.3);
-      border-color: rgba(239, 68, 68, 0.5);
-    }
-
-    .empty-search-state {
-      text-align: center;
-      padding: 40px 20px;
-      background: var(--card-bg);
-      border: 1px dashed var(--card-border);
-      border-radius: 16px;
-      color: var(--text-muted);
-      margin-top: 10px;
-    }
-
-    .empty-search-state h3 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 18px;
-      color: var(--text-color);
-      margin-bottom: 6px;
-    }
-
-
     .filter-bar {
       display: flex;
       gap: 8px;
@@ -873,7 +927,7 @@
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
 
     .filter-btn:hover {
@@ -909,7 +963,11 @@
       display: flex;
       flex-direction: column;
       gap: 14px;
-      transition: box-shadow 0.3s;
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+      content-visibility: auto;
+      contain-intrinsic-size: 0 320px;
+      contain: layout style;
+      transform: translateZ(0);
     }
 
     .category-card:hover {
@@ -975,13 +1033,15 @@
       flex-direction: column;
       align-items: center;
       position: relative;
-      transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s, opacity 0.2s, filter 0.2s;
+      transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
       user-select: none;
       box-sizing: border-box;
       width: 100%;
       max-width: 100%;
       min-width: 0;
       overflow: hidden;
+      contain: layout style paint;
+      transform: translateZ(0);
     }
 
     .spirit-slot input[type="text"],
@@ -3352,6 +3412,7 @@
       });
 
       let unassignedCount = 0;
+      const galleryFragment = document.createDocumentFragment();
 
       listToRender.forEach((id, index) => {
         if (searchQuery !== "" && !matchesFilter(id)) return;
@@ -3368,7 +3429,7 @@
         item.innerHTML = `
           ${isUnassigned ? '<span class="unassigned-tag">SUELTO</span>' : ''}
           <button class="gallery-delete-btn" onclick="deleteFromGallery(event, '${id}')" title="Eliminar espíritu e imagen física">🗑</button>
-          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" onerror="this.src='https://placehold.co/44x44?text=${id}'">
+          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" onerror="this.src='https://placehold.co/44x44?text=${id}'">
           <span class="badge">#${displayNumber}</span>
         `;
         
@@ -3380,8 +3441,10 @@
           openAssignModal(id);
         });
         
-        container.appendChild(item);
+        galleryFragment.appendChild(item);
       });
+
+      container.appendChild(galleryFragment);
 
       const sidebarSub = document.getElementById("sidebar-subtext");
       if (sidebarSub) {
@@ -3410,6 +3473,8 @@
       categories.forEach(cat => {
         cat.spiritIds.forEach(id => assignedIds.add(id));
       });
+
+      const workspaceFragment = document.createDocumentFragment();
 
       // Render Categories
       categories.forEach((cat, catIdx) => {
@@ -3488,10 +3553,12 @@
         slotsGrid.className = "spirit-slots-grid";
         slotsGrid.dataset.categoryName = cat.name;
 
+        const slotsFragment = document.createDocumentFragment();
         matchingSpirits.forEach(id => {
           const slot = createSpiritSlot(id, cat.name);
-          slotsGrid.appendChild(slot);
+          slotsFragment.appendChild(slot);
         });
+        slotsGrid.appendChild(slotsFragment);
 
         if (currentMode === "edit") {
           slotsGrid.addEventListener("dragover", (e) => {
@@ -3513,7 +3580,7 @@
 
         card.appendChild(header);
         card.appendChild(slotsGrid);
-        container.appendChild(card);
+        workspaceFragment.appendChild(card);
       });
 
       // Render Uncategorized / Loose Spirits at the bottom
@@ -3547,10 +3614,12 @@
         looseGrid.className = "spirit-slots-grid";
         looseGrid.dataset.categoryName = "__uncategorized__";
 
+        const looseSlotsFragment = document.createDocumentFragment();
         uncategorizedIds.forEach(id => {
           const slot = createSpiritSlot(id, "__uncategorized__");
-          looseGrid.appendChild(slot);
+          looseSlotsFragment.appendChild(slot);
         });
+        looseGrid.appendChild(looseSlotsFragment);
 
         if (currentMode === "edit") {
           looseGrid.addEventListener("dragover", (e) => {
@@ -3571,8 +3640,10 @@
         }
 
         looseCard.appendChild(looseGrid);
-        container.appendChild(looseCard);
+        workspaceFragment.appendChild(looseCard);
       }
+
+      container.appendChild(workspaceFragment);
 
       // Render Empty State if no spirits match
       if (container.children.length === 0) {
