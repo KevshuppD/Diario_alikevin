@@ -215,14 +215,15 @@ fun SpiritRow(
                 val num = spiritId.toIntOrNull()
                 if (num != null) String.format("%02d", num) else spiritId
             }
-            val spiritImageUrl = remember(spiritId, customImageUrl, formattedId, imageRefreshKey) {
+            val spiritImageUrl = remember(spiritId, customImageUrl, formattedId, imageRefreshKey, currentSeason) {
                 if (!customImageUrl.isNullOrBlank()) {
                     customImageUrl
                 } else {
+                    val publicPath = if (currentSeason == 2) "spirits_s2/ic_spirit_s2_$formattedId" else "spirits/ic_spirit_$formattedId"
                     try {
-                        com.cloudinary.android.MediaManager.get().url().generate("spirits/ic_spirit_$formattedId")
+                        com.cloudinary.android.MediaManager.get().url().generate(publicPath)
                     } catch (e: Exception) {
-                        "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_$formattedId.png"
+                        "https://res.cloudinary.com/dhaqjw7se/image/upload/$publicPath.png"
                     }
                 }
             }
@@ -484,14 +485,15 @@ fun SpiritGridCard(
             val num = spiritId.toIntOrNull()
             if (num != null) String.format("%02d", num) else spiritId
         }
-        val spiritImageUrl = remember(spiritId, customImageUrl, formattedId, imageRefreshKey) {
+        val spiritImageUrl = remember(spiritId, customImageUrl, formattedId, imageRefreshKey, currentSeason) {
             if (!customImageUrl.isNullOrBlank()) {
                 customImageUrl
             } else {
+                val publicPath = if (currentSeason == 2) "spirits_s2/ic_spirit_s2_$formattedId" else "spirits/ic_spirit_$formattedId"
                 try {
-                    com.cloudinary.android.MediaManager.get().url().generate("spirits/ic_spirit_$formattedId")
+                    com.cloudinary.android.MediaManager.get().url().generate(publicPath)
                 } catch (e: Exception) {
-                    "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_$formattedId.png"
+                    "https://res.cloudinary.com/dhaqjw7se/image/upload/$publicPath.png"
                 }
             }
         }

@@ -2884,8 +2884,9 @@
         return optimizeCloudinaryUrl(`${customImages[id]}${cacheBust}`);
       }
       const formattedId = String(id).padStart(2, '0');
-      const cacheBust = imageCacheBusters[id] ? `?v=${imageCacheBusters[id]}` : '';
-      return `https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/spirits/ic_spirit_${formattedId}.png${cacheBust}`;
+      const cacheBust = imageCacheBusters[id] ? `?v=${imageCacheBusters[id]}` : '?v=20260915_t1_hd';
+      const folder = currentSeason === 2 ? 'spirits_s2/ic_spirit_s2_' : 'spirits/ic_spirit_';
+      return `https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/${folder}${formattedId}.png${cacheBust}`;
     }
 
     function getSpiritName(id) {
