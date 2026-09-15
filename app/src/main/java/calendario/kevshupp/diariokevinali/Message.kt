@@ -45,12 +45,17 @@ data class Message @JvmOverloads constructor(
     }
 
     // Propiedad calculada para compatibilidad con código existente que espera un solo String
+    @get:PropertyName("imageUrl")
+    @set:PropertyName("imageUrl")
     var imageUrl: String?
-        @Exclude get() = imageUrls?.firstOrNull()
+        get() = imageUrls?.firstOrNull()
         set(value) {
             if (imageUrls == null) imageUrls = mutableListOf()
-            imageUrls?.clear()
-            value?.let { imageUrls?.add(it) }
+            if (value != null && imageUrls?.contains(value) != true) {
+                if (imageUrls!!.isEmpty()) {
+                    imageUrls?.add(value)
+                }
+            }
         }
 
     @get:JvmName("getIsLikedProp")
