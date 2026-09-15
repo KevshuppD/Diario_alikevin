@@ -1,9 +1,11 @@
 package calendario.kevshupp.diariokevinali
 
 import com.google.firebase.firestore.Exclude
+import com.google.firebase.firestore.IgnoreExtraProperties
 import com.google.firebase.firestore.PropertyName
 import androidx.compose.runtime.Stable
 
+@IgnoreExtraProperties
 @Stable
 data class Pet(
     var petType: String = PET_THOR,
