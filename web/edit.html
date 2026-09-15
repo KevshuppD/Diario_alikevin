@@ -173,6 +173,109 @@
       --both-color: #a855f7;
     }
 
+    body.theme-pixel-monocromatico {
+      color-scheme: dark;
+      --bg-color: #000000;
+      --card-bg: #101010;
+      --card-border: #333333;
+      --accent-color: #ffffff;
+      --accent-glow: rgba(255, 255, 255, 0.25);
+      --text-color: #ffffff;
+      --text-muted: #888888;
+      --success-color: #ffffff;
+      --error-color: #aaaaaa;
+      --kevin-color: #ffffff;
+      --ali-color: #cccccc;
+      --both-color: #ffffff;
+    }
+
+    body.theme-pixel-monocromatico header {
+      background: #000000;
+      border-bottom-color: #333333;
+    }
+
+    body.theme-pixel-monocromatico .mode-switch {
+      background: #111111;
+      border-color: #333333;
+    }
+
+    body.theme-pixel-monocromatico .mode-btn {
+      color: #888888;
+    }
+
+    body.theme-pixel-monocromatico .mode-btn.active {
+      background: #ffffff;
+      color: #000000;
+    }
+
+    body.theme-pixel-monocromatico .normal-toolbar {
+      background: #0a0a0a;
+      border-color: #333333;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    body.theme-pixel-monocromatico .stat-pill {
+      background: #111111;
+      border-color: #333333;
+      color: #ffffff;
+    }
+
+    body.theme-pixel-monocromatico .search-input-wrapper {
+      background: #111111;
+      border-color: #333333;
+    }
+
+    body.theme-pixel-monocromatico .filter-btn {
+      background: #111111;
+      border-color: #333333;
+      color: #aaaaaa;
+    }
+
+    body.theme-pixel-monocromatico .filter-btn.active {
+      background: #ffffff;
+      color: #000000;
+    }
+
+    body.theme-pixel-monocromatico .category-card {
+      background: #111111;
+      border-color: #333333;
+    }
+
+    body.theme-pixel-monocromatico .spirit-slots-grid {
+      background: #0a0a0a;
+      border-color: #222222;
+    }
+
+    body.theme-pixel-monocromatico .spirit-slot {
+      background: #141414;
+      border-color: #2a2a2a;
+    }
+
+    body.theme-pixel-monocromatico select,
+    body.theme-pixel-monocromatico input {
+      background-color: #111111 !important;
+      color: #ffffff !important;
+      border: 1px solid #333333 !important;
+    }
+
+    body.theme-pixel-monocromatico option {
+      background-color: #111111 !important;
+      color: #ffffff !important;
+    }
+
+    body.theme-pixel-monocromatico .modal-content {
+      background-color: #0d0d0d !important;
+      color: #ffffff !important;
+      border-color: #444444 !important;
+    }
+
+    body.theme-pixel-monocromatico .user-badge,
+    body.theme-pixel-monocromatico .connection-status-pill {
+      background: #111111;
+      border-color: #333333;
+      color: #ffffff;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -1664,34 +1767,45 @@
         Personaliza los colores para tu perfil (<strong id="theme-user-label">Usuario</strong>). Todos los cambios se aplicarán instantáneamente tanto en la web como en tu app móvil:
       </p>
 
-      <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
-        <div onclick="changeTheme('Pixel Oscuro'); renderThemeModalContent();" style="flex: 1; min-width: 170px; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 2px solid var(--card-border); cursor: pointer; display: flex; align-items: center; justify-content: space-between;" id="modal-theme-dark-box">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 20px;">
+        <div onclick="changeTheme('Pixel Oscuro'); renderThemeModalContent();" style="padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 2px solid var(--card-border); cursor: pointer; display: flex; align-items: center; justify-content: space-between;" id="modal-theme-dark-box">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 20px;">🌙</span>
+            <span style="font-size: 18px;">🌙</span>
             <div>
-              <div style="font-weight: 700; font-size: 14px; color: #fff;">Pixel Oscuro</div>
-              <div style="font-size: 10px; color: #9ca3af;">Gris profundo & neón</div>
+              <div style="font-weight: 700; font-size: 13px; color: #fff;">Pixel Oscuro</div>
+              <div style="font-size: 9.5px; color: #9ca3af;">Gris & neón</div>
             </div>
           </div>
           <input type="radio" name="modal-theme-choice" id="modal-radio-dark" style="cursor: pointer;">
         </div>
 
-        <div onclick="changeTheme('Pixel Claro'); renderThemeModalContent();" style="flex: 1; min-width: 170px; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 2px solid var(--card-border); cursor: pointer; display: flex; align-items: center; justify-content: space-between;" id="modal-theme-light-box">
+        <div onclick="changeTheme('Pixel Claro'); renderThemeModalContent();" style="padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 2px solid var(--card-border); cursor: pointer; display: flex; align-items: center; justify-content: space-between;" id="modal-theme-light-box">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 20px;">☀️</span>
+            <span style="font-size: 18px;">☀️</span>
             <div>
-              <div style="font-weight: 700; font-size: 14px; color: var(--text-color);">Pixel Claro</div>
-              <div style="font-size: 10px; color: var(--text-muted);">Crema & café retro</div>
+              <div style="font-weight: 700; font-size: 13px; color: var(--text-color);">Pixel Claro</div>
+              <div style="font-size: 9.5px; color: var(--text-muted);">Crema & café</div>
             </div>
           </div>
           <input type="radio" name="modal-theme-choice" id="modal-radio-light" style="cursor: pointer;">
+        </div>
+
+        <div onclick="changeTheme('Pixel Monocromático'); renderThemeModalContent();" style="padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 2px solid var(--card-border); cursor: pointer; display: flex; align-items: center; justify-content: space-between;" id="modal-theme-mono-box">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">🏁</span>
+            <div>
+              <div style="font-weight: 700; font-size: 13px; color: var(--text-color);">Pixel Mono</div>
+              <div style="font-size: 9.5px; color: var(--text-muted);">Blanco & negro 8-bit</div>
+            </div>
+          </div>
+          <input type="radio" name="modal-theme-choice" id="modal-radio-mono" style="cursor: pointer;">
         </div>
       </div>
 
       <h4 style="font-family: 'Outfit', sans-serif; font-size: 14px; color: var(--text-color); margin-bottom: 8px;" id="modal-palette-title">
         PALETA DE BARRAS Y ACENTOS
       </h4>
-      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 20px;" id="modal-palette-container">
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;" id="modal-palette-container">
       </div>
 
       <div onclick="toggleCustomBgPreference(); renderThemeModalContent();" style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); margin-bottom: 16px;">
@@ -2157,8 +2271,133 @@
     let userRefreshRate = parseInt(localStorage.getItem("userRefreshRate")) || 90;
     let userDocUnsubscribe = null;
 
-    const DARK_BAR_COLORS = ["#4A148C", "#0D47A1", "#1B5E20", "#C2185B", "#E65100", "#006064", "#3E2723"];
-    const LIGHT_BAR_COLORS = ["#D1C4E9", "#B3E5FC", "#C8E6C9", "#C2185B", "#FFE0B2", "#B2EBF2", "#D7CCC8"];
+    const DARK_COLOR_FAMILIES = [
+      {
+        title: "❤️ Rojos y Vinos",
+        colors: ["#B71C1C", "#C2185B", "#880E4F", "#BF360C"]
+      },
+      {
+        title: "💜 Púrpuras y Violetas",
+        colors: ["#4A148C", "#6A1B9A", "#4A0E4E"]
+      },
+      {
+        title: "💙 Azules e Índigos",
+        colors: ["#0D47A1", "#1A237E", "#37474F"]
+      },
+      {
+        title: "🌲 Verdes y Teals",
+        colors: ["#006064", "#004D40", "#1B5E20", "#33691E"]
+      },
+      {
+        title: "🔥 Cálidos y Neutros",
+        colors: ["#E65100", "#3E2723", "#263238"]
+      }
+    ];
+
+    const LIGHT_COLOR_FAMILIES = [
+      {
+        title: "🌸 Rosas y Corales",
+        colors: ["#F8BBD0", "#FFCDD2", "#FCE4EC", "#F3E5F5"]
+      },
+      {
+        title: "💜 Púrpuras y Lilas",
+        colors: ["#D1C4E9", "#E1BEE7", "#C5CAE9"]
+      },
+      {
+        title: "🩵 Azules y Aqua",
+        colors: ["#E1F5FE", "#B3E5FC", "#B2EBF2"]
+      },
+      {
+        title: "🍃 Verdes y Matcha",
+        colors: ["#C8E6C9", "#DCEDC8", "#DCE775"]
+      },
+      {
+        title: "☀️ Cálidos y Latte",
+        colors: ["#FFF59D", "#FFE57F", "#FFE0B2", "#D7CCC8"]
+      }
+    ];
+
+    const MONO_COLOR_FAMILIES = [
+      {
+        title: "🏁 Escala Retro 8-bit",
+        colors: ["#FFFFFF", "#E0E0E0", "#9E9E9E", "#616161", "#212121", "#000000"]
+      }
+    ];
+
+    function hexToHsv(hex) {
+      try {
+        let c = hex.replace("#", "");
+        if (c.length === 3) c = c.split("").map(x => x + x).join("");
+        let r = parseInt(c.substring(0, 2), 16) / 255;
+        let g = parseInt(c.substring(2, 4), 16) / 255;
+        let b = parseInt(c.substring(4, 6), 16) / 255;
+
+        let max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let d = max - min;
+        let h = 0;
+        let s = max === 0 ? 0 : d / max;
+        let v = max;
+
+        if (max !== min) {
+          switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+          }
+          h *= 60;
+        }
+        return [h, s, v];
+      } catch (e) {
+        return [0, 0, 0];
+      }
+    }
+
+    function hsvToHex(h, s, v) {
+      try {
+        let r, g, b;
+        let i = Math.floor(h / 60) % 6;
+        let f = h / 60 - Math.floor(h / 60);
+        let p = v * (1 - s);
+        let q = v * (1 - f * s);
+        let t = v * (1 - (1 - f) * s);
+
+        switch (i) {
+          case 0: r = v; g = t; b = p; break;
+          case 1: r = q; g = v; b = p; break;
+          case 2: r = p; g = v; b = t; break;
+          case 3: r = p; g = q; b = v; break;
+          case 4: r = t; g = p; b = v; break;
+          case 5: r = v; g = p; b = q; break;
+        }
+
+        const toHex = x => {
+          const hex = Math.round(x * 255).toString(16);
+          return hex.length === 1 ? '0' + hex : hex;
+        };
+
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+      } catch (e) {
+        return "#000000";
+      }
+    }
+
+    function getPastelColor(hex) {
+      try {
+        const [h] = hexToHsv(hex);
+        return hsvToHex(h, 0.12, 0.98);
+      } catch (e) {
+        return '#fdf6e9';
+      }
+    }
+
+    function getDarkColorVariant(hex) {
+      try {
+        const [h] = hexToHsv(hex);
+        return hsvToHex(h, 0.60, 0.10);
+      } catch (e) {
+        return '#0d0e15';
+      }
+    }
 
     function applyTheme(themeName, lightCol, darkCol, customBg) {
       userTheme = themeName || userTheme || "Pixel Oscuro";
@@ -2171,25 +2410,32 @@
       localStorage.setItem("userDarkColor", userDarkColor);
       localStorage.setItem("userUseCustomBg", userUseCustomBg);
 
-      document.body.classList.remove("theme-pixel-claro", "theme-pixel-oscuro");
-      const isDark = userTheme === "Pixel Oscuro";
-      document.body.classList.add(isDark ? "theme-pixel-oscuro" : "theme-pixel-claro");
-
-      const activeBarColor = isDark ? userDarkColor : userLightColor;
+      document.body.classList.remove("theme-pixel-claro", "theme-pixel-oscuro", "theme-pixel-monocromatico");
       
-      document.body.style.setProperty('--accent-color', activeBarColor);
-      document.body.style.setProperty('--accent-glow', activeBarColor + "66");
-      document.documentElement.style.setProperty('--accent-color', activeBarColor);
-      document.documentElement.style.setProperty('--accent-glow', activeBarColor + "66");
+      let activeBarColor = userDarkColor;
+      let calculatedBg = '#0d0e15';
 
-      if (userUseCustomBg) {
-        document.body.style.setProperty('--bg-color', activeBarColor + "22");
-        document.documentElement.style.setProperty('--bg-color', activeBarColor + "22");
+      if (userTheme === "Pixel Monocromático") {
+        document.body.classList.add("theme-pixel-monocromatico");
+        activeBarColor = userDarkColor || '#FFFFFF';
+        calculatedBg = userUseCustomBg ? '#050505' : '#0a0a0a';
+      } else if (userTheme === "Pixel Claro") {
+        document.body.classList.add("theme-pixel-claro");
+        activeBarColor = userLightColor;
+        calculatedBg = userUseCustomBg ? getPastelColor(userLightColor) : '#fdf6e9';
       } else {
-        const defaultBg = isDark ? '#0d0e15' : '#fdf6e9';
-        document.body.style.setProperty('--bg-color', defaultBg);
-        document.documentElement.style.setProperty('--bg-color', defaultBg);
+        document.body.classList.add("theme-pixel-oscuro");
+        activeBarColor = userDarkColor;
+        calculatedBg = userUseCustomBg ? getDarkColorVariant(userDarkColor) : '#0d0e15';
       }
+
+      document.body.style.setProperty('--accent-color', activeBarColor);
+      document.body.style.setProperty('--accent-glow', activeBarColor + (activeBarColor.length === 7 ? "66" : ""));
+      document.documentElement.style.setProperty('--accent-color', activeBarColor);
+      document.documentElement.style.setProperty('--accent-glow', activeBarColor + (activeBarColor.length === 7 ? "66" : ""));
+
+      document.body.style.setProperty('--bg-color', calculatedBg);
+      document.documentElement.style.setProperty('--bg-color', calculatedBg);
     }
 
     applyTheme(userTheme, userLightColor, userDarkColor, userUseCustomBg);
@@ -2209,7 +2455,7 @@
     };
 
     window.changeBarColor = function(hexColor) {
-      const isDark = userTheme === "Pixel Oscuro";
+      const isDark = userTheme === "Pixel Oscuro" || userTheme === "Pixel Monocromático";
       if (isDark) userDarkColor = hexColor; else userLightColor = hexColor;
       applyTheme(userTheme, userLightColor, userDarkColor, userUseCustomBg);
       renderThemeModalContent();
@@ -2271,33 +2517,55 @@
 
     window.renderThemeModalContent = function() {
       const isDark = userTheme === "Pixel Oscuro";
+      const isLight = userTheme === "Pixel Claro";
+      const isMono = userTheme === "Pixel Monocromático";
+
       const radioDark = document.getElementById("modal-radio-dark");
       const radioLight = document.getElementById("modal-radio-light");
+      const radioMono = document.getElementById("modal-radio-mono");
       if (radioDark) radioDark.checked = isDark;
-      if (radioLight) radioLight.checked = !isDark;
+      if (radioLight) radioLight.checked = isLight;
+      if (radioMono) radioMono.checked = isMono;
 
       const darkBox = document.getElementById("modal-theme-dark-box");
       const lightBox = document.getElementById("modal-theme-light-box");
+      const monoBox = document.getElementById("modal-theme-mono-box");
       if (darkBox) {
         darkBox.style.borderColor = isDark ? "var(--accent-color)" : "var(--card-border)";
         darkBox.style.background = isDark ? "rgba(156, 39, 176, 0.25)" : "rgba(255,255,255,0.03)";
       }
       if (lightBox) {
-        lightBox.style.borderColor = !isDark ? "var(--accent-color)" : "var(--card-border)";
-        lightBox.style.background = !isDark ? "rgba(124, 77, 255, 0.25)" : "rgba(255,255,255,0.03)";
+        lightBox.style.borderColor = isLight ? "var(--accent-color)" : "var(--card-border)";
+        lightBox.style.background = isLight ? "rgba(124, 77, 255, 0.25)" : "rgba(255,255,255,0.03)";
+      }
+      if (monoBox) {
+        monoBox.style.borderColor = isMono ? "var(--accent-color)" : "var(--card-border)";
+        monoBox.style.background = isMono ? "rgba(255, 255, 255, 0.15)" : "rgba(255,255,255,0.03)";
       }
 
       const paletteTitle = document.getElementById("modal-palette-title");
       if (paletteTitle) {
-        paletteTitle.textContent = isDark ? "PALETA DE BARRAS Y ACENTOS (OSCURO)" : "PALETA DE BARRAS Y ACENTOS (CLARO)";
+        if (isMono) paletteTitle.textContent = "PALETAS RETRO MONOCROMÁTICAS (8-BIT)";
+        else if (isLight) paletteTitle.textContent = "PALETAS POR FAMILIAS (PIXEL CLARO)";
+        else paletteTitle.textContent = "PALETAS POR FAMILIAS (PIXEL OSCURO)";
       }
 
       const paletteContainer = document.getElementById("modal-palette-container");
       if (paletteContainer) {
-        const colors = isDark ? DARK_BAR_COLORS : LIGHT_BAR_COLORS;
-        const activeColor = isDark ? userDarkColor : userLightColor;
-        paletteContainer.innerHTML = colors.map(hex => `
-          <div onclick="changeBarColor('${hex}')" style="width: 36px; height: 36px; border-radius: 50%; background-color: ${hex}; border: 3px solid ${activeColor.toUpperCase() === hex.toUpperCase() ? (isDark ? '#fff' : '#4a2511') : 'transparent'}; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: transform 0.2s;" title="Seleccionar color ${hex}"></div>
+        const families = isMono ? MONO_COLOR_FAMILIES : (isLight ? LIGHT_COLOR_FAMILIES : DARK_COLOR_FAMILIES);
+        const activeColor = isLight ? userLightColor : userDarkColor;
+
+        paletteContainer.innerHTML = families.map(fam => `
+          <div style="margin-bottom: 12px; width: 100%;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">${fam.title}</div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              ${fam.colors.map(hex => `
+                <div onclick="changeBarColor('${hex}')" style="width: 32px; height: 32px; border-radius: 50%; background-color: ${hex}; border: 3px solid ${activeColor.toUpperCase() === hex.toUpperCase() ? '#fff' : 'transparent'}; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); transition: transform 0.2s; position: relative;" title="${hex}">
+                  ${activeColor.toUpperCase() === hex.toUpperCase() ? '<span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 11px; color: ' + (hex === '#FFFFFF' || hex === '#FFF59D' || hex === '#E1F5FE' ? '#000' : '#fff') + ';">✓</span>' : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
         `).join('');
       }
 
@@ -4126,16 +4394,40 @@
                 </div>
                 <input type="radio" name="theme-choice" value="Pixel Claro" ${userTheme === 'Pixel Claro' ? 'checked' : ''} style="cursor: pointer;">
               </div>
+
+              <div onclick="changeTheme('Pixel Monocromático'); if(currentMode==='config') renderConfigEditor();" style="flex: 1; min-width: 180px; padding: 14px 18px; border-radius: 10px; background: ${userTheme === 'Pixel Monocromático' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255,255,255,0.03)'}; border: 2px solid ${userTheme === 'Pixel Monocromático' ? 'var(--accent-color)' : 'var(--card-border)'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 22px;">🏁</span>
+                  <div>
+                    <div style="font-weight: 700; font-size: 15px; color: var(--text-color);">Pixel Monocromático</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">Retro Game Boy 8-bit</div>
+                  </div>
+                </div>
+                <input type="radio" name="theme-choice" value="Pixel Monocromático" ${userTheme === 'Pixel Monocromático' ? 'checked' : ''} style="cursor: pointer;">
+              </div>
             </div>
 
-            <!-- Color Palette Selector -->
-            <h4 style="font-family: 'Outfit', sans-serif; font-size: 15px; color: var(--text-color); margin-bottom: 10px;">
-              ${userTheme === 'Pixel Oscuro' ? 'COLOR DE BARRAS Y ACENTOS (OSCURO)' : 'COLOR DE BARRAS Y ACENTOS (CLARO)'}
+            <!-- Color Palette Selector Organizado por Familias -->
+            <h4 style="font-family: 'Outfit', sans-serif; font-size: 15px; color: var(--text-color); margin-bottom: 12px;">
+              ${userTheme === 'Pixel Monocromático' ? '🏁 PALETAS RETRO MONOCROMÁTICAS (8-BIT)' : (userTheme === 'Pixel Claro' ? '🎨 PALETAS POR FAMILIAS (PIXEL CLARO)' : '🎨 PALETAS POR FAMILIAS (PIXEL OSCURO)')}
             </h4>
-            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
-              ${(userTheme === 'Pixel Oscuro' ? DARK_BAR_COLORS : LIGHT_BAR_COLORS).map(hex => `
-                <div onclick="changeBarColor('${hex}')" style="width: 38px; height: 38px; border-radius: 50%; background-color: ${hex}; border: 3px solid ${ (userTheme === 'Pixel Oscuro' ? userDarkColor : userLightColor).toUpperCase() === hex.toUpperCase() ? '#fff' : 'transparent'}; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s;" title="Seleccionar color ${hex}"></div>
-              `).join('')}
+            <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 10px; border: 1px solid var(--card-border); margin-bottom: 20px;">
+              ${(() => {
+                const fams = userTheme === 'Pixel Monocromático' ? MONO_COLOR_FAMILIES : (userTheme === 'Pixel Claro' ? LIGHT_COLOR_FAMILIES : DARK_COLOR_FAMILIES);
+                const activeColor = userTheme === 'Pixel Claro' ? userLightColor : userDarkColor;
+                return fams.map(fam => `
+                  <div style="margin-bottom: 14px;">
+                    <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">${fam.title}</div>
+                    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                      ${fam.colors.map(hex => `
+                        <div onclick="changeBarColor('${hex}')" style="width: 36px; height: 36px; border-radius: 50%; background-color: ${hex}; border: 3px solid ${activeColor.toUpperCase() === hex.toUpperCase() ? '#fff' : 'transparent'}; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s; position: relative;" title="Seleccionar ${hex}">
+                          ${activeColor.toUpperCase() === hex.toUpperCase() ? '<span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; font-weight: bold; color: ' + (hex === '#FFFFFF' || hex === '#FFF59D' || hex === '#E1F5FE' ? '#000' : '#fff') + ';">✓</span>' : ''}
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                `).join('');
+              })()}
             </div>
 
             <!-- Custom Background Checkbox -->
