@@ -210,8 +210,14 @@ graph TD
 
 ## 8. Web de Gestión & Servidor Vercel
 
-- **Ruta Web:** `web/index.html`
-- **Servidor Local:** `web/server.js` (Express en port 8000).
+- **Ruta Web:** `web/index.html` (repartido en rutas SPA limpias `/`, `/normal`, `/edit`, `/db`, `/config`).
+- **Servidor Local:** `web/server.js` (Express + WebSockets Server `ws` en puerto 8000 / fallback).
+- **WebSockets en Tiempo Real:** 
+  - Conexión persistente cliente-servidor mediante `new WebSocket('/ws')` con reconexión automática y detección de estado en vivo (`ws-status-pill`).
+  - Difusión instantánea (Broadcast) entre pestañas y dispositivos de eventos de autoguardado (`DATA_SYNC`), cambios de checks/maestrías (`SPIRIT_TOGGLE`) y subidas de imágenes a Cloudinary (`IMAGE_UPLOADED`).
+- **Autoguardado Inteligente y Eliminación de Botones Manuales:**
+  - Sistema de autoguardado automático debounced (`triggerAutoSave`) activo en toda la web.
+  - Al editar nombres de categorías, renombrar espíritus, reordenar por Drag & Drop, crear o eliminar categorías y tipos, los cambios se persisten inmediatamente en Firestore y se transmiten vía WebSockets con indicador de estado en tiempo real (`✓ Autoguardado` / `🔄 Guardando...`), eliminando la necesidad de botones manuales de guardar.
 - **Vercel Serverless Function:** `web/api/upload-spirit-image.js` (Firmado y subida directa de Base64 comprimido a Cloudinary).
 - **Sincronización de Tema:** Modificar `theme` en la web actualiza el documento Firestore `users/<userId>` y adapta al instante los colores en la App Android.
 
@@ -427,9 +433,19 @@ graph TD
    - Doble paso de sincronización: Heartbeat instantáneo (<300ms) con batería y última ubicación conocida + Fix GPS fresco forzado (`requestHighAccuracyFix` con `FusedLocation` y `LocationManager` nativo en paralelo).
    - Acceso rápido `[ 🔄 ACTUALIZAR ]` integrado en la cabecera en vivo de la pareja en `PartnerLiveCard` y botón `[ 🔄 ACTUALIZAR AHORA ]` con retroalimentación en pantalla.
 
+10. **Nueva Mascota Multiespecie: Cuky la Gallina Café (Sistema Switchable & Guardarropa Independiente):**
+    - Integrado selector de mascota activa en el diálogo de mascotas (`[ 🐱 THOR ]` / `[ 🐔 CUKY ]`) y persistencia en Firestore (`petType: "thor" | "cuky"`).
+    - **Guardarropa e Inventario Separado por Mascota:** Cuky y Thor tienen sus propios accesorios desbloqueados/equipados (`cukyUnlockedAccessories`, `cukyEquippedAccessory` vs `unlockedAccessories`, `equippedAccessory`) y sus propios fondos desbloqueados/equipados (`cukyUnlockedBackgrounds`, `cukyEquippedBackground` vs `unlockedBackgrounds`, `equippedBackground`), permitiendo comprar ropas y fondos de forma independiente para cada uno sin sobreescribir lo que lleva puesto la otra mascota.
+    - **Nuevos Fondos Temáticos en Pixel-Art (Día / Noche):**
+      - `coop`: **Gallinero Acogedor 🛖** (`bg_cuky_coop_day` / `bg_cuky_coop_night`) con nidos de paja, vigas de madera rústica y luz suave (Fondo base por defecto de Cuky).
+      - `farm`: **Huerta de Cultivos 🌽🌻** (`bg_cuky_farm_day` / `bg_cuky_farm_night`) con cultivos de maíz, trigo, girasoles, cercas de madera y cielo estrellado de noche.
+    - Set completo de sprites pixel-art dedicados generados para Cuky: base transparente (`ic_cuky_base_trans`), durmiendo en nidito (`ic_cuky_sleep`), baño (`ic_cuky_bath`), jugando con pelota (`ic_cuky_play`) y compatibilidad con los 10 accesorios (`ic_cuky_hat`, `crown`, `glasses`, `mustache`, `bow`, `balloon`, `banana`, `bandana`, `collar`, `socks`).
+    - Alimentos temáticos de granja cuando Cuky está activa (`🌾 Semillas de Amor`, `🌽 Maíz Dorado`, `🍉 Sandía Fresca`, `🪱 Banquete de Gusano`).
+    - Adaptación en minijuego *Flappy* con sprite dedicado aleteando en pixel-art procedural (`drawBrownCukyBirdSprite`) tanto en pantalla completa como en modo consola Pocket LCD.
+    - Soporte en Widgets de escritorio (`ThorWidgetProvider`) y Feed de Cartas principal (`MessageFeedCompose`).
+
 ---
 
 ## 15. Tareas Pendientes / Backlog
 
 *(Sin tareas pendientes inmediatas).*
-

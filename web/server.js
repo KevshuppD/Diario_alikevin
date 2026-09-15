@@ -1,9 +1,13 @@
 const express = require('express');
+const http = require('http');
+const { WebSocketServer, WebSocket } = require('ws');
 const cloudinary = require('cloudinary').v2;
 const path = require('path');
 require('dotenv').config();
 
 const app = express();
+const server = http.createServer(app);
+
 app.use(express.json({ limit: '20mb' }));
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -19,6 +23,73 @@ cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Configuración de WebSockets para sincronización en tiempo real
+const wss = new WebSocketServer({ server, path: '/ws' });
+
+function broadcast(data, senderWs = null) {
+  const payload = typeof data === 'string' ? data : JSON.stringify(data);
+  wss.clients.forEach(client => {
+    if (client !== senderWs && client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(payload);
+      } catch (err) {
+        console.error('Error broadcasting to client:', err);
+      }
+    }
+  });
+}
+
+wss.on('connection', (ws, req) => {
+  const clientIp = req.socket.remoteAddress;
+  console.log(`🔌 Cliente WebSocket conectado (${clientIp}). Total clientes: ${wss.clients.size}`);
+
+  // Mensaje de bienvenida
+  ws.send(JSON.stringify({
+    type: 'WELCOME',
+    clientsCount: wss.clients.size,
+    timestamp: Date.now()
+  }));
+
+  // Notificar a todos sobre la cantidad de clientes activos
+  broadcast({
+    type: 'CLIENTS_COUNT',
+    count: wss.clients.size
+  });
+
+  ws.on('message', (message) => {
+    try {
+      const parsed = JSON.parse(message.toString());
+      console.log(`⚡ WebSocket mensaje recibido [${parsed.type || 'UNKNOWN'}]`);
+      // Reenviar a todos los demás clientes
+      broadcast(parsed, ws);
+    } catch (err) {
+      console.error('Error procesando mensaje WebSocket:', err);
+    }
+  });
+
+  ws.on('close', () => {
+    console.log(`🔌 Cliente WebSocket desconectado. Restantes: ${wss.clients.size}`);
+    broadcast({
+      type: 'CLIENTS_COUNT',
+      count: wss.clients.size
+    });
+  });
+
+  ws.on('error', (err) => {
+    console.error('Error en WebSocket client:', err);
+  });
+});
+
+// Endpoint HTTP para enviar broadcast si se desea desde scripts
+app.post('/api/broadcast', (req, res) => {
+  const payload = req.body;
+  if (!payload || !payload.type) {
+    return res.status(400).json({ success: false, error: 'Payload must contain a type' });
+  }
+  broadcast(payload);
+  return res.json({ success: true, clients: wss.clients.size });
 });
 
 // Rutas limpias sin extensión .html
@@ -49,6 +120,15 @@ app.post('/api/upload-spirit-image', async (req, res) => {
     });
 
     console.log(`✅ Imagen subida: ${result.secure_url}`);
+    
+    // Notificar en tiempo real por WebSockets
+    broadcast({
+      type: 'IMAGE_UPLOADED',
+      spiritId,
+      url: result.secure_url,
+      timestamp: Date.now()
+    });
+
     return res.json({ success: true, url: result.secure_url, publicId });
   } catch (error) {
     console.error('❌ Error al subir a Cloudinary:', error.message);
@@ -110,9 +190,10 @@ const tryListen = (ports) => {
     process.exit(1);
   }
   const port = ports[0];
-  app.listen(port)
+  server.listen(port)
     .on('listening', () => {
-      console.log(`\n🚀 Servidor iniciado en http://localhost:${port}`);
+      console.log(`\n🚀 Servidor HTTP + WebSockets iniciado en http://localhost:${port}`);
+      console.log(`📡 WebSocket endpoint disponible en ws://localhost:${port}/ws`);
       console.log('   Abre esa URL en tu navegador para usar la app.\n');
     })
     .on('error', () => {

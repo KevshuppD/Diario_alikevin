@@ -480,14 +480,25 @@ fun FlappyThorGameDialog(
                     val angle = (thorVelocity * 4200f).coerceIn(-26f, 45f)
 
                     rotate(degrees = angle, pivot = Offset(thorDrawX, thorDrawY)) {
-                        drawWhiteThorBirdSprite(
-                            cx = thorDrawX,
-                            cy = thorDrawY,
-                            sizePx = thorSizePx,
-                            velocity = thorVelocity,
-                            ticks = gameTicks,
-                            accessory = pet.equippedAccessory ?: ""
-                        )
+                        if (pet.isCuky()) {
+                            drawBrownCukyBirdSprite(
+                                cx = thorDrawX,
+                                cy = thorDrawY,
+                                sizePx = thorSizePx,
+                                velocity = thorVelocity,
+                                ticks = gameTicks,
+                                accessory = pet.getActiveEquippedAccessory() ?: ""
+                            )
+                        } else {
+                            drawWhiteThorBirdSprite(
+                                cx = thorDrawX,
+                                cy = thorDrawY,
+                                sizePx = thorSizePx,
+                                velocity = thorVelocity,
+                                ticks = gameTicks,
+                                accessory = pet.getActiveEquippedAccessory() ?: ""
+                            )
+                        }
                     }
                 }
 
@@ -869,15 +880,27 @@ fun FlappyThorGameDialog(
                                 val angle = (thorVelocity * 3000f).coerceIn(-24f, 40f)
 
                                 rotate(degrees = angle, pivot = Offset(thorDrawX, thorDrawY)) {
-                                    drawWhiteThorBirdSprite(
-                                        cx = thorDrawX,
-                                        cy = thorDrawY,
-                                        sizePx = thorSizePx,
-                                        velocity = thorVelocity,
-                                        ticks = gameTicks,
-                                        accessory = pet.equippedAccessory ?: "",
-                                        isPocket = true
-                                    )
+                                    if (pet.isCuky()) {
+                                        drawBrownCukyBirdSprite(
+                                            cx = thorDrawX,
+                                            cy = thorDrawY,
+                                            sizePx = thorSizePx,
+                                            velocity = thorVelocity,
+                                            ticks = gameTicks,
+                                            accessory = pet.getActiveEquippedAccessory() ?: "",
+                                            isPocket = true
+                                        )
+                                    } else {
+                                        drawWhiteThorBirdSprite(
+                                            cx = thorDrawX,
+                                            cy = thorDrawY,
+                                            sizePx = thorSizePx,
+                                            velocity = thorVelocity,
+                                            ticks = gameTicks,
+                                            accessory = pet.getActiveEquippedAccessory() ?: "",
+                                            isPocket = true
+                                        )
+                                    }
                                 }
                             }
 
@@ -1255,6 +1278,110 @@ private fun DrawScope.drawWhiteThorBirdSprite(
         }
         "bow" -> {
             drawRect(color = Color(0xFFFF4081), topLeft = Offset(startX + 2 * pixel, startY + 1 * pixel), size = Size(3 * pixel, 2 * pixel))
+        }
+        "glasses" -> {
+            drawRect(color = darkOutline, topLeft = Offset(startX + 2 * pixel, startY + 4 * pixel), size = Size(9 * pixel, 2 * pixel), style = androidx.compose.ui.graphics.drawscope.Stroke(1.2f * pixel))
+        }
+        "bandana" -> {
+            drawRect(color = Color(0xFFE53935), topLeft = Offset(startX + 2 * pixel, startY + 7 * pixel), size = Size(9 * pixel, 2 * pixel))
+        }
+    }
+}
+
+/**
+ * Dibuja el sprite pixel-art dedicado y tierno de Cuky (Gallinita café voladora).
+ * Cuenta con cresta roja, plumaje café caramelo, ojitos tiernos, pico amarillo y alitas batientes.
+ */
+private fun DrawScope.drawBrownCukyBirdSprite(
+    cx: Float,
+    cy: Float,
+    sizePx: Float,
+    velocity: Float,
+    ticks: Long,
+    accessory: String,
+    isPocket: Boolean = false
+) {
+    val pixel = sizePx / 16f
+    val startX = cx - (sizePx / 2f)
+    val startY = cy - (sizePx / 2f)
+
+    // Paleta de Cuky (Gallina café)
+    val brownLight = if (isPocket) Color(0xFFE0F8D0) else Color(0xFFD97706)
+    val brownMain = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFB45309)
+    val brownDark = if (isPocket) Color(0xFF306230) else Color(0xFF78350F)
+    val darkOutline = if (isPocket) Color(0xFF0F380F) else Color(0xFF2D1E12)
+    val combRed = if (isPocket) Color(0xFF306230) else Color(0xFFDC2626)
+    val beakYellow = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFF59E0B)
+    val eyeColor = if (isPocket) Color(0xFF0F380F) else Color(0xFF1E1E24)
+    val blush = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFFFB2D6)
+
+    val flapFrame = ((ticks / 4) % 3).toInt()
+
+    // Matriz de Cuky 16x13 píxeles
+    // 0: Vacío, 1: Contorno, 2: Café Claro, 3: Café Sombra, 4: Ojos, 5: Brillo Ojo, 6: Pico Amarillo, 7: Cresta Roja, 8: Rubor
+    val cukyMatrix = arrayOf(
+        // Cresta Roja
+        intArrayOf(0, 0, 0, 0, 0, 7, 7, 0, 7, 7, 0, 0, 0, 0),
+        intArrayOf(0, 0, 0, 0, 1, 7, 7, 1, 7, 7, 1, 0, 0, 0),
+        // Cabeza
+        intArrayOf(0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 0, 0),
+        intArrayOf(0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
+        intArrayOf(0, 1, 2, 4, 5, 2, 2, 2, 4, 5, 2, 2, 1, 0),
+        intArrayOf(0, 1, 2, 4, 4, 6, 6, 6, 4, 4, 2, 2, 1, 0),
+        intArrayOf(0, 1, 8, 2, 2, 7, 7, 2, 2, 2, 8, 2, 1, 0),
+        // Cuerpo rechoncho
+        intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1),
+        intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1),
+        intArrayOf(1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1),
+        intArrayOf(0, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0),
+        intArrayOf(0, 0, 1, 6, 6, 1, 1, 1, 1, 6, 6, 1, 0, 0)
+    )
+
+    cukyMatrix.forEachIndexed { r, row ->
+        row.forEachIndexed { c, cell ->
+            val col = when (cell) {
+                1 -> darkOutline
+                2 -> brownLight
+                3 -> brownDark
+                4 -> eyeColor
+                5 -> Color.White
+                6 -> beakYellow
+                7 -> combRed
+                8 -> blush
+                else -> null
+            }
+            if (col != null) {
+                drawRect(
+                    color = col,
+                    topLeft = Offset(startX + c * pixel, startY + r * pixel),
+                    size = Size(pixel, pixel)
+                )
+            }
+        }
+    }
+
+    // Alita café que bate
+    val wingDY = when (flapFrame) {
+        0 -> -2 * pixel
+        1 -> 0f
+        else -> 2 * pixel
+    }
+
+    // Ala batiente
+    drawRect(color = darkOutline, topLeft = Offset(startX + 1 * pixel, startY + 7 * pixel + wingDY), size = Size(5 * pixel, 4 * pixel))
+    drawRect(color = brownMain, topLeft = Offset(startX + 2 * pixel, startY + 8 * pixel + wingDY), size = Size(3 * pixel, 2 * pixel))
+    drawRect(color = brownLight, topLeft = Offset(startX + 2 * pixel, startY + 8 * pixel + wingDY), size = Size(2 * pixel, 1 * pixel))
+
+    // Accesorios
+    when (accessory) {
+        "crown" -> {
+            val cx = startX + 4 * pixel
+            val cy = startY - 2 * pixel
+            drawRect(color = Color(0xFFFFD700), topLeft = Offset(cx, cy), size = Size(5 * pixel, 2 * pixel))
+            drawRect(color = Color(0xFFFF1744), topLeft = Offset(cx + 2 * pixel, cy - 1 * pixel), size = Size(1 * pixel, 1 * pixel))
+        }
+        "bow" -> {
+            drawRect(color = Color(0xFFFF4081), topLeft = Offset(startX + 2 * pixel, startY + 2 * pixel), size = Size(3 * pixel, 2 * pixel))
         }
         "glasses" -> {
             drawRect(color = darkOutline, topLeft = Offset(startX + 2 * pixel, startY + 4 * pixel), size = Size(9 * pixel, 2 * pixel), style = androidx.compose.ui.graphics.drawscope.Stroke(1.2f * pixel))

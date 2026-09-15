@@ -657,6 +657,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                 }
             },
             { newName: String -> viewModel.updatePetName(newName) },
+            { petType: String -> viewModel.switchPet(petType) },
             { accessoryId: String, cost: Int -> viewModel.buyAccessory(accessoryId, cost) },
             { accessoryId: String -> viewModel.equipAccessory(accessoryId) },
             { backgroundId: String, cost: Int -> viewModel.buyBackground(backgroundId, cost) },
@@ -952,10 +953,11 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         val prefs = getSharedPreferences("thor_widget_prefs", MODE_PRIVATE)
         prefs.edit()
             .putString("pet_name", p.name)
+            .putString("pet_type", p.petType)
             .putInt("pet_level", p.level)
             .putInt("pet_happiness", p.happiness)
             .putString("pet_status", p.status)
-            .putString("pet_accessory", if (p.equippedAccessory != null) p.equippedAccessory else "none")
+            .putString("pet_accessory", p.getActiveEquippedAccessory() ?: "none")
             .putBoolean("pet_sleeping", p.isSleeping)
             .putInt("pet_hunger", p.hunger)
             .putInt("pet_cleanliness", p.cleanliness)

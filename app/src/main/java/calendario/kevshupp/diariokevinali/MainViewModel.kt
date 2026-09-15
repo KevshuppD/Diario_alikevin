@@ -402,10 +402,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val wPrefs = app.getSharedPreferences("thor_widget_prefs", Context.MODE_PRIVATE)
         wPrefs.edit()
             .putString("pet_name", p.name)
+            .putString("pet_type", p.petType)
             .putInt("pet_level", p.level)
             .putInt("pet_happiness", p.happiness)
             .putString("pet_status", p.status)
-            .putString("pet_accessory", p.equippedAccessory ?: "none")
+            .putString("pet_accessory", p.getActiveEquippedAccessory() ?: "none")
             .putBoolean("pet_sleeping", p.isSleeping)
             .putInt("pet_hunger", p.hunger)
             .putInt("pet_cleanliness", p.cleanliness)
@@ -961,18 +962,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         db.collection("pets").document(currentCoupleId).update("name", newName)
     }
 
+    fun switchPet(newPetType: String) {
+        val p = _petState.value ?: return
+        val defaultName = if (newPetType == Pet.PET_CUKY) "Cuky" else "Thor"
+        val newName = if (p.name == "Thor" || p.name == "Cuky" || p.name.isBlank()) defaultName else p.name
+        db.collection("pets").document(currentCoupleId)
+            .update(
+                "petType", newPetType,
+                "name", newName
+            )
+            .addOnSuccessListener {
+                toastMessage.value = if (newPetType == Pet.PET_CUKY) "¡Cuky la gallina ahora te acompaña! 🐔🤎" else "¡Thor el gatito ahora te acompaña! 🐱🤍"
+            }
+    }
+
     fun buyAccessory(accessoryId: String, cost: Int) {
         val p = _petState.value ?: return
+        val isCuky = p.isCuky()
+        val currentUnlocked = if (isCuky) p.cukyUnlockedAccessories else p.unlockedAccessories
         if (p.lovePoints >= cost) {
-            val unlocked = ArrayList(p.unlockedAccessories)
+            val unlocked = ArrayList(currentUnlocked)
             if (!unlocked.contains(accessoryId)) {
                 unlocked.add(accessoryId)
+                val updates = mutableMapOf<String, Any>(
+                    "lovePoints" to (p.lovePoints - cost)
+                )
+                if (isCuky) {
+                    updates["cukyUnlockedAccessories"] = unlocked
+                    updates["cukyEquippedAccessory"] = accessoryId
+                } else {
+                    updates["unlockedAccessories"] = unlocked
+                    updates["equippedAccessory"] = accessoryId
+                }
                 db.collection("pets").document(currentCoupleId)
-                    .update(
-                        "lovePoints", p.lovePoints - cost,
-                        "unlockedAccessories", unlocked,
-                        "equippedAccessory", accessoryId
-                    )
+                    .update(updates)
                     .addOnSuccessListener {
                         toastMessage.value = "¡Accesorio comprado y equipado! ✨"
                     }
@@ -983,22 +1006,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun equipAccessory(accessoryId: String) {
-        db.collection("pets").document(currentCoupleId).update("equippedAccessory", accessoryId)
+        val p = _petState.value ?: return
+        val field = if (p.isCuky()) "cukyEquippedAccessory" else "equippedAccessory"
+        db.collection("pets").document(currentCoupleId).update(field, accessoryId)
     }
 
     fun buyBackground(backgroundId: String, cost: Int) {
         val p = _petState.value ?: return
+        val isCuky = p.isCuky()
+        val currentUnlocked = if (isCuky) p.cukyUnlockedBackgrounds else p.unlockedBackgrounds
         if (p.lovePoints >= cost) {
-            val unlocked = ArrayList(p.unlockedBackgrounds)
+            val unlocked = ArrayList(currentUnlocked)
             if (!unlocked.contains(backgroundId)) {
                 unlocked.add(backgroundId)
             }
+            val updates = mutableMapOf<String, Any>(
+                "lovePoints" to (p.lovePoints - cost)
+            )
+            if (isCuky) {
+                updates["cukyUnlockedBackgrounds"] = unlocked
+                updates["cukyEquippedBackground"] = backgroundId
+            } else {
+                updates["unlockedBackgrounds"] = unlocked
+                updates["equippedBackground"] = backgroundId
+            }
             db.collection("pets").document(currentCoupleId)
-                .update(
-                    "lovePoints", p.lovePoints - cost,
-                    "unlockedBackgrounds", unlocked,
-                    "equippedBackground", backgroundId
-                )
+                .update(updates)
                 .addOnSuccessListener {
                     toastMessage.value = "¡Fondo comprado y equipado! 🖼️✨"
                 }
@@ -1009,8 +1042,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun equipBackground(backgroundId: String) {
         val p = _petState.value ?: return
+        val field = if (p.isCuky()) "cukyEquippedBackground" else "equippedBackground"
         db.collection("pets").document(currentCoupleId)
-            .update("equippedBackground", backgroundId)
+            .update(field, backgroundId)
             .addOnSuccessListener {
                 toastMessage.value = "¡Fondo equipado! 🖼️"
             }

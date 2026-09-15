@@ -39,6 +39,7 @@ fun PetMenuDialog(
     isDark: Boolean,
     onDismiss: () -> Unit,
     onUpdateName: (String) -> Unit,
+    onSwitchPet: (String) -> Unit = {},
     onBuyAccessory: (String, Int) -> Unit,
     onEquipAccessory: (String) -> Unit,
     onBuyBackground: (String, Int) -> Unit,
@@ -52,12 +53,12 @@ fun PetMenuDialog(
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var shopCategory by remember { mutableStateOf("accessories") } // "accessories" o "backgrounds"
-    var previewAccessory by remember { mutableStateOf(pet.equippedAccessory) }
-    var previewBackground by remember { mutableStateOf(pet.equippedBackground) }
+    var previewAccessory by remember { mutableStateOf(pet.getActiveEquippedAccessory()) }
+    var previewBackground by remember { mutableStateOf(pet.getActiveEquippedBackground()) }
 
-    LaunchedEffect(pet.equippedAccessory, pet.equippedBackground) {
-        previewAccessory = pet.equippedAccessory
-        previewBackground = pet.equippedBackground
+    LaunchedEffect(pet.getActiveEquippedAccessory(), pet.getActiveEquippedBackground(), pet.petType) {
+        previewAccessory = pet.getActiveEquippedAccessory()
+        previewBackground = pet.getActiveEquippedBackground()
     }
 
     var newName by remember { mutableStateOf(pet.name) }
@@ -190,11 +191,61 @@ fun PetMenuDialog(
                     }
                 }
 
+                // Selector de Mascota Activa: 🐱 Thor vs 🐔 Cuky
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val isThor = !pet.isCuky()
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(
+                                if (isThor) accentColor else if (isDark) Color(0xFF2A2A2A) else Color(0xFFE8D7C0),
+                                shape = RectangleShape
+                            )
+                            .border(2.dp, if (isThor) Color.White else borderColor)
+                            .clickable { onSwitchPet(Pet.PET_THOR) }
+                            .padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "🐱 THOR",
+                            fontFamily = Vt323,
+                            fontSize = 17.sp,
+                            color = if (isThor) Color.White else contentColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(
+                                if (!isThor) Color(0xFFD97706) else if (isDark) Color(0xFF2A2A2A) else Color(0xFFE8D7C0),
+                                shape = RectangleShape
+                            )
+                            .border(2.dp, if (!isThor) Color.White else borderColor)
+                            .clickable { onSwitchPet(Pet.PET_CUKY) }
+                            .padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "🐔 CUKY",
+                            fontFamily = Vt323,
+                            fontSize = 17.sp,
+                            color = if (!isThor) Color.White else contentColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
                 // Header con 4 pestañas: INFO, ESTILO, COMIDA, AJUSTES
                 Row(modifier = Modifier.fillMaxWidth()) {
                     TabItem("INFO", selectedTab == 0, isDark, borderColor) { selectedTab = 0 }
                     TabItem("ESTILO 👑", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
-                    TabItem("COMIDA 🐟", selectedTab == 3, isDark, borderColor) { selectedTab = 3 }
+                    TabItem(if (pet.isCuky()) "COMIDA 🌽" else "COMIDA 🐟", selectedTab == 3, isDark, borderColor) { selectedTab = 3 }
                     TabItem("⚙️", selectedTab == 4, isDark, borderColor) { selectedTab = 4 }
                 }
 
@@ -208,7 +259,7 @@ fun PetMenuDialog(
                             .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // 🏡 LA HABITACIÓN DE THOR (INTERACTIVA 2D TAMAGOTCHI)
+                        // 🏡 LA HABITACIÓN DE LA MASCOTA (INTERACTIVA 2D TAMAGOTCHI)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(0.95f)
@@ -220,7 +271,7 @@ fun PetMenuDialog(
                                 )
                                 .clickable {
                                     if (pet.isSleeping) {
-                                        android.widget.Toast.makeText(context, "💤 ¡Thor está durmiendo profundamente!", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(context, "💤 ¡${pet.name} está durmiendo profundamente!", android.widget.Toast.LENGTH_SHORT).show()
                                         return@clickable
                                     }
                                     
@@ -229,7 +280,7 @@ fun PetMenuDialog(
                                     val limit = 30
                                     
                                     if (currentTapsToday + accumulatedTaps >= limit) {
-                                        android.widget.Toast.makeText(context, "¡Thor ya recibió suficiente cariño por hoy! 💖 (Límite: $limit/día)", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(context, "¡${pet.name} ya recibió suficiente cariño por hoy! 💖 (Límite: $limit/día)", android.widget.Toast.LENGTH_SHORT).show()
                                         return@clickable
                                     }
 
@@ -263,7 +314,10 @@ fun PetMenuDialog(
                                 }
                         ) {
                             // Fondo Pixel-Art Dinámico (Día / Noche)
-                            val roomBgRes = when (pet.equippedBackground) {
+                            val currentBg = pet.getActiveEquippedBackground()
+                            val roomBgRes = when (currentBg) {
+                                "coop" -> if (pet.isSleeping) R.drawable.bg_cuky_coop_night else R.drawable.bg_cuky_coop_day
+                                "farm" -> if (pet.isSleeping) R.drawable.bg_cuky_farm_night else R.drawable.bg_cuky_farm_day
                                 "jungle" -> if (pet.isSleeping) R.drawable.bg_thor_jungle_night else R.drawable.bg_thor_jungle_day
                                 "space" -> if (pet.isSleeping) R.drawable.bg_thor_space_night else R.drawable.bg_thor_space_day
                                 "beach" -> if (pet.isSleeping) R.drawable.bg_thor_beach_night else R.drawable.bg_thor_beach_day
@@ -276,25 +330,12 @@ fun PetMenuDialog(
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                            // Imagen de la mascota con estados de imagen pixel-art reales
-                            val dThorImageRes = when {
-                                isWashing -> R.drawable.ic_thor_bath
-                                isPlayingBall -> R.drawable.ic_thor_play
-                                pet.isSleeping -> R.drawable.ic_thor_sleep
-                                else -> when (pet.equippedAccessory) {
-                                    Pet.ACC_COLLAR -> R.drawable.ic_thor_collar
-                                    Pet.ACC_MUSTACHE -> R.drawable.ic_thor_mustache
-                                    Pet.ACC_BALLOON -> R.drawable.ic_thor_balloon
-                                    Pet.ACC_BOW -> R.drawable.ic_thor_bow
-                                    Pet.ACC_HAT -> R.drawable.ic_thor_hat
-                                    Pet.ACC_BANDANA -> R.drawable.ic_thor_bandana
-                                    Pet.ACC_GLASSES -> R.drawable.ic_thor_glasses
-                                    Pet.ACC_CROWN -> R.drawable.ic_thor_crown
-                                    Pet.ACC_BANANA -> R.drawable.ic_thor_banana
-                                    Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
-                                    else -> R.drawable.ic_thor_base_trans
-                                }
-                            }
+                            // Imagen de la mascota con estados de imagen pixel-art reales (Thor / Cuky)
+                            val dThorImageRes = getPetDrawableRes(
+                                pet = pet,
+                                isWashing = isWashing,
+                                isPlayingBall = isPlayingBall
+                            )
 
                             // Render de la mascota escalada
                             val thorSize = when {
@@ -661,6 +702,8 @@ fun PetMenuDialog(
                                 .border(2.dp, borderColor)
                         ) {
                             val previewBgRes = when (previewBackground) {
+                                "coop" -> if (pet.isSleeping) R.drawable.bg_cuky_coop_night else R.drawable.bg_cuky_coop_day
+                                "farm" -> if (pet.isSleeping) R.drawable.bg_cuky_farm_night else R.drawable.bg_cuky_farm_day
                                 "jungle" -> if (pet.isSleeping) R.drawable.bg_thor_jungle_night else R.drawable.bg_thor_jungle_day
                                 "space" -> if (pet.isSleeping) R.drawable.bg_thor_space_night else R.drawable.bg_thor_space_day
                                 "beach" -> if (pet.isSleeping) R.drawable.bg_thor_beach_night else R.drawable.bg_thor_beach_day
@@ -673,22 +716,11 @@ fun PetMenuDialog(
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                            val previewMascotRes = when {
-                                pet.isSleeping -> R.drawable.ic_thor_sleep
-                                else -> when (previewAccessory) {
-                                    Pet.ACC_COLLAR -> R.drawable.ic_thor_collar
-                                    Pet.ACC_MUSTACHE -> R.drawable.ic_thor_mustache
-                                    Pet.ACC_BALLOON -> R.drawable.ic_thor_balloon
-                                    Pet.ACC_BOW -> R.drawable.ic_thor_bow
-                                    Pet.ACC_HAT -> R.drawable.ic_thor_hat
-                                    Pet.ACC_BANDANA -> R.drawable.ic_thor_bandana
-                                    Pet.ACC_GLASSES -> R.drawable.ic_thor_glasses
-                                    Pet.ACC_CROWN -> R.drawable.ic_thor_crown
-                                    Pet.ACC_BANANA -> R.drawable.ic_thor_banana
-                                    Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
-                                    else -> R.drawable.ic_thor_base_trans
-                                }
-                            }
+                            val previewMascotRes = getPetDrawableRes(
+                                pet = pet,
+                                accessory = previewAccessory,
+                                isSleeping = pet.isSleeping
+                            )
                             Image(
                                 painter = painterResource(id = previewMascotRes),
                                 contentDescription = null,
@@ -781,6 +813,9 @@ fun PetMenuDialog(
                                 Triple(Pet.ACC_BANANA, "Plátano Nano 🍌", 200),
                                 Triple(Pet.ACC_CROWN, "Corona Real 👑", 500)
                             )
+                            val activeUnlockedAccs = pet.getActiveUnlockedAccessories()
+                            val activeEquippedAcc = pet.getActiveEquippedAccessory()
+
                             LazyColumn(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 contentPadding = PaddingValues(top = 4.dp, bottom = 64.dp),
@@ -790,8 +825,8 @@ fun PetMenuDialog(
                                     items = items,
                                     key = { it.first }
                                 ) { (id, name, cost) ->
-                                    val isUnlocked = pet.unlockedAccessories.contains(id)
-                                    val isEquipped = pet.equippedAccessory == id
+                                    val isUnlocked = activeUnlockedAccs.contains(id)
+                                    val isEquipped = activeEquippedAcc == id
                                     val isPreviewed = previewAccessory == id
 
                                     AccessoryRow(
@@ -813,12 +848,27 @@ fun PetMenuDialog(
                                 }
                             }
                         } else {
-                            val backgrounds = listOf(
-                                Triple("default", "Habitación Clásica 🏠", 0),
-                                Triple("jungle", "Selva Tropical 🌴", 50),
-                                Triple("space", "Nave Espacial 🚀", 100),
-                                Triple("beach", "Playa Paradise 🏖️", 150)
-                            )
+                            val activeUnlockedBgs = pet.getActiveUnlockedBackgrounds()
+                            val activeEquippedBg = pet.getActiveEquippedBackground()
+                            val backgrounds = if (pet.isCuky()) {
+                                listOf(
+                                    Triple("coop", "Gallinero Acogedor 🛖", 0),
+                                    Triple("farm", "Huerta de Cultivos 🌽🌻", 50),
+                                    Triple("beach", "Playa Paradise 🏖️", 100),
+                                    Triple("jungle", "Selva Tropical 🌴", 120),
+                                    Triple("default", "Habitación Clásica 🏠", 150),
+                                    Triple("space", "Nave Espacial 🚀", 200)
+                                )
+                            } else {
+                                listOf(
+                                    Triple("default", "Habitación Clásica 🏠", 0),
+                                    Triple("jungle", "Selva Tropical 🌴", 50),
+                                    Triple("coop", "Gallinero Acogedor 🛖", 75),
+                                    Triple("farm", "Huerta de Cultivos 🌽🌻", 75),
+                                    Triple("space", "Nave Espacial 🚀", 100),
+                                    Triple("beach", "Playa Paradise 🏖️", 150)
+                                )
+                            }
                             LazyColumn(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 contentPadding = PaddingValues(top = 4.dp, bottom = 64.dp),
@@ -828,8 +878,8 @@ fun PetMenuDialog(
                                     items = backgrounds,
                                     key = { it.first }
                                 ) { (id, name, cost) ->
-                                    val isUnlocked = pet.unlockedBackgrounds.contains(id)
-                                    val isEquipped = pet.equippedBackground == id
+                                    val isUnlocked = activeUnlockedBgs.contains(id)
+                                    val isEquipped = activeEquippedBg == id
                                     val isPreviewed = previewBackground == id
 
                                     AccessoryRow(
@@ -854,12 +904,21 @@ fun PetMenuDialog(
                     }
                 } else if (selectedTab == 3) {
                     // Pestaña de Tienda de Alimentos / Comida
-                    val foods = listOf(
-                        Triple("cookie", "Galleta Pescado 🐟", Pair(5, 15)),
-                        Triple("milk", "Leche Tibia 🥛", Pair(10, 30)),
-                        Triple("catnip", "Catnip Relajante 🌿", Pair(15, 50)),
-                        Triple("feast", "Banquete Gourmet 🍣", Pair(25, 80))
-                    )
+                    val foods = if (pet.isCuky()) {
+                        listOf(
+                            Triple("seeds", "Semillas de Amor 🌾", Pair(5, 15)),
+                            Triple("corn", "Maíz Dorado 🌽", Pair(10, 30)),
+                            Triple("melon", "Sandía Fresca 🍉", Pair(15, 50)),
+                            Triple("worm", "Banquete de Gusano 🪱", Pair(25, 80))
+                        )
+                    } else {
+                        listOf(
+                            Triple("cookie", "Galleta Pescado 🐟", Pair(5, 15)),
+                            Triple("milk", "Leche Tibia 🥛", Pair(10, 30)),
+                            Triple("catnip", "Catnip Relajante 🌿", Pair(15, 50)),
+                            Triple("feast", "Banquete Gourmet 🍣", Pair(25, 80))
+                        )
+                    }
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -896,7 +955,7 @@ fun PetMenuDialog(
                                     borderColor = borderColor,
                                     onFeed = {
                                         if (pet.isSleeping) {
-                                            android.widget.Toast.makeText(context, "¡Thor está durmiendo! 💤 No puede comer ahora.", android.widget.Toast.LENGTH_LONG).show()
+                                            android.widget.Toast.makeText(context, "¡${pet.name} está durmiendo! 💤 No puede comer ahora.", android.widget.Toast.LENGTH_LONG).show()
                                         } else {
                                             scope.launch {
                                                 foodAnimationType = id
@@ -1620,6 +1679,34 @@ fun SettingsMenuButton(
         ) {
             Text(text, fontFamily = Vt323, fontSize = 18.sp, color = if (isDark) Color.White else Color(0xFF4A2511))
             Text("▶", fontFamily = Vt323, fontSize = 14.sp, color = borderColor)
+        }
+    }
+}
+
+fun getPetDrawableRes(
+    pet: Pet,
+    accessory: String? = pet.getActiveEquippedAccessory(),
+    isSleeping: Boolean = pet.isSleeping,
+    isWashing: Boolean = false,
+    isPlayingBall: Boolean = false
+): Int {
+    val isCuky = pet.isCuky()
+    return when {
+        isWashing -> if (isCuky) R.drawable.ic_cuky_bath else R.drawable.ic_thor_bath
+        isPlayingBall -> if (isCuky) R.drawable.ic_cuky_play else R.drawable.ic_thor_play
+        isSleeping -> if (isCuky) R.drawable.ic_cuky_sleep else R.drawable.ic_thor_sleep
+        else -> when (accessory) {
+            Pet.ACC_COLLAR -> if (isCuky) R.drawable.ic_cuky_collar else R.drawable.ic_thor_collar
+            Pet.ACC_MUSTACHE -> if (isCuky) R.drawable.ic_cuky_mustache else R.drawable.ic_thor_mustache
+            Pet.ACC_BALLOON -> if (isCuky) R.drawable.ic_cuky_balloon else R.drawable.ic_thor_balloon
+            Pet.ACC_BOW -> if (isCuky) R.drawable.ic_cuky_bow else R.drawable.ic_thor_bow
+            Pet.ACC_HAT -> if (isCuky) R.drawable.ic_cuky_hat else R.drawable.ic_thor_hat
+            Pet.ACC_BANDANA -> if (isCuky) R.drawable.ic_cuky_bandana else R.drawable.ic_thor_bandana
+            Pet.ACC_GLASSES -> if (isCuky) R.drawable.ic_cuky_glasses else R.drawable.ic_thor_glasses
+            Pet.ACC_CROWN -> if (isCuky) R.drawable.ic_cuky_crown else R.drawable.ic_thor_crown
+            Pet.ACC_BANANA -> if (isCuky) R.drawable.ic_cuky_banana else R.drawable.ic_thor_banana
+            Pet.ACC_SOCKS -> if (isCuky) R.drawable.ic_cuky_socks else R.drawable.ic_thor_socks
+            else -> if (isCuky) R.drawable.ic_cuky_base_trans else R.drawable.ic_thor_base_trans
         }
     }
 }

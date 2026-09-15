@@ -338,6 +338,36 @@
       50% { opacity: 0.4; transform: scale(0.85); }
     }
 
+    /* Auto-Save & WS Live Status Pills */
+    .autosave-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10b981;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      user-select: none;
+    }
+    .autosave-status-pill.saving {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.4);
+      color: #f59e0b;
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+    .autosave-status-pill.error {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #ef4444;
+    }
+    .ws-pill {
+      cursor: default;
+    }
+
     .btn {
       background: var(--accent-color);
       color: #fff;
@@ -1393,6 +1423,12 @@
         <button class="btn btn-secondary" onclick="openThemeModal()" style="padding: 2px 6px; font-size: 11px; margin-left: 4px; border-color: var(--accent-color); color: var(--text-color);" title="Cambiar tema visual sincronizado con la app">🎨 Tema</button>
         <button class="btn btn-secondary" onclick="openCloudinarySettingsModal()" style="padding: 2px 6px; font-size: 11px; margin-left: 4px;" title="Configuración de Cloudinary y limpieza">⚙️ Config</button>
       </div>
+
+      <!-- WebSocket Real-time Live Status Pill -->
+      <div class="connection-status-pill ws-pill" id="ws-status-pill" title="Sincronización en tiempo real por WebSockets">
+        <span class="status-dot syncing" id="ws-status-dot"></span>
+        <span class="status-text" id="ws-status-text">WS: Conectando...</span>
+      </div>
     </div>
   </header>
 
@@ -1462,11 +1498,14 @@
           </button>
           <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px;">Estructura de Categorías en Firestore</h2>
         </div>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
           <button class="btn btn-secondary" id="btn-add-category">Nueva Categoría</button>
           <button class="btn btn-secondary" onclick="openNewSpiritModal()">Nuevo Espíritu</button>
           <button class="btn btn-danger" id="btn-reset">Restablecer por Defecto</button>
-          <button class="btn btn-success" id="btn-save">Guardar Cambios</button>
+          <div class="autosave-status-pill" id="edit-autosave-pill" title="Los cambios se guardan y sincronizan en tiempo real automáticamente">
+            <span class="autosave-icon" id="edit-autosave-icon">✓</span>
+            <span class="autosave-text" id="edit-autosave-text">Autoguardado</span>
+          </div>
         </div>
       </div>
 
@@ -2443,6 +2482,180 @@
       return name;
     }
 
+    // ---- WebSockets Real-Time Sync Engine ----
+    let wsClient = null;
+    let wsReconnectTimer = null;
+    let isWsConnected = false;
+
+    function initWebSocket() {
+      if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
+
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      const wsUrl = `${protocol}//${host}/ws`;
+
+      try {
+        wsClient = new WebSocket(wsUrl);
+
+        wsClient.onopen = () => {
+          isWsConnected = true;
+          updateWsStatus(true, "WS: En vivo");
+          console.log("🟢 Conectado a WebSocket en tiempo real");
+        };
+
+        wsClient.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            handleWsMessage(msg);
+          } catch (e) {
+            console.error("Error parseando mensaje WS:", e);
+          }
+        };
+
+        wsClient.onclose = () => {
+          isWsConnected = false;
+          updateWsStatus(false, "WS: Desconectado");
+          wsReconnectTimer = setTimeout(initWebSocket, 3000);
+        };
+
+        wsClient.onerror = (err) => {
+          console.warn("WebSocket error:", err);
+          isWsConnected = false;
+          updateWsStatus(false, "WS: Error");
+        };
+      } catch (e) {
+        console.warn("No se pudo inicializar WebSocket:", e);
+        wsReconnectTimer = setTimeout(initWebSocket, 4000);
+      }
+    }
+
+    function sendWsMessage(data) {
+      if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+        try {
+          wsClient.send(JSON.stringify(data));
+        } catch(e) {
+          console.warn("Error enviando mensaje WS:", e);
+        }
+      }
+    }
+
+    function updateWsStatus(connected, text) {
+      const dot = document.getElementById("ws-status-dot");
+      const label = document.getElementById("ws-status-text");
+      if (dot) {
+        dot.className = `status-dot ${connected ? 'online' : 'offline'}`;
+      }
+      if (label) {
+        label.textContent = text;
+      }
+    }
+
+    function handleWsMessage(msg) {
+      if (!msg || !msg.type) return;
+
+      if (msg.type === 'WELCOME' || msg.type === 'CLIENTS_COUNT') {
+        if (msg.count !== undefined) {
+          const label = document.getElementById("ws-status-text");
+          if (label) label.textContent = `WS: En vivo (${msg.count})`;
+        }
+      } else if (msg.type === 'DATA_SYNC') {
+        if (msg.coupleId === coupleId && (!msg.season || msg.season === currentSeason)) {
+          // Si el usuario no está escribiendo activamente en un input, actualizar
+          const activeEl = document.activeElement;
+          const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+          if (!isTyping) {
+            listenFirestore();
+          }
+        }
+      } else if (msg.type === 'SPIRIT_TOGGLE') {
+        if (msg.coupleId === coupleId && (!msg.season || msg.season === currentSeason)) {
+          if (msg.kevinList) kevinList = msg.kevinList;
+          if (msg.aliList) aliList = msg.aliList;
+          if (msg.kevinMastery) kevinMastery = msg.kevinMastery;
+          if (msg.aliMastery) aliMastery = msg.aliMastery;
+          updateStats();
+          renderWorkspace();
+        }
+      } else if (msg.type === 'IMAGE_UPLOADED') {
+        if (msg.spiritId && msg.url) {
+          customImages[msg.spiritId] = msg.url;
+          renderGallery();
+          renderWorkspace();
+        }
+      }
+    }
+
+    // ---- Auto-Save Debounced Engine ----
+    let autoSaveTimer = null;
+    let isAutoSaving = false;
+
+    function updateAutoSaveIndicator(state, message) {
+      const pills = [
+        document.getElementById("edit-autosave-pill"),
+        document.getElementById("config-autosave-pill")
+      ];
+      pills.forEach(pill => {
+        if (!pill) return;
+        pill.className = `autosave-status-pill ${state}`;
+        const icon = pill.querySelector(".autosave-icon");
+        const text = pill.querySelector(".autosave-text");
+        if (icon) {
+          icon.textContent = state === 'saving' ? '🔄' : state === 'error' ? '⚠️' : '✓';
+        }
+        if (text) {
+          text.textContent = message || (state === 'saving' ? 'Guardando...' : state === 'error' ? 'Error al guardar' : 'Guardado automáticamente');
+        }
+      });
+    }
+
+    window.triggerAutoSave = function(delay = 400) {
+      updateAutoSaveIndicator('saving', 'Guardando cambios...');
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+
+      autoSaveTimer = setTimeout(async () => {
+        try {
+          isAutoSaving = true;
+          collectInputsFromDOM();
+          if (currentMode === "config") {
+            collectConfigInputsFromDOM();
+          }
+
+          await saveChangesToFirestoreAsync();
+          
+          // Emitir sincronización en tiempo real por WebSockets
+          sendWsMessage({
+            type: 'DATA_SYNC',
+            coupleId: coupleId,
+            season: currentSeason,
+            timestamp: Date.now()
+          });
+
+          // Actualizar caché local instantánea
+          try {
+            localStorage.setItem(`spirits_cache_${coupleId}_s${currentSeason}`, JSON.stringify({
+              spirits_list: spiritsList,
+              categories: categories,
+              custom_names: customNames,
+              custom_categories: customCategories,
+              custom_images: customImages,
+              spirit_types: spiritTypes,
+              kevin_list: kevinList,
+              ali_list: aliList,
+              kevin_mastery: kevinMastery,
+              ali_mastery: aliMastery
+            }));
+          } catch(e) {}
+
+          updateAutoSaveIndicator('saved', 'Guardado automáticamente');
+        } catch (err) {
+          console.error("Error en autoguardado:", err);
+          updateAutoSaveIndicator('error', 'Error al sincronizar');
+        } finally {
+          isAutoSaving = false;
+        }
+      }, delay);
+    };
+
     window.changeSpiritType = function(id, newTypeName) {
       const foundCat = categories.find(c => c.spiritIds.includes(id));
       const catName = foundCat ? foundCat.name : "__uncategorized__";
@@ -2456,6 +2669,7 @@
         customNames[id] = newFullName;
       }
       renderWorkspace();
+      triggerAutoSave(50);
     };
 
     function updateDbStatusBadge(isOnline, isFromCache) {
@@ -2498,11 +2712,14 @@
             kevinMastery = data.kevin_mastery || [];
             aliMastery = data.ali_mastery || [];
 
-            // Only load data from Firestore if we haven't modified local state or on initial load
+            // Only load structural data from Firestore if we're not actively saving in the middle of typing
             const isInitialLoad = !window.hasLoadedFirestoreOnce;
             window.hasLoadedFirestoreOnce = true;
 
-            if (currentMode !== "edit" || isInitialLoad) {
+            const activeEl = document.activeElement;
+            const isActivelyTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+
+            if (!isActivelyTyping || isInitialLoad) {
               customNames = data.custom_names || {};
               customCategories = data.custom_categories || {};
               customImages = data.custom_images || {};
@@ -2656,7 +2873,7 @@
       document.getElementById("stat-both").textContent = `${bothCount} / ${totalRegistered}`;
     }
 
-    // 6. Normal Mode Toggle Owned / Mastery (Optimización 3: Actualización optimista instantánea + Firestore Sync)
+    // 6. Normal Mode Toggle Owned / Mastery (Optimización 3: Actualización optimista instantánea + Firestore Sync + WebSocket Broadcast)
     window.toggleSpiritOwned = function(id) {
       if (!currentUser) return;
       const isKevin = currentUser.username === "kevin";
@@ -2689,6 +2906,18 @@
       renderWorkspace();
 
       db.collection(getFirestoreCollection()).doc(coupleId).set(updates, { merge: true })
+        .then(() => {
+          sendWsMessage({
+            type: 'SPIRIT_TOGGLE',
+            coupleId: coupleId,
+            season: currentSeason,
+            kevinList: kevinList,
+            aliList: aliList,
+            kevinMastery: kevinMastery,
+            aliMastery: aliMastery,
+            timestamp: Date.now()
+          });
+        })
         .catch(err => {
           console.error("Error toggling spirit:", err);
           showToast("Error al guardar estado de espíritu.", true);
@@ -2714,9 +2943,22 @@
 
       db.collection(getFirestoreCollection()).doc(coupleId).set({
         [masteryKey]: newMasteryList
-      }, { merge: true }).catch(err => {
-        console.error("Error toggling mastery:", err);
-      });
+      }, { merge: true })
+        .then(() => {
+          sendWsMessage({
+            type: 'SPIRIT_TOGGLE',
+            coupleId: coupleId,
+            season: currentSeason,
+            kevinList: kevinList,
+            aliList: aliList,
+            kevinMastery: kevinMastery,
+            aliMastery: aliMastery,
+            timestamp: Date.now()
+          });
+        })
+        .catch(err => {
+          console.error("Error toggling mastery:", err);
+        });
     };
 
     // 100Hz Frame-budget scheduling (requestAnimationFrame)
@@ -2909,7 +3151,7 @@
           `;
 
           const titleInput = header.querySelector("input");
-          titleInput.addEventListener("change", (e) => {
+          const handleCatTitleChange = (e) => {
             const newVal = e.target.value.trim();
             const orig = e.target.dataset.original;
             if (newVal === "" || newVal === orig) {
@@ -2930,6 +3172,10 @@
               }
             });
 
+            triggerAutoSave(400);
+          };
+          titleInput.addEventListener("input", handleCatTitleChange);
+          titleInput.addEventListener("change", () => {
             renderWorkspace();
           });
         } else {
@@ -3044,60 +3290,53 @@
 
       // Render Empty State if no spirits match
       if (container.children.length === 0) {
-        const emptyDiv = document.createElement("div");
-        emptyDiv.className = "empty-search-state";
-        emptyDiv.innerHTML = `
-          <h3>🔍 Sin resultados</h3>
-          <p>${searchQuery !== '' ? `No se encontraron espíritus que coincidan con "<strong>${searchQuery}</strong>".` : 'No hay espíritus para mostrar con el filtro seleccionado.'}</p>
-          ${searchQuery !== '' ? '<button class="btn btn-secondary" style="margin-top: 12px; font-size: 12px;" onclick="clearSearch()">Limpiar Búsqueda</button>' : ''}
+        container.innerHTML = `
+          <div class="empty-state">
+            <span class="empty-icon">🔍</span>
+            <p>No se encontraron espíritus con el filtro o búsqueda actual.</p>
+          </div>
         `;
-        container.appendChild(emptyDiv);
       }
     }
 
+    // 7. Spirit Slot Component Renderer
     function createSpiritSlot(id, categoryName) {
       const slot = document.createElement("div");
-      
-      const activeList = spiritsList.length > 0 ? spiritsList : defaultSpiritsList;
-      const sortedActive = [...activeList].sort((a, b) => parseInt(a) - parseInt(b));
-      const displayIdx = sortedActive.indexOf(id);
-      const displayNumber = displayIdx >= 0 ? String(displayIdx + 1).padStart(2, '0') : id;
-
-      const isKevinHas = kevinList.includes(id);
-      const isAliHas = aliList.includes(id);
-      const isKevinMastered = kevinMastery.includes(id);
-      const isAliMastered = aliMastery.includes(id);
-
-      const isCurrentHas = currentUser && (currentUser.username === "kevin" ? isKevinHas : isAliHas);
-      const isCurrentMastered = currentUser && (currentUser.username === "kevin" ? isKevinMastered : isAliMastered);
-
-      let statusClass = "not-owned";
-      if (isKevinHas && isAliHas) {
-        statusClass = "owned-by-both";
-      } else if (isKevinHas) {
-        statusClass = "owned-by-me";
-      } else if (isAliHas) {
-        statusClass = "owned-by-ali-user";
-      }
+      const displayNumber = String(id).padStart(2, '0');
 
       if (currentMode === "normal") {
-        slot.className = `spirit-slot normal-mode ${statusClass}`;
+        const isKevinOwned = kevinList.includes(id);
+        const isAliOwned = aliList.includes(id);
+        const isKevinMastered = kevinMastery.includes(id);
+        const isAliMastered = aliMastery.includes(id);
+
+        let ownedStatusClass = "";
+        if (isKevinOwned && isAliOwned) ownedStatusClass = "owned-both";
+        else if (isKevinOwned) ownedStatusClass = "owned-kevin";
+        else if (isAliOwned) ownedStatusClass = "owned-ali";
+        else ownedStatusClass = "owned-none";
+
+        slot.className = `spirit-slot normal-view ${ownedStatusClass}`;
+        slot.dataset.id = id;
         slot.onclick = () => toggleSpiritOwned(id);
+
+        const isCurrentMastered = currentUser && (currentUser.username === "kevin" ? isKevinMastered : isAliMastered);
 
         slot.innerHTML = `
           <span class="spirit-id-badge">#${displayNumber}</span>
-          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async">
-          <span class="spirit-name-label">${getSpiritName(id)}</span>
-          
-          <div class="checks-row">
-            <span class="user-check-badge kevin-badge ${isKevinHas ? 'active' : ''}" title="Kevin: ${isKevinHas ? 'Obtenido' : 'No obtenido'}${isKevinMastered ? ' | Maestría ⭐' : ''}">
-              🔵 K ${isKevinHas ? '✓' : ''}${isKevinMastered ? ' ⭐' : ''}
-            </span>
-            <span class="user-check-badge ali-badge ${isAliHas ? 'active' : ''}" title="Ali: ${isAliHas ? 'Obtenida' : 'No obtenida'}${isAliMastered ? ' | Maestría ⭐' : ''}">
-              🔴 A ${isAliHas ? '✓' : ''}${isAliMastered ? ' ⭐' : ''}
-            </span>
+          <div class="spirit-img-container">
+            <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async">
             <span class="mastery-star ${isCurrentMastered ? 'active' : ''}" onclick="toggleSpiritMastery('${id}', event)" title="Alternar Maestría ⭐ (${currentUser ? currentUser.name : ''})">
               ⭐
+            </span>
+          </div>
+          <div class="spirit-name">${getSpiritName(id)}</div>
+          <div class="ownership-badges">
+            <span class="owner-tag kevin ${isKevinOwned ? 'active' : ''}" title="${isKevinOwned ? 'Obtenido por Kevin' : 'Faltante'}">
+              🔵 K ${isKevinMastered ? '<span style="color:#fbbf24;">⭐</span>' : ''}
+            </span>
+            <span class="owner-tag ali ${isAliOwned ? 'active' : ''}" title="${isAliOwned ? 'Obtenido por Ali' : 'Faltante'}">
+              🔴 A ${isAliMastered ? '<span style="color:#fbbf24;">⭐</span>' : ''}
             </span>
           </div>
         `;
@@ -3146,6 +3385,7 @@
           } else {
             customNames[sid] = newVal;
           }
+          triggerAutoSave(400);
         };
         nameInput.addEventListener("input", handleNameUpdate);
         nameInput.addEventListener("change", handleNameUpdate);
@@ -3153,11 +3393,13 @@
         const typeSelectEl = slot.querySelector(".type-select");
         typeSelectEl.addEventListener("change", (e) => {
           changeSpiritType(id, e.target.value);
+          triggerAutoSave(50);
         });
 
         const selectEl = slot.querySelector(".category-select");
         selectEl.addEventListener("change", (e) => {
           moveSpiritToCategory(id, e.target.value);
+          triggerAutoSave(50);
         });
       }
 
@@ -3228,6 +3470,7 @@
       }
 
       renderWorkspace();
+      triggerAutoSave(50);
     }
 
     window.removeSpiritFromCategory = function(spiritId, categoryName) {
@@ -3236,6 +3479,7 @@
         cat.spiritIds = cat.spiritIds.filter(id => id !== spiritId);
       }
       renderWorkspace();
+      triggerAutoSave(50);
     };
 
     window.permanentlyDeleteSpirit = function(spiritId) {
@@ -3262,15 +3506,7 @@
         renderGallery();
         renderWorkspace();
 
-        // 6. Push deletion directly to Firestore cloud database
-        saveChangesToFirestoreAsync()
-          .then(() => {
-            showToast(`Espíritu #${spiritId} eliminado de la base de datos de Firestore.`, false);
-          })
-          .catch(err => {
-            console.error("Error al guardar eliminación en Firestore:", err);
-            showToast("Error al sincronizar eliminación con Firestore.", true);
-          });
+        triggerAutoSave(50);
 
         // 7. Delete physical PNG file from PC via Python server
         fetch('/api/delete-spirit-image', {
@@ -3298,7 +3534,8 @@
         delete customCategories[cat.name];
         categories.splice(index, 1);
         renderWorkspace();
-        showToast(`Categoría "${displayName}" eliminada. Haz clic en 'Guardar Cambios' para sincronizar con Firestore.`, false);
+        triggerAutoSave(50);
+        showToast(`Categoría "${displayName}" eliminada y sincronizada automáticamente.`, false);
       });
     };
 
@@ -3341,20 +3578,7 @@
     const btnSaveEl = document.getElementById("btn-save");
     if (btnSaveEl) {
       btnSaveEl.addEventListener("click", () => {
-        coupleId = localStorage.getItem("coupleId") || "vínculo_único_123";
-
-        collectInputsFromDOM();
-
-        showToast("Guardando cambios en Firestore...", false);
-
-        saveChangesToFirestoreAsync()
-          .then(() => {
-            showToast("¡Base de datos actualizada con éxito en la nube! 🚀", false);
-          })
-          .catch(err => {
-            console.error(err);
-            showToast("Error al guardar cambios: " + err.message, true);
-          });
+        triggerAutoSave(0);
       });
     }
 
@@ -3368,7 +3592,8 @@
           customCategories = {};
           renderGallery();
           renderWorkspace();
-          showToast("Restablecido a valores por defecto locales. Haz clic en Guardar para subir a Firestore.", false);
+          triggerAutoSave(50);
+          showToast("Restablecido a valores por defecto y sincronizado automáticamente.", false);
         });
       });
     }
@@ -3385,7 +3610,8 @@
           }
           categories.push({ name: cleanName, spiritIds: [] });
           renderWorkspace();
-          showToast(`Categoría "${cleanName}" creada localmente. Haz clic en 'Guardar Cambios' para subir a Firestore.`, false);
+          triggerAutoSave(50);
+          showToast(`Categoría "${cleanName}" creada y sincronizada automáticamente.`, false);
         });
       });
     }
@@ -3799,9 +4025,10 @@
             <div class="db-inspector-title" style="margin-bottom: 0;">
               <span>🏷️</span> Gestión de Tipos y Categorías
             </div>
-            <button class="btn btn-success" onclick="saveConfigToFirestore()">
-              <span>💾</span> Guardar Configuración en Firestore
-            </button>
+            <div class="autosave-status-pill" id="config-autosave-pill" title="Los cambios se guardan automáticamente en Firestore y se sincronizan en vivo">
+              <span class="autosave-icon" id="config-autosave-icon">✓</span>
+              <span class="autosave-text" id="config-autosave-text">Autoguardado</span>
+            </div>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px;" class="config-grid-layout">
@@ -3942,7 +4169,8 @@
       
       draggedCategoryIndex = null;
       renderConfigEditor();
-      showToast("Orden de categoría actualizado por arrastre.", false);
+      triggerAutoSave(50);
+      showToast("Orden de categoría actualizado y sincronizado automáticamente.", false);
     };
 
     window.onConfigCategoryDragEnd = function(event) {
@@ -3977,7 +4205,8 @@
       
       draggedTypeIndex = null;
       renderConfigEditor();
-      showToast("Orden de tipo actualizado por arrastre.", false);
+      triggerAutoSave(50);
+      showToast("Orden de tipo actualizado y sincronizado automáticamente.", false);
     };
 
     window.onConfigTypeDragEnd = function(event) {
@@ -4047,7 +4276,7 @@
         }
       });
 
-      showToast(`Categoría y espíritus actualizados: "${cleanVal || originalName}". Recuerda guardar en Firestore.`, false);
+      triggerAutoSave(400);
     };
 
     window.deleteConfigCategory = function(index) {
@@ -4062,7 +4291,8 @@
         delete customCategories[cat.name];
         categories.splice(index, 1);
         renderConfigEditor();
-        showToast(`Categoría "${displayName}" eliminada. Recuerda hacer clic en 'Guardar Configuración en Firestore'.`, false);
+        triggerAutoSave(50);
+        showToast(`Categoría "${displayName}" eliminada y sincronizada automáticamente.`, false);
       });
     };
 
@@ -4083,7 +4313,8 @@
       categories.push({ name: name, spiritIds: [] });
       input.value = "";
       renderConfigEditor();
-      showToast(`Categoría "${name}" agregada localmente. Haz clic en 'Guardar Configuración en Firestore' para sincronizar.`, false);
+      triggerAutoSave(50);
+      showToast(`Categoría "${name}" agregada y sincronizada automáticamente.`, false);
     };
 
     window.updateConfigTypeName = function(index, newValue) {
@@ -4116,6 +4347,7 @@
       }
       
       renderConfigEditor();
+      triggerAutoSave(400);
     };
 
     window.updateConfigTypeSuffix = function(index, newValue) {
@@ -4123,6 +4355,7 @@
         newValue = ` ${newValue.trim()}`;
       }
       spiritTypes[index].suffix = newValue;
+      triggerAutoSave(400);
     };
 
     window.deleteConfigType = function(index) {
@@ -4130,6 +4363,7 @@
       customConfirm(`¿Eliminar el tipo "${t.name}"?`, "🗑️", () => {
         spiritTypes.splice(index, 1);
         renderConfigEditor();
+        triggerAutoSave(50);
         showToast(`Tipo "${t.name}" eliminado de la configuración.`, false);
       });
     };
@@ -4156,42 +4390,12 @@
       nameInput.value = "";
       suffixInput.value = "";
       renderConfigEditor();
-      showToast(`Tipo "${name}" agregado localmente.`, false);
+      triggerAutoSave(50);
+      showToast(`Tipo "${name}" agregado y sincronizado automáticamente.`, false);
     };
 
     window.saveConfigToFirestore = function() {
-      // 1. Recolectar valores actuales de los inputs del DOM
-      collectConfigInputsFromDOM();
-
-      const categoriesMap = categories.map(cat => ({
-        name: cat.name,
-        spiritIds: cat.spiritIds || []
-      }));
-
-      const updates = {
-        "categories": categoriesMap,
-        "custom_categories": customCategories,
-        "custom_names": customNames,
-        "custom_images": customImages,
-        "spirits_list": spiritsList,
-        "kevin_list": kevinList,
-        "ali_list": aliList,
-        "kevin_mastery": kevinMastery,
-        "ali_mastery": aliMastery,
-        "spirit_types": spiritTypes,
-        "schema_version": 4
-      };
-
-      coupleId = (localStorage.getItem("coupleId") || "vínculo_único_123").trim();
-
-      db.collection(getFirestoreCollection()).doc(coupleId).set(updates)
-        .then(() => {
-          showToast("¡Tipos y Categorías guardados en Firestore con éxito! 🚀", false);
-        })
-        .catch(err => {
-          console.error("Error al guardar configuración:", err);
-          showToast("Error al guardar en Firestore: " + err.message, true);
-        });
+      triggerAutoSave(0);
     };
     // ---- Custom dialog system (replaces native alert/confirm/prompt) ----
     function _showDialog(icon, msg, inputVisible, inputPlaceholder, buttons) {
@@ -4374,6 +4578,7 @@
 
       renderGallery();
       checkSession();
+      initWebSocket();
       listenFirestore();
       setMode(currentMode);
       checkPersistentStorageStatus();

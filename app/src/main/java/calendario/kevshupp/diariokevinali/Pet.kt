@@ -6,6 +6,7 @@ import androidx.compose.runtime.Stable
 
 @Stable
 data class Pet(
+    var petType: String = PET_THOR,
     var happiness: Int = 100,
     var level: Int = 1,
     var name: String = "Thor",
@@ -29,6 +30,10 @@ data class Pet(
     var sleepPercent: Int = 100,
     var unlockedBackgrounds: List<String> = listOf("default"),
     var equippedBackground: String = "default",
+    var cukyEquippedAccessory: String? = null,
+    var cukyUnlockedAccessories: List<String> = mutableListOf(),
+    var cukyEquippedBackground: String = "coop",
+    var cukyUnlockedBackgrounds: List<String> = listOf("coop"),
     var dailyTapCount: Int = 0,
     var lastTapDate: String? = null,
     var flappyHighScoreKevin: Int = 0,
@@ -57,7 +62,24 @@ data class Pet(
             }
         }
 
+    fun isCuky(): Boolean = petType.equals(PET_CUKY, ignoreCase = true) || name.equals("Cuky", ignoreCase = true)
+
+    fun getActiveEquippedAccessory(): String? = if (isCuky()) cukyEquippedAccessory else equippedAccessory
+
+    fun getActiveUnlockedAccessories(): List<String> = if (isCuky()) cukyUnlockedAccessories else unlockedAccessories
+
+    fun getActiveEquippedBackground(): String = if (isCuky()) cukyEquippedBackground.ifBlank { "coop" } else equippedBackground.ifBlank { "default" }
+
+    fun getActiveUnlockedBackgrounds(): List<String> = if (isCuky()) {
+        if (cukyUnlockedBackgrounds.isEmpty()) listOf("coop") else cukyUnlockedBackgrounds
+    } else {
+        if (unlockedBackgrounds.isEmpty()) listOf("default") else unlockedBackgrounds
+    }
+
     companion object {
+        const val PET_THOR = "thor"
+        const val PET_CUKY = "cuky"
+
         const val STATUS_HAPPY = "FELIZ"
         const val STATUS_SAD = "TRISTE"
         const val STATUS_HUNGRY = "HAMBRIENTO"

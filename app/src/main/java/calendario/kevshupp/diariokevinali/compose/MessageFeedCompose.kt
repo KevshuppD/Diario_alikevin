@@ -78,6 +78,7 @@ fun setFeedContent(
     onLikeClick: (Message) -> Unit,
     onSaveMessage: (title: String, content: String, imageUrl: String?) -> Unit,
     onUpdatePetName: (newName: String) -> Unit,
+    onSwitchPet: (newPetType: String) -> Unit = {},
     onBuyAccessory: (accessoryId: String, cost: Int) -> Unit,
     onEquipAccessory: (accessoryId: String) -> Unit,
     onBuyBackground: (backgroundId: String, cost: Int) -> Unit,
@@ -105,6 +106,7 @@ fun setFeedContent(
                 onDeleteClick = onDeleteClick,
                 onLikeClick = onLikeClick,
                 onUpdatePetName = onUpdatePetName,
+                onSwitchPet = onSwitchPet,
                 onBuyAccessory = onBuyAccessory,
                 onEquipAccessory = onEquipAccessory,
                 onBuyBackground = onBuyBackground,
@@ -152,6 +154,7 @@ fun MessageFeedScreen(
     onDeleteClick: (Message) -> Unit,
     onLikeClick: (Message) -> Unit,
     onUpdatePetName: (String) -> Unit,
+    onSwitchPet: (String) -> Unit = {},
     onBuyAccessory: (String, Int) -> Unit,
     onEquipAccessory: (String) -> Unit,
     onBuyBackground: (String, Int) -> Unit,
@@ -177,6 +180,7 @@ fun MessageFeedScreen(
                 onUpdatePetName(it)
                 showPetDialogState.value = false
             },
+            onSwitchPet = onSwitchPet,
             onBuyAccessory = onBuyAccessory,
             onEquipAccessory = onEquipAccessory,
             onBuyBackground = onBuyBackground,
@@ -688,31 +692,18 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         .clickable { isClicked = true }
                         .padding(4.dp)
                 ) {
-                    val thorImageRes = when {
-                        pet.isSleeping -> R.drawable.ic_thor_sleep
-                        else -> when (pet.equippedAccessory) {
-                            Pet.ACC_COLLAR -> R.drawable.ic_thor_collar
-                            Pet.ACC_MUSTACHE -> R.drawable.ic_thor_mustache
-                            Pet.ACC_BALLOON -> R.drawable.ic_thor_balloon
-                            Pet.ACC_BOW -> R.drawable.ic_thor_bow
-                            Pet.ACC_HAT -> R.drawable.ic_thor_hat
-                            Pet.ACC_BANDANA -> R.drawable.ic_thor_bandana
-                            Pet.ACC_GLASSES -> R.drawable.ic_thor_glasses
-                            Pet.ACC_CROWN -> R.drawable.ic_thor_crown
-                            Pet.ACC_BANANA -> R.drawable.ic_thor_banana
-                            Pet.ACC_SOCKS -> R.drawable.ic_thor_socks
-                            else -> R.drawable.ic_thor_base_trans
-                        }
-                    }
+                    val isCuky = pet.isCuky()
+                    val thorImageRes = getPetDrawableRes(pet)
                     
                     val publicId = when {
-                        pet.isSleeping -> "spirits/ic_thor_sleep"
+                        pet.isSleeping -> if (isCuky) "spirits/ic_cuky_sleep" else "spirits/ic_thor_sleep"
                         else -> {
-                            val acc = pet.equippedAccessory
+                            val acc = pet.getActiveEquippedAccessory()
+                            val prefix = if (isCuky) "ic_cuky" else "ic_thor"
                             if (acc.isNullOrBlank() || acc == "none") {
-                                "spirits/ic_thor_base_trans"
+                                "spirits/${prefix}_base_trans"
                             } else {
-                                "spirits/ic_thor_$acc"
+                                "spirits/${prefix}_$acc"
                             }
                         }
                     }
