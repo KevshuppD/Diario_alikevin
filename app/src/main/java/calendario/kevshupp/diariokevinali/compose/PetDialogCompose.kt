@@ -61,13 +61,16 @@ fun PetMenuDialog(
         previewBackground = pet.getActiveEquippedBackground()
     }
 
-    var newName by remember { mutableStateOf(pet.name) }
+    var newName by remember { mutableStateOf(pet.getActiveName()) }
+    LaunchedEffect(pet.getActiveName()) {
+        newName = pet.getActiveName()
+    }
     var showGameSelector by remember { mutableStateOf(false) }
     var showMemoryGame by remember { mutableStateOf(false) }
     var showSnakeGame by remember { mutableStateOf(false) }
     var showFlappyGame by remember { mutableStateOf(false) }
     val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date()) }
-    val playedBallToday = pet.lastBallDate == today
+    val playedBallToday = pet.getActiveLastBallDate() == today
     val playedMemoryToday = pet.lastMemoryDate == today
     val playedSnakeToday = pet.lastSnakeDate == today
     val playedFlappyToday = pet.lastFlappyDate == today
@@ -135,6 +138,116 @@ fun PetMenuDialog(
         finishedListener = { dIsClicked = false }
     )
 
+    // Animaciones procedurales de paseo y picoteo para Cuky
+    val cukyWalkX = remember { Animatable(0f) }
+    val cukyWalkY = remember { Animatable(0f) }
+    var cukyFacingDirection by remember { mutableStateOf(1f) } // 1f: derecha, -1f: izquierda
+    val cukyWaddleRotation = remember { Animatable(0f) }
+    val cukyStepBounce = remember { Animatable(0f) }
+    val cukyPeckRotation = remember { Animatable(0f) }
+    val cukyPeckOffsetY = remember { Animatable(0f) }
+    var showPeckSeed by remember { mutableStateOf(false) }
+    val seedAlpha = remember { Animatable(0f) }
+
+    LaunchedEffect(selectedTab, pet.getActiveIsSleeping(), isWashing, isPlayingBall, pet.isCuky()) {
+        val isCuky = pet.isCuky()
+        if (!isCuky || pet.getActiveIsSleeping() || isWashing || isPlayingBall || selectedTab != 0) {
+            cukyWalkX.snapTo(0f)
+            cukyWalkY.snapTo(0f)
+            cukyWaddleRotation.snapTo(0f)
+            cukyStepBounce.snapTo(0f)
+            cukyPeckRotation.snapTo(0f)
+            cukyPeckOffsetY.snapTo(0f)
+            showPeckSeed = false
+            return@LaunchedEffect
+        }
+
+        // Bucle de comportamiento autónomo de Cuky
+        while (true) {
+            // 1. Descanso / Observar entorno (1.2s - 2.5s)
+            delay((1200..2500).random().toLong())
+
+            // 2. Elegir nuevo destino X cubriendo ambos extremos (-120dp a +120dp)
+            // Alternar para asegurar que viaje a los extremos izquierdo y derecho
+            val currentX = cukyWalkX.value
+            val targetX = if (currentX > 40f) {
+                // Si está a la derecha, viajar hacia el extremo izquierdo o centro-izquierda
+                (-120..-20).random().toFloat()
+            } else if (currentX < -40f) {
+                // Si está a la izquierda, viajar hacia el extremo derecho o centro-derecha
+                (20..120).random().toFloat()
+            } else {
+                // Si está en el centro, elegir cualquier extremo
+                if (Math.random() < 0.5) (-120..-60).random().toFloat() else (60..120).random().toFloat()
+            }
+
+            val startX = cukyWalkX.value
+            val deltaX = targetX - startX
+
+            if (Math.abs(deltaX) > 10f) {
+                // Orientar hacia el destino
+                cukyFacingDirection = if (deltaX > 0) 1f else -1f
+
+                // Caminar dando pasitos de gallina a paso continuo
+                val steps = (Math.abs(deltaX) / 6.5f).toInt().coerceIn(4, 28)
+                for (s in 1..steps) {
+                    val progress = s.toFloat() / steps
+                    val nextX = startX + deltaX * progress
+
+                    // Pasito en X
+                    launch {
+                        cukyWalkX.animateTo(nextX, tween(120, easing = LinearEasing))
+                    }
+                    // Bamboleo de cuerpo de gallina (Waddle)
+                    val waddleTarget = if (s % 2 == 0) 7.5f else -7.5f
+                    launch {
+                        cukyWaddleRotation.animateTo(waddleTarget, tween(60, easing = EaseInOutQuad))
+                        cukyWaddleRotation.animateTo(0f, tween(60, easing = EaseInOutQuad))
+                    }
+                    // Botecito de patitas (Hop)
+                    launch {
+                        cukyStepBounce.animateTo(-6f, tween(60, easing = EaseOutQuad))
+                        cukyStepBounce.animateTo(0f, tween(60, easing = EaseInQuad))
+                    }
+                    delay(125L)
+                }
+                cukyWaddleRotation.snapTo(0f)
+                cukyStepBounce.snapTo(0f)
+            }
+
+            // 3. Picotear el suelo (65% probabilidad)
+            if (Math.random() < 0.65) {
+                showPeckSeed = true
+                launch {
+                    seedAlpha.snapTo(1f)
+                    delay(600)
+                    seedAlpha.animateTo(0f, tween(300))
+                }
+
+                val pecks = (2..3).random()
+                for (p in 1..pecks) {
+                    // Inclinar cabeza y cuerpo hacia abajo para picotear
+                    launch {
+                        cukyPeckRotation.animateTo(-22f * cukyFacingDirection, tween(90, easing = EaseOutQuad))
+                    }
+                    launch {
+                        cukyPeckOffsetY.animateTo(12f, tween(90, easing = EaseOutQuad))
+                    }
+                    delay(110L)
+                    // Volver arriba
+                    launch {
+                        cukyPeckRotation.animateTo(0f, tween(90, easing = EaseInQuad))
+                    }
+                    launch {
+                        cukyPeckOffsetY.animateTo(0f, tween(90, easing = EaseInQuad))
+                    }
+                    delay(110L)
+                }
+                showPeckSeed = false
+            }
+        }
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -165,7 +278,7 @@ fun PetMenuDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "👾 MASCOTA VIRTUAL: ${pet.name.uppercase()} 👾",
+                        text = "👾 MASCOTA VIRTUAL: ${pet.getActiveName().uppercase()} 👾",
                         fontFamily = Vt323,
                         fontSize = 20.sp,
                         color = contentColor,
@@ -241,9 +354,10 @@ fun PetMenuDialog(
                     }
                 }
 
-                // Header con 4 pestañas: INFO, ESTILO, COMIDA, AJUSTES
+                // Header con 5 pestañas: INFO, RANKING 🏆, ESTILO 👑, COMIDA, AJUSTES
                 Row(modifier = Modifier.fillMaxWidth()) {
                     TabItem("INFO", selectedTab == 0, isDark, borderColor) { selectedTab = 0 }
+                    TabItem("RANK 🏆", selectedTab == 2, isDark, borderColor) { selectedTab = 2 }
                     TabItem("ESTILO 👑", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
                     TabItem(if (pet.isCuky()) "COMIDA 🌽" else "COMIDA 🐟", selectedTab == 3, isDark, borderColor) { selectedTab = 3 }
                     TabItem("⚙️", selectedTab == 4, isDark, borderColor) { selectedTab = 4 }
@@ -266,21 +380,21 @@ fun PetMenuDialog(
                                 .height(340.dp)
                                 .border(3.dp, borderColor)
                                 .background(
-                                    if (pet.isSleeping) Color(0xFF0F0F3D)
+                                    if (pet.getActiveIsSleeping()) Color(0xFF0F0F3D)
                                     else Color(0xFF8D6E63)
                                 )
                                 .clickable {
-                                    if (pet.isSleeping) {
-                                        android.widget.Toast.makeText(context, "💤 ¡${pet.name} está durmiendo profundamente!", android.widget.Toast.LENGTH_SHORT).show()
+                                    if (pet.getActiveIsSleeping()) {
+                                        android.widget.Toast.makeText(context, "💤 ¡${pet.getActiveName()} está durmiendo profundamente!", android.widget.Toast.LENGTH_SHORT).show()
                                         return@clickable
                                     }
                                     
                                     val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
-                                    val currentTapsToday = if (pet.lastTapDate == todayStr) pet.dailyTapCount else 0
+                                    val currentTapsToday = if (pet.getActiveLastTapDate() == todayStr) pet.getActiveDailyTapCount() else 0
                                     val limit = 30
                                     
                                     if (currentTapsToday + accumulatedTaps >= limit) {
-                                        android.widget.Toast.makeText(context, "¡${pet.name} ya recibió suficiente cariño por hoy! 💖 (Límite: $limit/día)", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(context, "¡${pet.getActiveName()} ya recibió suficiente cariño por hoy! 💖 (Límite: $limit/día)", android.widget.Toast.LENGTH_SHORT).show()
                                         return@clickable
                                     }
 
@@ -291,7 +405,7 @@ fun PetMenuDialog(
                                         dIsClicked = true
                                         
                                         launch {
-                                            heartY.animateTo(-90f, animationSpec = tween(1200, easing = EaseOutQuad))
+                                             heartY.animateTo(-90f, animationSpec = tween(1200, easing = EaseOutQuad))
                                         }
                                         launch {
                                             heartAlpha.animateTo(0f, animationSpec = tween(1200, easing = EaseOutQuad))
@@ -315,13 +429,14 @@ fun PetMenuDialog(
                         ) {
                             // Fondo Pixel-Art Dinámico (Día / Noche)
                             val currentBg = pet.getActiveEquippedBackground()
+                            val isSleeping = pet.getActiveIsSleeping()
                             val roomBgRes = when (currentBg) {
-                                "coop" -> if (pet.isSleeping) R.drawable.bg_cuky_coop_night else R.drawable.bg_cuky_coop_day
-                                "farm" -> if (pet.isSleeping) R.drawable.bg_cuky_farm_night else R.drawable.bg_cuky_farm_day
-                                "jungle" -> if (pet.isSleeping) R.drawable.bg_thor_jungle_night else R.drawable.bg_thor_jungle_day
-                                "space" -> if (pet.isSleeping) R.drawable.bg_thor_space_night else R.drawable.bg_thor_space_day
-                                "beach" -> if (pet.isSleeping) R.drawable.bg_thor_beach_night else R.drawable.bg_thor_beach_day
-                                else -> if (pet.isSleeping) R.drawable.bg_thor_room_night else R.drawable.bg_thor_room_day
+                                "coop" -> if (isSleeping) R.drawable.bg_cuky_coop_night else R.drawable.bg_cuky_coop_day
+                                "farm" -> if (isSleeping) R.drawable.bg_cuky_farm_night else R.drawable.bg_cuky_farm_day
+                                "jungle" -> if (isSleeping) R.drawable.bg_thor_jungle_night else R.drawable.bg_thor_jungle_day
+                                "space" -> if (isSleeping) R.drawable.bg_thor_space_night else R.drawable.bg_thor_space_day
+                                "beach" -> if (isSleeping) R.drawable.bg_thor_beach_night else R.drawable.bg_thor_beach_day
+                                else -> if (isSleeping) R.drawable.bg_thor_room_night else R.drawable.bg_thor_room_day
                             }
                             Image(
                                 painter = painterResource(id = roomBgRes),
@@ -338,20 +453,21 @@ fun PetMenuDialog(
                             )
 
                             // Render de la mascota escalada
+                            val isCuky = pet.isCuky()
                             val thorSize = when {
-                                pet.isSleeping -> 195.dp
-                                isWashing -> 190.dp
-                                isPlayingBall -> 175.dp
-                                else -> 165.dp
+                                pet.getActiveIsSleeping() -> if (isCuky) 230.dp else 195.dp
+                                isWashing -> if (isCuky) 225.dp else 190.dp
+                                isPlayingBall -> if (isCuky) 215.dp else 175.dp
+                                else -> if (isCuky) 205.dp else 165.dp
                             }
                             val thorOffsetY = when {
-                                pet.isSleeping -> (-15).dp
+                                pet.getActiveIsSleeping() -> (-15).dp
                                 isWashing -> (-8).dp
-                                isPlayingBall -> (-15).dp
-                                else -> (-22).dp
+                                isPlayingBall -> (-12).dp
+                                else -> if (isCuky) (-12).dp else (-22).dp
                             }
                             val thorOffsetX = when {
-                                pet.isSleeping -> (-8).dp
+                                pet.getActiveIsSleeping() -> (-8).dp
                                 else -> 0.dp
                             }
 
@@ -368,15 +484,50 @@ fun PetMenuDialog(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .graphicsLayer(
-                                            scaleX = if (pet.isSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale,
-                                            scaleY = if (pet.isSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale,
-                                            translationX = catTranslationX.value,
-                                            translationY = if (pet.isSleeping || isWashing) catTranslationY.value else dBobbingOffset + catTranslationY.value,
-                                            rotationZ = if (pet.isSleeping || isWashing) 0f else dWiggleRotation
+                                            scaleX = if (isCuky && !pet.getActiveIsSleeping() && !isWashing && !isPlayingBall) {
+                                                cukyFacingDirection * (if (dIsClicked) dBreathingScale * dClickScale else dBreathingScale)
+                                            } else {
+                                                if (pet.getActiveIsSleeping() || isWashing) dBreathingScale else dBreathingScale * dClickScale
+                                            },
+                                            scaleY = if (pet.getActiveIsSleeping() || isWashing) dBreathingScale else dBreathingScale * dClickScale,
+                                            translationX = if (isCuky && !pet.getActiveIsSleeping() && !isWashing && !isPlayingBall) {
+                                                cukyWalkX.value
+                                            } else {
+                                                catTranslationX.value
+                                            },
+                                            translationY = if (isCuky && !pet.getActiveIsSleeping() && !isWashing && !isPlayingBall) {
+                                                cukyWalkY.value + cukyStepBounce.value + cukyPeckOffsetY.value
+                                            } else if (pet.getActiveIsSleeping() || isWashing) {
+                                                catTranslationY.value
+                                            } else {
+                                                dBobbingOffset + catTranslationY.value
+                                            },
+                                            rotationZ = if (isCuky && !pet.getActiveIsSleeping() && !isWashing && !isPlayingBall) {
+                                                cukyWaddleRotation.value + cukyPeckRotation.value
+                                            } else if (pet.getActiveIsSleeping() || isWashing) {
+                                                0f
+                                            } else {
+                                                dWiggleRotation
+                                            }
                                         )
                                 )
 
-                                if (pet.isSleeping) {
+                                // Semillitas que aparecen en el suelo cuando Cuky picotea
+                                if (showPeckSeed && isCuky && !pet.getActiveIsSleeping()) {
+                                    Text(
+                                        text = "🌾",
+                                        fontSize = 18.sp,
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .offset(
+                                                x = (cukyWalkX.value + (18f * cukyFacingDirection)).dp,
+                                                y = (cukyWalkY.value + 16f).dp
+                                            )
+                                            .graphicsLayer(alpha = seedAlpha.value)
+                                    )
+                                }
+
+                                if (pet.getActiveIsSleeping()) {
                                     val zzzInfinite = rememberInfiniteTransition(label = "zzz")
                                     val zzzOffset by zzzInfinite.animateFloat(
                                         initialValue = 0f,
@@ -409,7 +560,7 @@ fun PetMenuDialog(
                             }
 
                             // Capa de "Luz Apagada" cuando duerme
-                            if (pet.isSleeping) {
+                            if (pet.getActiveIsSleeping()) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -468,6 +619,10 @@ fun PetMenuDialog(
                                     "milk" -> "🥛"
                                     "catnip" -> "🌿"
                                     "feast" -> "🍣"
+                                    "seeds" -> "🌾"
+                                    "corn" -> "🌽"
+                                    "melon" -> "🍉"
+                                    "worm" -> "🪱"
                                     else -> "🍖"
                                 }
                                 Text(
@@ -493,10 +648,10 @@ fun PetMenuDialog(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp)
-                                    .graphicsLayer(alpha = if (pet.isSleeping) 0.5f else 1.0f)
+                                    .graphicsLayer(alpha = if (pet.getActiveIsSleeping()) 0.5f else 1.0f)
                                     .clickable {
-                                        if (pet.isSleeping) {
-                                            android.widget.Toast.makeText(context, "💤 ¡Thor está durmiendo profundamente!", android.widget.Toast.LENGTH_SHORT).show()
+                                        if (pet.getActiveIsSleeping()) {
+                                            android.widget.Toast.makeText(context, "💤 ¡${pet.getActiveName()} está durmiendo profundamente!", android.widget.Toast.LENGTH_SHORT).show()
                                         } else if (playedBallToday) {
                                             android.widget.Toast.makeText(context, "¡Ya jugaste con la pelota hoy! ⚾", android.widget.Toast.LENGTH_SHORT).show()
                                         } else {
@@ -542,7 +697,7 @@ fun PetMenuDialog(
                                         .fillMaxWidth()
                                         .height(38.dp)
                                         .border(2.dp, borderColor)
-                                        .background(if (pet.isSleeping || playedBallToday) Color.Gray else Color(0xFFE2725B)),
+                                        .background(if (pet.getActiveIsSleeping() || playedBallToday) Color.Gray else Color(0xFFE2725B)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(if (playedBallToday) "⚾ PELOTA (1/1)" else "⚾ PELOTA", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
@@ -554,12 +709,12 @@ fun PetMenuDialog(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp)
-                                    .graphicsLayer(alpha = if (pet.isSleeping) 0.5f else 1.0f)
+                                    .graphicsLayer(alpha = if (pet.getActiveIsSleeping()) 0.5f else 1.0f)
                                     .clickable {
-                                        if (pet.isSleeping) {
-                                            android.widget.Toast.makeText(context, "💤 ¡Thor está durmiendo!", android.widget.Toast.LENGTH_SHORT).show()
-                                        } else if (pet.cleanliness >= 80) {
-                                            android.widget.Toast.makeText(context, "¡Thor todavía está limpio! 🫧 (Limpieza: ${pet.cleanliness}%)", android.widget.Toast.LENGTH_SHORT).show()
+                                        if (pet.getActiveIsSleeping()) {
+                                            android.widget.Toast.makeText(context, "💤 ¡${pet.getActiveName()} está durmiendo!", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else if (pet.getActiveCleanliness() >= 80) {
+                                            android.widget.Toast.makeText(context, "¡${pet.getActiveName()} todavía está limpio! 🫧 (Limpieza: ${pet.getActiveCleanliness()}%)", android.widget.Toast.LENGTH_SHORT).show()
                                         } else {
                                             scope.launch {
                                                 isWashing = true
@@ -578,7 +733,7 @@ fun PetMenuDialog(
                                         .fillMaxWidth()
                                         .height(38.dp)
                                         .border(2.dp, borderColor)
-                                        .background(if (pet.isSleeping || pet.cleanliness >= 80) Color.Gray else Color(0xFF0EA5E9)),
+                                        .background(if (pet.getActiveIsSleeping() || pet.getActiveCleanliness() >= 80) Color.Gray else Color(0xFF0EA5E9)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("🧼 BAÑAR", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
@@ -601,28 +756,28 @@ fun PetMenuDialog(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    CompactStat("Nivel", pet.level.toString(), contentColor)
-                                    CompactStat("Racha 🔥", "${pet.streakDays}d", accentColor)
+                                    CompactStat("Nivel", pet.getActiveLevel().toString(), contentColor)
+                                    CompactStat("Racha 🔥", "${pet.getActiveStreak()}d", accentColor)
                                     CompactStat("Amor ❤️", (pet.lovePoints + accumulatedTaps).toString(), Color(0xFFFF4081))
-                                    CompactStat("EXP ⭐", "${pet.experience}/100", Color(0xFF2196F3))
+                                    CompactStat("EXP ⭐", "${pet.getActiveExperience()}/100", Color(0xFF2196F3))
                                 }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    CompactStat("Felicidad 😊", "${pet.happiness}%", Color(0xFF4CAF50))
-                                    CompactStat("Hambre 🍖", "${pet.hunger}%", Color(0xFFFF9800))
-                                    CompactStat("Limpieza 🧼", "${pet.cleanliness}%", Color(0xFF0EA5E9))
-                                    CompactStat("Sueño 💤", "${pet.sleepPercent}%", Color(0xFF9C27B0))
+                                    CompactStat("Felicidad 😊", "${pet.getActiveHappiness()}%", Color(0xFF4CAF50))
+                                    CompactStat("Hambre 🍖", "${pet.getActiveHunger()}%", Color(0xFFFF9800))
+                                    CompactStat("Limpieza 🧼", "${pet.getActiveCleanliness()}%", Color(0xFF0EA5E9))
+                                    CompactStat("Sueño 💤", "${pet.getActiveSleepPercent()}%", Color(0xFF9C27B0))
                                 }
                             }
                         }
                         
-                        if (pet.isSleeping) {
-                            val remainingMinutes = (100 - pet.sleepPercent) * 4
+                        if (pet.getActiveIsSleeping()) {
+                            val remainingMinutes = (100 - pet.getActiveSleepPercent()) * 4
                             val hours = remainingMinutes / 60
                             val minutes = remainingMinutes % 60
-                            val sleepTimeStr = if (pet.sleepPercent >= 100) {
+                            val sleepTimeStr = if (pet.getActiveSleepPercent() >= 100) {
                                 "¡Totalmente descansado!"
                             } else {
                                 "Tiempo para despertar: ${hours}h ${minutes}m"
@@ -639,29 +794,29 @@ fun PetMenuDialog(
                         
                         Spacer(modifier = Modifier.height(8.dp))
                         
-                        val timeUntilDecayDialog = rememberTimeUntilDecay(pet.lastInteraction, pet.happiness)
+                        val timeUntilDecayDialog = rememberTimeUntilDecay(pet.getActiveLastInteraction(), pet.getActiveHappiness())
                         Text(
                             text = timeUntilDecayDialog,
                             fontFamily = Vt323,
                             fontSize = 15.sp,
-                            color = if (pet.happiness <= 0) Color(0xFFFF4081) else contentColor.copy(alpha = 0.8f)
+                            color = if (pet.getActiveHappiness() <= 0) Color(0xFFFF4081) else contentColor.copy(alpha = 0.8f)
                         )
                         
                         Spacer(modifier = Modifier.height(24.dp))
                         
                         Button(
                             onClick = { 
-                                if (pet.isSleeping) {
-                                    android.widget.Toast.makeText(context, "¡Thor está durmiendo profundamente! 💤 Despiértalo primero para jugar.", android.widget.Toast.LENGTH_LONG).show()
-                                } else if (pet.status == Pet.STATUS_HUNGRY) {
-                                    android.widget.Toast.makeText(context, "¡Thor tiene demasiada hambre! 🍖 Aliméntalo en la pestaña COMIDA para jugar.", android.widget.Toast.LENGTH_LONG).show()
+                                if (pet.getActiveIsSleeping()) {
+                                    android.widget.Toast.makeText(context, "¡${pet.getActiveName()} está durmiendo profundamente! 💤 Despiértalo primero para jugar.", android.widget.Toast.LENGTH_LONG).show()
+                                } else if (pet.getActiveStatus() == Pet.STATUS_HUNGRY) {
+                                    android.widget.Toast.makeText(context, "¡${pet.getActiveName()} tiene demasiada hambre! 🍖 Aliméntalo en la pestaña COMIDA para jugar.", android.widget.Toast.LENGTH_LONG).show()
                                 } else {
                                     showGameSelector = true 
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (pet.isSleeping || pet.status == Pet.STATUS_HUNGRY) Color.Gray else Color(0xFF4CAF50)
+                                containerColor = if (pet.getActiveIsSleeping() || pet.getActiveStatus() == Pet.STATUS_HUNGRY) Color.Gray else Color(0xFF4CAF50)
                             ),
                             shape = RectangleShape
                         ) {
@@ -670,8 +825,8 @@ fun PetMenuDialog(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        val sleepButtonColor = if (pet.isSleeping) Color(0xFFFFA000) else Color(0xFF673AB7)
-                        val sleepButtonText = if (pet.isSleeping) "☀️ Despertar" else "🌙 Poner a dormir"
+                        val sleepButtonColor = if (pet.getActiveIsSleeping()) Color(0xFFFFA000) else Color(0xFF673AB7)
+                        val sleepButtonText = if (pet.getActiveIsSleeping()) "☀️ Despertar" else "🌙 Poner a dormir"
                         Button(
                             onClick = { onToggleSleep() },
                             modifier = Modifier.fillMaxWidth(),
@@ -680,7 +835,7 @@ fun PetMenuDialog(
                         ) {
                             Text(sleepButtonText, fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
                         }
-                        Spacer(modifier = Modifier.height(48.dp))
+                        Spacer(modifier = Modifier.height(64.dp))
                     }
                 } else if (selectedTab == 1) {
                     // Pestaña de Tienda / Accesorios y Fondos (ESTILO)
@@ -721,13 +876,14 @@ fun PetMenuDialog(
                                 accessory = previewAccessory,
                                 isSleeping = pet.isSleeping
                             )
+                            val previewMascotSize = if (pet.isCuky()) 110.dp else 90.dp
                             Image(
                                 painter = painterResource(id = previewMascotRes),
                                 contentDescription = null,
                                 modifier = Modifier
-                                    .size(90.dp)
+                                    .size(previewMascotSize)
                                     .align(Alignment.BottomCenter)
-                                    .padding(bottom = 8.dp)
+                                    .padding(bottom = 6.dp)
                             )
 
                             if (pet.isSleeping) {
@@ -930,7 +1086,7 @@ fun PetMenuDialog(
                         )
 
                         Text(
-                            "Alimenta a ${pet.name} para subir su felicidad e hidratación:",
+                            "Alimenta a ${pet.getActiveName()} para subir su felicidad e hidratación:",
                             fontFamily = Vt323,
                             color = contentColor,
                             fontSize = 18.sp,
@@ -954,8 +1110,8 @@ fun PetMenuDialog(
                                     isDark = isDark,
                                     borderColor = borderColor,
                                     onFeed = {
-                                        if (pet.isSleeping) {
-                                            android.widget.Toast.makeText(context, "¡${pet.name} está durmiendo! 💤 No puede comer ahora.", android.widget.Toast.LENGTH_LONG).show()
+                                        if (pet.getActiveIsSleeping()) {
+                                            android.widget.Toast.makeText(context, "¡${pet.getActiveName()} está durmiendo! 💤 No puede comer ahora.", android.widget.Toast.LENGTH_LONG).show()
                                         } else {
                                             scope.launch {
                                                 foodAnimationType = id
@@ -977,97 +1133,16 @@ fun PetMenuDialog(
                         }
                     }
                 } else if (selectedTab == 2) {
-                    // Pestaña de Guía explicativa
-                    val scrollState = rememberScrollState()
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(scrollState),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Button(
-                            onClick = { selectedTab = 4 },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = borderColor),
-                            shape = RectangleShape
-                        ) {
-                            Text("← Volver a Ajustes", fontFamily = Vt323, color = Color.White, fontSize = 16.sp)
-                        }
-
-                        Text(
-                            "¿Cómo cuidar a ${pet.name}? 🐾",
-                            fontFamily = Vt323,
-                            color = accentColor,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        // Card Hambre y Nutrición
-                        Card(
-                            modifier = Modifier.fillMaxWidth().border(1.dp, borderColor.copy(alpha = 0.3f)),
-                            colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.3f)),
-                            shape = RectangleShape
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Text("🍖 HAMBRE Y NUTRICIÓN", fontFamily = Vt323, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text("• El nivel de hambre aumenta gradualmente un 4% por hora sin interactuar.\n• Si el nivel de hambre sube por encima del 70%, ¡Thor tendrá demasiada hambre y entrará en estado hambriento! 😢\n• Bloqueo de Minijuegos: No podrás jugar con él si tiene hambre.\n• Compra galletas de pescado 🐟, leche 🥛 o banquetes 🍣 en la pestaña COMIDA para alimentarlo y subir su felicidad.", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
-                            }
-                        }
-
-                        // Card Sueño y Descanso
-                        Card(
-                            modifier = Modifier.fillMaxWidth().border(1.dp, borderColor.copy(alpha = 0.3f)),
-                            colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.3f)),
-                            shape = RectangleShape
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Text("💤 SUEÑO Y DESCANSO", fontFamily = Vt323, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text("• Usa el botón [Poner a dormir 🌙] para apagar la luz de su cuarto y dejarlo descansar.\n• Mientras duerme, Thor soñará plácidamente y no podrá realizar actividades.\n• Restricciones: No puedes alimentarlo ni jugar minijuegos con él mientras esté dormido.\n• ¡Asegúrate de despertarlo [☀️ Despertar] cuando estés listo para interactuar con él!", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
-                            }
-                        }
-
-                        // Card Felicidad
-                        Card(
-                            modifier = Modifier.fillMaxWidth().border(1.dp, borderColor.copy(alpha = 0.3f)),
-                            colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.3f)),
-                            shape = RectangleShape
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Text("😊 FELICIDAD", fontFamily = Vt323, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text("• Cada carta enviada le da +10% de felicidad.\n• Si no envías nada en 24h, su felicidad cae un 20% al día.\n• ¡Visita la sección COMIDA 🐟 para restaurar felicidad al instante!\n• Si su felicidad baja de 40%, se pondrá triste 😢.", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
-                            }
-                        }
-
-                        // Card Puntos de Amor
-                        Card(
-                            modifier = Modifier.fillMaxWidth().border(1.dp, borderColor.copy(alpha = 0.3f)),
-                            colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.3f)),
-                            shape = RectangleShape
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Text("❤️ PUNTOS DE AMOR", fontFamily = Vt323, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text("• Cartas: Ganas +5 puntos por cada mensaje enviado.\n• Racha 🔥: ¡Interconecta todos los días! Cada día de racha sumado otorga un bonus de Racha * 2 puntos.\n• Nivel ✨: Cada carta te da +10 EXP. ¡Al llegar a 100 EXP subes de nivel y recibes +50 puntos de amor!", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
-                            }
-                        }
-
-                        // Card Tienda
-                        Card(
-                            modifier = Modifier.fillMaxWidth().border(1.dp, borderColor.copy(alpha = 0.3f)),
-                            colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.3f)),
-                            shape = RectangleShape
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Text("👑 ACCESORIOS Y TIENDA", fontFamily = Vt323, color = contentColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text("• Canjea tus puntos en la ROPA por accesorios.\n• Los accesorios equipados se superpondrán a tu mascota en tiempo real. ¡Haz que Thor luzca fabuloso!", fontFamily = Vt323, color = if (isDark) Color.LightGray else Color.DarkGray, fontSize = 16.sp)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(48.dp))
-                    }
+                    // Pestaña de Ranking de Cuidadores
+                    PetCaregiverRankingContent(
+                        pet = pet,
+                        isDark = isDark,
+                        borderColor = borderColor,
+                        contentColor = contentColor,
+                        accentColor = accentColor,
+                        onBackToHome = { selectedTab = 0 },
+                        modifier = Modifier.weight(1f)
+                    )
                 } else if (selectedTab == 4) {
                     val sharedPrefsNotif = remember { context.getSharedPreferences("pet_notif_prefs", Context.MODE_PRIVATE) }
                     var notificationsEnabled by remember { mutableStateOf(sharedPrefsNotif.getBoolean("notifications_enabled", true)) }
@@ -1081,68 +1156,31 @@ fun PetMenuDialog(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(
-                            text = "⚙️ AJUSTES DE ${pet.name.uppercase()} ⚙️",
+                            text = "⚙️ AJUSTES DE ${pet.getActiveName().uppercase()} ⚙️",
                             fontFamily = Vt323,
                             color = contentColor,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold
                         )
 
-                        // 1. NOMBRE
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = "Nombre de tu compañero:",
-                                fontFamily = Vt323,
-                                color = contentColor,
-                                fontSize = 18.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedTextField(
-                                    value = newName,
-                                    onValueChange = { newName = it },
-                                    modifier = Modifier.weight(1f),
-                                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Vt323, fontSize = 18.sp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedTextColor = contentColor,
-                                        unfocusedTextColor = contentColor,
-                                        focusedBorderColor = borderColor,
-                                        unfocusedBorderColor = borderColor.copy(alpha = 0.5f)
-                                    )
-                                )
-                                Button(
-                                    onClick = { 
-                                        onUpdateName(newName)
-                                        (context as? MainActivity)?.showStyledPixelToast("¡Nombre guardado! ❤️")
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = borderColor),
-                                    shape = RectangleShape,
-                                    modifier = Modifier.height(52.dp)
-                                ) {
-                                    Text("Guardar", fontFamily = Vt323, color = Color.White, fontSize = 16.sp)
-                                }
-                            }
-                        }
-
-                        HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
-
-                        // 2. ALERTAS
+                        // 1. NOTIFICACIONES
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Notificaciones de Cuidado", fontFamily = Vt323, fontSize = 18.sp, color = contentColor)
                                 Text(
-                                    "Alertas de hambre, sueño y baño",
+                                    text = "Notificaciones de Cuidado",
                                     fontFamily = Vt323,
-                                    fontSize = 14.sp,
-                                    color = if (isDark) Color.LightGray else Color.DarkGray
+                                    color = contentColor,
+                                    fontSize = 18.sp
+                                )
+                                Text(
+                                    text = "Recordatorios cuando ${pet.getActiveName()} tenga hambre o sueño",
+                                    fontFamily = Vt323,
+                                    color = if (isDark) Color.LightGray else Color.DarkGray,
+                                    fontSize = 14.sp
                                 )
                             }
                             
@@ -1165,10 +1203,10 @@ fun PetMenuDialog(
 
                         HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
 
-                        // 3. SINCRONIZACIÓN
+                        // 2. SINCRONIZACIÓN
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Text(
-                                text = "Base de Datos: Firebase Cloud Firestore\nEstado: Conectado a la Nube ☁\nCompañero: ${pet.name}",
+                                text = "Base de Datos: Firebase Cloud Firestore\nEstado: Conectado a la Nube ☁\nCompañero Activo: ${pet.getActiveName()}",
                                 fontFamily = Vt323,
                                 color = contentColor,
                                 fontSize = 16.sp
@@ -1190,27 +1228,7 @@ fun PetMenuDialog(
                             }
                         }
 
-                        HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
-
-                        // 4. GUÍA
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = "Guía de Cuidado de Mascota:",
-                                fontFamily = Vt323,
-                                color = contentColor,
-                                fontSize = 18.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Button(
-                                onClick = { selectedTab = 2 },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = borderColor),
-                                shape = RectangleShape
-                            ) {
-                                Text("📖 Ver Guía de Cuidado", fontFamily = Vt323, color = Color.White, fontSize = 16.sp)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(48.dp))
+                        Spacer(modifier = Modifier.height(64.dp))
                     }
                 }
             }
@@ -1707,6 +1725,629 @@ fun getPetDrawableRes(
             Pet.ACC_BANANA -> if (isCuky) R.drawable.ic_cuky_banana else R.drawable.ic_thor_banana
             Pet.ACC_SOCKS -> if (isCuky) R.drawable.ic_cuky_socks else R.drawable.ic_thor_socks
             else -> if (isCuky) R.drawable.ic_cuky_base_trans else R.drawable.ic_thor_base_trans
+        }
+    }
+}
+
+@Composable
+fun PetCaregiverRankingContent(
+    pet: Pet,
+    isDark: Boolean,
+    borderColor: Color,
+    contentColor: Color,
+    accentColor: Color,
+    onBackToHome: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scrollState = rememberScrollState()
+    var rankingFilter by remember { mutableStateOf("global") } // "global", "thor", "cuky"
+
+    val kevinPts = when (rankingFilter) {
+        "thor" -> pet.getThorCareKevin()
+        "cuky" -> pet.getCukyCareKevin()
+        else -> pet.getTotalCareKevin()
+    }
+    val aliPts = when (rankingFilter) {
+        "thor" -> pet.getThorCareAli()
+        "cuky" -> pet.getCukyCareAli()
+        else -> pet.getTotalCareAli()
+    }
+    val totalPts = (kevinPts + aliPts).coerceAtLeast(1)
+    val kevinWins = kevinPts > aliPts
+    val aliWins = aliPts > kevinPts
+    val isTie = kevinPts == aliPts
+
+    val kevinLevel = pet.getCaregiverLevel(kevinPts)
+    val aliLevel = pet.getCaregiverLevel(aliPts)
+    val kevinTitle = pet.getCaregiverTitle(kevinPts, false)
+    val aliTitle = pet.getCaregiverTitle(aliPts, true)
+    val kevinProgress = pet.getCaregiverProgress(kevinPts)
+    val aliProgress = pet.getCaregiverProgress(aliPts)
+    val kevinTarget = pet.getCaregiverNextLevelTarget(kevinPts)
+    val aliTarget = pet.getCaregiverNextLevelTarget(aliPts)
+
+    val kevinPct = ((kevinPts.toFloat() / totalPts) * 100).toInt()
+    val aliPct = 100 - kevinPct
+
+    val feedKevin = when (rankingFilter) { "thor" -> pet.feedCountKevinThor; "cuky" -> pet.feedCountKevinCuky; else -> pet.feedCountKevin }
+    val feedAli = when (rankingFilter) { "thor" -> pet.feedCountAliThor; "cuky" -> pet.feedCountAliCuky; else -> pet.feedCountAli }
+
+    val bathKevin = when (rankingFilter) { "thor" -> pet.bathCountKevinThor; "cuky" -> pet.bathCountKevinCuky; else -> pet.bathCountKevin }
+    val bathAli = when (rankingFilter) { "thor" -> pet.bathCountAliThor; "cuky" -> pet.bathCountAliCuky; else -> pet.bathCountAli }
+
+    val playKevin = when (rankingFilter) { "thor" -> pet.playCountKevinThor; "cuky" -> pet.playCountKevinCuky; else -> pet.playCountKevin }
+    val playAli = when (rankingFilter) { "thor" -> pet.playCountAliThor; "cuky" -> pet.playCountAliCuky; else -> pet.playCountAli }
+
+    val tapKevin = when (rankingFilter) { "thor" -> pet.tapCountKevinThor; "cuky" -> pet.tapCountKevinCuky; else -> pet.tapCountKevin }
+    val tapAli = when (rankingFilter) { "thor" -> pet.tapCountAliThor; "cuky" -> pet.tapCountAliCuky; else -> pet.tapCountAli }
+
+    val minigameKevin = when (rankingFilter) { "thor" -> pet.minigameCountKevinThor; "cuky" -> pet.minigameCountKevinCuky; else -> pet.minigameCountKevin }
+    val minigameAli = when (rankingFilter) { "thor" -> pet.minigameCountAliThor; "cuky" -> pet.minigameCountAliCuky; else -> pet.minigameCountAli }
+
+    var showGuide by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Selector de Filtro de Cuidado: 🌟 Global | 🐱 Thor | 🐔 Cuky
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            val filters = listOf(
+                Triple("global", "🌟 GLOBAL", Color(0xFFD97706)),
+                Triple("thor", "🐱 THOR", Color(0xFF2563EB)),
+                Triple("cuky", "🐔 CUKY", Color(0xFFD97706))
+            )
+
+            filters.forEach { (key, label, activeCol) ->
+                val isSelected = rankingFilter == key
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            if (isSelected) activeCol else if (isDark) Color(0xFF2A2A2A) else Color(0xFFE8D7C0),
+                            shape = RectangleShape
+                        )
+                        .border(2.dp, if (isSelected) Color.White else borderColor)
+                        .clickable { rankingFilter = key }
+                        .padding(vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        fontFamily = Vt323,
+                        fontSize = 16.sp,
+                        color = if (isSelected) Color.White else contentColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Podio Banner
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(2.dp, borderColor),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDark) Color(0xFF20162B) else Color(0xFFFFF9E6)
+            ),
+            shape = RectangleShape
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val headerTitle = when (rankingFilter) {
+                    "thor" -> "🏆 CUIDADORES DE THOR 🐱"
+                    "cuky" -> "🏆 CUIDADORES DE CUKY 🐔"
+                    else -> "🏆 RANKING GLOBAL DE CUIDADOS 🌟"
+                }
+                val headerSub = when (rankingFilter) {
+                    "thor" -> "¿Quién cuida y mima más a ${pet.thorName.ifBlank { "Thor" }}?"
+                    "cuky" -> "¿Quién cuida y mima más a ${pet.cukyName.ifBlank { "Cuky" }}?"
+                    else -> "¿Quién cuida más a todas las mascotas en total?"
+                }
+
+                Text(
+                    text = headerTitle,
+                    fontFamily = Vt323,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFD97706),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = headerSub,
+                    fontFamily = Vt323,
+                    fontSize = 15.sp,
+                    color = contentColor.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Cartel MVP destacado
+                val mvpMessage = when {
+                    aliWins -> "👑 ¡ALI ES LA CUIDADORA #1! 🌸 (+${aliPts - kevinPts} pts)"
+                    kevinWins -> "👑 ¡KEVIN ES EL CUIDADOR #1! 🐱 (+${kevinPts - aliPts} pts)"
+                    else -> "💕 ¡EMPATE TOTAL DE AMOR Y CUIDADOS! 💕"
+                }
+                val mvpBg = when {
+                    aliWins -> Color(0xFFEC4899)
+                    kevinWins -> Color(0xFF2563EB)
+                    else -> Color(0xFF8B5CF6)
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(mvpBg, shape = RectangleShape)
+                        .border(1.dp, Color.White)
+                        .padding(vertical = 6.dp, horizontal = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = mvpMessage,
+                        fontFamily = Vt323,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+
+        // Tarjetas de Nivel y Estadísticas Independientes de Thor y Cuky
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(2.dp, borderColor),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDark) Color(0xFF1E1E1E) else Color(0xFFFAF5EE)
+            ),
+            shape = RectangleShape
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "🐾 ESTADO Y NIVELES DE CADA MASCOTA",
+                    fontFamily = Vt323,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFD97706)
+                )
+                HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Thor Box
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(if (isDark) Color(0xFF132338) else Color(0xFFEFF6FF), shape = RectangleShape)
+                            .border(1.dp, Color(0xFF3B82F6).copy(alpha = 0.5f))
+                            .padding(8.dp)
+                    ) {
+                        Column {
+                            Text("🐱 ${pet.thorName.ifBlank { "Thor" }}", fontFamily = Vt323, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("⭐ Nivel: ${pet.level}", fontFamily = Vt323, fontSize = 14.sp, color = contentColor)
+                            Text("✨ EXP: ${pet.experience}/100", fontFamily = Vt323, fontSize = 13.sp, color = Color.Gray)
+                            Text("😊 Felicidad: ${pet.happiness}%", fontFamily = Vt323, fontSize = 13.sp, color = Color(0xFF10B981))
+                            Text("🔥 Racha: ${pet.streakDays}d", fontFamily = Vt323, fontSize = 13.sp, color = Color(0xFFF59E0B))
+                        }
+                    }
+
+                    // Cuky Box
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(if (isDark) Color(0xFF352315) else Color(0xFFFFFBEB), shape = RectangleShape)
+                            .border(1.dp, Color(0xFFD97706).copy(alpha = 0.5f))
+                            .padding(8.dp)
+                    ) {
+                        Column {
+                            Text("🐔 ${pet.cukyName.ifBlank { "Cuky" }}", fontFamily = Vt323, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD97706))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("⭐ Nivel: ${pet.cukyLevel}", fontFamily = Vt323, fontSize = 14.sp, color = contentColor)
+                            Text("✨ EXP: ${pet.cukyExperience}/100", fontFamily = Vt323, fontSize = 13.sp, color = Color.Gray)
+                            Text("😊 Felicidad: ${pet.cukyHappiness}%", fontFamily = Vt323, fontSize = 13.sp, color = Color(0xFF10B981))
+                            Text("🔥 Racha: ${pet.cukyStreakDays}d", fontFamily = Vt323, fontSize = 13.sp, color = Color(0xFFF59E0B))
+                        }
+                    }
+                }
+            }
+        }
+
+        // Tarjetas lado a lado de Cuidadores: Kevin vs Ali
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // TARJETA KEVIN
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .border(2.dp, if (kevinWins) Color(0xFFF59E0B) else borderColor.copy(alpha = 0.5f)),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDark) Color(0xFF132338) else Color(0xFFEFF6FF)
+                ),
+                shape = RectangleShape
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Badge posición
+                    val badgeText = if (kevinWins) "👑 #1 LÍDER" else if (isTie) "🤝 EMPATE" else "🥈 #2 RIVAL"
+                    val badgeColor = if (kevinWins) Color(0xFFF59E0B) else Color(0xFF64748B)
+                    Box(
+                        modifier = Modifier
+                            .background(badgeColor, shape = RectangleShape)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(badgeText, fontFamily = Vt323, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("🐱 KEVIN", fontFamily = Vt323, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+                    Text("$kevinPts PTS", fontFamily = Vt323, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color.White else Color(0xFF1E3A8A))
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(if (isDark) Color(0xFF1E293B) else Color(0xFFDBEAFE), shape = RectangleShape)
+                            .border(1.dp, borderColor.copy(alpha = 0.3f))
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Nv. $kevinLevel: $kevinTitle", fontFamily = Vt323, fontSize = 13.sp, color = contentColor, textAlign = TextAlign.Center)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    // Barra progreso nivel
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Progreso Nv", fontFamily = Vt323, fontSize = 11.sp, color = Color.Gray)
+                            Text("$kevinPts / $kevinTarget", fontFamily = Vt323, fontSize = 11.sp, color = Color.Gray)
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .background(Color.Gray.copy(alpha = 0.3f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(kevinProgress)
+                                    .fillMaxHeight()
+                                    .background(Color(0xFF3B82F6))
+                            )
+                        }
+                    }
+                }
+            }
+
+            // TARJETA ALI
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .border(2.dp, if (aliWins) Color(0xFFF59E0B) else borderColor.copy(alpha = 0.5f)),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDark) Color(0xFF351525) else Color(0xFFFFF1F2)
+                ),
+                shape = RectangleShape
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Badge posición
+                    val badgeText = if (aliWins) "👑 #1 LÍDER" else if (isTie) "🤝 EMPATE" else "🥈 #2 RIVAL"
+                    val badgeColor = if (aliWins) Color(0xFFF59E0B) else Color(0xFF64748B)
+                    Box(
+                        modifier = Modifier
+                            .background(badgeColor, shape = RectangleShape)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(badgeText, fontFamily = Vt323, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("🌸 ALI", fontFamily = Vt323, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEC4899))
+                    Text("$aliPts PTS", fontFamily = Vt323, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color.White else Color(0xFF831843))
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(if (isDark) Color(0xFF3B1E2B) else Color(0xFFFFE4E6), shape = RectangleShape)
+                            .border(1.dp, borderColor.copy(alpha = 0.3f))
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Nv. $aliLevel: $aliTitle", fontFamily = Vt323, fontSize = 13.sp, color = contentColor, textAlign = TextAlign.Center)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    // Barra progreso nivel
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Progreso Nv", fontFamily = Vt323, fontSize = 11.sp, color = Color.Gray)
+                            Text("$aliPts / $aliTarget", fontFamily = Vt323, fontSize = 11.sp, color = Color.Gray)
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .background(Color.Gray.copy(alpha = 0.3f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(aliProgress)
+                                    .fillMaxHeight()
+                                    .background(Color(0xFFEC4899))
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // AMORÓMETRO / BARRA DE PARTICIPACIÓN
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(2.dp, borderColor),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDark) Color(0xFF1E1E1E) else Color(0xFFFAF5EE)
+            ),
+            shape = RectangleShape
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("💙 KEVIN: $kevinPct%", fontFamily = Vt323, fontSize = 15.sp, color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold)
+                    Text("❤️ AMORÓMETRO", fontFamily = Vt323, fontSize = 16.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                    Text("ALI: $aliPct% 💖", fontFamily = Vt323, fontSize = 15.sp, color = Color(0xFFEC4899), fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                // Split progress bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(14.dp)
+                        .border(1.dp, borderColor)
+                        .background(Color.DarkGray)
+                ) {
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        val kWeight = (kevinPts.toFloat() / totalPts).coerceIn(0.01f, 0.99f)
+                        Box(
+                            modifier = Modifier
+                                .weight(kWeight)
+                                .fillMaxHeight()
+                                .background(Color(0xFF3B82F6))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f - kWeight)
+                                .fillMaxHeight()
+                                .background(Color(0xFFEC4899))
+                        )
+                    }
+                }
+            }
+        }
+
+        // MEDALLERO Y DESGLOSE DETALLADO
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(2.dp, borderColor),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDark) Color(0xFF1E1E1E) else Color(0xFFFAF5EE)
+            ),
+            shape = RectangleShape
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val medTitle = when (rankingFilter) {
+                    "thor" -> "🏅 MEDALLERO: CUIDADOS DE THOR 🐱"
+                    "cuky" -> "🏅 MEDALLERO: CUIDADOS DE CUKY 🐔"
+                    else -> "🏅 MEDALLERO DE DEVOCIÓN GLOBAL 🏅"
+                }
+
+                Text(
+                    text = medTitle,
+                    fontFamily = Vt323,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFD97706)
+                )
+                HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
+
+                RankingCategoryRow("🍲 Comidas Dadas", feedKevin, feedAli, "platos", isDark, contentColor)
+                RankingCategoryRow("🫧 Baños Dados", bathKevin, bathAli, "baños", isDark, contentColor)
+                RankingCategoryRow("⚾ Juegos de Pelota", playKevin, playAli, "sesiones", isDark, contentColor)
+                RankingCategoryRow("💖 Caricias & Mimos", tapKevin, tapAli, "mimos", isDark, contentColor)
+                RankingCategoryRow("🕹️ Minijuegos Jugados", minigameKevin, minigameAli, "partidas", isDark, contentColor)
+            }
+        }
+
+        // RÉCORDS EN MINIJUEGOS
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(2.dp, borderColor),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDark) Color(0xFF1E1E1E) else Color(0xFFFAF5EE)
+            ),
+            shape = RectangleShape
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "🎮 RÉCORDS HISTÓRICOS 🎮",
+                    fontFamily = Vt323,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF10B981)
+                )
+                HorizontalDivider(color = borderColor.copy(alpha = 0.3f), thickness = 1.dp)
+
+                RankingCategoryRow("🐤 Flappy Pet", pet.flappyHighScoreKevin, pet.flappyHighScoreAli, "pts", isDark, contentColor)
+                RankingCategoryRow("🐍 Snake Clásico", pet.snakeHighScoreKevin, pet.snakeHighScoreAli, "pts", isDark, contentColor)
+            }
+        }
+
+        // GUÍA Y FAQ DE PUNTOS
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, borderColor.copy(alpha = 0.4f)),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDark) Color(0xFF181818) else Color(0xFFF3EDE2)
+            ),
+            shape = RectangleShape
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showGuide = !showGuide },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "📖 ¿Cómo sumar Puntos de Cuidador?",
+                        fontFamily = Vt323,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = contentColor
+                    )
+                    Text(if (showGuide) "▲" else "▼", fontFamily = Vt323, fontSize = 16.sp, color = contentColor)
+                }
+
+                if (showGuide) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "• 🍲 Dar de comer: +10 pts de cuidador\n" +
+                               "• 🫧 Bañar a la mascota: +15 pts de cuidador\n" +
+                               "• ⚾ Lanzar pelota: +15 pts de cuidador\n" +
+                               "• 💖 Acariciar en la habitación: +1 pt por mimo (máx 30/día)\n" +
+                               "• 🕹️ Jugar minijuegos: +10 pts de cuidador\n" +
+                               "• 💌 Enviar cartas en el diario: +5 pts de cuidador\n\n" +
+                               "⭐ Rangos de Cuidador:\n" +
+                               "🌱 Nv 1: Novato/a (0 - 49 pts)\n" +
+                               "🌸 Nv 2: Dedicado/a (50 - 149 pts)\n" +
+                               "🐾 Nv 3: Amigo/a de Oro (150 - 299 pts)\n" +
+                               "💖 Nv 4: Experto/a (300 - 599 pts)\n" +
+                               "⭐ Nv 5: Guardián/a Estelar (600 - 999 pts)\n" +
+                               "👑 Nv 6: Leyenda Absoluta (1000+ pts)",
+                        fontFamily = Vt323,
+                        fontSize = 15.sp,
+                        color = if (isDark) Color.LightGray else Color.DarkGray
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(80.dp))
+    }
+}
+
+@Composable
+fun RankingCategoryRow(
+    title: String,
+    kevinValue: Int,
+    aliValue: Int,
+    unit: String,
+    isDark: Boolean,
+    contentColor: Color
+) {
+    val kevinLeads = kevinValue > aliValue
+    val aliLeads = aliValue > kevinValue
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            fontFamily = Vt323,
+            fontSize = 15.sp,
+            color = contentColor,
+            modifier = Modifier.weight(1.3f)
+        )
+
+        Row(
+            modifier = Modifier.weight(1.7f),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Kevin stat
+            Text(
+                text = "${if (kevinLeads) "👑 " else ""}Kevin: $kevinValue",
+                fontFamily = Vt323,
+                fontSize = 14.sp,
+                fontWeight = if (kevinLeads) FontWeight.Bold else FontWeight.Normal,
+                color = if (kevinLeads) Color(0xFF3B82F6) else if (isDark) Color.LightGray else Color.DarkGray
+            )
+            Text(
+                text = "  |  ",
+                fontFamily = Vt323,
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+            // Ali stat
+            Text(
+                text = "${if (aliLeads) "👑 " else ""}Ali: $aliValue",
+                fontFamily = Vt323,
+                fontSize = 14.sp,
+                fontWeight = if (aliLeads) FontWeight.Bold else FontWeight.Normal,
+                color = if (aliLeads) Color(0xFFEC4899) else if (isDark) Color.LightGray else Color.DarkGray
+            )
         }
     }
 }

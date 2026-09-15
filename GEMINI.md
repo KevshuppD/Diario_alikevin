@@ -1,0 +1,25 @@
+# Reglas y Guías de Desarrollo del Proyecto (Diario Ali & Kevin)
+
+## 📱 1. Reglas de UI, Layouts y Prevención de Desbordamiento (Overflow)
+- **Evitar desbordamiento de pantalla (Anti-Overflow)**: 
+  - Todo contenedor desplazable (`verticalScroll`, `LazyColumn`, etc.) dentro de un `Dialog`, `BottomSheet` o `Column` principal **DEBE** usar `Modifier.weight(1f)` (o estar debidamente acotado) para asegurar que el contenido se desplace dentro del viewport visible y no se desborde fuera de la pantalla.
+- **Márgenes de seguridad para Barras del Sistema (Safe Insets)**:
+  - Siempre contemplar `navigationBarsPadding()` y `statusBarsPadding()` en pantallas completas y diálogos a pantalla completa.
+  - **Margen inferior obligatorio en scrolls**: Al final de cualquier vista desplazable o diálogo interactivo, añadir siempre un espaciado inferior generoso (ej: `Spacer(modifier = Modifier.height(70.dp..80.dp))` o `contentPadding = PaddingValues(bottom = 70.dp)` en `LazyColumn`) para garantizar que ningún botón, tarjeta o texto quede tapado por la barra de navegación, gestos o botones físicos del celular del usuario.
+- **Sin botones o acciones redundantes**: Mantener las vistas limpias; si una acción o navegación ya existe en la barra de pestañas superior o en el flujo principal, no duplicar botones redundantes en pestañas secundarias.
+
+---
+
+## 🎨 2. Estilo Visual y Estética Pixel-Art
+- **Tipografía**: Usar la fuente `Vt323` para elementos retro / Tamagotchi / arcade.
+- **Geometría y Bordes**: Utilizar `RectangleShape`, bordes pixelados marcados (`border(2.dp, borderColor)`) y sombras sólidas con offset.
+- **Temas y Colores**: Paleta retro pastel / arcade cálida (dorado/ámbar `#D97706`, rosa vibrante `#EC4899`, azul vibrante `#2563EB`, fondos cálidos pergamino / dark theme `#1A1A1A`).
+
+---
+
+## 🐾 3. Sistema de Mascotas Virtuales (Thor & Cuky)
+- **Estadísticas 100% Independientes**: 
+  - Las mascotas (**Thor** y **Cuky**) tienen estados, niveles, puntos de experiencia (`experience` vs `cukyExperience`), hambre, sueño, felicidad e interacción independientes.
+  - Al alimentar, bañar, jugar o subir de nivel a una mascota, las modificaciones solo deben impactar a la mascota activa (`pet.isCuky()` vs Thor).
+- **Ranking de Cuidadores Separado**:
+  - El sistema de cuidados registra individualmente los puntos y contadores por mascota (`...Thor` y `...Cuky`) y total global, permitiendo a Kevin y Ali filtrar su historial tanto globalmente como por cada mascota.

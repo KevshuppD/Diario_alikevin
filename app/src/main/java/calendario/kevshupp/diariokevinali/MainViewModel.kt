@@ -279,31 +279,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val isSleeping: Boolean
     )
 
-    private fun calculateDecay(p: Pet, now: Long): DecayedStats {
-        val lastDecay = if (p.lastDecayUpdate != 0L) p.lastDecayUpdate else now
+    private fun calculateDecay(p: Pet, now: Long, forCuky: Boolean = p.isCuky()): DecayedStats {
+        val lastDecay = if (forCuky) (if (p.cukyLastDecayUpdate != 0L) p.cukyLastDecayUpdate else now) else (if (p.lastDecayUpdate != 0L) p.lastDecayUpdate else now)
         var decayDiff = now - lastDecay
         if (decayDiff < 0) decayDiff = 0
         val hoursToDecay = decayDiff / (1000 * 60 * 60)
 
-        var decayedHunger = p.hunger
-        var decayedCleanliness = p.cleanliness
-        var decayedSleepPercent = p.sleepPercent
+        val baseHunger = if (forCuky) p.cukyHunger else p.hunger
+        val baseCleanliness = if (forCuky) p.cukyCleanliness else p.cleanliness
+        val baseSleepPercent = if (forCuky) p.cukySleepPercent else p.sleepPercent
+        val baseIsSleeping = if (forCuky) p.cukyIsSleeping else p.isSleeping
+
+        var decayedHunger = baseHunger
+        var decayedCleanliness = baseCleanliness
+        var decayedSleepPercent = baseSleepPercent
         var nextDecayUpdate = lastDecay
 
         if (hoursToDecay >= 1) {
-            decayedHunger = Math.min(100, p.hunger + (hoursToDecay * 4).toInt())
-            decayedCleanliness = Math.max(0, p.cleanliness - (hoursToDecay * 3).toInt())
+            decayedHunger = Math.min(100, baseHunger + (hoursToDecay * 4).toInt())
+            decayedCleanliness = Math.max(0, baseCleanliness - (hoursToDecay * 3).toInt())
 
             val calendar = java.util.Calendar.getInstance()
             for (h in 1..hoursToDecay) {
                 calendar.timeInMillis = lastDecay + h * 3600000L
                 val hourOfDay = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-                // Si la hora es de noche (00:00 - 08:00), recupera energía a 15%/h
                 if (hourOfDay in 0..7) {
                     decayedSleepPercent = Math.min(100, decayedSleepPercent + 15)
                 } else {
-                    // Si el pet fue puesto a dormir manualmente (p.isSleeping), también recupera energía
-                    if (p.isSleeping) {
+                    if (baseIsSleeping) {
                         decayedSleepPercent = Math.min(100, decayedSleepPercent + 15)
                     } else {
                         decayedSleepPercent = Math.max(0, decayedSleepPercent - 5)
@@ -313,16 +316,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             nextDecayUpdate += hoursToDecay * 3600000L
         }
 
-        // Determinar si en el momento actual 'now' el pet debe estar durmiendo
         val calendarNow = java.util.Calendar.getInstance().apply { timeInMillis = now }
         val currentHour = calendarNow.get(java.util.Calendar.HOUR_OF_DAY)
         val isNightTime = currentHour in 0..7
 
-        var isNowSleeping = isNightTime || p.isSleeping
+        var isNowSleeping = isNightTime || baseIsSleeping
         var finalSleepPercent = decayedSleepPercent
 
-        // Despertar automáticamente si es de día, estaba durmiendo y la energía llegó al 100%
-        if (!isNightTime && p.isSleeping && decayedSleepPercent >= 100) {
+        if (!isNightTime && baseIsSleeping && decayedSleepPercent >= 100) {
             isNowSleeping = false
             finalSleepPercent = 100
         }
@@ -332,69 +333,94 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun checkPetDecay(p: Pet) {
         val now = System.currentTimeMillis()
+        val updates = mutableMapOf<String, Any>()
 
-        val stats = calculateDecay(p, now)
-        val newHunger = stats.hunger
-        val newCleanliness = stats.cleanliness
-        val newSleepPercent = stats.sleepPercent
-        val nextDecayUpdate = stats.nextDecayUpdate
-        val isNowSleeping = stats.isSleeping
+        // Thor decay
+        val thorStats = calculateDecay(p, now, forCuky = false)
+        val thorHappinessDiff = now - p.lastInteraction
+        val thorDaysToDecay = thorHappinessDiff / (1000L * 60L * 60L * 24L)
+        var newThorHappiness = p.happiness
+        var thorInteractionCompensated = p.lastInteraction
 
-        val happinessDiff = now - p.lastInteraction
-        val daysToDecayHappiness = happinessDiff / (1000L * 60L * 60L * 24L)
-
-        var newHappiness = p.happiness
-        var lastInteractionCompensated = p.lastInteraction
-
-        if (daysToDecayHappiness >= 1) {
-            val decay = (daysToDecayHappiness * 20).toInt()
-            newHappiness = Math.max(0, p.happiness - decay)
-            lastInteractionCompensated += daysToDecayHappiness * 24L * 60L * 60L * 1000L
+        if (thorDaysToDecay >= 1) {
+            val decay = (thorDaysToDecay * 20).toInt()
+            newThorHappiness = Math.max(0, p.happiness - decay)
+            thorInteractionCompensated += thorDaysToDecay * 24L * 60L * 60L * 1000L
         }
-
-        var newStatus = p.status
-        if (isNowSleeping) {
-            newStatus = Pet.STATUS_SLEEPING
-        } else if (newHunger >= 70) {
-            newStatus = Pet.STATUS_HUNGRY
+        var newThorStatus = p.status
+        if (thorStats.isSleeping) {
+            newThorStatus = Pet.STATUS_SLEEPING
+        } else if (thorStats.hunger >= 70) {
+            newThorStatus = Pet.STATUS_HUNGRY
         } else {
-            newStatus = if (newHappiness > 40) Pet.STATUS_HAPPY else Pet.STATUS_SAD
+            newThorStatus = if (newThorHappiness > 40) Pet.STATUS_HAPPY else Pet.STATUS_SAD
         }
 
         val today = dayFormat.format(Date(now))
         val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
         val yesterdayStr = dayFormat.format(yesterday.time)
 
-        val isStreakAlive = p.lastInteractionDate != null && 
+        val isThorStreakAlive = p.lastInteractionDate != null && 
                 (p.lastInteractionDate == today || p.lastInteractionDate == yesterdayStr)
+        var newThorStreak = p.streakDays
+        if (!isThorStreakAlive && p.streakDays > 0) newThorStreak = 0
 
-        var newStreakDays = p.streakDays
-        if (!isStreakAlive && p.streakDays > 0) {
-            newStreakDays = 0
+        if (newThorHappiness != p.happiness || thorStats.hunger != p.hunger || thorStats.cleanliness != p.cleanliness ||
+            thorStats.sleepPercent != p.sleepPercent || newThorStatus != p.status || thorStats.nextDecayUpdate != p.lastDecayUpdate ||
+            thorStats.isSleeping != p.isSleeping || newThorStreak != p.streakDays) {
+            updates["happiness"] = newThorHappiness
+            updates["hunger"] = thorStats.hunger
+            updates["cleanliness"] = thorStats.cleanliness
+            updates["sleepPercent"] = thorStats.sleepPercent
+            updates["status"] = newThorStatus
+            updates["lastInteraction"] = thorInteractionCompensated
+            updates["lastDecayUpdate"] = thorStats.nextDecayUpdate
+            updates["isSleeping"] = thorStats.isSleeping
+            updates["streakDays"] = newThorStreak
         }
 
-        val hasChanged = newHappiness != p.happiness ||
-                newHunger != p.hunger ||
-                newCleanliness != p.cleanliness ||
-                newSleepPercent != p.sleepPercent ||
-                newStatus != p.status ||
-                nextDecayUpdate != p.lastDecayUpdate ||
-                isNowSleeping != p.isSleeping ||
-                newStreakDays != p.streakDays
+        // Cuky decay
+        val cukyStats = calculateDecay(p, now, forCuky = true)
+        val cukyHappinessDiff = now - p.cukyLastInteraction
+        val cukyDaysToDecay = cukyHappinessDiff / (1000L * 60L * 60L * 24L)
+        var newCukyHappiness = p.cukyHappiness
+        var cukyInteractionCompensated = p.cukyLastInteraction
 
-        if (hasChanged) {
-            db.collection("pets").document(currentCoupleId)
-                .update(
-                    "happiness", newHappiness,
-                    "hunger", newHunger,
-                    "cleanliness", newCleanliness,
-                    "sleepPercent", newSleepPercent,
-                    "status", newStatus,
-                    "lastInteraction", lastInteractionCompensated,
-                    "lastDecayUpdate", nextDecayUpdate,
-                    "isSleeping", isNowSleeping,
-                    "streakDays", newStreakDays
-                )
+        if (cukyDaysToDecay >= 1) {
+            val decay = (cukyDaysToDecay * 20).toInt()
+            newCukyHappiness = Math.max(0, p.cukyHappiness - decay)
+            cukyInteractionCompensated += cukyDaysToDecay * 24L * 60L * 60L * 1000L
+        }
+        var newCukyStatus = p.cukyStatus
+        if (cukyStats.isSleeping) {
+            newCukyStatus = Pet.STATUS_SLEEPING
+        } else if (cukyStats.hunger >= 70) {
+            newCukyStatus = Pet.STATUS_HUNGRY
+        } else {
+            newCukyStatus = if (newCukyHappiness > 40) Pet.STATUS_HAPPY else Pet.STATUS_SAD
+        }
+
+        val isCukyStreakAlive = p.cukyLastInteractionDate != null && 
+                (p.cukyLastInteractionDate == today || p.cukyLastInteractionDate == yesterdayStr)
+        var newCukyStreak = p.cukyStreakDays
+        if (!isCukyStreakAlive && p.cukyStreakDays > 0) newCukyStreak = 0
+
+        if (newCukyHappiness != p.cukyHappiness || cukyStats.hunger != p.cukyHunger || cukyStats.cleanliness != p.cukyCleanliness ||
+            cukyStats.sleepPercent != p.cukySleepPercent || newCukyStatus != p.cukyStatus || cukyStats.nextDecayUpdate != p.cukyLastDecayUpdate ||
+            cukyStats.isSleeping != p.cukyIsSleeping || newCukyStreak != p.cukyStreakDays) {
+            updates["cukyHappiness"] = newCukyHappiness
+            updates["cukyHunger"] = cukyStats.hunger
+            updates["cukyCleanliness"] = cukyStats.cleanliness
+            updates["cukySleepPercent"] = cukyStats.sleepPercent
+            updates["cukyStatus"] = newCukyStatus
+            updates["cukyLastInteraction"] = cukyInteractionCompensated
+            updates["cukyLastDecayUpdate"] = cukyStats.nextDecayUpdate
+            updates["cukyIsSleeping"] = cukyStats.isSleeping
+            updates["cukyStreakDays"] = newCukyStreak
+        }
+
+        if (updates.isNotEmpty()) {
+            db.collection("pets").document(currentCoupleId).update(updates)
         }
     }
 
@@ -414,28 +440,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ThorWidgetProvider.triggerUpdate(app)
     }
 
+    fun isCurrentUserKevin(): Boolean {
+        val uid = currentUserId.lowercase()
+        val uname = currentUserName.lowercase()
+        return uid.contains("kevin") || uname.contains("kevin")
+    }
+
     fun updatePetOnInteraction() {
         val p = _petState.value ?: return
+        val isCuky = p.isCuky()
         val now = System.currentTimeMillis()
         val today = dayFormat.format(Date(now))
         val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
         val yesterdayStr = dayFormat.format(yesterday.time)
 
-        val stats = calculateDecay(p, now)
+        val stats = calculateDecay(p, now, isCuky)
         val currentCleanliness = stats.cleanliness
         val currentSleepPercent = stats.sleepPercent
         val nextDecayUpdate = stats.nextDecayUpdate
 
-        val newHappiness = Math.min(100, p.happiness + 10)
-        var newLovePoints = p.lovePoints + 5
-        var newExp = p.experience + 10
-        var newLevel = p.level
-        var newStreak = p.streakDays
+        val currentHappiness = p.getActiveHappiness()
+        val currentExp = p.getActiveExperience()
+        val currentLevel = p.getActiveLevel()
+        val currentStreak = p.getActiveStreak()
+        val currentLastInteractionDate = p.getActiveLastInteractionDate()
 
-        if (p.lastInteractionDate == today) {
-            newStreak = Math.max(1, p.streakDays)
-        } else if (p.lastInteractionDate == yesterdayStr) {
-            newStreak = Math.max(0, p.streakDays) + 1
+        val newHappiness = Math.min(100, currentHappiness + 10)
+        var newLovePoints = p.lovePoints + 5
+        var newExp = currentExp + 10
+        var newLevel = currentLevel
+        var newStreak = currentStreak
+
+        if (currentLastInteractionDate == today) {
+            newStreak = Math.max(1, currentStreak)
+        } else if (currentLastInteractionDate == yesterdayStr) {
+            newStreak = Math.max(0, currentStreak) + 1
             newLovePoints += (newStreak * 2)
         } else {
             newStreak = 1
@@ -444,73 +483,129 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         var leveledUp = false
         if (newExp >= 100) {
             newLevel++
-            newExp -= 100;
+            newExp -= 100
             newLovePoints += 50
             leveledUp = true
         }
 
+        val isKevin = isCurrentUserKevin()
+        val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
+        val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
+        val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
+        val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
+
+        val updates = mutableMapOf<String, Any>(
+            "lovePoints" to newLovePoints,
+            carePtsPetKey to (currentCarePet + 5),
+            carePtsTotalKey to (currentCareTotal + 5)
+        )
+
+        if (isCuky) {
+            updates["cukyHappiness"] = newHappiness
+            updates["cukyExperience"] = newExp
+            updates["cukyLevel"] = newLevel
+            updates["cukyStreakDays"] = newStreak
+            updates["cukyLastInteractionDate"] = today
+            updates["cukyLastInteraction"] = now
+            updates["cukyLastDecayUpdate"] = nextDecayUpdate
+            updates["cukyHunger"] = 0
+            updates["cukyCleanliness"] = currentCleanliness
+            updates["cukySleepPercent"] = currentSleepPercent
+            updates["cukyStatus"] = if (stats.isSleeping) Pet.STATUS_SLEEPING else Pet.STATUS_HAPPY
+            updates["cukyIsSleeping"] = stats.isSleeping
+        } else {
+            updates["happiness"] = newHappiness
+            updates["experience"] = newExp
+            updates["level"] = newLevel
+            updates["streakDays"] = newStreak
+            updates["lastInteractionDate"] = today
+            updates["lastInteraction"] = now
+            updates["lastDecayUpdate"] = nextDecayUpdate
+            updates["hunger"] = 0
+            updates["cleanliness"] = currentCleanliness
+            updates["sleepPercent"] = currentSleepPercent
+            updates["status"] = if (stats.isSleeping) Pet.STATUS_SLEEPING else Pet.STATUS_HAPPY
+            updates["isSleeping"] = stats.isSleeping
+        }
+
         db.collection("pets").document(currentCoupleId)
-            .update(
-                "happiness", newHappiness,
-                "lovePoints", newLovePoints,
-                "experience", newExp,
-                "level", newLevel,
-                "streakDays", newStreak,
-                "lastInteractionDate", today,
-                "lastInteraction", now,
-                "lastDecayUpdate", nextDecayUpdate,
-                "hunger", 0,
-                "cleanliness", currentCleanliness,
-                "sleepPercent", currentSleepPercent,
-                "status", if (stats.isSleeping) Pet.STATUS_SLEEPING else Pet.STATUS_HAPPY,
-                "isSleeping", stats.isSleeping
-            )
+            .update(updates)
             .addOnSuccessListener {
                 if (leveledUp) {
-                    levelUpEvent.value = Pair(p.name ?: "Thor", newLevel)
+                    levelUpEvent.value = Pair(p.getActiveName(), newLevel)
                 }
             }
     }
 
     fun feedPet(foodId: String, cost: Int, happinessGain: Int) {
         val p = _petState.value ?: return
+        val isCuky = p.isCuky()
         val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val isNightTime = currentHour in 0..7
-        if (p.isSleeping || isNightTime) {
-            toastMessage.value = "💤 ¡Thor está durmiendo!"
+        if (p.getActiveIsSleeping() || isNightTime) {
+            toastMessage.value = "💤 ¡${p.getActiveName()} está durmiendo!"
             return
         }
         if (p.lovePoints >= cost) {
             val now = System.currentTimeMillis()
-            val stats = calculateDecay(p, now)
+            val stats = calculateDecay(p, now, isCuky)
             val decayedCleanliness = stats.cleanliness
             val decayedSleepPercent = stats.sleepPercent
             val nextDecayUpdate = stats.nextDecayUpdate
             val isNowSleeping = stats.isSleeping
 
-            val currentHappiness = p.happiness
+            val currentHappiness = p.getActiveHappiness()
             val newHappiness = Math.min(100, currentHappiness + happinessGain)
-            var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.status
+            var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.getActiveStatus()
             if (!isNowSleeping) {
                 if (newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
                     newStatus = Pet.STATUS_HAPPY
                 }
             }
 
+            val isKevin = isCurrentUserKevin()
+            val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
+            val feedCountPetKey = if (isKevin) (if (isCuky) "feedCountKevinCuky" else "feedCountKevinThor") else (if (isCuky) "feedCountAliCuky" else "feedCountAliThor")
+            val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
+            val currentFeedPet = if (isKevin) (if (isCuky) p.feedCountKevinCuky else p.feedCountKevinThor) else (if (isCuky) p.feedCountAliCuky else p.feedCountAliThor)
+
+            val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
+            val feedCountTotalKey = if (isKevin) "feedCountKevin" else "feedCountAli"
+            val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
+            val currentFeedTotal = if (isKevin) p.feedCountKevin else p.feedCountAli
+
+            val updates = mutableMapOf<String, Any>(
+                "lovePoints" to (p.lovePoints - cost),
+                carePtsPetKey to (currentCarePet + 10),
+                feedCountPetKey to (currentFeedPet + 1),
+                carePtsTotalKey to (currentCareTotal + 10),
+                feedCountTotalKey to (currentFeedTotal + 1)
+            )
+
+            if (isCuky) {
+                updates["cukyHappiness"] = newHappiness
+                updates["cukyStatus"] = newStatus
+                updates["cukyHunger"] = 0
+                updates["cukyCleanliness"] = decayedCleanliness
+                updates["cukySleepPercent"] = decayedSleepPercent
+                updates["cukyLastInteraction"] = now
+                updates["cukyLastDecayUpdate"] = nextDecayUpdate
+                updates["cukyIsSleeping"] = isNowSleeping
+            } else {
+                updates["happiness"] = newHappiness
+                updates["status"] = newStatus
+                updates["hunger"] = 0
+                updates["cleanliness"] = decayedCleanliness
+                updates["sleepPercent"] = decayedSleepPercent
+                updates["lastInteraction"] = now
+                updates["lastDecayUpdate"] = nextDecayUpdate
+                updates["isSleeping"] = isNowSleeping
+            }
+
             db.collection("pets").document(currentCoupleId)
-                .update(
-                    "lovePoints", p.lovePoints - cost,
-                    "happiness", newHappiness,
-                    "status", newStatus,
-                    "hunger", 0,
-                    "cleanliness", decayedCleanliness,
-                    "sleepPercent", decayedSleepPercent,
-                    "lastInteraction", now,
-                    "lastDecayUpdate", nextDecayUpdate,
-                    "isSleeping", isNowSleeping
-                )
+                .update(updates)
                 .addOnSuccessListener {
-                    toastMessage.value = "¡Le has dado de comer a Thor! 💖 +$happinessGain% Felicidad"
+                    toastMessage.value = "¡Le has dado de comer a ${p.getActiveName()}! 💖 +$happinessGain% Felicidad"
                 }
         } else {
             toastMessage.value = "No tienes suficientes puntos de amor ❤️"
@@ -519,38 +614,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rewardPet(points: Int, exp: Int) {
         val p = _petState.value ?: return
+        val isCuky = p.isCuky()
         val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val isNightTime = currentHour in 0..7
-        if (p.isSleeping || isNightTime) {
-            toastMessage.value = "💤 ¡Thor está durmiendo!"
+        if (p.getActiveIsSleeping() || isNightTime) {
+            toastMessage.value = "💤 ¡${p.getActiveName()} está durmiendo!"
             return
         }
         val now = System.currentTimeMillis()
         val today = dayFormat.format(Date(now))
-        val currentDailyTaps = if (today == p.lastTapDate) p.dailyTapCount else 0
+        val currentDailyTaps = if (today == p.getActiveLastTapDate()) p.getActiveDailyTapCount() else 0
 
         val maxDailyTaps = 30
         val allowedTaps = Math.max(0, maxDailyTaps - currentDailyTaps)
 
         if (allowedTaps <= 0) {
-            toastMessage.value = "¡Thor ya recibió suficiente cariño por hoy! 💖 (Límite: $maxDailyTaps/día)"
+            toastMessage.value = "¡${p.getActiveName()} ya recibió suficiente cariño por hoy! 💖 (Límite: $maxDailyTaps/día)"
             return
         }
 
         val actualTapsAdded = Math.min(points, allowedTaps)
 
-        val stats = calculateDecay(p, now)
+        val stats = calculateDecay(p, now, isCuky)
         val decayedCleanliness = stats.cleanliness
         val decayedSleepPercent = stats.sleepPercent
         val nextDecayUpdate = stats.nextDecayUpdate
         val isNowSleeping = stats.isSleeping
 
-        var newExp = p.experience + exp
-        var newLevel = p.level
+        var newExp = p.getActiveExperience() + exp
+        var newLevel = p.getActiveLevel()
         var newLovePoints = p.lovePoints + actualTapsAdded
-        val newHappiness = Math.min(100, p.happiness + actualTapsAdded)
+        val newHappiness = Math.min(100, p.getActiveHappiness() + actualTapsAdded)
 
-        var newStatus = p.status
+        var newStatus = p.getActiveStatus()
         if (isNowSleeping) {
             newStatus = Pet.STATUS_SLEEPING
         } else if (stats.hunger >= 70) {
@@ -571,30 +667,63 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val finalLevel = newLevel
         val showLevelUpToast = leveledUp
 
+        val isKevin = isCurrentUserKevin()
+        val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
+        val tapCountPetKey = if (isKevin) (if (isCuky) "tapCountKevinCuky" else "tapCountKevinThor") else (if (isCuky) "tapCountAliCuky" else "tapCountAliThor")
+        val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
+        val currentTapPet = if (isKevin) (if (isCuky) p.tapCountKevinCuky else p.tapCountKevinThor) else (if (isCuky) p.tapCountAliCuky else p.tapCountAliThor)
+
+        val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
+        val tapCountTotalKey = if (isKevin) "tapCountKevin" else "tapCountAli"
+        val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
+        val currentTapTotal = if (isKevin) p.tapCountKevin else p.tapCountAli
+
+        val updates = mutableMapOf<String, Any>(
+            "lovePoints" to newLovePoints,
+            carePtsPetKey to (currentCarePet + actualTapsAdded),
+            tapCountPetKey to (currentTapPet + actualTapsAdded),
+            carePtsTotalKey to (currentCareTotal + actualTapsAdded),
+            tapCountTotalKey to (currentTapTotal + actualTapsAdded)
+        )
+
+        if (isCuky) {
+            updates["cukyExperience"] = newExp
+            updates["cukyLevel"] = newLevel
+            updates["cukyHappiness"] = newHappiness
+            updates["cukyStatus"] = newStatus
+            updates["cukyHunger"] = 0
+            updates["cukyCleanliness"] = decayedCleanliness
+            updates["cukySleepPercent"] = decayedSleepPercent
+            updates["cukyLastInteraction"] = now
+            updates["cukyLastDecayUpdate"] = nextDecayUpdate
+            updates["cukyIsSleeping"] = isNowSleeping
+            updates["cukyDailyTapCount"] = totalTapsToday
+            updates["cukyLastTapDate"] = today
+        } else {
+            updates["experience"] = newExp
+            updates["level"] = newLevel
+            updates["happiness"] = newHappiness
+            updates["status"] = newStatus
+            updates["hunger"] = 0
+            updates["cleanliness"] = decayedCleanliness
+            updates["sleepPercent"] = decayedSleepPercent
+            updates["lastInteraction"] = now
+            updates["lastDecayUpdate"] = nextDecayUpdate
+            updates["isSleeping"] = isNowSleeping
+            updates["dailyTapCount"] = totalTapsToday
+            updates["lastTapDate"] = today
+        }
+
         db.collection("pets").document(currentCoupleId)
-            .update(
-                "lovePoints", newLovePoints,
-                "experience", newExp,
-                "level", newLevel,
-                "happiness", newHappiness,
-                "status", newStatus,
-                "hunger", 0,
-                "cleanliness", decayedCleanliness,
-                "sleepPercent", decayedSleepPercent,
-                "lastInteraction", now,
-                "lastDecayUpdate", nextDecayUpdate,
-                "isSleeping", isNowSleeping,
-                "dailyTapCount", totalTapsToday,
-                "lastTapDate", today
-            )
+            .update(updates)
             .addOnSuccessListener {
                 if (totalTapsToday >= maxDailyTaps) {
-                    toastMessage.value = "¡Thor se siente amado! ❤️ +$actualTapsAdded Amor (¡Límite alcanzado! 🎉)"
+                    toastMessage.value = "¡${p.getActiveName()} se siente amado/a! ❤️ +$actualTapsAdded Amor (¡Límite alcanzado! 🎉)"
                 } else {
-                    toastMessage.value = "¡Thor se siente amado! ❤️ +$actualTapsAdded Amor ($totalTapsToday/$maxDailyTaps)"
+                    toastMessage.value = "¡${p.getActiveName()} se siente amado/a! ❤️ +$actualTapsAdded Amor ($totalTapsToday/$maxDailyTaps)"
                 }
                 if (showLevelUpToast) {
-                    levelUpEvent.value = Pair(p.name ?: "Thor", finalLevel)
+                    levelUpEvent.value = Pair(p.getActiveName(), finalLevel)
                 }
             }
             .addOnFailureListener { err ->
@@ -614,74 +743,99 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun togglePetSleep() {
         val p = _petState.value ?: return
+        val isCuky = p.isCuky()
         val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val isNightTime = currentHour in 0..7
         if (isNightTime) {
-            toastMessage.value = "💤 Thor tiene que dormir durante la noche (00:00 - 08:00)."
+            toastMessage.value = "💤 ${p.getActiveName()} tiene que dormir durante la noche (00:00 - 08:00)."
             return
         }
 
         val dndActive = isDoNotDisturbActive()
-        val targetSleepState = !p.isSleeping
+        val targetSleepState = !p.getActiveIsSleeping()
 
         if (!targetSleepState && dndActive) {
-            toastMessage.value = "No puedes despertar a Thor mientras el modo No Molestar esté activo en tu celular. 📵"
+            toastMessage.value = "No puedes despertar a ${p.getActiveName()} mientras el modo No Molestar esté activo en tu celular. 📵"
             return
         }
 
         val now = System.currentTimeMillis()
-        val stats = calculateDecay(p, now)
+        val stats = calculateDecay(p, now, isCuky)
         val decayedHunger = stats.hunger
         val decayedCleanliness = stats.cleanliness
         val decayedSleepPercent = stats.sleepPercent
         val nextDecayUpdate = stats.nextDecayUpdate
 
-        var newHappiness = p.happiness
-        var newStatus = p.status
+        var newHappiness = p.getActiveHappiness()
+        var newStatus = p.getActiveStatus()
+
+        val updates = mutableMapOf<String, Any?>(
+            "dndTriggeredByUserId" to null
+        )
 
         if (targetSleepState) {
             if (decayedSleepPercent >= 100) {
-                toastMessage.value = "¡Thor ya está completamente descansado! ☀️ No necesita dormir."
+                toastMessage.value = "¡${p.getActiveName()} ya está completamente descansado/a! ☀️ No necesita dormir."
                 return
             }
             newStatus = Pet.STATUS_SLEEPING
+            if (isCuky) {
+                updates["cukyIsSleeping"] = true
+                updates["cukyStatus"] = newStatus
+                updates["cukyHunger"] = decayedHunger
+                updates["cukyCleanliness"] = decayedCleanliness
+                updates["cukySleepPercent"] = decayedSleepPercent
+                updates["cukyLastInteraction"] = now
+                updates["cukyLastDecayUpdate"] = nextDecayUpdate
+            } else {
+                updates["isSleeping"] = true
+                updates["status"] = newStatus
+                updates["hunger"] = decayedHunger
+                updates["cleanliness"] = decayedCleanliness
+                updates["sleepPercent"] = decayedSleepPercent
+                updates["lastInteraction"] = now
+                updates["lastDecayUpdate"] = nextDecayUpdate
+            }
+
             db.collection("pets").document(currentCoupleId)
-                .update(
-                    "isSleeping", true,
-                    "status", newStatus,
-                    "hunger", decayedHunger,
-                    "cleanliness", decayedCleanliness,
-                    "sleepPercent", decayedSleepPercent,
-                    "lastInteraction", now,
-                    "lastDecayUpdate", nextDecayUpdate,
-                    "dndTriggeredByUserId", null
-                )
+                .update(updates)
                 .addOnSuccessListener {
-                    toastMessage.value = "¡Thor se ha ido a dormir! 🌙 Shhh..."
+                    toastMessage.value = "¡${p.getActiveName()} se ha ido a dormir! 🌙 Shhh..."
                 }
         } else {
             newHappiness = Math.min(100, newHappiness + 20)
             newStatus = if (newHappiness > 40) Pet.STATUS_HAPPY else Pet.STATUS_SAD
+            if (isCuky) {
+                updates["cukyIsSleeping"] = false
+                updates["cukyStatus"] = newStatus
+                updates["cukyHappiness"] = newHappiness
+                updates["cukyHunger"] = decayedHunger
+                updates["cukyCleanliness"] = decayedCleanliness
+                updates["cukySleepPercent"] = decayedSleepPercent
+                updates["cukyLastInteraction"] = now
+                updates["cukyLastDecayUpdate"] = nextDecayUpdate
+            } else {
+                updates["isSleeping"] = false
+                updates["status"] = newStatus
+                updates["happiness"] = newHappiness
+                updates["hunger"] = decayedHunger
+                updates["cleanliness"] = decayedCleanliness
+                updates["sleepPercent"] = decayedSleepPercent
+                updates["lastInteraction"] = now
+                updates["lastDecayUpdate"] = nextDecayUpdate
+            }
+
             db.collection("pets").document(currentCoupleId)
-                .update(
-                    "isSleeping", false,
-                    "status", newStatus,
-                    "happiness", newHappiness,
-                    "hunger", decayedHunger,
-                    "cleanliness", decayedCleanliness,
-                    "sleepPercent", decayedSleepPercent,
-                    "lastInteraction", now,
-                    "lastDecayUpdate", nextDecayUpdate,
-                    "dndTriggeredByUserId", null
-                )
+                .update(updates)
                 .addOnSuccessListener {
-                    toastMessage.value = "¡Thor ha despertado muy alegre! ☀️ +20% Felicidad"
+                    toastMessage.value = "¡${p.getActiveName()} ha despertado muy alegre! ☀️ +20% Felicidad"
                 }
         }
     }
 
     fun syncDndStateWithPet() {
         val p = _petState.value ?: return
+        val isCuky = p.isCuky()
         val dndActive = isDoNotDisturbActive()
         val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val isNightTime = currentHour in 0..7
@@ -689,33 +843,47 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val shouldSleep = dndActive || isNightTime
 
         if (shouldSleep) {
-            if (!p.isSleeping) {
+            if (!p.getActiveIsSleeping()) {
+                val updates = mutableMapOf<String, Any?>(
+                    "dndTriggeredByUserId" to if (dndActive) currentUserId else null
+                )
+                if (isCuky) {
+                    updates["cukyIsSleeping"] = true
+                    updates["cukyStatus"] = Pet.STATUS_SLEEPING
+                } else {
+                    updates["isSleeping"] = true
+                    updates["status"] = Pet.STATUS_SLEEPING
+                }
                 db.collection("pets").document(currentCoupleId)
-                    .update(
-                        "isSleeping", true,
-                        "status", Pet.STATUS_SLEEPING,
-                        "dndTriggeredByUserId", if (dndActive) currentUserId else null
-                    )
+                    .update(updates)
                     .addOnSuccessListener {
                         if (dndActive) {
-                            toastMessage.value = "Thor se durmió porque activaste No Molestar 🌙"
+                            toastMessage.value = "${p.getActiveName()} se durmió porque activaste No Molestar 🌙"
                         }
                     }
             }
         } else {
-            if (p.isSleeping && (p.dndTriggeredByUserId == null || currentUserId == p.dndTriggeredByUserId)) {
-                val newHappiness = Math.min(100, p.happiness + 20)
+            if (p.getActiveIsSleeping() && (p.dndTriggeredByUserId == null || currentUserId == p.dndTriggeredByUserId)) {
+                val newHappiness = Math.min(100, p.getActiveHappiness() + 20)
                 val newStatus = if (newHappiness > 40) Pet.STATUS_HAPPY else Pet.STATUS_SAD
+                val updates = mutableMapOf<String, Any?>(
+                    "dndTriggeredByUserId" to null
+                )
+                if (isCuky) {
+                    updates["cukyIsSleeping"] = false
+                    updates["cukyStatus"] = newStatus
+                    updates["cukyHappiness"] = newHappiness
+                    updates["cukyLastInteraction"] = System.currentTimeMillis()
+                } else {
+                    updates["isSleeping"] = false
+                    updates["status"] = newStatus
+                    updates["happiness"] = newHappiness
+                    updates["lastInteraction"] = System.currentTimeMillis()
+                }
                 db.collection("pets").document(currentCoupleId)
-                    .update(
-                        "isSleeping", false,
-                        "status", newStatus,
-                        "happiness", newHappiness,
-                        "lastInteraction", System.currentTimeMillis(),
-                        "dndTriggeredByUserId", null
-                    )
+                    .update(updates)
                     .addOnSuccessListener {
-                        toastMessage.value = "¡Thor despertó! ☀️"
+                        toastMessage.value = "¡${p.getActiveName()} despertó! ☀️"
                     }
             }
         }
@@ -723,27 +891,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun bathPet() {
         val p = _petState.value ?: return
+        val isCuky = p.isCuky()
         val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val isNightTime = currentHour in 0..7
-        if (p.isSleeping || isNightTime) {
-            toastMessage.value = "💤 ¡Thor está durmiendo!"
+        if (p.getActiveIsSleeping() || isNightTime) {
+            toastMessage.value = "💤 ¡${p.getActiveName()} está durmiendo!"
             return
         }
-        if (p.cleanliness >= 80) {
-            toastMessage.value = "¡${p.name} todavía está limpio! 🫧 (Limpieza: ${p.cleanliness}%)"
+        val currentCleanliness = p.getActiveCleanliness()
+        if (currentCleanliness >= 80) {
+            toastMessage.value = "¡${p.getActiveName()} todavía está limpio/a! 🫧 (Limpieza: $currentCleanliness%)"
             return
         }
 
         val now = System.currentTimeMillis()
-        val stats = calculateDecay(p, now)
+        val stats = calculateDecay(p, now, isCuky)
         val decayedHunger = stats.hunger
         val decayedSleepPercent = stats.sleepPercent
         val nextDecayUpdate = stats.nextDecayUpdate
         val isNowSleeping = stats.isSleeping
 
-        val newHappiness = Math.min(100, p.happiness + 10)
-        var newExp = p.experience + 3
-        var newLevel = p.level
+        val newHappiness = Math.min(100, p.getActiveHappiness() + 10)
+        var newExp = p.getActiveExperience() + 3
+        var newLevel = p.getActiveLevel()
         var newLovePoints = p.lovePoints
         var leveledUp = false
         if (newExp >= 100) {
@@ -752,7 +922,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             newLovePoints += 50
             leveledUp = true
         }
-        var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.status
+        var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.getActiveStatus()
         if (!isNowSleeping && newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
             newStatus = Pet.STATUS_HAPPY
         }
@@ -760,55 +930,88 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val finalLevel = newLevel
         val today = dayFormat.format(Date(now))
 
+        val isKevin = isCurrentUserKevin()
+        val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
+        val bathCountPetKey = if (isKevin) (if (isCuky) "bathCountKevinCuky" else "bathCountKevinThor") else (if (isCuky) "bathCountAliCuky" else "bathCountAliThor")
+        val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
+        val currentBathPet = if (isKevin) (if (isCuky) p.bathCountKevinCuky else p.bathCountKevinThor) else (if (isCuky) p.bathCountAliCuky else p.bathCountAliThor)
+
+        val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
+        val bathCountTotalKey = if (isKevin) "bathCountKevin" else "bathCountAli"
+        val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
+        val currentBathTotal = if (isKevin) p.bathCountKevin else p.bathCountAli
+
+        val updates = mutableMapOf<String, Any>(
+            "lovePoints" to newLovePoints,
+            carePtsPetKey to (currentCarePet + 15),
+            bathCountPetKey to (currentBathPet + 1),
+            carePtsTotalKey to (currentCareTotal + 15),
+            bathCountTotalKey to (currentBathTotal + 1)
+        )
+
+        if (isCuky) {
+            updates["cukyCleanliness"] = 100
+            updates["cukyHappiness"] = newHappiness
+            updates["cukyExperience"] = newExp
+            updates["cukyLevel"] = newLevel
+            updates["cukyStatus"] = newStatus
+            updates["cukyLastBathDate"] = today
+            updates["cukyHunger"] = decayedHunger
+            updates["cukySleepPercent"] = decayedSleepPercent
+            updates["cukyLastInteraction"] = now
+            updates["cukyLastDecayUpdate"] = nextDecayUpdate
+            updates["cukyIsSleeping"] = isNowSleeping
+        } else {
+            updates["cleanliness"] = 100
+            updates["happiness"] = newHappiness
+            updates["experience"] = newExp
+            updates["level"] = newLevel
+            updates["status"] = newStatus
+            updates["lastBathDate"] = today
+            updates["hunger"] = decayedHunger
+            updates["sleepPercent"] = decayedSleepPercent
+            updates["lastInteraction"] = now
+            updates["lastDecayUpdate"] = nextDecayUpdate
+            updates["isSleeping"] = isNowSleeping
+        }
+
         db.collection("pets").document(currentCoupleId)
-            .update(
-                "cleanliness", 100,
-                "happiness", newHappiness,
-                "experience", newExp,
-                "level", newLevel,
-                "lovePoints", newLovePoints,
-                "status", newStatus,
-                "lastBathDate", today,
-                "hunger", decayedHunger,
-                "sleepPercent", decayedSleepPercent,
-                "lastInteraction", now,
-                "lastDecayUpdate", nextDecayUpdate,
-                "isSleeping", isNowSleeping
-            )
+            .update(updates)
             .addOnSuccessListener {
-                toastMessage.value = "¡Thor ha quedado súper limpio! 🫧🚿"
+                toastMessage.value = "¡${p.getActiveName()} ha quedado súper limpio/a! 🫧🚿"
                 if (showLevelUpToast) {
-                    levelUpEvent.value = Pair(p.name ?: "Thor", finalLevel)
+                    levelUpEvent.value = Pair(p.getActiveName(), finalLevel)
                 }
             }
     }
 
     fun playBallPet(points: Int, happinessGain: Int) {
         val p = _petState.value ?: return
+        val isCuky = p.isCuky()
         val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val isNightTime = currentHour in 0..7
-        if (p.isSleeping || isNightTime) {
-            toastMessage.value = "💤 ¡Thor está durmiendo!"
+        if (p.getActiveIsSleeping() || isNightTime) {
+            toastMessage.value = "💤 ¡${p.getActiveName()} está durmiendo!"
             return
         }
         val now = System.currentTimeMillis()
         val today = dayFormat.format(Date(now))
-        if (today == p.lastBallDate) {
+        if (today == p.getActiveLastBallDate()) {
             toastMessage.value = "¡Ya jugaste con la pelota hoy! ⚾"
             return
         }
 
-        val stats = calculateDecay(p, now)
+        val stats = calculateDecay(p, now, isCuky)
         val decayedHunger = stats.hunger
         val decayedCleanliness = stats.cleanliness
         val decayedSleepPercent = stats.sleepPercent
         val nextDecayUpdate = stats.nextDecayUpdate
         val isNowSleeping = stats.isSleeping
 
-        val newHappiness = Math.min(100, p.happiness + happinessGain)
+        val newHappiness = Math.min(100, p.getActiveHappiness() + happinessGain)
         var newLovePoints = p.lovePoints + points
-        var newExp = p.experience + 10
-        var newLevel = p.level
+        var newExp = p.getActiveExperience() + 10
+        var newLevel = p.getActiveLevel()
         var leveledUp = false
         if (newExp >= 100) {
             newLevel++
@@ -816,42 +1019,75 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             newLovePoints += 50
             leveledUp = true
         }
-        var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.status
+        var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.getActiveStatus()
         if (!isNowSleeping && newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
             newStatus = Pet.STATUS_HAPPY
         }
         val showLevelUpToast = leveledUp
         val finalLevel = newLevel
 
+        val isKevin = isCurrentUserKevin()
+        val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
+        val playCountPetKey = if (isKevin) (if (isCuky) "playCountKevinCuky" else "playCountKevinThor") else (if (isCuky) "playCountAliCuky" else "playCountAliThor")
+        val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
+        val currentPlayPet = if (isKevin) (if (isCuky) p.playCountKevinCuky else p.playCountKevinThor) else (if (isCuky) p.playCountAliCuky else p.playCountAliThor)
+
+        val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
+        val playCountTotalKey = if (isKevin) "playCountKevin" else "playCountAli"
+        val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
+        val currentPlayTotal = if (isKevin) p.playCountKevin else p.playCountAli
+
+        val updates = mutableMapOf<String, Any>(
+            "lovePoints" to newLovePoints,
+            carePtsPetKey to (currentCarePet + 15),
+            playCountPetKey to (currentPlayPet + 1),
+            carePtsTotalKey to (currentCareTotal + 15),
+            playCountTotalKey to (currentPlayTotal + 1)
+        )
+
+        if (isCuky) {
+            updates["cukyHappiness"] = newHappiness
+            updates["cukyExperience"] = newExp
+            updates["cukyLevel"] = newLevel
+            updates["cukyStatus"] = newStatus
+            updates["cukyLastBallDate"] = today
+            updates["cukyHunger"] = decayedHunger
+            updates["cukyCleanliness"] = decayedCleanliness
+            updates["cukySleepPercent"] = decayedSleepPercent
+            updates["cukyLastInteraction"] = now
+            updates["cukyLastDecayUpdate"] = nextDecayUpdate
+            updates["cukyIsSleeping"] = isNowSleeping
+        } else {
+            updates["happiness"] = newHappiness
+            updates["experience"] = newExp
+            updates["level"] = newLevel
+            updates["status"] = newStatus
+            updates["lastBallDate"] = today
+            updates["hunger"] = decayedHunger
+            updates["cleanliness"] = decayedCleanliness
+            updates["sleepPercent"] = decayedSleepPercent
+            updates["lastInteraction"] = now
+            updates["lastDecayUpdate"] = nextDecayUpdate
+            updates["isSleeping"] = isNowSleeping
+        }
+
         db.collection("pets").document(currentCoupleId)
-            .update(
-                "happiness", newHappiness,
-                "lovePoints", newLovePoints,
-                "experience", newExp,
-                "level", newLevel,
-                "status", newStatus,
-                "lastBallDate", today,
-                "hunger", decayedHunger,
-                "cleanliness", decayedCleanliness,
-                "sleepPercent", decayedSleepPercent,
-                "lastInteraction", now,
-                "lastDecayUpdate", nextDecayUpdate,
-                "isSleeping", isNowSleeping
-            )
+            .update(updates)
             .addOnSuccessListener {
-                toastMessage.value = "¡Jugaste a la pelota con Thor! ⚾"
+                toastMessage.value = "¡Jugaste a la pelota con ${p.getActiveName()}! ⚾"
                 if (showLevelUpToast) {
-                    levelUpEvent.value = Pair(p.name ?: "Thor", finalLevel)
+                    levelUpEvent.value = Pair(p.getActiveName(), finalLevel)
                 }
             }
     }
 
     fun playMinigame(gameType: String, points: Int, exp: Int, score: Int = 0) {
         val p = _petState.value ?: return
+        val isCuky = p.isCuky()
         val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val isNightTime = currentHour in 0..7
-        if (p.isSleeping || isNightTime) {
-            toastMessage.value = "💤 ¡Thor está durmiendo!"
+        if (p.getActiveIsSleeping() || isNightTime) {
+            toastMessage.value = "💤 ¡${p.getActiveName()} está durmiendo!"
             return
         }
         val now = System.currentTimeMillis()
@@ -868,7 +1104,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             else -> today == p.lastSnakeDate
         }
 
-        val stats = calculateDecay(p, now)
+        val stats = calculateDecay(p, now, isCuky)
         val decayedCleanliness = stats.cleanliness
         val decayedSleepPercent = stats.sleepPercent
         val nextDecayUpdate = stats.nextDecayUpdate
@@ -878,11 +1114,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val effectivePoints = if (alreadyPlayedToday) 0 else points
         val effectiveExp = if (alreadyPlayedToday) 0 else exp
 
-        var newExp = p.experience + effectiveExp
-        var newLevel = p.level
+        var newExp = p.getActiveExperience() + effectiveExp
+        var newLevel = p.getActiveLevel()
         var newLovePoints = p.lovePoints + effectivePoints
-        val newHappiness = Math.min(100, p.happiness + if (alreadyPlayedToday) 5 else 15)
-        var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.status
+        val newHappiness = Math.min(100, p.getActiveHappiness() + if (alreadyPlayedToday) 5 else 15)
+        var newStatus = if (isNowSleeping) Pet.STATUS_SLEEPING else p.getActiveStatus()
         if (!isNowSleeping && newHappiness > 40 && Pet.STATUS_SAD == newStatus) {
             newStatus = Pet.STATUS_HAPPY
         }
@@ -896,37 +1132,65 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val showLevelUpToast = leveledUp
         val finalLevel = newLevel
 
-        val isCurrentUserKevin = currentUserId.contains("kevin", ignoreCase = true)
+        val isKevin = isCurrentUserKevin()
+        val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
+        val miniCountPetKey = if (isKevin) (if (isCuky) "minigameCountKevinCuky" else "minigameCountKevinThor") else (if (isCuky) "minigameCountAliCuky" else "minigameCountAliThor")
+        val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
+        val currentMiniPet = if (isKevin) (if (isCuky) p.minigameCountKevinCuky else p.minigameCountKevinThor) else (if (isCuky) p.minigameCountAliCuky else p.minigameCountAliThor)
+
+        val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
+        val miniCountTotalKey = if (isKevin) "minigameCountKevin" else "minigameCountAli"
+        val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
+        val currentMiniTotal = if (isKevin) p.minigameCountKevin else p.minigameCountAli
+
         val updates = mutableMapOf<String, Any>(
             "lovePoints" to newLovePoints,
-            "experience" to newExp,
-            "level" to newLevel,
-            "happiness" to newHappiness,
-            "status" to newStatus,
-            "hunger" to 0,
-            "cleanliness" to decayedCleanliness,
-            "sleepPercent" to decayedSleepPercent,
             updateDateField to today,
-            "lastInteraction" to now,
-            "lastDecayUpdate" to nextDecayUpdate,
-            "isSleeping" to isNowSleeping
+            carePtsPetKey to (currentCarePet + 10),
+            miniCountPetKey to (currentMiniPet + 1),
+            carePtsTotalKey to (currentCareTotal + 10),
+            miniCountTotalKey to (currentMiniTotal + 1)
         )
+
+        if (isCuky) {
+            updates["cukyExperience"] = newExp
+            updates["cukyLevel"] = newLevel
+            updates["cukyHappiness"] = newHappiness
+            updates["cukyStatus"] = newStatus
+            updates["cukyHunger"] = 0
+            updates["cukyCleanliness"] = decayedCleanliness
+            updates["cukySleepPercent"] = decayedSleepPercent
+            updates["cukyLastInteraction"] = now
+            updates["cukyLastDecayUpdate"] = nextDecayUpdate
+            updates["cukyIsSleeping"] = isNowSleeping
+        } else {
+            updates["experience"] = newExp
+            updates["level"] = newLevel
+            updates["happiness"] = newHappiness
+            updates["status"] = newStatus
+            updates["hunger"] = 0
+            updates["cleanliness"] = decayedCleanliness
+            updates["sleepPercent"] = decayedSleepPercent
+            updates["lastInteraction"] = now
+            updates["lastDecayUpdate"] = nextDecayUpdate
+            updates["isSleeping"] = isNowSleeping
+        }
 
         var newHighScoreBeaten = false
         if (score > 0) {
             if (gameType == "flappy") {
-                if (isCurrentUserKevin && score > p.flappyHighScoreKevin) {
+                if (isKevin && score > p.flappyHighScoreKevin) {
                     updates["flappyHighScoreKevin"] = score
                     newHighScoreBeaten = true
-                } else if (!isCurrentUserKevin && score > p.flappyHighScoreAli) {
+                } else if (!isKevin && score > p.flappyHighScoreAli) {
                     updates["flappyHighScoreAli"] = score
                     newHighScoreBeaten = true
                 }
             } else if (gameType == "snake") {
-                if (isCurrentUserKevin && score > p.snakeHighScoreKevin) {
+                if (isKevin && score > p.snakeHighScoreKevin) {
                     updates["snakeHighScoreKevin"] = score
                     newHighScoreBeaten = true
-                } else if (!isCurrentUserKevin && score > p.snakeHighScoreAli) {
+                } else if (!isKevin && score > p.snakeHighScoreAli) {
                     updates["snakeHighScoreAli"] = score
                     newHighScoreBeaten = true
                 }
@@ -950,7 +1214,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 if (showLevelUpToast) {
-                    levelUpEvent.value = Pair(p.name ?: "Thor", finalLevel)
+                    levelUpEvent.value = Pair(p.getActiveName(), finalLevel)
                 }
             }
             .addOnFailureListener { err ->
@@ -959,17 +1223,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updatePetName(newName: String) {
-        db.collection("pets").document(currentCoupleId).update("name", newName)
+        val p = _petState.value ?: return
+        val field = if (p.isCuky()) "cukyName" else "name"
+        val updates = mutableMapOf<String, Any>(field to newName)
+        if (!p.isCuky()) {
+            updates["thorName"] = newName
+        }
+        db.collection("pets").document(currentCoupleId).update(updates)
     }
 
     fun switchPet(newPetType: String) {
         val p = _petState.value ?: return
-        val defaultName = if (newPetType == Pet.PET_CUKY) "Cuky" else "Thor"
-        val newName = if (p.name == "Thor" || p.name == "Cuky" || p.name.isBlank()) defaultName else p.name
+        val currentActiveName = if (newPetType == Pet.PET_CUKY) {
+            if (p.cukyName.isNotBlank()) p.cukyName else "Cuky"
+        } else {
+            if (p.thorName.isNotBlank()) p.thorName else if (p.name.isNotBlank() && p.name != "Cuky") p.name else "Thor"
+        }
         db.collection("pets").document(currentCoupleId)
             .update(
                 "petType", newPetType,
-                "name", newName
+                "name", currentActiveName
             )
             .addOnSuccessListener {
                 toastMessage.value = if (newPetType == Pet.PET_CUKY) "¡Cuky la gallina ahora te acompaña! 🐔🤎" else "¡Thor el gatito ahora te acompaña! 🐱🤍"

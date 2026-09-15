@@ -692,35 +692,11 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         .clickable { isClicked = true }
                         .padding(4.dp)
                 ) {
-                    val isCuky = pet.isCuky()
                     val thorImageRes = getPetDrawableRes(pet)
                     
-                    val publicId = when {
-                        pet.isSleeping -> if (isCuky) "spirits/ic_cuky_sleep" else "spirits/ic_thor_sleep"
-                        else -> {
-                            val acc = pet.getActiveEquippedAccessory()
-                            val prefix = if (isCuky) "ic_cuky" else "ic_thor"
-                            if (acc.isNullOrBlank() || acc == "none") {
-                                "spirits/${prefix}_base_trans"
-                            } else {
-                                "spirits/${prefix}_$acc"
-                            }
-                        }
-                    }
-
-                    val cloudinaryUrl = remember(publicId) {
-                        try {
-                            com.cloudinary.android.MediaManager.get().url().generate(publicId)
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-                    
-                    AsyncImage(
-                        model = cloudinaryUrl,
+                    Image(
+                        painter = painterResource(id = thorImageRes),
                         contentDescription = null,
-                        placeholder = painterResource(id = thorImageRes),
-                        error = painterResource(id = thorImageRes),
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer(
