@@ -2490,9 +2490,14 @@
     function initWebSocket() {
       if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      const wsUrl = `${protocol}//${host}/ws`;
+      let wsUrl;
+      if (window.location.protocol === 'file:' || !window.location.host) {
+        wsUrl = 'ws://localhost:8000/ws';
+      } else {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        wsUrl = `${protocol}//${host}/ws`;
+      }
 
       try {
         wsClient = new WebSocket(wsUrl);
@@ -2500,7 +2505,7 @@
         wsClient.onopen = () => {
           isWsConnected = true;
           updateWsStatus(true, "WS: En vivo");
-          console.log("🟢 Conectado a WebSocket en tiempo real");
+          console.log("🟢 Conectado a WebSocket en tiempo real:", wsUrl);
         };
 
         wsClient.onmessage = (event) => {
@@ -2514,18 +2519,18 @@
 
         wsClient.onclose = () => {
           isWsConnected = false;
-          updateWsStatus(false, "WS: Desconectado");
-          wsReconnectTimer = setTimeout(initWebSocket, 3000);
+          updateWsStatus(false, "WS: Reconectando...");
+          wsReconnectTimer = setTimeout(initWebSocket, 2500);
         };
 
         wsClient.onerror = (err) => {
           console.warn("WebSocket error:", err);
           isWsConnected = false;
-          updateWsStatus(false, "WS: Error");
+          updateWsStatus(false, "WS: Desconectado");
         };
       } catch (e) {
         console.warn("No se pudo inicializar WebSocket:", e);
-        wsReconnectTimer = setTimeout(initWebSocket, 4000);
+        wsReconnectTimer = setTimeout(initWebSocket, 3000);
       }
     }
 
