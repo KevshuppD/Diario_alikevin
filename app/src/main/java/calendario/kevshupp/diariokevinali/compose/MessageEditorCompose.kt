@@ -176,14 +176,14 @@ fun MessageEditorDialog(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.72f))
+                .systemBarsPadding()
                 .imePadding()
-                .padding(horizontal = 12.dp, vertical = 20.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.96f)
+                    .fillMaxSize()
                     .border(3.dp, accentBorder),
                 color = bgModal,
                 shape = RectangleShape,
@@ -192,7 +192,7 @@ fun MessageEditorDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(14.dp)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
                     // 🌟 HEADER MODERNO PIXEL-ART
                     Row(
