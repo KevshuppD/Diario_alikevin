@@ -27,7 +27,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -193,7 +196,8 @@ fun SpiritRow(
     onToggleCheck: (String, Boolean, String) -> Unit,
     onToggleMastery: (String, Boolean, String) -> Unit,
     customImageUrl: String? = null,
-    imageRefreshKey: Int = 0
+    imageRefreshKey: Int = 0,
+    currentSeason: Int = 2
 ) {
     val context = LocalContext.current
     Row(
@@ -227,21 +231,25 @@ fun SpiritRow(
                     }
                 }
             }
-            val imageModel = remember(spiritImageUrl, imageRefreshKey, context) {
-                if (!customImageUrl.isNullOrBlank()) {
-                    ImageRequest.Builder(context)
-                        .data(spiritImageUrl)
-                        .crossfade(true)
-                        .apply {
-                            if (imageRefreshKey > 0) {
-                                memoryCacheKey("${spiritImageUrl}_$imageRefreshKey")
-                                diskCacheKey("${spiritImageUrl}_$imageRefreshKey")
-                            }
-                        }
-                        .build()
+            val finalUrl = remember(spiritImageUrl, imageRefreshKey) {
+                if (imageRefreshKey > 0) {
+                    if (spiritImageUrl.contains("?")) "$spiritImageUrl&v=$imageRefreshKey" else "$spiritImageUrl?v=$imageRefreshKey"
                 } else {
                     spiritImageUrl
                 }
+            }
+            val imageModel = remember(finalUrl, imageRefreshKey, context) {
+                ImageRequest.Builder(context)
+                    .data(finalUrl)
+                    .crossfade(true)
+                    .apply {
+                        if (imageRefreshKey > 0) {
+                            memoryCachePolicy(CachePolicy.WRITE_ONLY)
+                            diskCachePolicy(CachePolicy.WRITE_ONLY)
+                            networkCachePolicy(CachePolicy.ENABLED)
+                        }
+                    }
+                    .build()
             }
             AsyncImage(
                 model = imageModel,
@@ -391,7 +399,8 @@ fun SpiritGridCard(
     onToggleCheck: (String, Boolean, String) -> Unit,
     onToggleMastery: (String, Boolean, String) -> Unit,
     customImageUrl: String? = null,
-    imageRefreshKey: Int = 0
+    imageRefreshKey: Int = 0,
+    currentSeason: Int = 2
 ) {
     val hasCurrent = if (isKevin) hasKevin else hasAli
     val hasCurrentMastery = if (isKevin) hasKevinMastery else hasAliMastery
@@ -497,21 +506,25 @@ fun SpiritGridCard(
                 }
             }
         }
-        val imageModel = remember(spiritImageUrl, imageRefreshKey, context) {
-            if (!customImageUrl.isNullOrBlank()) {
-                ImageRequest.Builder(context)
-                    .data(spiritImageUrl)
-                    .crossfade(true)
-                    .apply {
-                        if (imageRefreshKey > 0) {
-                            memoryCacheKey("${spiritImageUrl}_$imageRefreshKey")
-                            diskCacheKey("${spiritImageUrl}_$imageRefreshKey")
-                        }
-                    }
-                    .build()
+        val finalUrl = remember(spiritImageUrl, imageRefreshKey) {
+            if (imageRefreshKey > 0) {
+                if (spiritImageUrl.contains("?")) "$spiritImageUrl&v=$imageRefreshKey" else "$spiritImageUrl?v=$imageRefreshKey"
             } else {
                 spiritImageUrl
             }
+        }
+        val imageModel = remember(finalUrl, imageRefreshKey, context) {
+            ImageRequest.Builder(context)
+                .data(finalUrl)
+                .crossfade(true)
+                .apply {
+                    if (imageRefreshKey > 0) {
+                        memoryCachePolicy(CachePolicy.WRITE_ONLY)
+                        diskCachePolicy(CachePolicy.WRITE_ONLY)
+                        networkCachePolicy(CachePolicy.ENABLED)
+                    }
+                }
+                .build()
         }
         AsyncImage(
             model = imageModel,
@@ -1185,8 +1198,16 @@ fun SpiritsChecklistView(
                             )
                         },
                         onClick = {
-                            imageRefreshKey++
+                            try {
+                                val imageLoader = context.imageLoader
+                                imageLoader.memoryCache?.clear()
+                                imageLoader.diskCache?.clear()
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                            imageRefreshKey = (System.currentTimeMillis() % 1000000).toInt() + 1
                             showFiltersMenu = false
+                            Toast.makeText(context, "Imágenes recargadas 🔄", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -1365,7 +1386,9 @@ fun SpiritsChecklistView(
                                     },
                                     onToggleCheck = onToggleCheck,
                                     onToggleMastery = onToggleMastery,
-                                    customImageUrl = customImages[spiritId]
+                                    customImageUrl = customImages[spiritId],
+                                    imageRefreshKey = imageRefreshKey,
+                                    currentSeason = currentSeason
                                 )
                             }
                         }
@@ -1410,7 +1433,8 @@ fun SpiritsChecklistView(
                         onToggleCheck = onToggleCheck,
                         onToggleMastery = onToggleMastery,
                         customImageUrl = customImages[spiritId],
-                        imageRefreshKey = imageRefreshKey
+                        imageRefreshKey = imageRefreshKey,
+                        currentSeason = currentSeason
                     )
                 }
             } else {
@@ -1490,7 +1514,8 @@ fun SpiritsChecklistView(
                                     onToggleCheck = onToggleCheck,
                                     onToggleMastery = onToggleMastery,
                                     customImageUrl = customImages[spiritId],
-                                    imageRefreshKey = imageRefreshKey
+                                    imageRefreshKey = imageRefreshKey,
+                                    currentSeason = currentSeason
                                 )
                             }
                         }
@@ -1567,7 +1592,8 @@ fun SpiritsChecklistView(
                                 onToggleCheck = onToggleCheck,
                                 onToggleMastery = onToggleMastery,
                                 customImageUrl = customImages[spiritId],
-                                imageRefreshKey = imageRefreshKey
+                                imageRefreshKey = imageRefreshKey,
+                                currentSeason = currentSeason
                             )
                         }
                     }
