@@ -775,9 +775,31 @@ object ThorRadarManager {
                     speedKmh = speedKmh
                 )
 
-                db.collection("locations").document(coupleId)
-                    .collection("history_${docName}").document(now.toString())
+                val histCol = db.collection("locations").document(coupleId)
+                    .collection("history_${docName}")
+
+                histCol.document(now.toString())
                     .set(historyPoint.toMap())
+                    .addOnSuccessListener {
+                        // Limpieza automática: Mantener un tope estricto de los 30 puntos más recientes
+                        histCol.orderBy("timestamp", com.google.firebase.firestore.Query.Direction.ASCENDING)
+                            .limit(10)
+                            .get()
+                            .addOnSuccessListener { snapshot ->
+                                if (snapshot.size() > 0) {
+                                    histCol.get().addOnSuccessListener { allDocs ->
+                                        if (allDocs.size() > 30) {
+                                            val toDelete = allDocs.documents.sortedBy { (it.get("timestamp") as? Number)?.toLong() ?: 0L }.take(allDocs.size() - 30)
+                                            val batch = db.batch()
+                                            for (d in toDelete) {
+                                                batch.delete(d.reference)
+                                            }
+                                            batch.commit()
+                                        }
+                                    }
+                                }
+                            }
+                    }
             }
         }
     }
