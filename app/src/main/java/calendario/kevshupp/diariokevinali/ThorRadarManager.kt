@@ -189,6 +189,11 @@ object ThorRadarManager {
     private var lastUploadedLng: Double = 0.0
     private var lastUploadedAccuracy: Float = 0f
     private var lastUploadedTime: Long = 0L
+    private var lastUploadedBatteryPct: Int = -1
+    private var lastUploadedChargingState: Boolean? = null
+    private var lastHistoryLat: Double = 0.0
+    private var lastHistoryLng: Double = 0.0
+    private var lastHistoryPointTime: Long = 0L
     private var lastSpeedCalcLat: Double = 0.0
     private var lastSpeedCalcLng: Double = 0.0
     private var lastSpeedCalcTime: Long = 0L
@@ -252,22 +257,29 @@ object ThorRadarManager {
     }
 
     fun saveCachedLocation(context: Context, docName: String, data: RadarLocationData) {
-        if (data.latitude == 0.0 && data.longitude == 0.0 && data.timestamp == 0L) return
+        val prev = loadCachedLocation(context, docName)
+        val latToSave = if (data.latitude != 0.0) data.latitude else (prev?.latitude ?: 0.0)
+        val lonToSave = if (data.longitude != 0.0) data.longitude else (prev?.longitude ?: 0.0)
+        val accToSave = if (data.accuracy > 0f) data.accuracy else (prev?.accuracy ?: 0f)
+        val addrToSave = if (data.address.isNotBlank()) data.address else (prev?.address ?: "")
+        val zoneToSave = if (data.currentZone.isNotBlank()) data.currentZone else (prev?.currentZone ?: "")
+
+        if (latToSave == 0.0 && lonToSave == 0.0 && data.timestamp == 0L) return
         try {
             val prefs = context.applicationContext.getSharedPreferences("ThorRadarLocationPrefs", Context.MODE_PRIVATE)
             val obj = JSONObject().apply {
                 put("userId", data.userId)
                 put("userName", data.userName)
                 put("profileImageUrl", data.profileImageUrl)
-                put("latitude", data.latitude)
-                put("longitude", data.longitude)
-                put("accuracy", data.accuracy.toDouble())
+                put("latitude", latToSave)
+                put("longitude", lonToSave)
+                put("accuracy", accToSave.toDouble())
                 put("speedKmh", data.speedKmh.toDouble())
                 put("batteryLevel", data.batteryLevel)
                 put("isCharging", data.isCharging)
                 put("activity", data.activity)
-                put("currentZone", data.currentZone)
-                put("address", data.address)
+                put("currentZone", zoneToSave)
+                put("address", addrToSave)
                 put("timestamp", data.timestamp)
                 put("isSharing", data.isSharing)
                 put("sosActive", data.sosActive)
@@ -450,10 +462,22 @@ object ThorRadarManager {
         }
     }
 
+    fun loadCachedLocationAsLocation(context: Context, docName: String): Location? {
+        val cached = loadCachedLocation(context, docName) ?: return null
+        if (cached.latitude == 0.0 && cached.longitude == 0.0) return null
+        return Location("cache").apply {
+            latitude = cached.latitude
+            longitude = cached.longitude
+            accuracy = if (cached.accuracy > 0f) cached.accuracy else 40f
+            time = if (cached.timestamp > 0L) cached.timestamp else System.currentTimeMillis()
+        }
+    }
+
     fun getLastKnownLocationFallback(context: Context): Location? {
         val locMan = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager ?: return null
         val now = System.currentTimeMillis()
         val providers = listOf(
+            "fused",
             android.location.LocationManager.GPS_PROVIDER,
             android.location.LocationManager.NETWORK_PROVIDER,
             android.location.LocationManager.PASSIVE_PROVIDER
@@ -462,17 +486,25 @@ object ThorRadarManager {
         for (p in providers) {
             try {
                 val l = locMan.getLastKnownLocation(p)
-                if (l != null) {
-                    val ageMs = now - l.time
-                    // Descartar lecturas de más de 15 minutos o con precisión pésima (> 120m)
-                    if (ageMs < 15 * 60 * 1000L && l.accuracy <= 120f) {
-                        candidateLocations.add(l)
-                    }
+                if (l != null && l.latitude != 0.0 && l.longitude != 0.0) {
+                    candidateLocations.add(l)
                 }
             } catch (e: Exception) {
                 // Ignore
             }
         }
+
+        if (candidateLocations.isEmpty()) {
+            return null
+        }
+
+        // Priorizar lecturas relativamente recientes (< 45 min) y con buena precisión (<= 120m)
+        val recentAndAccurate = candidateLocations.filter { (now - it.time) < 45 * 60 * 1000L && it.accuracy <= 120f }
+        if (recentAndAccurate.isNotEmpty()) {
+            return recentAndAccurate.minByOrNull { it.accuracy } ?: recentAndAccurate.maxByOrNull { it.time }
+        }
+
+        // Si no hay recientes, devolver el mejor candidato conocido disponible
         return candidateLocations.minByOrNull { it.accuracy } ?: candidateLocations.maxByOrNull { it.time }
     }
 
@@ -520,7 +552,7 @@ object ThorRadarManager {
     }
 
     @SuppressLint("MissingPermission")
-    fun publishHeartbeat(context: Context, loc: Location? = null) {
+    fun publishHeartbeat(context: Context, loc: Location? = null, force: Boolean = false) {
         val appContext = context.applicationContext
         val prefs = appContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
         val rawUserId = prefs.getString("userId", "user_kevin_01") ?: "user_kevin_01"
@@ -537,16 +569,21 @@ object ThorRadarManager {
 
         val fallbackLoc = getLastKnownLocationFallback(appContext)
         val activeLoc = loc ?: fallbackLoc
+        val cachedLoc = loadCachedLocation(appContext, docName)
 
         // Si la lectura activa tiene precisión muy pobre (> 100m) y ya tenemos una posición previa válida, mantener la posición previa
-        val (lat, lon, accuracy) = if (activeLoc != null) {
+        val (lat, lon, accuracy) = if (activeLoc != null && activeLoc.latitude != 0.0 && activeLoc.longitude != 0.0) {
             if (activeLoc.accuracy > 100f && lastUploadedLat != 0.0 && (now - lastUploadedTime) < 180_000L) {
                 Triple(lastUploadedLat, lastUploadedLng, lastUploadedAccuracy)
             } else {
                 Triple(activeLoc.latitude, activeLoc.longitude, activeLoc.accuracy)
             }
-        } else {
+        } else if (lastUploadedLat != 0.0 && lastUploadedLng != 0.0) {
             Triple(lastUploadedLat, lastUploadedLng, lastUploadedAccuracy)
+        } else if (cachedLoc != null && cachedLoc.latitude != 0.0 && cachedLoc.longitude != 0.0) {
+            Triple(cachedLoc.latitude, cachedLoc.longitude, if (cachedLoc.accuracy > 0f) cachedLoc.accuracy else 40f)
+        } else {
+            Triple(0.0, 0.0, 0f)
         }
 
         var calculatedSpeedKmh = 0f
@@ -671,23 +708,65 @@ object ThorRadarManager {
 
         saveCachedLocation(context, docName, locationData)
 
+        // SMART THROTTLING: Evitar exceder cuotas de Firestore si el dispositivo está en reposo sin cambios
+        val distMovedSinceUpload = if (lastUploadedLat != 0.0 && lat != 0.0) calculateDistance(lastUploadedLat, lastUploadedLng, lat, lon) else Float.MAX_VALUE
+        val batteryChanged = (lastUploadedBatteryPct == -1 || Math.abs(batteryInfo.first - lastUploadedBatteryPct) >= 3 || batteryInfo.second != lastUploadedChargingState)
+        val timeSinceUpload = now - lastUploadedTime
+
+        val shouldUpload = force || distMovedSinceUpload >= 20f || batteryChanged || timeSinceUpload >= 60_000L
+
+        if (!shouldUpload) {
+            Log.d(TAG, "Heartbeat omitido por throttling (sin cambios relevantes: dist=${distMovedSinceUpload.toInt()}m, bat=${batteryInfo.first}%, dt=${timeSinceUpload / 1000}s)")
+            return
+        }
+
+        lastUploadedLat = if (lat != 0.0) lat else lastUploadedLat
+        lastUploadedLng = if (lon != 0.0) lon else lastUploadedLng
+        lastUploadedAccuracy = accuracy
+        lastUploadedTime = now
+        lastUploadedBatteryPct = batteryInfo.first
+        lastUploadedChargingState = batteryInfo.second
+
+        // Si tenemos coordenadas válidas, actualizar documento completo con ubicación.
+        // Si no tenemos coordenadas (ej: en arranque inicial sin fix), actualizar SOLO batería, timestamp y estado sin borrar lat/lon previas en Firestore
+        val firestoreMap = if (lat != 0.0 && lon != 0.0) {
+            locationData.toMap()
+        } else {
+            mutableMapOf<String, Any>(
+                "userId" to finalUserId,
+                "userName" to displayName,
+                "batteryLevel" to batteryInfo.first,
+                "isCharging" to batteryInfo.second,
+                "timestamp" to now,
+                "isSharing" to isSharing
+            ).apply {
+                if (profileImageUrl.isNotBlank()) put("profileImageUrl", profileImageUrl)
+            }
+        }
+
         db.collection("locations").document(coupleId)
             .collection("users").document(docName)
-            .set(locationData.toMap(), SetOptions.merge())
+            .set(firestoreMap, SetOptions.merge())
             .addOnSuccessListener {
-                Log.d(TAG, "Heartbeat y estado emitido para $docName: bat=${batteryInfo.first}%, lat=$lat, lon=$lon")
+                Log.d(TAG, "Heartbeat emitido para $docName: bat=${batteryInfo.first}%, lat=$lat, lon=$lon")
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Error emitiendo heartbeat", e)
             }
 
         if (isSharing && lat != 0.0 && lon != 0.0) {
-            val distMoved = calculateDistance(lastUploadedLat, lastUploadedLng, lat, lon)
-            if (distMoved > 50f || (now - lastUploadedTime) > 300_000L) {
-                lastUploadedLat = lat
-                lastUploadedLng = lon
-                lastUploadedAccuracy = accuracy
-                lastUploadedTime = now
+            val distMovedSinceHistory = if (lastHistoryLat != 0.0 && lastHistoryLng != 0.0) {
+                calculateDistance(lastHistoryLat, lastHistoryLng, lat, lon)
+            } else {
+                Float.MAX_VALUE
+            }
+            val timeSinceHistory = now - lastHistoryPointTime
+
+            // Registrar historial SOLO si hubo desplazamiento real significativo (> 40m) y pasaron al menos 2 minutos
+            if ((distMovedSinceHistory >= 40f && timeSinceHistory >= 120_000L) || lastHistoryPointTime == 0L) {
+                lastHistoryLat = lat
+                lastHistoryLng = lon
+                lastHistoryPointTime = now
 
                 val historyPoint = RadarHistoryPoint(
                     latitude = lat,
@@ -789,8 +868,8 @@ object ThorRadarManager {
         }
 
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMillis)
-            .setMinUpdateIntervalMillis(maxOf(2000L, intervalMillis / 2))
-            .setMinUpdateDistanceMeters(0f)
+            .setMinUpdateIntervalMillis(maxOf(5000L, intervalMillis / 2))
+            .setMinUpdateDistanceMeters(10f)
             .setMaxUpdateDelayMillis(intervalMillis * 2)
             .setWaitForAccurateLocation(false)
             .build()
@@ -823,7 +902,7 @@ object ThorRadarManager {
                     locMan.requestLocationUpdates(
                         android.location.LocationManager.GPS_PROVIDER,
                         intervalMillis,
-                        0f,
+                        10f,
                         nativeLocationListener!!,
                         Looper.getMainLooper()
                     )
@@ -832,7 +911,7 @@ object ThorRadarManager {
                     locMan.requestLocationUpdates(
                         android.location.LocationManager.NETWORK_PROVIDER,
                         intervalMillis,
-                        0f,
+                        15f,
                         nativeLocationListener!!,
                         Looper.getMainLooper()
                     )
@@ -1216,6 +1295,29 @@ object ThorRadarManager {
         partnerName: String,
         onComplete: ((Boolean) -> Unit)? = null
     ) {
+        val safeCoupleId = normalizeCoupleId(coupleId)
+        val isSenderAli = isAli(senderId, senderName)
+        val targetDoc = if (isSenderAli) "kevin" else "ali"
+        val now = System.currentTimeMillis()
+
+        // 1. Trigger inmediato por Firestore en tiempo real (< 100ms si el receptor está con la app abierta)
+        try {
+            db.collection("locations").document(safeCoupleId)
+                .collection("pings").document(targetDoc)
+                .set(mapOf(
+                    "requestedAt" to now,
+                    "requestedBy" to senderId,
+                    "senderName" to senderName,
+                    "target" to targetDoc
+                ), SetOptions.merge())
+                .addOnSuccessListener {
+                    Log.d(TAG, "⚡ [MAGIC PACKET] Señal de ping registrada en Firestore para $targetDoc")
+                }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error registrando ping en Firestore: ${e.message}")
+        }
+
+        // 2. Magic Packet Wake-on-LAN vía FCM push prioritario
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val creds = MainActivity.getGoogleCredentials(context)
@@ -1223,7 +1325,7 @@ object ThorRadarManager {
                 val projectId = "diario-pareja-a2d35"
                 val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
 
-                val topicName = "diario_" + coupleId.lowercase()
+                val topicName = "diario_" + safeCoupleId.lowercase()
                     .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
                     .replace("ñ", "n").replace(" ", "_")
 
@@ -1233,10 +1335,11 @@ object ThorRadarManager {
                         val data = JSONObject().apply {
                             put("authorId", senderId)
                             put("authorName", senderName)
+                            put("targetDoc", targetDoc)
                             put("click_type", "radar_ping")
                             put("type", "radar_ping")
                             put("magic_packet", "WOL_LOCATION_WAKEUP")
-                            put("timestamp", System.currentTimeMillis().toString())
+                            put("timestamp", now.toString())
                             put("title", "📍 Actualización de Thor Radar")
                             put("body", "¡$senderName ha solicitado tu ubicación en vivo!")
                         }
@@ -1268,7 +1371,7 @@ object ThorRadarManager {
             } catch (e: Exception) {
                 Log.e(TAG, "⚡ [MAGIC PACKET] Error enviando ping de ubicación FCM", e)
                 withContext(Dispatchers.Main) {
-                    onComplete?.invoke(false)
+                    onComplete?.invoke(true) // Firestore ping ya se envió
                 }
             }
         }
@@ -1297,7 +1400,7 @@ object ThorRadarManager {
 
                 // 1. Respuesta Inmediata (<300ms): Emitir Heartbeat con batería y última ubicación conocida
                 val lastKnown = getLastKnownLocationFallback(appContext)
-                publishHeartbeat(appContext, lastKnown)
+                publishHeartbeat(appContext, lastKnown, force = true)
                 Log.d(TAG, "⚡ [MAGIC PACKET] Heartbeat inmediato emitido a Firestore con batería y estado")
 
                 val prefs = appContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
@@ -1312,12 +1415,13 @@ object ThorRadarManager {
                     }
 
                     // 3. Adquirir Fix GPS fresco de alta precisión
-                    requestHighAccuracyFix(appContext, timeoutMs = 25_000L) { freshLoc ->
-                        if (freshLoc != null) {
+                    requestHighAccuracyFix(appContext, timeoutMs = 20_000L) { freshLoc ->
+                        if (freshLoc != null && (freshLoc.latitude != 0.0 || freshLoc.longitude != 0.0)) {
                             Log.d(TAG, "⚡ [MAGIC PACKET] Ubicación GPS fresca obtenida: lat=${freshLoc.latitude}, lon=${freshLoc.longitude}, acc=${freshLoc.accuracy}m")
-                            handleNewLocation(appContext, freshLoc)
+                            publishHeartbeat(appContext, freshLoc, force = true)
                         } else {
-                            Log.w(TAG, "⚡ [MAGIC PACKET] No se obtuvo fix fresco a tiempo; Heartbeat previo ya emitido")
+                            Log.w(TAG, "⚡ [MAGIC PACKET] No se obtuvo fix fresco a tiempo; asegurando emisión con ubicación previa")
+                            publishHeartbeat(appContext, null, force = true)
                         }
                     }
                 }
@@ -1340,7 +1444,7 @@ object ThorRadarManager {
     @SuppressLint("MissingPermission")
     private fun requestHighAccuracyFix(
         context: Context,
-        timeoutMs: Long = 25_000L,
+        timeoutMs: Long = 20_000L,
         onResult: (Location?) -> Unit
     ) {
         val appContext = context.applicationContext
@@ -1349,14 +1453,22 @@ object ThorRadarManager {
             return
         }
 
+        init(appContext)
         val completed = java.util.concurrent.atomic.AtomicBoolean(false)
         val locationManager = appContext.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
 
         var fusedCallback: LocationCallback? = null
         var nativeListener: android.location.LocationListener? = null
+        var bestCandidate: Location? = null
+
+        val prefs = appContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+        val rawUserId = prefs.getString("userId", "user_kevin_01") ?: "user_kevin_01"
+        val rawUserName = prefs.getString("userName", null)
+        val docName = getMyDocName(rawUserId, rawUserName)
 
         fun finish(loc: Location?) {
             if (completed.compareAndSet(false, true)) {
+                val chosenLoc = loc ?: bestCandidate ?: getLastKnownLocationFallback(appContext) ?: loadCachedLocationAsLocation(appContext, docName)
                 try {
                     fusedCallback?.let { fusedLocationClient?.removeLocationUpdates(it) }
                 } catch (e: Exception) {}
@@ -1364,26 +1476,53 @@ object ThorRadarManager {
                     nativeListener?.let { locationManager?.removeUpdates(it) }
                 } catch (e: Exception) {}
 
-                onResult(loc)
+                onResult(chosenLoc)
             }
         }
 
         val mainHandler = Handler(Looper.getMainLooper())
         val timeoutRunnable = Runnable {
-            Log.d(TAG, "requestHighAccuracyFix: timeout de ${timeoutMs}ms alcanzado")
-            val bestFallback = getLastKnownLocationFallback(appContext)
-            finish(bestFallback)
+            Log.d(TAG, "requestHighAccuracyFix: timeout de ${timeoutMs}ms alcanzado. Usando mejor candidato disponible.")
+            finish(bestCandidate ?: getLastKnownLocationFallback(appContext) ?: loadCachedLocationAsLocation(appContext, docName))
         }
         mainHandler.postDelayed(timeoutRunnable, timeoutMs)
 
-        // 1. FusedLocation getCurrentLocation
+        fun updateCandidate(newLoc: Location?) {
+            if (newLoc == null || (newLoc.latitude == 0.0 && newLoc.longitude == 0.0)) return
+            val currentBest = bestCandidate
+            if (currentBest == null || (newLoc.hasAccuracy() && newLoc.accuracy < currentBest.accuracy) || (newLoc.time > currentBest.time && newLoc.accuracy <= (currentBest.accuracy + 20f))) {
+                bestCandidate = newLoc
+            }
+            if (newLoc.hasAccuracy() && newLoc.accuracy <= 75f) {
+                mainHandler.removeCallbacks(timeoutRunnable)
+                finish(newLoc)
+            }
+        }
+
+        // 0. Revisar lastLocation de FusedProvider de inmediato
+        try {
+            fusedLocationClient?.lastLocation?.addOnSuccessListener { loc ->
+                if (loc != null) {
+                    updateCandidate(loc)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "fusedLocationClient.lastLocation error: ${e.message}")
+        }
+
+        // 1. FusedLocation getCurrentLocation (High Accuracy y Balanced)
         try {
             val cts = CancellationTokenSource()
             fusedLocationClient?.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token)
                 ?.addOnSuccessListener { loc ->
-                    if (loc != null && loc.accuracy <= 70f) {
-                        mainHandler.removeCallbacks(timeoutRunnable)
-                        finish(loc)
+                    if (loc != null) {
+                        updateCandidate(loc)
+                    }
+                }
+            fusedLocationClient?.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cts.token)
+                ?.addOnSuccessListener { loc ->
+                    if (loc != null) {
+                        updateCandidate(loc)
                     }
                 }
         } catch (e: Exception) {
@@ -1400,9 +1539,8 @@ object ThorRadarManager {
             fusedCallback = object : LocationCallback() {
                 override fun onLocationResult(result: LocationResult) {
                     val loc = result.lastLocation
-                    if (loc != null && loc.accuracy <= 70f) {
-                        mainHandler.removeCallbacks(timeoutRunnable)
-                        finish(loc)
+                    if (loc != null) {
+                        updateCandidate(loc)
                     }
                 }
             }
@@ -1415,10 +1553,7 @@ object ThorRadarManager {
         try {
             nativeListener = object : android.location.LocationListener {
                 override fun onLocationChanged(loc: Location) {
-                    if (loc.accuracy <= 70f) {
-                        mainHandler.removeCallbacks(timeoutRunnable)
-                        finish(loc)
-                    }
+                    updateCandidate(loc)
                 }
                 override fun onProviderEnabled(provider: String) {}
                 override fun onProviderDisabled(provider: String) {}
@@ -1431,7 +1566,7 @@ object ThorRadarManager {
                     LocationManager.GPS_PROVIDER,
                     1000L,
                     0f,
-                    nativeListener,
+                    nativeListener!!,
                     Looper.getMainLooper()
                 )
             }
@@ -1440,13 +1575,21 @@ object ThorRadarManager {
                     LocationManager.NETWORK_PROVIDER,
                     1000L,
                     0f,
-                    nativeListener,
+                    nativeListener!!,
                     Looper.getMainLooper()
                 )
             }
         } catch (e: Exception) {
             Log.w(TAG, "LocationManager nativo error: ${e.message}")
         }
+
+        // Si tras 4 segundos ya tenemos algún candidato válido (ej: de red o lastLocation), terminar temprano
+        mainHandler.postDelayed({
+            if (!completed.get() && bestCandidate != null && (bestCandidate!!.accuracy <= 120f || bestCandidate!!.latitude != 0.0)) {
+                Log.d(TAG, "requestHighAccuracyFix: candidato aceptable obtenido a los 4s, finalizando temprano.")
+                finish(bestCandidate)
+            }
+        }, 4000L)
     }
 
     suspend fun searchPlaces(context: Context, query: String): List<RadarSearchResult> = withContext(Dispatchers.IO) {

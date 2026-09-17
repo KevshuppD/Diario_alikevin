@@ -2,6 +2,7 @@ package calendario.kevshupp.diariokevinali.compose
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -314,20 +315,34 @@ fun ThorRadarScreen(
                 }
             }
 
+        // Escuchar solicitudes de ping remoto en tiempo real vía Firestore
+        val pingListener: ListenerRegistration = locRef.collection("pings").document(myDocName)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && snapshot.exists()) {
+                    val reqTime = snapshot.getLong("requestedAt") ?: 0L
+                    if (reqTime > 0L && (System.currentTimeMillis() - reqTime) < 60_000L) {
+                        Log.d("ThorRadarCompose", "⚡ Solicitud de ping recibida vía Firestore. Actualizando ubicación...")
+                        ThorRadarManager.publishHeartbeat(context, force = true)
+                        ThorRadarManager.forceLocationUpdate(context)
+                    }
+                }
+            }
+
         onDispose {
             myListener.remove()
             partnerListener.remove()
             zonesListener.remove()
+            pingListener.remove()
         }
     }
 
-    // Actualización de alta frecuencia en tiempo real mientras se visualiza la pantalla (4s)
+    // Actualización inteligente en tiempo real mientras se visualiza la pantalla
     LaunchedEffect(isSharingLocation) {
         if (isSharingLocation && PermissionHelper.hasLocationPermission(context)) {
-            ThorRadarManager.startLiveTracking(context, 4000L)
+            ThorRadarManager.startLiveTracking(context, 10_000L)
             while (isActive) {
                 ThorRadarManager.forceLocationUpdate(context)
-                delay(4000L)
+                delay(15_000L)
             }
         } else {
             ThorRadarManager.stopLiveTracking()

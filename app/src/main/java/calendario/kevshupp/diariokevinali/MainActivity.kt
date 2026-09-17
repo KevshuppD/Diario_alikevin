@@ -117,7 +117,15 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     cachedGoogleCredentials = creds
                 }
             }
-            creds!!.refreshIfExpired()
+            try {
+                if (creds!!.accessToken == null) {
+                    creds!!.refresh()
+                } else {
+                    creds!!.refreshIfExpired()
+                }
+            } catch (e: Exception) {
+                creds!!.refresh()
+            }
             return creds!!
         }
     }

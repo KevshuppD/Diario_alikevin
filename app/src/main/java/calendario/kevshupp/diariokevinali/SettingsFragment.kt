@@ -606,29 +606,30 @@ class SettingsFragment : Fragment() {
                         onResetDuplicateState = onResetDuplicateState,
                         onTestFirestore = { callback ->
                             val db = FirebaseFirestore.getInstance()
-                            val coupleId = prefs?.getString("coupleId", null)
-                            if (coupleId.isNullOrEmpty()) {
-                                callback("Error: coupleId no configurado")
-                            } else {
-                                val testDocRef = db.collection("pets").document(coupleId).collection("connection_test").document("test")
-                                val testData = mapOf("timestamp" to System.currentTimeMillis())
-                                testDocRef.set(testData)
-                                    .addOnSuccessListener {
-                                        testDocRef.get()
-                                            .addOnSuccessListener { doc ->
-                                                if (doc.exists()) {
-                                                    callback("✓ Firestore: Escritura/Lectura exitosa (${doc.getLong("timestamp")})")
-                                                } else {
-                                                    callback("Error: Documento de prueba no encontrado")
-                                                }
-                                            }
-                                            .addOnFailureListener { e ->
-                                                callback("Error de lectura: ${e.message}")
-                                            }
+                            val coupleId = prefs?.getString("coupleId", "vínculo_único_123") ?: "vínculo_único_123"
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                try {
+                                    val now = System.currentTimeMillis()
+                                    val testDocRef = db.collection("pets").document(coupleId)
+                                    
+                                    kotlinx.coroutines.withTimeout(8000L) {
+                                        // 1. Probar lectura directa del servidor
+                                        val snap = Tasks.await(testDocRef.get(com.google.firebase.firestore.Source.SERVER))
+                                        // 2. Probar actualización ligera de timestamp
+                                        Tasks.await(testDocRef.update("lastConnectionTest", now))
+                                        withContext(Dispatchers.Main) {
+                                            callback("✓ Firestore OK: Servidor conectado en vivo ($now)")
+                                        }
                                     }
-                                    .addOnFailureListener { e ->
-                                        callback("Error de escritura: ${e.message}")
+                                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                                    withContext(Dispatchers.Main) {
+                                        callback("⚠️ Timeout (8s): El servidor de Firestore tardó en responder. Revisa tu conexión.")
                                     }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        callback("❌ Error Firestore: ${e.localizedMessage ?: e.message}")
+                                    }
+                                }
                             }
                         },
                         onTestGoogleDrive = { callback ->

@@ -131,13 +131,13 @@ class ThorRadarService : Service() {
         }
 
         val isBatterySaver = prefs.getBoolean("radar_battery_saver", false)
-        val interval = if (isBatterySaver) 30_000L else 12_000L
+        val interval = if (isBatterySaver) 120_000L else 60_000L
 
         // Iniciar tracking continuo por callbacks GPS
         ThorRadarManager.startLiveTracking(this, interval)
 
         // Iniciar bucle de latido continuo en segundo plano (Heartbeat Pulse)
-        // Garantiza que aunque el teléfono esté quieto o en reposo, el timestamp y la batería se sincronicen en vivo
+        // Garantiza que aunque el teléfono esté quieto o en reposo, el timestamp y la batería se sincronicen periódicamente
         startHeartbeatLoop(interval)
 
         return START_STICKY

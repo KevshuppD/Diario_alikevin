@@ -35,3 +35,15 @@
   - Para animaciones continuas en Compose (respiración, bamboleo, traslaciones periódicas), usar **siempre** la versión lambda `Modifier.graphicsLayer { ... }` en lugar de `Modifier.graphicsLayer(...)`. Esto evita recomposiciones del árbol Compose en cada frame (60/120 FPS) delegando la transformación directamente a la GPU.
 - **Cero Alojamientos en `DrawScope`**:
   - En funciones de dibujo Canvas o `withFrameNanos`, **nunca** instanciar arrays, listas o matrices (`arrayOf(intArrayOf(...))`) dentro del ciclo de renderizado. Definirlos siempre como constantes estáticas a nivel superior (`private val ..._MATRIX`) para no saturar el Garbage Collector (GC).
+
+---
+
+## ☁️ 5. Gestión de Cuotas y Límites de Base de Datos (Cloud Firestore)
+- **Límites Spark Plan**: Firebase Spark permite un máximo de **20.000 escrituras y 50.000 lecturas por día**. Se reinicia automáticamente a las **00:00 PDT (04:00 AM hora de Chile / UTC-3)**.
+- **Smart Throttling Obligatorio**:
+  - **Prohibido el polling agresivo de escritura**: Nunca ejecutar bucles de escritura a Firestore con intervalos menores a 15–30 segundos (`ThorRadarCompose`, `ThorRadarService`).
+  - **Filtro de movimiento y batería**: Solo emitir escrituras automáticas a Firestore si hubo desplazamiento significativo ($\ge 20\text{ metros}$), cambio de batería significativo ($\ge 3\%$), o si han pasado al menos 60 segundos en reposo.
+  - **Listeners GPS**: Configurar siempre `minUpdateDistanceMeters` $\ge 10\text{m}$ para evitar que el ruido/jitter del GPS dispare escrituras cuando el dispositivo está quieto.
+  - **Bypass en acciones manuales**: Las acciones explícitas del usuario ("Actualizar ahora", pings remotos, Magic Packet WOL) **DEBEN** usar `force = true` para ejecutarse de inmediato saltándose el throttling.
+  - **Historial acotado**: Solo registrar puntos de historial (`history_`) si hubo desplazamiento real $\ge 40\text{ metros}$ y al menos 2 minutos de diferencia.
+

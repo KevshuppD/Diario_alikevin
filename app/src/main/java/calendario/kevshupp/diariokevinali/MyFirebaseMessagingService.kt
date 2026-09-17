@@ -44,7 +44,28 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         Log.d("FCM", "Datos recibidos - Title: $title, Body: $body, AuthorId: $authorId, AuthorName: $authorName")
 
-        // Evitar mostrar mi propia notificación (comparar con userId y userName)
+        val rawType = remoteMessage.data["click_type"]
+            ?: remoteMessage.data["type"]
+            ?: remoteMessage.data["destination"]
+            ?: remoteMessage.data["screen"]
+            ?: remoteMessage.data["tab"]
+            ?: remoteMessage.data["action"]
+            ?: ""
+
+        val isMagicPacket = rawType == "radar_ping" ||
+                remoteMessage.data["magic_packet"] == "WOL_LOCATION_WAKEUP"
+
+        if (isMagicPacket) {
+            Log.d("FCM", "⚡ [MAGIC PACKET] Petición radar_ping recibida. Ejecutando handleMagicLocationPing de forma silenciosa...")
+            try {
+                ThorRadarManager.handleMagicLocationPing(this)
+            } catch (e: Exception) {
+                Log.e("FCM", "Error en handleMagicLocationPing tras radar_ping", e)
+            }
+            return
+        }
+
+        // Evitar mostrar mi propia notificación visual (comparar con userId y userName)
         val prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE)
         val myId = prefs.getString("userId", "")?.trim()?.lowercase() ?: ""
         val myName = prefs.getString("userName", "")?.trim()?.lowercase() ?: ""
@@ -61,14 +82,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             return
         }
 
-        val rawType = remoteMessage.data["click_type"]
-            ?: remoteMessage.data["type"]
-            ?: remoteMessage.data["destination"]
-            ?: remoteMessage.data["screen"]
-            ?: remoteMessage.data["tab"]
-            ?: remoteMessage.data["action"]
-
-        val clickType = if (!rawType.isNullOrBlank()) {
+        val clickType = if (rawType.isNotBlank()) {
             rawType
         } else {
             val combined = "$title $body".lowercase(java.util.Locale.ROOT)
@@ -84,16 +98,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 combined.contains("espíritu") || combined.contains("espiritu") || combined.contains("checklist") -> "espiritus"
                 else -> "carta"
             }
-        }
-
-        if (rawType == "radar_ping" || clickType == "radar_ping") {
-            Log.d("FCM", "⚡ [MAGIC PACKET] Petición radar_ping recibida. Ejecutando handleMagicLocationPing de forma silenciosa...")
-            try {
-                ThorRadarManager.handleMagicLocationPing(this)
-            } catch (e: Exception) {
-                Log.e("FCM", "Error en handleMagicLocationPing tras radar_ping", e)
-            }
-            return
         }
 
         sendNotification(title, body, imageUrl, clickType, remoteMessage.data)
