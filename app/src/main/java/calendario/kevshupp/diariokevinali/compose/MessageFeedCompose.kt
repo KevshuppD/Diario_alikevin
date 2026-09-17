@@ -680,6 +680,19 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
             .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = bgColor)
     ) {
+        val isSleeping = pet.getActiveIsSleeping()
+        val activeName = pet.getActiveName()
+        val activeLevel = pet.getActiveLevel()
+        val activeStatus = pet.getActiveStatus()
+        val activeSleepPercent = pet.getActiveSleepPercent()
+        val activeHappiness = pet.getActiveHappiness()
+        val activeExp = pet.getActiveExperience()
+        val activeHunger = pet.getActiveHunger()
+        val activeCleanliness = pet.getActiveCleanliness()
+        val activeLastInteraction = pet.getActiveLastInteraction()
+        val activeLastInteractionDate = pet.getActiveLastInteractionDate()
+        val activeStreak = pet.getActiveStreak()
+
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -688,33 +701,33 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                     modifier = Modifier
                         .size(80.dp)
                         .border(2.dp, borderColor)
-                        .background(if (pet.isSleeping) Color(0xFF0F0F3D) else Color.White.copy(alpha = 0.1f))
+                        .background(if (isSleeping) Color(0xFF0F0F3D) else Color.White.copy(alpha = 0.1f))
                         .clickable { isClicked = true }
                         .padding(4.dp)
                 ) {
-                    val thorImageRes = getPetDrawableRes(pet)
+                    val petImageRes = getPetDrawableRes(pet)
                     
                     Image(
-                        painter = painterResource(id = thorImageRes),
+                        painter = painterResource(id = petImageRes),
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxSize()
-                            .graphicsLayer(
-                                scaleX = breathingScale * clickScale,
-                                scaleY = breathingScale * clickScale,
-                                translationY = if (pet.isSleeping) 0f else bobbingOffset,
-                                rotationZ = if (pet.isSleeping) 0f else wiggleRotation
-                            )
+                            .graphicsLayer {
+                                scaleX = breathingScale * clickScale
+                                scaleY = breathingScale * clickScale
+                                translationY = if (isSleeping) 0f else bobbingOffset
+                                rotationZ = if (isSleeping) 0f else wiggleRotation
+                            }
                     )
 
-                    if (pet.isSleeping) {
+                    if (isSleeping) {
                         Text(
                             text = "💤",
                             fontFamily = Vt323,
                             fontSize = 12.sp,
                             modifier = Modifier.align(Alignment.TopEnd).padding(2.dp)
                         )
-                    } else if (pet.status == Pet.STATUS_HUNGRY) {
+                    } else if (activeStatus == Pet.STATUS_HUNGRY) {
                         Text(
                             text = "🍖",
                             fontFamily = Vt323,
@@ -733,7 +746,7 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = pet.name,
+                            text = activeName,
                             fontFamily = Vt323,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
@@ -747,7 +760,7 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                             modifier = Modifier.padding(start = 4.dp)
                         ) {
                             Text(
-                                text = "LVL ${pet.level}",
+                                text = "LVL $activeLevel",
                                 fontFamily = Vt323,
                                 fontSize = 14.sp,
                                 color = Color.White,
@@ -756,17 +769,17 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         }
                     }
                     
-                    val stateText = if (pet.isSleeping) {
-                        val remainingMinutes = (100 - pet.sleepPercent) * 4
+                    val stateText = if (isSleeping) {
+                        val remainingMinutes = (100 - activeSleepPercent) * 4
                         val hours = remainingMinutes / 60
                         val minutes = remainingMinutes % 60
-                        if (pet.sleepPercent >= 100) {
-                            "Estado: ${pet.status} (¡Descansado!)"
+                        if (activeSleepPercent >= 100) {
+                            "Estado: $activeStatus (¡Descansado!)"
                         } else {
-                            "Estado: ${pet.status} (Falta ${hours}h ${minutes}m)"
+                            "Estado: $activeStatus (Falta ${hours}h ${minutes}m)"
                         }
                     } else {
-                        "Estado: ${pet.status}"
+                        "Estado: $activeStatus"
                     }
                     Text(
                         text = stateText,
@@ -791,7 +804,7 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                                 color = if (isDark) Color.LightGray else Color.DarkGray
                             )
                             Text(
-                                text = "${pet.happiness}%",
+                                text = "$activeHappiness%",
                                 fontFamily = Vt323,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
@@ -799,12 +812,12 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                             )
                         }
                         
-                        val timeUntilDecay = rememberTimeUntilDecay(pet.lastInteraction, pet.happiness)
+                        val timeUntilDecay = rememberTimeUntilDecay(activeLastInteraction, activeHappiness)
                         Text(
                             text = timeUntilDecay,
                             fontFamily = Vt323,
                             fontSize = 12.sp,
-                            color = if (pet.happiness <= 0) Color(0xFFFF4081) else if (isDark) Color.LightGray.copy(alpha = 0.7f) else Color.DarkGray.copy(alpha = 0.7f),
+                            color = if (activeHappiness <= 0) Color(0xFFFF4081) else if (isDark) Color.LightGray.copy(alpha = 0.7f) else Color.DarkGray.copy(alpha = 0.7f),
                             modifier = Modifier.padding(bottom = 2.dp)
                         )
                         
@@ -818,9 +831,9 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth(pet.happiness / 100f)
+                                    .fillMaxWidth(activeHappiness / 100f)
                                     .fillMaxHeight()
-                                    .background(if (pet.happiness > 50) Color(0xFF4CAF50) else Color(0xFFF44336))
+                                    .background(if (activeHappiness > 50) Color(0xFF4CAF50) else Color(0xFFF44336))
                             )
                         }
                     }
@@ -841,7 +854,7 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                                 color = if (isDark) Color.LightGray else Color.DarkGray
                             )
                             Text(
-                                text = "${pet.experience}/100 XP",
+                                text = "$activeExp/100 XP",
                                 fontFamily = Vt323,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
@@ -857,7 +870,7 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth(pet.experience / 100f)
+                                    .fillMaxWidth(activeExp / 100f)
                                     .fillMaxHeight()
                                     .background(Color(0xFF2196F3))
                             )
@@ -880,7 +893,7 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                                 color = if (isDark) Color.LightGray else Color.DarkGray
                             )
                             Text(
-                                text = "${pet.hunger}%",
+                                text = "$activeHunger%",
                                 fontFamily = Vt323,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
@@ -897,9 +910,9 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth(pet.hunger / 100f)
+                                    .fillMaxWidth(activeHunger / 100f)
                                     .fillMaxHeight()
-                                    .background(if (pet.hunger >= 70) Color(0xFFF44336) else Color(0xFFFF9800))
+                                    .background(if (activeHunger >= 70) Color(0xFFF44336) else Color(0xFFFF9800))
                             )
                         }
                     }
@@ -920,7 +933,7 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                                 color = if (isDark) Color.LightGray else Color.DarkGray
                             )
                             Text(
-                                text = "${pet.cleanliness}%",
+                                text = "$activeCleanliness%",
                                 fontFamily = Vt323,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
@@ -937,9 +950,9 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth(pet.cleanliness / 100f)
+                                    .fillMaxWidth(activeCleanliness / 100f)
                                     .fillMaxHeight()
-                                    .background(if (pet.cleanliness < 30) Color(0xFFF44336) else Color(0xFF0EA5E9))
+                                    .background(if (activeCleanliness < 30) Color(0xFFF44336) else Color(0xFF0EA5E9))
                             )
                         }
                     }
@@ -978,9 +991,9 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                     cal.add(Calendar.DAY_OF_YEAR, -1)
                     SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
                 }
-                val isStreakActive = pet.lastInteractionDate != null &&
-                        (pet.lastInteractionDate == todayStr || pet.lastInteractionDate == yesterdayStr)
-                val effectiveStreak = if (isStreakActive) pet.streakDays else 0
+                val isStreakActive = activeLastInteractionDate != null &&
+                        (activeLastInteractionDate == todayStr || activeLastInteractionDate == yesterdayStr)
+                val effectiveStreak = if (isStreakActive) activeStreak else 0
 
                 if (effectiveStreak > 0) {
                     Surface(

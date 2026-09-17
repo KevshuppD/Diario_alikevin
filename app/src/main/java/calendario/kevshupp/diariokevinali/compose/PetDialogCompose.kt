@@ -483,33 +483,34 @@ fun PetMenuDialog(
                                     contentScale = ContentScale.Fit,
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .graphicsLayer(
-                                            scaleX = if (isCuky && !pet.getActiveIsSleeping() && !isWashing && !isPlayingBall) {
+                                        .graphicsLayer {
+                                            val activeSleeping = pet.getActiveIsSleeping()
+                                            scaleX = if (isCuky && !activeSleeping && !isWashing && !isPlayingBall) {
                                                 cukyFacingDirection * (if (dIsClicked) dBreathingScale * dClickScale else dBreathingScale)
                                             } else {
-                                                if (pet.getActiveIsSleeping() || isWashing) dBreathingScale else dBreathingScale * dClickScale
-                                            },
-                                            scaleY = if (pet.getActiveIsSleeping() || isWashing) dBreathingScale else dBreathingScale * dClickScale,
-                                            translationX = if (isCuky && !pet.getActiveIsSleeping() && !isWashing && !isPlayingBall) {
+                                                if (activeSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale
+                                            }
+                                            scaleY = if (activeSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale
+                                            translationX = if (isCuky && !activeSleeping && !isWashing && !isPlayingBall) {
                                                 cukyWalkX.value
                                             } else {
                                                 catTranslationX.value
-                                            },
-                                            translationY = if (isCuky && !pet.getActiveIsSleeping() && !isWashing && !isPlayingBall) {
+                                            }
+                                            translationY = if (isCuky && !activeSleeping && !isWashing && !isPlayingBall) {
                                                 cukyWalkY.value + cukyStepBounce.value + cukyPeckOffsetY.value
-                                            } else if (pet.getActiveIsSleeping() || isWashing) {
+                                            } else if (activeSleeping || isWashing) {
                                                 catTranslationY.value
                                             } else {
                                                 dBobbingOffset + catTranslationY.value
-                                            },
-                                            rotationZ = if (isCuky && !pet.getActiveIsSleeping() && !isWashing && !isPlayingBall) {
+                                            }
+                                            rotationZ = if (isCuky && !activeSleeping && !isWashing && !isPlayingBall) {
                                                 cukyWaddleRotation.value + cukyPeckRotation.value
-                                            } else if (pet.getActiveIsSleeping() || isWashing) {
+                                            } else if (activeSleeping || isWashing) {
                                                 0f
                                             } else {
                                                 dWiggleRotation
                                             }
-                                        )
+                                        }
                                 )
 
                                 // Semillitas que aparecen en el suelo cuando Cuky picotea
@@ -856,13 +857,14 @@ fun PetMenuDialog(
                                 .padding(bottom = 12.dp)
                                 .border(2.dp, borderColor)
                         ) {
+                            val isSleeping = pet.getActiveIsSleeping()
                             val previewBgRes = when (previewBackground) {
-                                "coop" -> if (pet.isSleeping) R.drawable.bg_cuky_coop_night else R.drawable.bg_cuky_coop_day
-                                "farm" -> if (pet.isSleeping) R.drawable.bg_cuky_farm_night else R.drawable.bg_cuky_farm_day
-                                "jungle" -> if (pet.isSleeping) R.drawable.bg_thor_jungle_night else R.drawable.bg_thor_jungle_day
-                                "space" -> if (pet.isSleeping) R.drawable.bg_thor_space_night else R.drawable.bg_thor_space_day
-                                "beach" -> if (pet.isSleeping) R.drawable.bg_thor_beach_night else R.drawable.bg_thor_beach_day
-                                else -> if (pet.isSleeping) R.drawable.bg_thor_room_night else R.drawable.bg_thor_room_day
+                                "coop" -> if (isSleeping) R.drawable.bg_cuky_coop_night else R.drawable.bg_cuky_coop_day
+                                "farm" -> if (isSleeping) R.drawable.bg_cuky_farm_night else R.drawable.bg_cuky_farm_day
+                                "jungle" -> if (isSleeping) R.drawable.bg_thor_jungle_night else R.drawable.bg_thor_jungle_day
+                                "space" -> if (isSleeping) R.drawable.bg_thor_space_night else R.drawable.bg_thor_space_day
+                                "beach" -> if (isSleeping) R.drawable.bg_thor_beach_night else R.drawable.bg_thor_beach_day
+                                else -> if (isSleeping) R.drawable.bg_thor_room_night else R.drawable.bg_thor_room_day
                             }
                             Image(
                                 painter = painterResource(id = previewBgRes),
@@ -874,7 +876,7 @@ fun PetMenuDialog(
                             val previewMascotRes = getPetDrawableRes(
                                 pet = pet,
                                 accessory = previewAccessory,
-                                isSleeping = pet.isSleeping
+                                isSleeping = isSleeping
                             )
                             val previewMascotSize = if (pet.isCuky()) 110.dp else 90.dp
                             Image(
@@ -886,7 +888,7 @@ fun PetMenuDialog(
                                     .padding(bottom = 6.dp)
                             )
 
-                            if (pet.isSleeping) {
+                            if (isSleeping) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -1479,7 +1481,7 @@ fun MinigamesSelectorDialog(
                     modifier = Modifier.padding(bottom = 10.dp)
                 )
 
-                // Botón Flappy Thor
+                // Botón Flappy Pet
                 Button(
                     onClick = onPlayFlappy,
                     modifier = Modifier
@@ -1494,15 +1496,17 @@ fun MinigamesSelectorDialog(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val flappyIconRes = if (pet.isCuky()) R.drawable.ic_cuky_balloon else R.drawable.ic_thor_balloon
+                        val flappyTitle = if (pet.isCuky()) "🐔 FLAPPY CUKY 🪽" else "🐱 FLAPPY THOR 🪽"
                         Image(
-                            painter = painterResource(id = R.drawable.ic_thor_balloon),
+                            painter = painterResource(id = flappyIconRes),
                             contentDescription = null,
                             modifier = Modifier.size(32.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("🐱 FLAPPY THOR 🪽", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                                Text(flappyTitle, fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
                                 if (playedFlappyToday) {
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("⭐ Libre", fontFamily = Vt323, fontSize = 13.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
@@ -1510,7 +1514,7 @@ fun MinigamesSelectorDialog(
                             }
                             Text(
                                 if (playedFlappyToday) "¡Juega por diversión! (Premio de hoy listo)"
-                                else "¡Vuela y esquiva tubos! ✨ Recompensa diaria",
+                                else "¡Vuela y esquiva obstáculos! ✨ Recompensa diaria",
                                 fontFamily = Vt323,
                                 fontSize = 13.sp,
                                 color = contentColor.copy(alpha = 0.75f)
@@ -1704,7 +1708,7 @@ fun SettingsMenuButton(
 fun getPetDrawableRes(
     pet: Pet,
     accessory: String? = pet.getActiveEquippedAccessory(),
-    isSleeping: Boolean = pet.isSleeping,
+    isSleeping: Boolean = pet.getActiveIsSleeping(),
     isWashing: Boolean = false,
     isPlayingBall: Boolean = false
 ): Int {
@@ -1769,20 +1773,20 @@ fun PetCaregiverRankingContent(
     val kevinPct = ((kevinPts.toFloat() / totalPts) * 100).toInt()
     val aliPct = 100 - kevinPct
 
-    val feedKevin = when (rankingFilter) { "thor" -> pet.feedCountKevinThor; "cuky" -> pet.feedCountKevinCuky; else -> pet.feedCountKevin }
-    val feedAli = when (rankingFilter) { "thor" -> pet.feedCountAliThor; "cuky" -> pet.feedCountAliCuky; else -> pet.feedCountAli }
+    val feedKevin = pet.getFeedCountKevin(rankingFilter)
+    val feedAli = pet.getFeedCountAli(rankingFilter)
 
-    val bathKevin = when (rankingFilter) { "thor" -> pet.bathCountKevinThor; "cuky" -> pet.bathCountKevinCuky; else -> pet.bathCountKevin }
-    val bathAli = when (rankingFilter) { "thor" -> pet.bathCountAliThor; "cuky" -> pet.bathCountAliCuky; else -> pet.bathCountAli }
+    val bathKevin = pet.getBathCountKevin(rankingFilter)
+    val bathAli = pet.getBathCountAli(rankingFilter)
 
-    val playKevin = when (rankingFilter) { "thor" -> pet.playCountKevinThor; "cuky" -> pet.playCountKevinCuky; else -> pet.playCountKevin }
-    val playAli = when (rankingFilter) { "thor" -> pet.playCountAliThor; "cuky" -> pet.playCountAliCuky; else -> pet.playCountAli }
+    val playKevin = pet.getPlayCountKevin(rankingFilter)
+    val playAli = pet.getPlayCountAli(rankingFilter)
 
-    val tapKevin = when (rankingFilter) { "thor" -> pet.tapCountKevinThor; "cuky" -> pet.tapCountKevinCuky; else -> pet.tapCountKevin }
-    val tapAli = when (rankingFilter) { "thor" -> pet.tapCountAliThor; "cuky" -> pet.tapCountAliCuky; else -> pet.tapCountAli }
+    val tapKevin = pet.getTapCountKevin(rankingFilter)
+    val tapAli = pet.getTapCountAli(rankingFilter)
 
-    val minigameKevin = when (rankingFilter) { "thor" -> pet.minigameCountKevinThor; "cuky" -> pet.minigameCountKevinCuky; else -> pet.minigameCountKevin }
-    val minigameAli = when (rankingFilter) { "thor" -> pet.minigameCountAliThor; "cuky" -> pet.minigameCountAliCuky; else -> pet.minigameCountAli }
+    val minigameKevin = pet.getMinigameCountKevin(rankingFilter)
+    val minigameAli = pet.getMinigameCountAli(rankingFilter)
 
     var showGuide by remember { mutableStateOf(false) }
 

@@ -8,7 +8,7 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
 **Diario** es una aplicación móvil nativa para Android diseñada exclusivamente para parejas. Resuelve la falta de espacios íntimos y compartidos al digitalizar recuerdos de amor mediante pilares funcionales integrados:
 1. **Diario Compartido:** Envío de cartas y mensajes con imágenes con paginación progresiva de 5 en 5, likes, visualización en grilla (álbum) y subidas directas a Cloudinary.
 2. **Calendario y Recetas:** Un calendario común para recordar aniversarios/citas (con alertas automáticas) y un recetario culinario de cocina compartido con fotos e ingredientes.
-3. **Mascota Virtual (Thor):** Sistema de gamificación en formato pixel-art en el que un gato virtual reacciona a la interacción diaria de la pareja, subiendo de nivel, acumulando Puntos de Amor y desbloqueando ropa/accesorios en una tienda interactiva.
+3. **Mascota Virtual (Thor & Cuky):** Sistema de gamificación multiespecie en formato pixel-art en el que un gato (Thor) o una gallinita (Cuky) reacciona a la interacción diaria de la pareja con estadísticas, niveles, necesidades y guardarropas 100% independientes, acumulando Puntos de Amor, subiendo de nivel y desbloqueando ropa/fondos temáticos en una tienda interactiva.
 4. **Sincronización Local-Nube (Google Drive)**: Respaldo y replicación automática bidireccional en segundo plano de la carpeta de fotos local seleccionada por cada usuario mediante `SyncDriveWorker` (Foreground Service), sincronizando incluso eliminaciones entre dispositivos con tombstones.
 5. **Ficha Médica de Emergencia (Datos Vitales)**: Módulo interactivo dentro de la pantalla de Perfil con sincronización Firestore en tiempo real (`medical_records/<coupleId>`) que permite consultar datos médicos (grupo sanguíneo, alergias, enfermedades, seguro, remedios activos de la app y contacto de emergencia con marcación `ACTION_DIAL`) en una vista limpia de tarjetas por defecto tanto para tu ficha como para la de tu pareja, incluyendo un botón destacado `✏️ EDITAR` para modificar la información en cualquier momento.
 6. **Horario de Clases Compartido (Misc -> Horario)**: Módulo interactivo dentro del menú Misceláneo con sincronización Firestore en tiempo real (`schedules/<coupleId>`). Permite registrar, editar y consultar clases de Kevin, Ali o Ambos de Lunes a Viernes en una grilla retro por horas de 145dp con arquitectura de superposición unificada (Overlay), posicionamiento proporcional exacto por minuto, tarjetas continuas sin líneas de corte, margen de horas automático, soporte de solapamientos simultáneos y diseño adaptable para rotación horizontal (Landscape).
@@ -72,9 +72,9 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 - [UpdateManager.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/UpdateManager.kt) & [UpdateWorker.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/UpdateWorker.kt): Consulta de la API de GitHub Releases, descarga de la APK firmada e instalación automática.
 
 ### 📁 Pantallas en Jetpack Compose (`compose/`)
-- [MessageFeedCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt): Feed principal con paginación de 5 en 5 cartas, tarjeta de **Thor** con animaciones, estado de racha y diálogo de confirmación de borrado.
-- [PetDialogCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/PetDialogCompose.kt): Diálogo interactivo a pantalla completa de **Thor** (Habitación 2D, animación de baño, pelota, tienda de ropa/fondos, alimentos, ajustes y selector de minijuegos).
-- [MemoryGameCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MemoryGameCompose.kt): Minijuego Retro Memory (Juego de Memoria con cartas pixel-art de los accesorios de Thor).
+- [MessageFeedCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt): Feed principal con paginación de 5 en 5 cartas, tarjeta de mascota adaptativa (`PetCard` para Thor / Cuky) con animaciones en Draw Phase (`graphicsLayer { ... }`), getters dinámicos (`getActive...()`), estado de racha y diálogo de confirmación de borrado.
+- [PetDialogCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/PetDialogCompose.kt): Diálogo interactivo a pantalla completa de mascotas (**Thor & Cuky**) con selector switchable, habitación 2D / gallinero, animaciones de baño y pelota adaptadas a cada especie, tienda de ropa/fondos independientes, alimentos temáticos (pescado/carne vs semillas/maíz), ranking de cuidadores por mascota y selector de minijuegos con iconos dinámicos.
+- [MemoryGameCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MemoryGameCompose.kt): Minijuego Retro Memory (Juego de Memoria con cartas pixel-art de los accesorios de la mascota activa).
 - [MessageEditorCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageEditorCompose.kt): Editor y redactor de cartas con selección multimedia y subida directa a Cloudinary.
 - [AlbumCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/AlbumCompose.kt): Grilla de fotos retro con filtros por fecha, visor de pantalla completa e información del archivo.
 - [SettingsSyncCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/SettingsSyncCompose.kt): Interfaz retro para vincular Google Drive, selector de líneas paralelas de subida (1 a 5) y contadores dinámicos.
@@ -86,8 +86,8 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 - [RecipeCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/RecipeCompose.kt) & [RecipeDetailCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/RecipeDetailCompose.kt): Libro de recetas de cocina compartido.
 - [CalendarCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/CalendarCompose.kt): Vista mensual de citas y eventos de la pareja.
 - [ScheduleCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/ScheduleCompose.kt): Grilla de Horario de Clases compartido de Lunes a Viernes con superposición Overlay, tarjetas de 145dp, cálculo proporcional y soporte horizontal.
-- [FlappyThorCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/FlappyThorCompose.kt): Minijuego arcade retro Flappy Thor con selector de modo (Pantalla Completa / Consola Pocket), física calibrada, motor de sonido 8-bits procedimental, corazones coleccionables y recompensas.
-- [SnakeGameCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/SnakeGameCompose.kt): Minijuego clásico La Serpiente con selector de modo (Pantalla Completa con gestos táctiles Swipe y D-PAD ergonómico / Consola Pocket), efectos de sonido y puntuación.
+- [FlappyThorCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/FlappyThorCompose.kt): Minijuego arcade retro Flappy Pet adaptativo (`FLAPPY THOR` / `FLAPPY CUKY`) con selector de modo (Pantalla Completa / Consola Pocket), matrices de dibujo estáticas a nivel superior (cero recolección de basura GC), sprites procedurales adaptados por mascota, física delta-time a 60/90/120 FPS, corazones y recompensas.
+- [SnakeGameCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/SnakeGameCompose.kt): Minijuego clásico La Serpiente adaptativo (`THOR SNAKE` / `CUKY SNAKE`) con selector de modo (Pantalla Completa con Swipe y D-PAD ergonómico / Consola Pocket), efectos de sonido y puntuación.
 - [ThorRadarCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/ThorRadarCompose.kt): Módulo completo de ubicación y radar para parejas (Mapa interactivo Osmdroid, brújula giratoria, zonas seguras con geocercas, historial de ruta, batería en vivo y alertas SOS).
 - [MiscCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MiscCompose.kt): Menú principal misceláneo con acceso a Espíritus, Anime, Web de Gestión, Medicamentos, Horario y Thor Radar.
 
@@ -96,14 +96,26 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 ## 4. Modelos de Datos y Entidades en Firestore
 
 ### A. Mascota (`pets/<coupleId>`) - `Pet.kt`
-- `happiness: Int` (Felicidad de 0 a 100).
-- `level: Int` (Nivel actual, inicia en 1).
-- `lovePoints: Int` (Monedas acumuladas para la tienda).
-- `experience: Int` (Experiencia acumulada de 0 a 100).
-- `streakDays: Int` (Racha de días interactuando).
-- `lastInteraction: Long` (Timestamp del último contacto).
-- `equippedAccessory: String?` (ID del accesorio activo).
-- `unlockedAccessories: List<String>` (Colección de accesorios comprados).
+- **Mascota Activa:** `petType: String` (`"thor"` o `"cuky"`).
+- **Estadísticas de Thor (Gatito):**
+  - `name: String` ("Thor"), `customName: String?`
+  - `happiness: Int` (0 a 100), `hunger: Int` (0 a 100), `cleanliness: Int` (0 a 100)
+  - `level: Int`, `experience: Int` (0 a 100), `streakDays: Int`, `lastInteraction: Long`
+  - `isSleeping: Boolean`, `sleepStartTimestamp: Long?`
+  - `equippedAccessory: String?`, `unlockedAccessories: List<String>`
+  - `equippedBackground: String?`, `unlockedBackgrounds: List<String>`
+- **Estadísticas de Cuky (Gallinita Café) - 100% Independientes:**
+  - `cukyName: String` ("Cuky"), `cukyCustomName: String?`
+  - `cukyHappiness: Int` (0 a 100), `cukyHunger: Int` (0 a 100), `cukyCleanliness: Int` (0 a 100)
+  - `cukyLevel: Int`, `cukyExperience: Int` (0 a 100), `cukyStreakDays: Int`, `cukyLastInteraction: Long`
+  - `cukyIsSleeping: Boolean`, `cukySleepStartTimestamp: Long?`
+  - `cukyEquippedAccessory: String?`, `cukyUnlockedAccessories: List<String>`
+  - `cukyEquippedBackground: String?`, `cukyUnlockedBackgrounds: List<String>`
+- **Monedas Globales de Pareja:** `lovePoints: Int` (Monedas compartidas para la tienda de ambas mascotas).
+- **Ranking de Cuidadores por Mascota:**
+  - `carePointsKevinThor: Int`, `carePointsAliThor: Int`, `carePointsKevinCuky: Int`, `carePointsAliCuky: Int`
+  - Contadores individuales de alimentación (`feedCount...`), baño (`bathCount...`) y juego (`playCount...`) por cuidador y mascota.
+- **Getters Dinámicos Obligatorios en UI:** `pet.getActiveName()`, `pet.getActiveLevel()`, `pet.getActiveHappiness()`, `pet.getActiveExperience()`, `pet.getActiveHunger()`, `pet.getActiveCleanliness()`, `pet.getActiveStreak()`, `pet.getActiveIsSleeping()`, `pet.getActiveEquippedAccessory()`, `pet.getActiveEquippedBackground()`, etc. (Garantizan que ninguna pantalla lea accidentalmente el estado de Thor al estar Cuky seleccionada).
 
 ### B. Cartas (`messages/<messageId>`) - `Message.kt`
 - `messageId: String?` (Clave en Firestore).
@@ -160,26 +172,32 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 
 ---
 
-## 5. El Sistema de Gamificación de "Thor"
+## 5. El Sistema de Gamificación de Mascotas Virtuales ("Thor & Cuky")
 
 ```mermaid
 graph TD
-    User([Interacciones de Usuario]) -->|Enviar Mensajes / Abrir App| XP[+10 XP]
-    User -->|Interacción Manual| LP[+5 Puntos de Amor]
+    User([Interacciones de Usuario]) -->|Enviar Mensajes / Abrir App| XP[+10 XP Mascota Activa]
+    User -->|Alimentar / Bañar / Pelota| Care[+Puntos de Cuidado Individuales +EXP/Felicidad]
     User -->|Primera Partida de Minijuego Diaria| MiniReward[Puntos de Amor + EXP Diaria]
     User -->|Partidas Posteriores en el Día| FreePlay[Modo Libre / Felicidad + Diversión Ilimitada]
     XP -->|Cada 100 XP| LevelUp[Subir de Nivel +50 Puntos de Amor]
-    LP -->|Comprar Accesorios| Shop[Tienda de Thor]
-    Shop -->|Desbloquear| Equip[Equipar Accesorio]
-    Time([Transcurso del Tiempo]) -->|Cada 24 horas| Decay[-20% Felicidad]
+    Care -->|Ranking Cuidadores| Rank[Top Cuidadores: Kevin vs Ali por Mascota]
+    LP[Puntos de Amor Globales] -->|Comprar Accesorios / Fondos| Shop[Tienda de Mascotas]
+    Shop -->|Desbloquear| Equip[Equipar Ropa / Fondos Independientes]
+    Time([Transcurso del Tiempo]) -->|Cada 24 horas| Decay[-20% Felicidad / Hambre / Higiene]
 ```
 
-- **Mecánica de Minijuegos (Retro Memory, Flappy Thor, La Serpiente):**
-  - **Recompensa Diaria (1ª partida del día):** Otorga los Puntos de Amor (❤️) y EXP (✨) correspondientes automáticamente al terminar/perder la partida, activando el *Modo Libre*.
+- **Arquitectura de Mascotas 100% Independiente:**
+  - **Thor (Gatito)** y **Cuky (Gallinita Café)** cuentan con su propio ciclo de vida: nivel, barra de experiencia, hambre, higiene, felicidad, sueño (`isSleeping` / `cukyIsSleeping`), timestamp de siesta y racha de días activos.
+  - Al alimentar, bañar, dormir o jugar con una mascota, las modificaciones de estado se aplican **exclusivamente a la mascota activa** sin alterar los atributos de la otra.
+  - **Ranking de Cuidadores Especializado:** Registro individualizado de puntos de cuidado (`carePointsKevinThor`, `carePointsAliThor`, `carePointsKevinCuky`, `carePointsAliCuky`), permitiendo ver quién es el cuidador número 1 de Thor y quién de Cuky, además del acumulado global.
+- **Mecánica de Minijuegos Adaptativos (Retro Memory, Flappy Pet, La Serpiente):**
+  - **Títulos y Sprites Dinámicos:** Los minijuegos adaptan automáticamente sus nombres, logos y personajes jugables según la mascota activa (`"🐔 FLAPPY CUKY 🪽"` vs `"🐱 FLAPPY THOR 🪽"`, `"${pet.getActiveName().uppercase()} SNAKE"`, `"${pet.getActiveName().uppercase()} POCKET™"`).
+  - **Recompensa Diaria (1ª partida del día):** Otorga los Puntos de Amor (❤️) y EXP (✨) correspondientes automáticamente al terminar/perder la partida a la mascota activa, activando el *Modo Libre*.
   - **Modo Libre Ilimitado:** Una vez reclamada la recompensa diaria, los minijuegos **nunca se bloquean**. Los usuarios pueden seguir jugando infinitamente para batir récords y divertirse.
   - **Ranking de Récords de Pareja:** Se persisten y sincronizan en Firestore los mejores récords de Kevin y Ali (`flappyHighScoreKevin`, `flappyHighScoreAli`, `snakeHighScoreKevin`, `snakeHighScoreAli`), mostrándose en el selector y en las pantallas de fin de partida.
-  - **Dificultad Dinámica en Flappy Thor:** Tuberías generadas con aperturas y alturas variables (aperturas estrechas desafiantes con recompensas de corazones, tuberías extremas y aceleración progresiva).
-  - **Selector de Minijuegos Ampliado:** Diálogo con mayor espacio visual, badges de récords de pareja y estado claro de recompensa diaria vs modo libre.
+  - **Rendimiento Anti-Lag a 60/90/120 FPS:** Matrices de píxeles estáticas a nivel superior (`HEART_PIXEL_MATRIX`, `THOR_PIXEL_MATRIX`, `CUKY_PIXEL_MATRIX`) para cero recolección de basura (GC Churn) en el bucle de dibujo de Compose Canvas, junto con delta-time dinámico.
+  - **Selector de Minijuegos Ampliado:** Diálogo con mayor espacio visual, badges de récords de pareja, icono adaptado de mascota (`ic_thor_balloon` / `ic_cuky_balloon`) y estado claro de recompensa diaria vs modo libre.
 
 ## 6. Flujos de Sincronización (Google Drive & Firestore)
 
@@ -242,6 +260,8 @@ graph TD
 15. **Compresión y Downsampling Preventivo Pre-Cloudinary (`ImageUtils.kt` / `MainActivity.kt`)**: Función `compressImageForUpload` ejecutada en background antes de enviar cualquier archivo a Cloudinary, reescalando y comprimiendo fotos pesadas (de 15-20MB a <600KB), reduciendo en un 90% el tiempo de subida y el consumo de datos.
 16. **Física por Delta-Time Adaptativa para Minijuegos a 90Hz / 120Hz (`FlappyThorCompose.kt`)**: Sincronización del bucle del juego mediante `withFrameNanos` y factor de tiempo delta $\Delta t$, permitiendo renderizado nativo a 90 FPS y 120 FPS sin alterar la calibración ni velocidad de las físicas de salto y obstáculos.
 17. **Memorización de Estructuras y Recomposición de Calendario (`CalendarCompose.kt`)**: Extracción y encapsulación de `dayEvents` y cálculos de matriz mensual (`daysInMonth`, `startOffset`, `selectedDayOfMonth`) en bloques `remember`, además de asignación de `key = { it.eventId }` en `LazyColumn`, eliminando docenas de instanciaciones `Calendar.getInstance()` por frame.
+18. **Animaciones en Fase de Dibujo (Draw-Phase) con `Modifier.graphicsLayer { ... }` (`MessageFeedCompose.kt` / `PetDialogCompose.kt`)**: Migración de todas las animaciones de mascotas (respiración, waddling, bamboleo y flotación) a la sobrecarga lambda de `graphicsLayer`. Esto transfiere la ejecución directamente al RenderNode de la GPU, previniendo recomposiciones masivas del árbol de Jetpack Compose en cada fotograma a 60/90/120 FPS.
+19. **Cero Asignaciones en Dibujo de Minijuegos (Zero GC Allocation Canvas - `FlappyThorCompose.kt`)**: Extracción de todas las matrices de píxeles (`HEART_PIXEL_MATRIX`, `THOR_PIXEL_MATRIX`, `CUKY_PIXEL_MATRIX`) a constantes estáticas de nivel superior en memoria (`private val`), eliminando por completo la creación de arrays en caliente dentro del ciclo `withFrameNanos` y suprimiendo el lag por Garbage Collection.
 
 ---
 
@@ -443,9 +463,31 @@ graph TD
     - Alimentos temáticos de granja cuando Cuky está activa (`🌾 Semillas de Amor`, `🌽 Maíz Dorado`, `🍉 Sandía Fresca`, `🪱 Banquete de Gusano`).
     - Adaptación en minijuego *Flappy* con sprite dedicado aleteando en pixel-art procedural (`drawBrownCukyBirdSprite`) tanto en pantalla completa como en modo consola Pocket LCD.
     - Soporte en Widgets de escritorio (`ThorWidgetProvider`) y Feed de Cartas principal (`MessageFeedCompose`).
+13. **Sincronización Atómica y Normalización de Ranking de Cuidadores en Firestore (v1.7.51):**
+    - **Operaciones Atómicas en Backend (`FieldValue.increment`):** Todas las acciones de interacción y cuidado (comidas, baños, pelotas, caricias/mimos, minijuegos, cartas y álbum) utilizan `FieldValue.increment(...)` directamente en Cloud Firestore, suprimiendo cualquier condición de carrera o sobreescritura cuando Kevin y Ali interactúan al mismo tiempo.
+    - **Normalización y Migración Histórica (`checkAndMigratePetRanking`):** Migración automática de puntos históricos que residían en campos generales (`carePointsKevin` / `carePointsAli` y contadores de categorías) hacia los campos dedicados de Thor (`carePoints...Thor`, `feedCount...Thor`, etc.) directamente en el documento de Firestore, garantizando que ambos dispositivos reciban y muestren exactamente los mismos números.
+    - **Corrección de Identidad de Sesión en Minijuegos:** Corrección del acceso a SharedPreferences en `FlappyThorCompose` y `SnakeGameCompose` (migrado de `"diario_prefs"` a `"DiarioPrefs"`), resolviendo el bug donde las puntuaciones de Ali se asignaban erróneamente al perfil de Kevin.
+14. **Estrategia y Arquitectura para Repositorio Privado con Actualizaciones OTA:**
+    - Documentadas las 3 alternativas para hacer privado el repositorio de código fuente preservando las actualizaciones silenciosas:
+      1. **Repositorio Espejo Público para Releases (Recomendada):** Código fuente en repo privado (`Diario_alikevin`) y publicación automática del APK mediante CI/CD GitHub Actions en un repositorio público secundario vacío de releases (ej. `Diario_releases`), sin requerir tokens en la app cliente.
+      2. **Token PAT Fine-Grained de Solo Lectura:** Inyección de `Authorization: Bearer <TOKEN>` con permisos exclusivos de lectura de Releases en `UpdateManager.kt`.
+      3. **Hosting de Binarios en Cloudinary / Firebase Storage:** Subida del APK al bucket cloud con archivo descriptor `version.json`.
+15. **Panel de Administrador en Configuración (`ProfileSettingsCompose.kt` / `SettingsFragment.kt` - v1.7.52):**
+    - Sección protegida por contraseña (`"123"`) accesible en el menú de Configuración (`[ 🔒 Panel Administrador ]`).
+    - Integración de 3 acciones maestras de reinicio con modal de confirmación previa retro:
+      1. **👑 Reiniciar Ranking de Cuidadores (`adminResetRanking`):** Restablece a 0 en Firestore todos los puntos de cuidadores de Kevin y Ali (globales y por mascota), así como todos los contadores de interacción (comida, baño, pelota y minijuegos).
+      2. **🎮 Reiniciar Minijuegos (`adminResetMinigames`):** Restablece a 0 los récords máximos (High Scores) de Flappy y Snake de ambos usuarios y limpia las fechas de partidas diarias tanto en Firestore como en SharedPreferences locales (`flappy_thor_prefs`, `snake_game_prefs`).
+      3. **🐾 Reiniciar Mascotas (`adminResetPets`):** Restablece a Thor y Cuky al Nivel 1 con 0 EXP, 100% de felicidad, 100% de limpieza, 0 hambre y despiertos.
+16. **Calibración de Dificultad y Física Dinámica en Flappy Pet (`FlappyThorCompose.kt`):**
+    - **Física Reactiva y Arcade:** Ajuste preciso de impulsos (`jumpForce: -0.0076f`), gravedad balanceada (`0.00038f`) y velocidad base fluida (`0.0034f`).
+    - **Dificultad Dinámica Progresiva:** La apertura entre tuberías se reduce de manera orgánica a medida que sube el puntaje (`currentPipeGap = (baseGap - score * 0.0025f).coerceAtLeast(minGap)`), junto con un aumento gradual de la velocidad de avance (`score * 0.00005f`).
+    - **Recompensas Balanceadas:** EXP diaria acotada a `(finalScore * 2 + hearts * 3).coerceIn(10, 30)` y Puntos de Amor a `(finalScore * 2 + hearts * 2).coerceIn(5, 40)`.
+17. **Optimización del Sistema de Niveles y EXP de Mascotas (`MainViewModel.kt`):**
+    - **Corrección de Subida de Niveles Repentina:** Reemplazo de las comprobaciones condicionales simples `if (newExp >= 100)` por bucles de consumo exhaustivo `while (newExp >= 100)` en todas las interacciones (`updatePetOnInteraction`, `rewardPet`, `bathPet`, `playBallPet`, `playMinigame`), asegurando que cualquier excedente de EXP se procese correctamente en múltiples niveles con sus correspondientes bonificaciones de Puntos de Amor (+50 LP por nivel) sin dejar remanentes corruptos.
 
 ---
 
 ## 15. Tareas Pendientes / Backlog
 
 *(Sin tareas pendientes inmediatas).*
+

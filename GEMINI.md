@@ -18,8 +18,20 @@
 ---
 
 ## 🐾 3. Sistema de Mascotas Virtuales (Thor & Cuky)
-- **Estadísticas 100% Independientes**: 
+- **Estadísticas 100% Independientes y Getters Dinámicos**: 
   - Las mascotas (**Thor** y **Cuky**) tienen estados, niveles, puntos de experiencia (`experience` vs `cukyExperience`), hambre, sueño, felicidad e interacción independientes.
+  - **Regla obligatoria de lectura de estados**: En toda la UI (`PetCard`, `PetMenuDialog`, minijuegos, widgets) **NUNCA** acceder a propiedades directas de Thor (`pet.name`, `pet.isSleeping`, `pet.level`, `pet.happiness`, `pet.hunger`, `pet.cleanliness`, `pet.streakDays`). **SIEMPRE** utilizar los getters de mascota activa: `pet.getActiveName()`, `pet.getActiveIsSleeping()`, `pet.getActiveLevel()`, `pet.getActiveHappiness()`, `pet.getActiveExperience()`, `pet.getActiveHunger()`, `pet.getActiveCleanliness()`, `pet.getActiveStreak()`, `pet.getActiveEquippedAccessory()`, `pet.getActiveEquippedBackground()`, etc.
   - Al alimentar, bañar, jugar o subir de nivel a una mascota, las modificaciones solo deben impactar a la mascota activa (`pet.isCuky()` vs Thor).
 - **Ranking de Cuidadores Separado**:
   - El sistema de cuidados registra individualmente los puntos y contadores por mascota (`...Thor` y `...Cuky`) y total global, permitiendo a Kevin y Ali filtrar su historial tanto globalmente como por cada mascota.
+- **Minijuegos Generales y Adaptativos**:
+  - Los títulos, íconos y textos de minijuegos (Flappy Pet, Snake, Memory) deben ser adaptativos a la mascota activa (`"🐔 FLAPPY CUKY 🪽"` vs `"🐱 FLAPPY THOR 🪽"`, `"${pet.getActiveName().uppercase()} SNAKE"`, `"${pet.getActiveName().uppercase()} POCKET™"`).
+  - Los sprites deben cargarse según el tipo de mascota activa (`getPetDrawableRes(pet)` o `pet.isCuky()`).
+
+---
+
+## ⚡ 4. Rendimiento en Animaciones y Minijuegos (Anti-Lag)
+- **Animaciones en Draw Phase**:
+  - Para animaciones continuas en Compose (respiración, bamboleo, traslaciones periódicas), usar **siempre** la versión lambda `Modifier.graphicsLayer { ... }` en lugar de `Modifier.graphicsLayer(...)`. Esto evita recomposiciones del árbol Compose en cada frame (60/120 FPS) delegando la transformación directamente a la GPU.
+- **Cero Alojamientos en `DrawScope`**:
+  - En funciones de dibujo Canvas o `withFrameNanos`, **nunca** instanciar arrays, listas o matrices (`arrayOf(intArrayOf(...))`) dentro del ciclo de renderizado. Definirlos siempre como constantes estáticas a nivel superior (`private val ..._MATRIX`) para no saturar el Garbage Collector (GC).

@@ -161,13 +161,68 @@ data class Pet(
     }
 
     // --- MÉTODOS DE CÁLCULO DE CUIDADOS POR MASCOTA Y GLOBAL ---
-    fun getTotalCareKevin(): Int = carePointsKevinThor + carePointsKevinCuky + carePointsKevin
-    fun getThorCareKevin(): Int = carePointsKevinThor + (if (carePointsKevinThor == 0 && carePointsKevinCuky == 0) carePointsKevin else 0)
+    fun getTotalCareKevin(): Int = maxOf(carePointsKevin, carePointsKevinThor + carePointsKevinCuky)
+    fun getThorCareKevin(): Int = carePointsKevinThor + maxOf(0, carePointsKevin - (carePointsKevinThor + carePointsKevinCuky))
     fun getCukyCareKevin(): Int = carePointsKevinCuky
 
-    fun getTotalCareAli(): Int = carePointsAliThor + carePointsAliCuky + carePointsAli
-    fun getThorCareAli(): Int = carePointsAliThor + (if (carePointsAliThor == 0 && carePointsAliCuky == 0) carePointsAli else 0)
+    fun getTotalCareAli(): Int = maxOf(carePointsAli, carePointsAliThor + carePointsAliCuky)
+    fun getThorCareAli(): Int = carePointsAliThor + maxOf(0, carePointsAli - (carePointsAliThor + carePointsAliCuky))
     fun getCukyCareAli(): Int = carePointsAliCuky
+
+    fun getFeedCountKevin(filter: String): Int = when (filter) {
+        "thor" -> feedCountKevinThor + maxOf(0, feedCountKevin - (feedCountKevinThor + feedCountKevinCuky))
+        "cuky" -> feedCountKevinCuky
+        else -> maxOf(feedCountKevin, feedCountKevinThor + feedCountKevinCuky)
+    }
+    fun getFeedCountAli(filter: String): Int = when (filter) {
+        "thor" -> feedCountAliThor + maxOf(0, feedCountAli - (feedCountAliThor + feedCountAliCuky))
+        "cuky" -> feedCountAliCuky
+        else -> maxOf(feedCountAli, feedCountAliThor + feedCountAliCuky)
+    }
+
+    fun getBathCountKevin(filter: String): Int = when (filter) {
+        "thor" -> bathCountKevinThor + maxOf(0, bathCountKevin - (bathCountKevinThor + bathCountKevinCuky))
+        "cuky" -> bathCountKevinCuky
+        else -> maxOf(bathCountKevin, bathCountKevinThor + bathCountKevinCuky)
+    }
+    fun getBathCountAli(filter: String): Int = when (filter) {
+        "thor" -> bathCountAliThor + maxOf(0, bathCountAli - (bathCountAliThor + bathCountAliCuky))
+        "cuky" -> bathCountAliCuky
+        else -> maxOf(bathCountAli, bathCountAliThor + bathCountAliCuky)
+    }
+
+    fun getPlayCountKevin(filter: String): Int = when (filter) {
+        "thor" -> playCountKevinThor + maxOf(0, playCountKevin - (playCountKevinThor + playCountKevinCuky))
+        "cuky" -> playCountKevinCuky
+        else -> maxOf(playCountKevin, playCountKevinThor + playCountKevinCuky)
+    }
+    fun getPlayCountAli(filter: String): Int = when (filter) {
+        "thor" -> playCountAliThor + maxOf(0, playCountAli - (playCountAliThor + playCountAliCuky))
+        "cuky" -> playCountAliCuky
+        else -> maxOf(playCountAli, playCountAliThor + playCountAliCuky)
+    }
+
+    fun getTapCountKevin(filter: String): Int = when (filter) {
+        "thor" -> tapCountKevinThor + maxOf(0, tapCountKevin - (tapCountKevinThor + tapCountKevinCuky))
+        "cuky" -> tapCountKevinCuky
+        else -> maxOf(tapCountKevin, tapCountKevinThor + tapCountKevinCuky)
+    }
+    fun getTapCountAli(filter: String): Int = when (filter) {
+        "thor" -> tapCountAliThor + maxOf(0, tapCountAli - (tapCountAliThor + tapCountAliCuky))
+        "cuky" -> tapCountAliCuky
+        else -> maxOf(tapCountAli, tapCountAliThor + tapCountAliCuky)
+    }
+
+    fun getMinigameCountKevin(filter: String): Int = when (filter) {
+        "thor" -> minigameCountKevinThor + maxOf(0, minigameCountKevin - (minigameCountKevinThor + minigameCountKevinCuky))
+        "cuky" -> minigameCountKevinCuky
+        else -> maxOf(minigameCountKevin, minigameCountKevinThor + minigameCountKevinCuky)
+    }
+    fun getMinigameCountAli(filter: String): Int = when (filter) {
+        "thor" -> minigameCountAliThor + maxOf(0, minigameCountAli - (minigameCountAliThor + minigameCountAliCuky))
+        "cuky" -> minigameCountAliCuky
+        else -> maxOf(minigameCountAli, minigameCountAliThor + minigameCountAliCuky)
+    }
 
     fun getCaregiverLevel(points: Int): Int {
         return when {

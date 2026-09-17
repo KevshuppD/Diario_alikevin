@@ -76,9 +76,10 @@ fun SnakeGameDialog(
 
     val prefs = remember(context) { context.getSharedPreferences("snake_game_prefs", Context.MODE_PRIVATE) }
     val isCurrentUserKevin = remember(context) {
-        val mainPrefs = context.getSharedPreferences("diario_prefs", Context.MODE_PRIVATE)
+        val mainPrefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
         val uid = mainPrefs.getString("userId", "user_kevin_01") ?: "user_kevin_01"
-        uid.contains("kevin", ignoreCase = true)
+        val uname = mainPrefs.getString("userName", "Kevin") ?: "Kevin"
+        uid.contains("kevin", ignoreCase = true) || uname.contains("kevin", ignoreCase = true)
     }
     val cloudHighScore = if (isCurrentUserKevin) pet.snakeHighScoreKevin else pet.snakeHighScoreAli
     var highScore by remember { mutableStateOf(maxOf(prefs.getInt("high_score", 0), cloudHighScore)) }
@@ -145,8 +146,8 @@ fun SnakeGameDialog(
 
     fun triggerGameOverRewards(finalScore: Int) {
         if (finalScore > 0) {
-            val pts = finalScore * 2
-            val xp = finalScore * 5
+            val pts = (finalScore * 2).coerceIn(5, 40)
+            val xp = (finalScore * 2).coerceIn(10, 30)
             if (isDailyPending && !hasClaimedDailyRewardThisSession) {
                 onReward(pts, xp, finalScore)
                 hasClaimedDailyRewardThisSession = true
@@ -680,7 +681,7 @@ fun SnakeGameDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("THOR SNAKE", fontFamily = Vt323, fontSize = 12.sp, color = Color(0xFF9BBC0F), fontWeight = FontWeight.Bold)
+                                Text("${pet.getActiveName().uppercase()} SNAKE", fontFamily = Vt323, fontSize = 12.sp, color = Color(0xFF9BBC0F), fontWeight = FontWeight.Bold)
                                 Text("SCORE:${score.toString().padStart(3, '0')}", fontFamily = Vt323, fontSize = 12.sp, color = Color(0xFF9BBC0F), fontWeight = FontWeight.Bold)
                             }
 
@@ -769,7 +770,7 @@ fun SnakeGameDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("THOR POCKET™", fontFamily = Vt323, color = Color(0xFF2C2D2F), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("${pet.getActiveName().uppercase()} POCKET™", fontFamily = Vt323, color = Color(0xFF2C2D2F), fontSize = 18.sp, fontWeight = FontWeight.Bold)
 
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             // SELECT

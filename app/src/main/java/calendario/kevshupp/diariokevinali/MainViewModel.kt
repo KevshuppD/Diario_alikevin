@@ -14,6 +14,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
@@ -196,11 +197,67 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _petState.value = p
                     checkPetDecay(p)
                     savePetDataToWidgetPrefs(p)
+                    checkAndMigratePetRanking(p)
                 }
             } else {
                 val initialPet = Pet()
                 db.collection("pets").document(currentCoupleId).set(initialPet)
             }
+        }
+    }
+
+    private var hasMigratedRankingThisSession = false
+    private fun checkAndMigratePetRanking(p: Pet) {
+        if (hasMigratedRankingThisSession) return
+
+        val updates = mutableMapOf<String, Any>()
+
+        // Kevin: Si existían puntos o contadores globales legacy que no estaban en Thor ni Cuky
+        val kevinThorDiff = p.carePointsKevin - (p.carePointsKevinThor + p.carePointsKevinCuky)
+        if (kevinThorDiff > 0) updates["carePointsKevinThor"] = p.carePointsKevinThor + kevinThorDiff
+
+        val kevinFeedDiff = p.feedCountKevin - (p.feedCountKevinThor + p.feedCountKevinCuky)
+        if (kevinFeedDiff > 0) updates["feedCountKevinThor"] = p.feedCountKevinThor + kevinFeedDiff
+
+        val kevinBathDiff = p.bathCountKevin - (p.bathCountKevinThor + p.bathCountKevinCuky)
+        if (kevinBathDiff > 0) updates["bathCountKevinThor"] = p.bathCountKevinThor + kevinBathDiff
+
+        val kevinPlayDiff = p.playCountKevin - (p.playCountKevinThor + p.playCountKevinCuky)
+        if (kevinPlayDiff > 0) updates["playCountKevinThor"] = p.playCountKevinThor + kevinPlayDiff
+
+        val kevinTapDiff = p.tapCountKevin - (p.tapCountKevinThor + p.tapCountKevinCuky)
+        if (kevinTapDiff > 0) updates["tapCountKevinThor"] = p.tapCountKevinThor + kevinTapDiff
+
+        val kevinMiniDiff = p.minigameCountKevin - (p.minigameCountKevinThor + p.minigameCountKevinCuky)
+        if (kevinMiniDiff > 0) updates["minigameCountKevinThor"] = p.minigameCountKevinThor + kevinMiniDiff
+
+        // Ali: Si existían puntos o contadores globales legacy que no estaban en Thor ni Cuky
+        val aliThorDiff = p.carePointsAli - (p.carePointsAliThor + p.carePointsAliCuky)
+        if (aliThorDiff > 0) updates["carePointsAliThor"] = p.carePointsAliThor + aliThorDiff
+
+        val aliFeedDiff = p.feedCountAli - (p.feedCountAliThor + p.feedCountAliCuky)
+        if (aliFeedDiff > 0) updates["feedCountAliThor"] = p.feedCountAliThor + aliFeedDiff
+
+        val aliBathDiff = p.bathCountAli - (p.bathCountAliThor + p.bathCountAliCuky)
+        if (aliBathDiff > 0) updates["bathCountAliThor"] = p.bathCountAliThor + aliBathDiff
+
+        val aliPlayDiff = p.playCountAli - (p.playCountAliThor + p.playCountAliCuky)
+        if (aliPlayDiff > 0) updates["playCountAliThor"] = p.playCountAliThor + aliPlayDiff
+
+        val aliTapDiff = p.tapCountAli - (p.tapCountAliThor + p.tapCountAliCuky)
+        if (aliTapDiff > 0) updates["tapCountAliThor"] = p.tapCountAliThor + aliTapDiff
+
+        val aliMiniDiff = p.minigameCountAli - (p.minigameCountAliThor + p.minigameCountAliCuky)
+        if (aliMiniDiff > 0) updates["minigameCountAliThor"] = p.minigameCountAliThor + aliMiniDiff
+
+        if (updates.isNotEmpty()) {
+            hasMigratedRankingThisSession = true
+            db.collection("pets").document(currentCoupleId).update(updates)
+                .addOnSuccessListener {
+                    Log.d("MainViewModel", "Ranking de cuidadores normalizado y sincronizado en BD Firestore exitosamente")
+                }
+        } else {
+            hasMigratedRankingThisSession = true
         }
     }
 
@@ -467,7 +524,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val newHappiness = Math.min(100, currentHappiness + 10)
         var newLovePoints = p.lovePoints + 5
-        var newExp = currentExp + 10
+        var newExp = currentExp + 5
         var newLevel = currentLevel
         var newStreak = currentStreak
 
@@ -481,7 +538,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         var leveledUp = false
-        if (newExp >= 100) {
+        while (newExp >= 100) {
             newLevel++
             newExp -= 100
             newLovePoints += 50
@@ -490,14 +547,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val isKevin = isCurrentUserKevin()
         val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
-        val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
         val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
-        val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
 
         val updates = mutableMapOf<String, Any>(
             "lovePoints" to newLovePoints,
-            carePtsPetKey to (currentCarePet + 5),
-            carePtsTotalKey to (currentCareTotal + 5)
+            carePtsPetKey to FieldValue.increment(5),
+            carePtsTotalKey to FieldValue.increment(5)
         )
 
         if (isCuky) {
@@ -566,20 +621,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val isKevin = isCurrentUserKevin()
             val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
             val feedCountPetKey = if (isKevin) (if (isCuky) "feedCountKevinCuky" else "feedCountKevinThor") else (if (isCuky) "feedCountAliCuky" else "feedCountAliThor")
-            val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
-            val currentFeedPet = if (isKevin) (if (isCuky) p.feedCountKevinCuky else p.feedCountKevinThor) else (if (isCuky) p.feedCountAliCuky else p.feedCountAliThor)
-
             val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
             val feedCountTotalKey = if (isKevin) "feedCountKevin" else "feedCountAli"
-            val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
-            val currentFeedTotal = if (isKevin) p.feedCountKevin else p.feedCountAli
 
             val updates = mutableMapOf<String, Any>(
                 "lovePoints" to (p.lovePoints - cost),
-                carePtsPetKey to (currentCarePet + 10),
-                feedCountPetKey to (currentFeedPet + 1),
-                carePtsTotalKey to (currentCareTotal + 10),
-                feedCountTotalKey to (currentFeedTotal + 1)
+                carePtsPetKey to FieldValue.increment(10),
+                feedCountPetKey to FieldValue.increment(1),
+                carePtsTotalKey to FieldValue.increment(10),
+                feedCountTotalKey to FieldValue.increment(1)
             )
 
             if (isCuky) {
@@ -656,7 +706,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         var leveledUp = false
-        if (newExp >= 100) {
+        while (newExp >= 100) {
             newLevel++
             newExp -= 100
             newLovePoints += 50
@@ -670,20 +720,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val isKevin = isCurrentUserKevin()
         val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
         val tapCountPetKey = if (isKevin) (if (isCuky) "tapCountKevinCuky" else "tapCountKevinThor") else (if (isCuky) "tapCountAliCuky" else "tapCountAliThor")
-        val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
-        val currentTapPet = if (isKevin) (if (isCuky) p.tapCountKevinCuky else p.tapCountKevinThor) else (if (isCuky) p.tapCountAliCuky else p.tapCountAliThor)
-
         val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
         val tapCountTotalKey = if (isKevin) "tapCountKevin" else "tapCountAli"
-        val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
-        val currentTapTotal = if (isKevin) p.tapCountKevin else p.tapCountAli
 
         val updates = mutableMapOf<String, Any>(
             "lovePoints" to newLovePoints,
-            carePtsPetKey to (currentCarePet + actualTapsAdded),
-            tapCountPetKey to (currentTapPet + actualTapsAdded),
-            carePtsTotalKey to (currentCareTotal + actualTapsAdded),
-            tapCountTotalKey to (currentTapTotal + actualTapsAdded)
+            carePtsPetKey to FieldValue.increment(actualTapsAdded.toLong()),
+            tapCountPetKey to FieldValue.increment(actualTapsAdded.toLong()),
+            carePtsTotalKey to FieldValue.increment(actualTapsAdded.toLong()),
+            tapCountTotalKey to FieldValue.increment(actualTapsAdded.toLong())
         )
 
         if (isCuky) {
@@ -916,7 +961,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         var newLevel = p.getActiveLevel()
         var newLovePoints = p.lovePoints
         var leveledUp = false
-        if (newExp >= 100) {
+        while (newExp >= 100) {
             newLevel++
             newExp -= 100
             newLovePoints += 50
@@ -933,20 +978,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val isKevin = isCurrentUserKevin()
         val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
         val bathCountPetKey = if (isKevin) (if (isCuky) "bathCountKevinCuky" else "bathCountKevinThor") else (if (isCuky) "bathCountAliCuky" else "bathCountAliThor")
-        val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
-        val currentBathPet = if (isKevin) (if (isCuky) p.bathCountKevinCuky else p.bathCountKevinThor) else (if (isCuky) p.bathCountAliCuky else p.bathCountAliThor)
-
         val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
         val bathCountTotalKey = if (isKevin) "bathCountKevin" else "bathCountAli"
-        val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
-        val currentBathTotal = if (isKevin) p.bathCountKevin else p.bathCountAli
 
         val updates = mutableMapOf<String, Any>(
             "lovePoints" to newLovePoints,
-            carePtsPetKey to (currentCarePet + 15),
-            bathCountPetKey to (currentBathPet + 1),
-            carePtsTotalKey to (currentCareTotal + 15),
-            bathCountTotalKey to (currentBathTotal + 1)
+            carePtsPetKey to FieldValue.increment(15),
+            bathCountPetKey to FieldValue.increment(1),
+            carePtsTotalKey to FieldValue.increment(15),
+            bathCountTotalKey to FieldValue.increment(1)
         )
 
         if (isCuky) {
@@ -1010,10 +1050,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val newHappiness = Math.min(100, p.getActiveHappiness() + happinessGain)
         var newLovePoints = p.lovePoints + points
-        var newExp = p.getActiveExperience() + 10
+        var newExp = p.getActiveExperience() + 5
         var newLevel = p.getActiveLevel()
         var leveledUp = false
-        if (newExp >= 100) {
+        while (newExp >= 100) {
             newLevel++
             newExp -= 100
             newLovePoints += 50
@@ -1029,20 +1069,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val isKevin = isCurrentUserKevin()
         val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
         val playCountPetKey = if (isKevin) (if (isCuky) "playCountKevinCuky" else "playCountKevinThor") else (if (isCuky) "playCountAliCuky" else "playCountAliThor")
-        val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
-        val currentPlayPet = if (isKevin) (if (isCuky) p.playCountKevinCuky else p.playCountKevinThor) else (if (isCuky) p.playCountAliCuky else p.playCountAliThor)
-
         val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
         val playCountTotalKey = if (isKevin) "playCountKevin" else "playCountAli"
-        val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
-        val currentPlayTotal = if (isKevin) p.playCountKevin else p.playCountAli
 
         val updates = mutableMapOf<String, Any>(
             "lovePoints" to newLovePoints,
-            carePtsPetKey to (currentCarePet + 15),
-            playCountPetKey to (currentPlayPet + 1),
-            carePtsTotalKey to (currentCareTotal + 15),
-            playCountTotalKey to (currentPlayTotal + 1)
+            carePtsPetKey to FieldValue.increment(15),
+            playCountPetKey to FieldValue.increment(1),
+            carePtsTotalKey to FieldValue.increment(15),
+            playCountTotalKey to FieldValue.increment(1)
         )
 
         if (isCuky) {
@@ -1123,7 +1158,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             newStatus = Pet.STATUS_HAPPY
         }
         var leveledUp = false
-        if (newExp >= 100) {
+        while (newExp >= 100) {
             newLevel++
             newExp -= 100
             newLovePoints += 50
@@ -1135,21 +1170,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val isKevin = isCurrentUserKevin()
         val carePtsPetKey = if (isKevin) (if (isCuky) "carePointsKevinCuky" else "carePointsKevinThor") else (if (isCuky) "carePointsAliCuky" else "carePointsAliThor")
         val miniCountPetKey = if (isKevin) (if (isCuky) "minigameCountKevinCuky" else "minigameCountKevinThor") else (if (isCuky) "minigameCountAliCuky" else "minigameCountAliThor")
-        val currentCarePet = if (isKevin) (if (isCuky) p.carePointsKevinCuky else p.carePointsKevinThor) else (if (isCuky) p.carePointsAliCuky else p.carePointsAliThor)
-        val currentMiniPet = if (isKevin) (if (isCuky) p.minigameCountKevinCuky else p.minigameCountKevinThor) else (if (isCuky) p.minigameCountAliCuky else p.minigameCountAliThor)
-
         val carePtsTotalKey = if (isKevin) "carePointsKevin" else "carePointsAli"
         val miniCountTotalKey = if (isKevin) "minigameCountKevin" else "minigameCountAli"
-        val currentCareTotal = if (isKevin) p.carePointsKevin else p.carePointsAli
-        val currentMiniTotal = if (isKevin) p.minigameCountKevin else p.minigameCountAli
 
         val updates = mutableMapOf<String, Any>(
             "lovePoints" to newLovePoints,
             updateDateField to today,
-            carePtsPetKey to (currentCarePet + 10),
-            miniCountPetKey to (currentMiniPet + 1),
-            carePtsTotalKey to (currentCareTotal + 10),
-            miniCountTotalKey to (currentMiniTotal + 1)
+            carePtsPetKey to FieldValue.increment(10),
+            miniCountPetKey to FieldValue.increment(1),
+            carePtsTotalKey to FieldValue.increment(10),
+            miniCountTotalKey to FieldValue.increment(1)
         )
 
         if (isCuky) {
@@ -1414,6 +1444,111 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         scheduleCalendarReminder(ev)
                     }
                 }
+            }
+    }
+
+    fun adminResetRanking() {
+        if (currentCoupleId.isEmpty()) return
+        val updates = mapOf<String, Any>(
+            "carePointsKevin" to 0,
+            "carePointsAli" to 0,
+            "carePointsKevinThor" to 0,
+            "carePointsAliThor" to 0,
+            "carePointsKevinCuky" to 0,
+            "carePointsAliCuky" to 0,
+            "foodCountKevin" to 0,
+            "foodCountAli" to 0,
+            "bathCountKevin" to 0,
+            "bathCountAli" to 0,
+            "ballCountKevin" to 0,
+            "ballCountAli" to 0,
+            "minigameCountKevin" to 0,
+            "minigameCountAli" to 0,
+            "foodCountKevinThor" to 0,
+            "foodCountAliThor" to 0,
+            "bathCountKevinThor" to 0,
+            "bathCountAliThor" to 0,
+            "ballCountKevinThor" to 0,
+            "ballCountAliThor" to 0,
+            "minigameCountKevinThor" to 0,
+            "minigameCountAliThor" to 0,
+            "foodCountKevinCuky" to 0,
+            "foodCountAliCuky" to 0,
+            "bathCountKevinCuky" to 0,
+            "bathCountAliCuky" to 0,
+            "ballCountKevinCuky" to 0,
+            "ballCountAliCuky" to 0,
+            "minigameCountKevinCuky" to 0,
+            "minigameCountAliCuky" to 0
+        )
+        db.collection("pets").document(currentCoupleId)
+            .update(updates)
+            .addOnSuccessListener {
+                toastMessage.value = "👑 ¡Ranking de cuidadores reiniciado a 0!"
+            }
+            .addOnFailureListener {
+                toastMessage.value = "❌ Error al reiniciar ranking: ${it.message}"
+            }
+    }
+
+    fun adminResetMinigames() {
+        if (currentCoupleId.isEmpty()) return
+        val updates = mapOf<String, Any?>(
+            "flappyHighScoreKevin" to 0,
+            "flappyHighScoreAli" to 0,
+            "snakeHighScoreKevin" to 0,
+            "snakeHighScoreAli" to 0,
+            "lastFlappyDate" to "",
+            "lastSnakeDate" to "",
+            "lastMemoryDate" to ""
+        )
+        db.collection("pets").document(currentCoupleId)
+            .update(updates)
+            .addOnSuccessListener {
+                val app = getApplication<Application>()
+                app.getSharedPreferences("flappy_thor_prefs", Context.MODE_PRIVATE).edit().clear().apply()
+                app.getSharedPreferences("snake_game_prefs", Context.MODE_PRIVATE).edit().clear().apply()
+                toastMessage.value = "🎮 ¡Récords y partidas de minijuegos reiniciados!"
+            }
+            .addOnFailureListener {
+                toastMessage.value = "❌ Error al reiniciar minijuegos: ${it.message}"
+            }
+    }
+
+    fun adminResetPets() {
+        if (currentCoupleId.isEmpty()) return
+        val now = System.currentTimeMillis()
+        val updates = mapOf<String, Any>(
+            "level" to 1,
+            "experience" to 0,
+            "happiness" to 100,
+            "hunger" to 0,
+            "cleanliness" to 100,
+            "sleepPercent" to 0,
+            "isSleeping" to false,
+            "status" to Pet.STATUS_HAPPY,
+            "lastInteraction" to now,
+            "lastDecayUpdate" to now,
+            "streakDays" to 1,
+            "cukyLevel" to 1,
+            "cukyExperience" to 0,
+            "cukyHappiness" to 100,
+            "cukyHunger" to 0,
+            "cukyCleanliness" to 100,
+            "cukySleepPercent" to 0,
+            "cukyIsSleeping" to false,
+            "cukyStatus" to Pet.STATUS_HAPPY,
+            "cukyLastInteraction" to now,
+            "cukyLastDecayUpdate" to now,
+            "cukyStreakDays" to 1
+        )
+        db.collection("pets").document(currentCoupleId)
+            .update(updates)
+            .addOnSuccessListener {
+                toastMessage.value = "🐾 ¡Mascotas reiniciadas (Nivel 1, 100% vitalidad)!"
+            }
+            .addOnFailureListener {
+                toastMessage.value = "❌ Error al reiniciar mascotas: ${it.message}"
             }
     }
 

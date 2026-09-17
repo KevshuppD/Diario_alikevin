@@ -116,9 +116,10 @@ fun FlappyThorGameDialog(
 
     val prefs = remember(context) { context.getSharedPreferences("flappy_thor_prefs", Context.MODE_PRIVATE) }
     val isCurrentUserKevin = remember(context) {
-        val mainPrefs = context.getSharedPreferences("diario_prefs", Context.MODE_PRIVATE)
+        val mainPrefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
         val uid = mainPrefs.getString("userId", "user_kevin_01") ?: "user_kevin_01"
-        uid.contains("kevin", ignoreCase = true)
+        val uname = mainPrefs.getString("userName", "Kevin") ?: "Kevin"
+        uid.contains("kevin", ignoreCase = true) || uname.contains("kevin", ignoreCase = true)
     }
     val cloudHighScore = if (isCurrentUserKevin) pet.flappyHighScoreKevin else pet.flappyHighScoreAli
     var highScore by remember { mutableStateOf(maxOf(prefs.getInt("high_score", 0), cloudHighScore)) }
@@ -144,23 +145,10 @@ fun FlappyThorGameDialog(
     val pipes = remember { mutableStateListOf<Pipe>() }
     val particles = remember { mutableStateListOf<Particle>() }
 
-    // Sprite de Thor según accesorio
-    val thorResId = remember(pet.equippedAccessory) {
-        when (pet.equippedAccessory) {
-            "collar" -> R.drawable.ic_thor_collar
-            "mustache" -> R.drawable.ic_thor_mustache
-            "balloon" -> R.drawable.ic_thor_balloon
-            "bow" -> R.drawable.ic_thor_bow
-            "hat" -> R.drawable.ic_thor_hat
-            "bandana" -> R.drawable.ic_thor_bandana
-            "glasses" -> R.drawable.ic_thor_glasses
-            "crown" -> R.drawable.ic_thor_crown
-            "banana" -> R.drawable.ic_thor_banana
-            "socks" -> R.drawable.ic_thor_socks
-            else -> R.drawable.ic_thor_base_trans
-        }
+    // Sprite de la mascota activa según accesorio y tipo (Thor o Cuky)
+    val petResId = remember(pet.getActiveEquippedAccessory(), pet.petType, pet.name) {
+        getPetDrawableRes(pet)
     }
-    val thorBitmap = ImageBitmap.imageResource(id = thorResId)
 
     // Control del BGM en bucle sincronizado con estado de juego, pausa y sonido
     DisposableEffect(Unit) {
@@ -196,8 +184,8 @@ fun FlappyThorGameDialog(
     }
 
     fun triggerGameOverRewards(finalScore: Int, hearts: Int) {
-        val earnedLp = (finalScore * 2 + hearts * 2).coerceAtLeast(if (finalScore > 0) 5 else 0)
-        val earnedXp = (finalScore * 5 + hearts * 3).coerceAtLeast(if (finalScore > 0) 5 else 0)
+        val earnedLp = (finalScore * 2 + hearts * 2).coerceIn(5, 40)
+        val earnedXp = (finalScore * 2 + hearts * 3).coerceIn(10, 30)
         if (finalScore > 0) {
             if (isDailyPending && !hasClaimedDailyRewardThisSession) {
                 onReward(earnedLp, earnedXp, finalScore)
@@ -220,13 +208,13 @@ fun FlappyThorGameDialog(
         gameState = "READY"
     }
 
-    // Configuración balanceada y accesible
+    // Configuración balanceada, reactiva y arcade
     val isFull = viewMode == "FULLSCREEN"
-    val jumpForce = if (isFull) -0.0078f else -0.0068f
-    val gravity = if (isFull) 0.00038f else 0.00030f
-    val maxFallVelocity = if (isFull) 0.0080f else 0.0070f
-    val baseSpeed = if (isFull) 0.0032f else 0.0028f
-    val spawnInterval = if (isFull) 140L else 160L
+    val jumpForce = if (isFull) -0.0076f else -0.0068f
+    val gravity = if (isFull) 0.00038f else 0.00032f
+    val maxFallVelocity = if (isFull) 0.0082f else 0.0072f
+    val baseSpeed = if (isFull) 0.0034f else 0.0030f
+    val spawnInterval = if (isFull) 125L else 145L
 
     fun jump() {
         if (gameState == "READY") {
@@ -285,14 +273,16 @@ fun FlappyThorGameDialog(
                     return@withFrameNanos
                 }
 
-                // 2. Generación progresiva de tuberías con aperturas amplias y cómodas
+                // 2. Generación progresiva de tuberías con dificultad y apertura escalable
                 if (pipes.isEmpty() || gameTicks - lastSpawnTick >= spawnInterval) {
                     lastSpawnTick = gameTicks
-                    val currentPipeGap = if (isFull) 0.32f else 0.38f // Apertura generosa para pasar con facilidad
+                    val baseGap = if (isFull) 0.29f else 0.33f
+                    val minGap = if (isFull) 0.22f else 0.25f
+                    val currentPipeGap = (baseGap - (score * 0.0025f)).coerceAtLeast(minGap)
                     val minTop = if (isFull) 0.12f else 0.14f
-                    val maxTop = if (isFull) 0.40f else 0.36f
+                    val maxTop = if (isFull) (0.75f - currentPipeGap) else (0.72f - currentPipeGap)
                     val topH = Random.nextFloat() * (maxTop - minTop) + minTop
-                    val spawnHeart = Random.nextFloat() < 0.45f
+                    val spawnHeart = Random.nextFloat() < 0.35f
 
                     pipes.add(
                         Pipe(
@@ -304,9 +294,9 @@ fun FlappyThorGameDialog(
                     )
                 }
 
-                // 3. Velocidad suave y hitbox justa
-                val currentSpeed = (baseSpeed + (score * 0.00003f).coerceAtMost(0.0012f)) * dtFactor
-                val thorRadius = if (isFull) 0.024f else 0.022f // Hitbox más permisiva
+                // 3. Velocidad y hitbox justa
+                val currentSpeed = (baseSpeed + (score * 0.00005f).coerceAtMost(0.0015f)) * dtFactor
+                val thorRadius = if (isFull) 0.024f else 0.022f // Hitbox precisa y permisiva
 
                 val iterator = pipes.iterator()
                 while (iterator.hasNext()) {
@@ -595,8 +585,9 @@ fun FlappyThorGameDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                val flappyTitle = if (pet.isCuky()) "🐔 FLAPPY CUKY 🪽" else "🐱 FLAPPY THOR 🪽"
                                 Text(
-                                    text = "🐱 FLAPPY THOR 🪽",
+                                    text = flappyTitle,
                                     fontFamily = Vt323,
                                     fontSize = 32.sp,
                                     color = Color(0xFFFFD54F),
@@ -613,7 +604,7 @@ fun FlappyThorGameDialog(
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "Esquiva tubos y atrapa corazones flotantes.",
+                                    text = "Esquiva obstáculos y atrapa corazones flotantes.",
                                     fontFamily = Vt323,
                                     fontSize = 16.sp,
                                     color = Color.LightGray,
@@ -693,7 +684,7 @@ fun FlappyThorGameDialog(
                                         .padding(8.dp)
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                                        Text("🏆 RÉCORDS DE FLAPPY THOR", fontFamily = Vt323, fontSize = 16.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
+                                        Text("🏆 RÉCORDS DE FLAPPY ${pet.getActiveName().uppercase()}", fontFamily = Vt323, fontSize = 16.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
@@ -936,7 +927,8 @@ fun FlappyThorGameDialog(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
-                                    Text("🐱 FLAPPY THOR 🪽", fontFamily = Vt323, fontSize = 28.sp, color = Color(0xFF0F380F), fontWeight = FontWeight.Bold)
+                                    val pocketTitle = if (pet.isCuky()) "🐔 FLAPPY CUKY 🪽" else "🐱 FLAPPY THOR 🪽"
+                                    Text(pocketTitle, fontFamily = Vt323, fontSize = 28.sp, color = Color(0xFF0F380F), fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text("¡TOCA PARA VOLAR!", fontFamily = Vt323, fontSize = 20.sp, color = Color(0xFF306230), fontWeight = FontWeight.Bold)
                                 }
@@ -972,7 +964,7 @@ fun FlappyThorGameDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("THOR POCKET™", fontFamily = Vt323, color = Color(0xFF2C2D2F), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("${pet.getActiveName().uppercase()} POCKET™", fontFamily = Vt323, color = Color(0xFF2C2D2F), fontSize = 18.sp, fontWeight = FontWeight.Bold)
 
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             // SELECT (SALIR)
@@ -1139,21 +1131,57 @@ private fun DrawScope.drawRetroPipe(x: Float, y: Float, width: Float, height: Fl
     drawRect(color = Color(0xFF0F380F), topLeft = Offset(lipX, lipY), size = Size(lipW, lipHeight), style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
 }
 
+private val HEART_PIXEL_MATRIX = arrayOf(
+    intArrayOf(0, 1, 1, 0, 1, 1, 0),
+    intArrayOf(1, 1, 1, 1, 1, 1, 1),
+    intArrayOf(1, 1, 1, 1, 1, 1, 1),
+    intArrayOf(0, 1, 1, 1, 1, 1, 0),
+    intArrayOf(0, 0, 1, 1, 1, 0, 0),
+    intArrayOf(0, 0, 0, 1, 0, 0, 0)
+)
+
+private val THOR_PIXEL_MATRIX = arrayOf(
+    // Orejitas
+    intArrayOf(0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0),
+    intArrayOf(1, 2, 2, 1, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0),
+    intArrayOf(1, 2, 3, 1, 1, 1, 1, 1, 1, 1, 3, 2, 1, 0),
+    // Cabeza
+    intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
+    intArrayOf(1, 2, 4, 5, 2, 2, 2, 2, 4, 5, 2, 2, 1, 0),
+    intArrayOf(1, 2, 4, 4, 2, 2, 2, 2, 4, 4, 2, 2, 1, 0),
+    intArrayOf(1, 7, 2, 2, 2, 6, 6, 2, 2, 2, 7, 2, 1, 0),
+    // Cuerpo esponjoso
+    intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
+    intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
+    intArrayOf(1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 0),
+    intArrayOf(0, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0, 0),
+    intArrayOf(0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0)
+)
+
+private val CUKY_PIXEL_MATRIX = arrayOf(
+    // Cresta Roja
+    intArrayOf(0, 0, 0, 0, 0, 7, 7, 0, 7, 7, 0, 0, 0, 0),
+    intArrayOf(0, 0, 0, 0, 1, 7, 7, 1, 7, 7, 1, 0, 0, 0),
+    // Cabeza
+    intArrayOf(0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 0, 0),
+    intArrayOf(0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
+    intArrayOf(0, 1, 2, 4, 5, 2, 2, 2, 4, 5, 2, 2, 1, 0),
+    intArrayOf(0, 1, 2, 4, 4, 6, 6, 6, 4, 4, 2, 2, 1, 0),
+    intArrayOf(0, 1, 8, 2, 2, 7, 7, 2, 2, 2, 8, 2, 1, 0),
+    // Cuerpo rechoncho
+    intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1),
+    intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1),
+    intArrayOf(1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1),
+    intArrayOf(0, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0),
+    intArrayOf(0, 0, 1, 6, 6, 1, 1, 1, 1, 6, 6, 1, 0, 0)
+)
+
 private fun DrawScope.drawFullPixelHeart(cx: Float, cy: Float) {
     val pixelSize = 3.dp.toPx()
-    val heartMatrix = arrayOf(
-        intArrayOf(0, 1, 1, 0, 1, 1, 0),
-        intArrayOf(1, 1, 1, 1, 1, 1, 1),
-        intArrayOf(1, 1, 1, 1, 1, 1, 1),
-        intArrayOf(0, 1, 1, 1, 1, 1, 0),
-        intArrayOf(0, 0, 1, 1, 1, 0, 0),
-        intArrayOf(0, 0, 0, 1, 0, 0, 0)
-    )
-
     val startX = cx - (3.5f * pixelSize)
     val startY = cy - (3f * pixelSize)
 
-    heartMatrix.forEachIndexed { r, row ->
+    HEART_PIXEL_MATRIX.forEachIndexed { r, row ->
         row.forEachIndexed { c, cell ->
             if (cell == 1) {
                 drawRect(
@@ -1214,27 +1242,7 @@ private fun DrawScope.drawWhiteThorBirdSprite(
     // Aleteo animado suave
     val flapFrame = ((ticks / 4) % 3).toInt()
 
-    // Matriz de Thor Blanco 16x14 píxeles (cabeza y cuerpo adorable)
-    // 0: Vacío, 1: Contorno, 2: Blanco, 3: Sombra suave, 4: Ojos, 5: Brillo, 6: Nariz/Hocico, 7: Rubor
-    val thorMatrix = arrayOf(
-        // Orejitas
-        intArrayOf(0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0),
-        intArrayOf(1, 2, 2, 1, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0),
-        intArrayOf(1, 2, 3, 1, 1, 1, 1, 1, 1, 1, 3, 2, 1, 0),
-        // Cabeza
-        intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
-        intArrayOf(1, 2, 4, 5, 2, 2, 2, 2, 4, 5, 2, 2, 1, 0),
-        intArrayOf(1, 2, 4, 4, 2, 2, 2, 2, 4, 4, 2, 2, 1, 0),
-        intArrayOf(1, 7, 2, 2, 2, 6, 6, 2, 2, 2, 7, 2, 1, 0),
-        // Cuerpo esponjoso
-        intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
-        intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
-        intArrayOf(1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 0),
-        intArrayOf(0, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0, 0),
-        intArrayOf(0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0)
-    )
-
-    thorMatrix.forEachIndexed { r, row ->
+    THOR_PIXEL_MATRIX.forEachIndexed { r, row ->
         row.forEachIndexed { c, cell ->
             val col = when (cell) {
                 1 -> darkOutline
@@ -1317,27 +1325,7 @@ private fun DrawScope.drawBrownCukyBirdSprite(
 
     val flapFrame = ((ticks / 4) % 3).toInt()
 
-    // Matriz de Cuky 16x13 píxeles
-    // 0: Vacío, 1: Contorno, 2: Café Claro, 3: Café Sombra, 4: Ojos, 5: Brillo Ojo, 6: Pico Amarillo, 7: Cresta Roja, 8: Rubor
-    val cukyMatrix = arrayOf(
-        // Cresta Roja
-        intArrayOf(0, 0, 0, 0, 0, 7, 7, 0, 7, 7, 0, 0, 0, 0),
-        intArrayOf(0, 0, 0, 0, 1, 7, 7, 1, 7, 7, 1, 0, 0, 0),
-        // Cabeza
-        intArrayOf(0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 0, 0),
-        intArrayOf(0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
-        intArrayOf(0, 1, 2, 4, 5, 2, 2, 2, 4, 5, 2, 2, 1, 0),
-        intArrayOf(0, 1, 2, 4, 4, 6, 6, 6, 4, 4, 2, 2, 1, 0),
-        intArrayOf(0, 1, 8, 2, 2, 7, 7, 2, 2, 2, 8, 2, 1, 0),
-        // Cuerpo rechoncho
-        intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1),
-        intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1),
-        intArrayOf(1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1),
-        intArrayOf(0, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0),
-        intArrayOf(0, 0, 1, 6, 6, 1, 1, 1, 1, 6, 6, 1, 0, 0)
-    )
-
-    cukyMatrix.forEachIndexed { r, row ->
+    CUKY_PIXEL_MATRIX.forEachIndexed { r, row ->
         row.forEachIndexed { c, cell ->
             val col = when (cell) {
                 1 -> darkOutline
