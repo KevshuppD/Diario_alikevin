@@ -658,9 +658,6 @@ object ThorRadarManager {
                                     lastGeocodedLat = lat
                                     lastGeocodedLng = lon
                                     lastGeocodedTime = System.currentTimeMillis()
-                                    db.collection("locations").document(coupleId)
-                                        .collection("users").document(docName)
-                                        .update("address", resAddr)
                                 }
                             }
                         }
@@ -708,15 +705,17 @@ object ThorRadarManager {
 
         saveCachedLocation(context, docName, locationData)
 
-        // SMART THROTTLING: Evitar exceder cuotas de Firestore si el dispositivo está en reposo sin cambios
+        // SMART THROTTLING ONDEMAND:
+        // Si force == true: acción explícita (usuario abrió radar o respondió a Magic Packet) -> subir inmediatamente.
+        // Si force == false (background/pasivo): SOLO subir si hubo desplazamiento real significativo (>= 300m) Y al menos 10 min.
+        // Cero subidas por tiempo fijo en reposo o cambios menores de batería.
         val distMovedSinceUpload = if (lastUploadedLat != 0.0 && lat != 0.0) calculateDistance(lastUploadedLat, lastUploadedLng, lat, lon) else Float.MAX_VALUE
-        val batteryChanged = (lastUploadedBatteryPct == -1 || Math.abs(batteryInfo.first - lastUploadedBatteryPct) >= 3 || batteryInfo.second != lastUploadedChargingState)
         val timeSinceUpload = now - lastUploadedTime
 
-        val shouldUpload = force || distMovedSinceUpload >= 20f || batteryChanged || timeSinceUpload >= 60_000L
+        val shouldUpload = force || (distMovedSinceUpload >= 300f && timeSinceUpload >= 600_000L)
 
         if (!shouldUpload) {
-            Log.d(TAG, "Heartbeat omitido por throttling (sin cambios relevantes: dist=${distMovedSinceUpload.toInt()}m, bat=${batteryInfo.first}%, dt=${timeSinceUpload / 1000}s)")
+            Log.d(TAG, "Heartbeat omitido por throttling On-Demand (en reposo / sin cambios significativos: dist=${distMovedSinceUpload.toInt()}m, dt=${timeSinceUpload / 1000}s)")
             return
         }
 
@@ -762,8 +761,8 @@ object ThorRadarManager {
             }
             val timeSinceHistory = now - lastHistoryPointTime
 
-            // Registrar historial SOLO si hubo desplazamiento real significativo (> 40m) y pasaron al menos 2 minutos
-            if ((distMovedSinceHistory >= 40f && timeSinceHistory >= 120_000L) || lastHistoryPointTime == 0L) {
+            // Registrar historial SOLO si hubo desplazamiento real significativo (> 300m) y pasaron al menos 10 minutos
+            if (distMovedSinceHistory >= 300f && timeSinceHistory >= 600_000L) {
                 lastHistoryLat = lat
                 lastHistoryLng = lon
                 lastHistoryPointTime = now
@@ -793,38 +792,33 @@ object ThorRadarManager {
         init(appContext)
 
         if (!isSharing) {
-            publishHeartbeat(appContext, null)
+            publishHeartbeat(appContext, null, force = true)
             onComplete?.invoke(true)
             return
         }
 
         if (!PermissionHelper.hasLocationPermission(appContext)) {
-            publishHeartbeat(appContext, getLastKnownLocationFallback(appContext))
+            publishHeartbeat(appContext, getLastKnownLocationFallback(appContext), force = true)
             onComplete?.invoke(true)
             return
-        }
-
-        val now = System.currentTimeMillis()
-        if (lastUploadedTime == 0L || (now - lastUploadedTime) > 40_000L) {
-            val bestFallback = getLastKnownLocationFallback(appContext)
-            if (bestFallback != null && bestFallback.accuracy <= 90f) {
-                publishHeartbeat(appContext, bestFallback)
-            }
         }
 
         try {
             fusedLocationClient?.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 ?.addOnSuccessListener { loc ->
-                    if (loc != null) {
-                        handleNewLocation(appContext, loc)
-                    }
+                    val finalLoc = loc ?: getLastKnownLocationFallback(appContext)
+                    publishHeartbeat(appContext, finalLoc, force = true)
                     onComplete?.invoke(true)
                 }
                 ?.addOnFailureListener {
+                    val fallback = getLastKnownLocationFallback(appContext)
+                    publishHeartbeat(appContext, fallback, force = true)
                     onComplete?.invoke(true)
                 }
         } catch (e: Exception) {
             Log.e(TAG, "Error en forceLocationUpdate", e)
+            val fallback = getLastKnownLocationFallback(appContext)
+            publishHeartbeat(appContext, fallback, force = true)
             onComplete?.invoke(true)
         }
     }
@@ -1300,24 +1294,7 @@ object ThorRadarManager {
         val targetDoc = if (isSenderAli) "kevin" else "ali"
         val now = System.currentTimeMillis()
 
-        // 1. Trigger inmediato por Firestore en tiempo real (< 100ms si el receptor está con la app abierta)
-        try {
-            db.collection("locations").document(safeCoupleId)
-                .collection("pings").document(targetDoc)
-                .set(mapOf(
-                    "requestedAt" to now,
-                    "requestedBy" to senderId,
-                    "senderName" to senderName,
-                    "target" to targetDoc
-                ), SetOptions.merge())
-                .addOnSuccessListener {
-                    Log.d(TAG, "⚡ [MAGIC PACKET] Señal de ping registrada en Firestore para $targetDoc")
-                }
-        } catch (e: Exception) {
-            Log.w(TAG, "Error registrando ping en Firestore: ${e.message}")
-        }
-
-        // 2. Magic Packet Wake-on-LAN vía FCM push prioritario
+        // 1. Magic Packet Wake-on-LAN vía FCM push prioritario (CERO impacto en cuotas Firestore)
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val creds = MainActivity.getGoogleCredentials(context)
@@ -1371,7 +1348,7 @@ object ThorRadarManager {
             } catch (e: Exception) {
                 Log.e(TAG, "⚡ [MAGIC PACKET] Error enviando ping de ubicación FCM", e)
                 withContext(Dispatchers.Main) {
-                    onComplete?.invoke(true) // Firestore ping ya se envió
+                    onComplete?.invoke(false)
                 }
             }
         }
@@ -1379,8 +1356,7 @@ object ThorRadarManager {
 
     /**
      * Manejador del Magic Packet tipo Wake-on-LAN al recibir un radar_ping de FCM.
-     * Adquiere un WakeLock, emite un Heartbeat instantáneo con batería/última ubicación,
-     * reactiva el servicio si es necesario y adquiere un Fix GPS de alta precisión fresco.
+     * Adquiere un WakeLock, obtiene la ubicación fresca y responde a Firestore en 1 sola escritura.
      */
     fun handleMagicLocationPing(context: Context) {
         val appContext = context.applicationContext
@@ -1389,7 +1365,7 @@ object ThorRadarManager {
         val powerManager = appContext.getSystemService(Context.POWER_SERVICE) as? PowerManager
         val wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Diario:MagicLocationWakeLock")
         try {
-            wakeLock?.acquire(45_000L)
+            wakeLock?.acquire(35_000L)
         } catch (e: Exception) {
             Log.w(TAG, "No se pudo adquirir WakeLock: ${e.message}")
         }
@@ -1397,33 +1373,18 @@ object ThorRadarManager {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 init(appContext)
-
-                // 1. Respuesta Inmediata (<300ms): Emitir Heartbeat con batería y última ubicación conocida
-                val lastKnown = getLastKnownLocationFallback(appContext)
-                publishHeartbeat(appContext, lastKnown, force = true)
-                Log.d(TAG, "⚡ [MAGIC PACKET] Heartbeat inmediato emitido a Firestore con batería y estado")
-
                 val prefs = appContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
                 val isSharing = prefs.getBoolean("radar_is_sharing", true)
 
                 if (isSharing && PermissionHelper.hasLocationPermission(appContext)) {
-                    // 2. Intentar despertar / asegurar Foreground Service
-                    try {
-                        ThorRadarService.startService(appContext)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "No se pudo iniciar ForegroundService desde background: ${e.message}")
+                    // Adquirir Fix GPS fresco de alta precisión y responder en 1 sola emisión
+                    requestHighAccuracyFix(appContext, timeoutMs = 15_000L) { freshLoc ->
+                        val finalLoc = freshLoc ?: getLastKnownLocationFallback(appContext)
+                        publishHeartbeat(appContext, finalLoc, force = true)
+                        Log.d(TAG, "⚡ [MAGIC PACKET] Ubicación respondida a Firestore con éxito (lat=${finalLoc?.latitude}, lon=${finalLoc?.longitude})")
                     }
-
-                    // 3. Adquirir Fix GPS fresco de alta precisión
-                    requestHighAccuracyFix(appContext, timeoutMs = 20_000L) { freshLoc ->
-                        if (freshLoc != null && (freshLoc.latitude != 0.0 || freshLoc.longitude != 0.0)) {
-                            Log.d(TAG, "⚡ [MAGIC PACKET] Ubicación GPS fresca obtenida: lat=${freshLoc.latitude}, lon=${freshLoc.longitude}, acc=${freshLoc.accuracy}m")
-                            publishHeartbeat(appContext, freshLoc, force = true)
-                        } else {
-                            Log.w(TAG, "⚡ [MAGIC PACKET] No se obtuvo fix fresco a tiempo; asegurando emisión con ubicación previa")
-                            publishHeartbeat(appContext, null, force = true)
-                        }
-                    }
+                } else {
+                    publishHeartbeat(appContext, null, force = true)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "⚡ [MAGIC PACKET] Error procesando wakeup", e)

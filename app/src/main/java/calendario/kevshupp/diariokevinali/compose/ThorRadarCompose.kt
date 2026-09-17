@@ -272,8 +272,7 @@ fun ThorRadarScreen(
         if (isSharingLocation && PermissionHelper.hasLocationPermission(context)) {
             ThorRadarService.startService(context)
         }
-        // Emitir latido inmediato con batería y ubicación
-        ThorRadarManager.publishHeartbeat(context, force = true)
+        // Emitir ubicación fresca una sola vez
         ThorRadarManager.forceLocationUpdate(context)
 
         // Enfoque On-Demand: Al abrir la pantalla de Radar, solicitar ubicación fresca a la pareja vía Magic Packet WOL

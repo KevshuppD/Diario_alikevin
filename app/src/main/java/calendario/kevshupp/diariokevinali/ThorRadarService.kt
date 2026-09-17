@@ -25,40 +25,6 @@ class ThorRadarService : Service() {
     private var heartbeatJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
 
-    private var lastChargingState: Boolean? = null
-    private var lastBatteryLevel: Int? = null
-
-    private val powerReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val action = intent.action ?: return
-            when (action) {
-                Intent.ACTION_POWER_CONNECTED,
-                Intent.ACTION_POWER_DISCONNECTED -> {
-                    ThorRadarManager.publishHeartbeat(context)
-                }
-                Intent.ACTION_BATTERY_CHANGED -> {
-                    val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-                    val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
-                    val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                                     status == BatteryManager.BATTERY_STATUS_FULL ||
-                                     plugged == BatteryManager.BATTERY_PLUGGED_AC ||
-                                     plugged == BatteryManager.BATTERY_PLUGGED_USB ||
-                                     plugged == BatteryManager.BATTERY_PLUGGED_WIRELESS ||
-                                     plugged > 0
-                    val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-                    val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-                    val batteryPct = if (level >= 0 && scale > 0) ((level / scale.toFloat()) * 100).toInt() else 100
-
-                    if (isCharging != lastChargingState || batteryPct != lastBatteryLevel) {
-                        lastChargingState = isCharging
-                        lastBatteryLevel = batteryPct
-                        ThorRadarManager.publishHeartbeat(context)
-                    }
-                }
-            }
-        }
-    }
-
     companion object {
         const val CHANNEL_ID = "radar_channel"
         const val NOTIFICATION_ID = 2024
@@ -91,17 +57,6 @@ class ThorRadarService : Service() {
         } catch (e: Exception) {
             Log.w(TAG, "No se pudo inicializar WakeLock: ${e.message}")
         }
-
-        try {
-            val filter = IntentFilter().apply {
-                addAction(Intent.ACTION_POWER_CONNECTED)
-                addAction(Intent.ACTION_POWER_DISCONNECTED)
-                addAction(Intent.ACTION_BATTERY_CHANGED)
-            }
-            registerReceiver(powerReceiver, filter)
-        } catch (e: Exception) {
-            // Ignore
-        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -130,35 +85,11 @@ class ThorRadarService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        val isBatterySaver = prefs.getBoolean("radar_battery_saver", false)
-        // En arquitectura On-Demand, el servicio en segundo plano se mantiene en reposo (15-30 min)
-        // y solo se despierta inmediatamente ante pings Magic Packet WOL o movimiento significativo
-        val interval = if (isBatterySaver) 1_800_000L else 900_000L
-
-        // Iniciar tracking continuo por callbacks GPS
-        ThorRadarManager.startLiveTracking(this, 15_000L)
-
-        // Iniciar bucle de latido en segundo plano (Heartbeat Pulse de baja frecuencia)
-        startHeartbeatLoop(interval)
+        // En arquitectura On-Demand, el servicio en segundo plano se mantiene en reposo absoluto
+        // esperando únicamente señales push Magic Packet WOL o la apertura de la app por el usuario.
+        Log.d(TAG, "ThorRadarService en reposo activo On-Demand listo para recibir Magic Packets.")
 
         return START_STICKY
-    }
-
-    private fun startHeartbeatLoop(intervalMs: Long) {
-        heartbeatJob?.cancel()
-        heartbeatJob = serviceScope.launch {
-            while (isActive) {
-                try {
-                    acquireWakeLock(4000L)
-                    ThorRadarManager.forceLocationUpdate(applicationContext)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error en ciclo heartbeat en segundo plano", e)
-                } finally {
-                    releaseWakeLock()
-                }
-                delay(intervalMs)
-            }
-        }
     }
 
     private fun acquireWakeLock(timeoutMs: Long) {
@@ -189,11 +120,6 @@ class ThorRadarService : Service() {
         heartbeatJob?.cancel()
         serviceJob.cancelChildren()
         releaseWakeLock()
-        try {
-            unregisterReceiver(powerReceiver)
-        } catch (e: Exception) {
-            // Ignore
-        }
         super.onDestroy()
         ThorRadarManager.stopLiveTracking()
     }

@@ -40,10 +40,10 @@
 
 ## ☁️ 5. Gestión de Cuotas y Límites de Base de Datos (Cloud Firestore)
 - **Límites Spark Plan**: Firebase Spark permite un máximo de **20.000 escrituras y 50.000 lecturas por día**. Se reinicia automáticamente a las **00:00 PDT (04:00 AM hora de Chile / UTC-3)**.
-- **Smart Throttling Obligatorio**:
-  - **Prohibido el polling agresivo de escritura**: Nunca ejecutar bucles de escritura a Firestore con intervalos menores a 15–30 segundos (`ThorRadarCompose`, `ThorRadarService`).
-  - **Filtro de movimiento y batería**: Solo emitir escrituras automáticas a Firestore si hubo desplazamiento significativo ($\ge 20\text{ metros}$), cambio de batería significativo ($\ge 3\%$), o si han pasado al menos 60 segundos en reposo.
-  - **Listeners GPS**: Configurar siempre `minUpdateDistanceMeters` $\ge 10\text{m}$ para evitar que el ruido/jitter del GPS dispare escrituras cuando el dispositivo está quieto.
-  - **Bypass en acciones manuales**: Las acciones explícitas del usuario ("Actualizar ahora", pings remotos, Magic Packet WOL) **DEBEN** usar `force = true` para ejecutarse de inmediato saltándose el throttling.
-  - **Historial acotado**: Solo registrar puntos de historial (`history_`) si hubo desplazamiento real $\ge 40\text{ metros}$ y al menos 2 minutos de diferencia.
+- **Arquitectura On-Demand Estricta (Gasto 0 en Reposo)**:
+  - **Cero escrituras en segundo plano periódicas**: Prohibido ejecutar bucles de latido por tiempo (`delay`), receivers de batería o rastreadores GPS de alta frecuencia en segundo plano en `ThorRadarService`.
+  - **Magic Packet Wake-on-LAN vía FCM push**: La solicitud de sincronización se realiza mediante FCM Push prioritario de alta velocidad (0 escrituras y 0 costo en Firestore).
+  - **1 sola escritura por evento**: Al abrir el radar o recibir un ping Magic Packet, el dispositivo despierta, adquiere fix GPS fresco y emite exactamente **1 escritura** a Firestore.
+  - **Filtro de movimiento pasivo**: Solo emitir escrituras pasivas si hubo desplazamiento real significativo ($\ge 300\text{ metros}$) y pasaron al menos 10 minutos.
+  - **Historial acotado**: Solo registrar puntos de historial (`history_`) con desplazamiento real $\ge 300\text{ metros}$ y al menos 10 minutos.
 
