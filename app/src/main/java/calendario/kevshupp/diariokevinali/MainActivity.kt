@@ -1121,7 +1121,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                 val credentials = getGoogleCredentials(this@MainActivity)
                 val token = credentials.accessToken.tokenValue
                 
-                val projectId = "diario-pareja-a2d35"
+                val projectId = com.google.firebase.FirebaseApp.getInstance().options.projectId ?: "diario-ali-kevin"
                 val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
 
                 val jsonBody = JSONObject()

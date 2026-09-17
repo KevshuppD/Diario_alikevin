@@ -1030,7 +1030,7 @@ object ThorRadarManager {
             try {
                 val creds = MainActivity.getGoogleCredentials(context)
                 val token = creds.accessToken.tokenValue
-                val projectId = "diario-pareja-a2d35"
+                val projectId = com.google.firebase.FirebaseApp.getInstance().options.projectId ?: "diario-ali-kevin"
                 val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
 
                 val topicName = "diario_" + coupleId.lowercase()
@@ -1237,7 +1237,7 @@ object ThorRadarManager {
             try {
                 val creds = MainActivity.getGoogleCredentials(context)
                 val token = creds.accessToken.tokenValue
-                val projectId = "diario-pareja-a2d35"
+                val projectId = com.google.firebase.FirebaseApp.getInstance().options.projectId ?: "diario-ali-kevin"
                 val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
 
                 val topicName = "diario_" + coupleId.lowercase()
@@ -1299,7 +1299,7 @@ object ThorRadarManager {
             try {
                 val creds = MainActivity.getGoogleCredentials(context)
                 val token = creds.accessToken.tokenValue
-                val projectId = "diario-pareja-a2d35"
+                val projectId = com.google.firebase.FirebaseApp.getInstance().options.projectId ?: "diario-ali-kevin"
                 val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
 
                 val topicName = "diario_" + safeCoupleId.lowercase()
