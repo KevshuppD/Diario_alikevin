@@ -539,10 +539,16 @@
         </label>
       </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-        <button id="startMigrateBtn" class="btn btn-success" style="font-size: 24px; padding: 12px 32px;" onclick="startMigration()">
-          🚀 INICIAR MIGRACIÓN TOTAL
-        </button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <button id="startMigrateBtn" class="btn btn-success" style="font-size: 24px; padding: 12px 32px;" onclick="startMigration()">
+            🚀 INICIAR MIGRACIÓN TOTAL
+          </button>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #f59e0b; cursor: pointer; user-select: none;">
+            <input type="checkbox" id="wipeTargetCheckbox" style="width: 16px; height: 16px; accent-color: #f59e0b;">
+            🧹 Limpiar destino antes de escribir
+          </label>
+        </div>
         <span id="migrationStatusText" style="font-family: 'VT323', monospace; font-size: 20px; color: var(--text-muted);">Listo para migrar</span>
       </div>
 
@@ -724,6 +730,17 @@ Configura la BD de Origen y Destino para comenzar.
         log(`📦 Leyendo colección '${colName}' de BD Origen...`, 'info');
 
         try {
+          const shouldWipe = document.getElementById('wipeTargetCheckbox').checked;
+          if (shouldWipe) {
+            const existingTarget = await dbTarget.collection(colName).get();
+            if (!existingTarget.empty) {
+              log(`   🧹 Limpiando ${existingTarget.size} documentos previos en destino '${colName}'...`, 'warn');
+              for (const exDoc of existingTarget.docs) {
+                await dbTarget.collection(colName).doc(exDoc.id).delete();
+              }
+            }
+          }
+
           const snapshot = await dbSource.collection(colName).get();
           log(`   Encontrados ${snapshot.size} documentos en '${colName}'. Transfiriendo...`, 'info');
 
