@@ -131,13 +131,14 @@ class ThorRadarService : Service() {
         }
 
         val isBatterySaver = prefs.getBoolean("radar_battery_saver", false)
-        val interval = if (isBatterySaver) 120_000L else 60_000L
+        // En arquitectura On-Demand, el servicio en segundo plano se mantiene en reposo (15-30 min)
+        // y solo se despierta inmediatamente ante pings Magic Packet WOL o movimiento significativo
+        val interval = if (isBatterySaver) 1_800_000L else 900_000L
 
         // Iniciar tracking continuo por callbacks GPS
-        ThorRadarManager.startLiveTracking(this, interval)
+        ThorRadarManager.startLiveTracking(this, 15_000L)
 
-        // Iniciar bucle de latido continuo en segundo plano (Heartbeat Pulse)
-        // Garantiza que aunque el teléfono esté quieto o en reposo, el timestamp y la batería se sincronicen periódicamente
+        // Iniciar bucle de latido en segundo plano (Heartbeat Pulse de baja frecuencia)
         startHeartbeatLoop(interval)
 
         return START_STICKY

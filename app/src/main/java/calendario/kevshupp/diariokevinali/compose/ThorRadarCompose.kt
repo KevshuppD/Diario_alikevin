@@ -273,8 +273,17 @@ fun ThorRadarScreen(
             ThorRadarService.startService(context)
         }
         // Emitir latido inmediato con batería y ubicación
-        ThorRadarManager.publishHeartbeat(context)
+        ThorRadarManager.publishHeartbeat(context, force = true)
         ThorRadarManager.forceLocationUpdate(context)
+
+        // Enfoque On-Demand: Al abrir la pantalla de Radar, solicitar ubicación fresca a la pareja vía Magic Packet WOL
+        ThorRadarManager.sendLocationRequestPing(
+            context = context,
+            coupleId = coupleId,
+            senderId = currentUserId,
+            senderName = myDisplayName,
+            partnerName = partnerName
+        )
     }
 
     // Escuchar datos de Firestore en tiempo real
@@ -336,14 +345,10 @@ fun ThorRadarScreen(
         }
     }
 
-    // Actualización inteligente en tiempo real mientras se visualiza la pantalla
+    // Tracking de ubicación mientras la pantalla está activa
     LaunchedEffect(isSharingLocation) {
         if (isSharingLocation && PermissionHelper.hasLocationPermission(context)) {
             ThorRadarManager.startLiveTracking(context, 10_000L)
-            while (isActive) {
-                ThorRadarManager.forceLocationUpdate(context)
-                delay(15_000L)
-            }
         } else {
             ThorRadarManager.stopLiveTracking()
         }
