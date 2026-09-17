@@ -467,6 +467,46 @@
         </label>
 
         <label class="collection-item">
+          <input type="checkbox" name="col" value="couple_anime" checked>
+          <div class="collection-info">
+            <div class="collection-name">🎬 couple_anime</div>
+            <div class="collection-desc">Animes vistos y por ver en pareja</div>
+          </div>
+        </label>
+
+        <label class="collection-item">
+          <input type="checkbox" name="col" value="medical_records" checked>
+          <div class="collection-info">
+            <div class="collection-name">🏥 medical_records</div>
+            <div class="collection-desc">Fichas médicas y datos de salud</div>
+          </div>
+        </label>
+
+        <label class="collection-item">
+          <input type="checkbox" name="col" value="schedules" checked>
+          <div class="collection-info">
+            <div class="collection-name">⏰ schedules</div>
+            <div class="collection-desc">Horarios, clases y rutinas</div>
+          </div>
+        </label>
+
+        <label class="collection-item">
+          <input type="checkbox" name="col" value="fortnite_spirits" checked>
+          <div class="collection-info">
+            <div class="collection-name">🎮 fortnite_spirits (S1)</div>
+            <div class="collection-desc">Espíritus y checklist Temporada 1</div>
+          </div>
+        </label>
+
+        <label class="collection-item">
+          <input type="checkbox" name="col" value="fortnite_spirits_s2" checked>
+          <div class="collection-info">
+            <div class="collection-name">🎮 fortnite_spirits_s2 (S2)</div>
+            <div class="collection-desc">Espíritus y checklist Temporada 2</div>
+          </div>
+        </label>
+
+        <label class="collection-item">
           <input type="checkbox" name="col" value="spirit_seasons" checked>
           <div class="collection-info">
             <div class="collection-name">👻 spirit_seasons</div>
@@ -710,6 +750,27 @@ Configura la BD de Origen y Destino para comenzar.
                 } catch (subErr) {
                   // Ignore subcol error
                 }
+              }
+            }
+          }
+
+          // Si locations no devolvió documentos padre pero existen subcolecciones virtuales
+          if (colName === 'locations') {
+            const knownCoupleIds = ['vínculo_único_123', 'vinculo_unico_123'];
+            const subcols = ['zones', 'users', 'history_kevin', 'history_ali', 'pings'];
+            for (const cId of knownCoupleIds) {
+              for (const sub of subcols) {
+                try {
+                  const subSnap = await dbSource.collection('locations').doc(cId).collection(sub).get();
+                  if (!subSnap.empty) {
+                    log(`   📍 Encontrada subcolección '${sub}' en locations/${cId} (${subSnap.size} docs)...`, 'info');
+                    for (const subDoc of subSnap.docs) {
+                      await dbTarget.collection('locations').doc(cId).collection(sub).doc(subDoc.id).set(subDoc.data(), { merge: true });
+                      totalMigrated++;
+                      colCount++;
+                    }
+                  }
+                } catch (subErr) {}
               }
             }
           }
