@@ -182,11 +182,8 @@ fun SettingsScreen(
                 GeneralSettingsMenuButton("⚙️ Sistema", btnBackground, textColor, borderColor) {
                     appSettingsSubView = "system"
                 }
-                GeneralSettingsMenuButton("🛠️ Avanzado (Diagnóstico)", btnBackground, textColor, borderColor) {
+                GeneralSettingsMenuButton("🛠️ Avanzado y Admin", btnBackground, textColor, borderColor) {
                     appSettingsSubView = "advanced"
-                }
-                GeneralSettingsMenuButton("🔒 Panel Administrador", btnBackground, textColor, borderColor) {
-                    appSettingsSubView = "admin"
                 }
             }
 
@@ -206,8 +203,7 @@ fun SettingsScreen(
                 "sync" -> "Sincronización"
                 "cache" -> "Almacenamiento"
                 "duplicates" -> "Duplicados"
-                "advanced" -> "Avanzado"
-                "admin" -> "Panel Administrador"
+                "advanced" -> "Avanzado y Admin"
                 else -> "Sistema"
             }
 
@@ -648,12 +644,7 @@ fun SettingsScreen(
                         syncState = syncState,
                         coupleId = coupleId,
                         onTestFirestore = onTestFirestore,
-                        onTestGoogleDrive = onTestGoogleDrive
-                    )
-                }
-                "admin" -> {
-                    AdminSettingsCompose(
-                        currentTheme = currentTheme,
+                        onTestGoogleDrive = onTestGoogleDrive,
                         onResetRanking = onAdminResetRanking,
                         onResetMinigames = onAdminResetMinigames,
                         onResetPets = onAdminResetPets,
@@ -661,6 +652,7 @@ fun SettingsScreen(
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(70.dp))
         }
     }
 }

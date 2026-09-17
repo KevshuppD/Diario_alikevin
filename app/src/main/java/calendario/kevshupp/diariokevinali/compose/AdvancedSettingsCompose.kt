@@ -21,7 +21,11 @@ fun AdvancedSettingsCompose(
     syncState: String,
     coupleId: String?,
     onTestFirestore: ( (String) -> Unit ) -> Unit,
-    onTestGoogleDrive: ( (String) -> Unit ) -> Unit
+    onTestGoogleDrive: ( (String) -> Unit ) -> Unit,
+    onResetRanking: () -> Unit = {},
+    onResetMinigames: () -> Unit = {},
+    onResetPets: () -> Unit = {},
+    onIncorrectPassword: () -> Unit = {}
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val textColor = if (isDark) Color.White else Color(0xFF4A2511)
@@ -34,12 +38,10 @@ fun AdvancedSettingsCompose(
     var isTestingDrive by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = "ESTADO DE CONEXIONES",
+            text = "ESTADO DE CONEXIONES (DIAGNÓSTICO)",
             fontFamily = Vt323Sync,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
@@ -98,6 +100,17 @@ fun AdvancedSettingsCompose(
                     isTestingFirestore = false
                 }
             }
+        )
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        // Panel de Administrador Integrado
+        AdminSettingsCompose(
+            currentTheme = currentTheme,
+            onResetRanking = onResetRanking,
+            onResetMinigames = onResetMinigames,
+            onResetPets = onResetPets,
+            onIncorrectPassword = onIncorrectPassword
         )
     }
 }

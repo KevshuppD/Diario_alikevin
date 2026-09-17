@@ -1,5 +1,7 @@
 package calendario.kevshupp.diariokevinali.compose
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -163,6 +166,8 @@ fun AdminSettingsCompose(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            val context = LocalContext.current
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -183,6 +188,76 @@ fun AdminSettingsCompose(
                     fontSize = 16.sp,
                     color = textColor.copy(alpha = 0.8f)
                 )
+            }
+
+            // Tarjeta de Monitoreo de Cuotas Firestore
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(2.dp, borderColor)
+                    .background(boxBackground)
+                    .padding(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "📊", fontSize = 22.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "MONITOREO DE CUOTAS FIRESTORE",
+                        fontFamily = Vt323,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "Límites diarios gratuitos (Spark Plan):\n• 📖 Lecturas: Máx 50.000 / día\n• ✍️ Escrituras: Máx 20.000 / día\n• 🗑️ Eliminaciones: Máx 20.000 / día\n• ⏰ Reinicio de cuota: 04:00 AM (Chile / 00:00 PDT)",
+                    fontFamily = Vt323,
+                    fontSize = 15.sp,
+                    color = textColor.copy(alpha = 0.9f),
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .clickable {
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://console.firebase.google.com/project/diario-ali-kevin/firestore/usage")
+                            )
+                            context.startActivity(intent)
+                        }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp)
+                            .offset(y = 4.dp)
+                            .background(borderColor)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp)
+                            .border(2.dp, borderColor)
+                            .background(if (isDark) Color(0xFF00796B) else Color(0xFF00897B)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "📈 VER MÉTRICAS EN VIVO EN FIREBASE",
+                            fontFamily = Vt323,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
             }
 
             AdminActionCard(
