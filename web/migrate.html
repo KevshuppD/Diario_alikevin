@@ -758,15 +758,14 @@ Configura la BD de Origen y Destino para comenzar.
                 try {
                   const subSnap = await dbSource.collection('locations').doc(doc.id).collection(sub).get();
                   if (!subSnap.empty) {
-                    log(`      Migrando subcolección '${sub}' (${subSnap.size} docs)...`, 'info');
-                    for (const subDoc of subSnap.docs) {
+                    const docsToMigrate = sub.startsWith('history_') ? subSnap.docs.slice(-30) : subSnap.docs;
+                    log(`      Migrando subcolección '${sub}' (${docsToMigrate.length} docs de ${subSnap.size})...`, 'info');
+                    for (const subDoc of docsToMigrate) {
                       await dbTarget.collection('locations').doc(doc.id).collection(sub).doc(subDoc.id).set(subDoc.data(), { merge: true });
                       totalMigrated++;
                     }
                   }
-                } catch (subErr) {
-                  // Ignore subcol error
-                }
+                } catch (subErr) {}
               }
             }
           }
@@ -780,8 +779,9 @@ Configura la BD de Origen y Destino para comenzar.
                 try {
                   const subSnap = await dbSource.collection('locations').doc(cId).collection(sub).get();
                   if (!subSnap.empty) {
-                    log(`   📍 Encontrada subcolección '${sub}' en locations/${cId} (${subSnap.size} docs)...`, 'info');
-                    for (const subDoc of subSnap.docs) {
+                    const docsToMigrate = sub.startsWith('history_') ? subSnap.docs.slice(-30) : subSnap.docs;
+                    log(`   📍 Encontrada subcolección '${sub}' en locations/${cId} (migrando ${docsToMigrate.length} de ${subSnap.size} docs)...`, 'info');
+                    for (const subDoc of docsToMigrate) {
                       await dbTarget.collection('locations').doc(cId).collection(sub).doc(subDoc.id).set(subDoc.data(), { merge: true });
                       totalMigrated++;
                       colCount++;
