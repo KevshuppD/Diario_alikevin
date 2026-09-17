@@ -690,7 +690,7 @@ Configura la BD de Origen y Destino para comenzar.
           let colCount = 0;
           for (const doc of snapshot.docs) {
             const data = doc.data();
-            await dbTarget.collection(colName).document(doc.id).set(data, { merge: true });
+            await dbTarget.collection(colName).doc(doc.id).set(data, { merge: true });
             colCount++;
             totalMigrated++;
 
@@ -699,11 +699,11 @@ Configura la BD de Origen y Destino para comenzar.
               const subcols = ['zones', 'users', 'history_kevin', 'history_ali', 'pings'];
               for (const sub of subcols) {
                 try {
-                  const subSnap = await dbSource.collection('locations').document(doc.id).collection(sub).get();
+                  const subSnap = await dbSource.collection('locations').doc(doc.id).collection(sub).get();
                   if (!subSnap.empty) {
                     log(`      Migrando subcolección '${sub}' (${subSnap.size} docs)...`, 'info');
                     for (const subDoc of subSnap.docs) {
-                      await dbTarget.collection('locations').document(doc.id).collection(sub).document(subDoc.id).set(subDoc.data(), { merge: true });
+                      await dbTarget.collection('locations').doc(doc.id).collection(sub).doc(subDoc.id).set(subDoc.data(), { merge: true });
                       totalMigrated++;
                     }
                   }
