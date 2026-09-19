@@ -205,6 +205,7 @@ object ThorRadarManager {
     private var cachedZones: List<RadarPlaceZone> = emptyList()
     private var zonesListener: ListenerRegistration? = null
     private var hasLoadedRemoteZones = false
+    var isForegroundTracking: Boolean = false
 
     fun loadCachedZonesFromPrefs(context: Context): List<RadarPlaceZone> {
         try {
@@ -705,17 +706,23 @@ object ThorRadarManager {
 
         saveCachedLocation(context, docName, locationData)
 
-        // SMART THROTTLING ONDEMAND:
-        // Si force == true: acción explícita (usuario abrió radar o respondió a Magic Packet) -> subir inmediatamente.
-        // Si force == false (background/pasivo): SOLO subir si hubo desplazamiento real significativo (>= 300m) Y al menos 10 min.
-        // Cero subidas por tiempo fijo en reposo o cambios menores de batería.
+        // SMART THROTTLING:
+        // 1. Si force == true: acción explícita (usuario abrió radar, pulsó Actualizar o respondió a Magic Packet) -> subir inmediatamente.
+        // 2. Si isForegroundTracking == true (usuario con la pantalla de Thor Radar abierta):
+        //    -> Subir en tiempo real si se desplazó >= 10 metros o si pasaron >= 12 segundos.
+        // 3. Si en background / pasivo (pantalla apagada):
+        //    -> Subir si hubo desplazamiento real significativo (>= 150 metros) y pasaron al menos 5 minutos.
         val distMovedSinceUpload = if (lastUploadedLat != 0.0 && lat != 0.0) calculateDistance(lastUploadedLat, lastUploadedLng, lat, lon) else Float.MAX_VALUE
         val timeSinceUpload = now - lastUploadedTime
 
-        val shouldUpload = force || (distMovedSinceUpload >= 300f && timeSinceUpload >= 600_000L)
+        val shouldUpload = when {
+            force -> true
+            isForegroundTracking -> (distMovedSinceUpload >= 10f || timeSinceUpload >= 12_000L)
+            else -> (distMovedSinceUpload >= 150f && timeSinceUpload >= 300_000L)
+        }
 
         if (!shouldUpload) {
-            Log.d(TAG, "Heartbeat omitido por throttling On-Demand (en reposo / sin cambios significativos: dist=${distMovedSinceUpload.toInt()}m, dt=${timeSinceUpload / 1000}s)")
+            Log.d(TAG, "Heartbeat omitido por throttling (isFg=$isForegroundTracking, dist=${distMovedSinceUpload.toInt()}m, dt=${timeSinceUpload / 1000}s)")
             return
         }
 
@@ -846,10 +853,11 @@ object ThorRadarManager {
     }
 
     @SuppressLint("MissingPermission")
-    fun startLiveTracking(context: Context, intervalMillis: Long = 10000L) {
+    fun startLiveTracking(context: Context, intervalMillis: Long = 10000L, isForeground: Boolean = true) {
         val appContext = context.applicationContext
         val prefs = appContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
         val isSharing = prefs.getBoolean("radar_is_sharing", true)
+        isForegroundTracking = isForeground
         if (!isSharing) {
             Log.d(TAG, "startLiveTracking cancelado: radar_is_sharing está desactivado")
             stopLiveTracking()
@@ -858,7 +866,7 @@ object ThorRadarManager {
         init(appContext)
 
         // Emitir heartbeat inmediato con batería y estado
-        publishHeartbeat(appContext, getLastKnownLocationFallback(appContext))
+        publishHeartbeat(appContext, getLastKnownLocationFallback(appContext), force = isForeground)
 
         if (!PermissionHelper.hasLocationPermission(appContext)) {
             Log.w(TAG, "No hay permisos de ubicación para iniciar tracking continuo")
@@ -866,6 +874,7 @@ object ThorRadarManager {
         }
 
         stopLiveTracking()
+        isForegroundTracking = isForeground
 
         try {
             fusedLocationClient?.lastLocation?.addOnSuccessListener { loc ->
@@ -884,8 +893,8 @@ object ThorRadarManager {
         }
 
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMillis)
-            .setMinUpdateIntervalMillis(maxOf(5000L, intervalMillis / 2))
-            .setMinUpdateDistanceMeters(10f)
+            .setMinUpdateIntervalMillis(maxOf(3000L, intervalMillis / 2))
+            .setMinUpdateDistanceMeters(if (isForeground) 5f else 15f)
             .setMaxUpdateDelayMillis(intervalMillis * 2)
             .setWaitForAccurateLocation(false)
             .build()
@@ -903,7 +912,7 @@ object ThorRadarManager {
                 locationCallback!!,
                 Looper.getMainLooper()
             )
-            Log.d(TAG, "Tracking de ubicación Fused iniciado con intervalo $intervalMillis ms")
+            Log.d(TAG, "Tracking de ubicación Fused iniciado con intervalo $intervalMillis ms (isFg=$isForeground)")
         } catch (e: Exception) {
             Log.e(TAG, "Error iniciando requestLocationUpdates", e)
         }
@@ -918,7 +927,7 @@ object ThorRadarManager {
                     locMan.requestLocationUpdates(
                         android.location.LocationManager.GPS_PROVIDER,
                         intervalMillis,
-                        10f,
+                        if (isForeground) 5f else 15f,
                         nativeLocationListener!!,
                         Looper.getMainLooper()
                     )
@@ -927,7 +936,7 @@ object ThorRadarManager {
                     locMan.requestLocationUpdates(
                         android.location.LocationManager.NETWORK_PROVIDER,
                         intervalMillis,
-                        15f,
+                        if (isForeground) 10f else 25f,
                         nativeLocationListener!!,
                         Looper.getMainLooper()
                     )
@@ -939,6 +948,7 @@ object ThorRadarManager {
     }
 
     fun stopLiveTracking() {
+        isForegroundTracking = false
         locationCallback?.let {
             try {
                 fusedLocationClient?.removeLocationUpdates(it)
@@ -1316,7 +1326,28 @@ object ThorRadarManager {
         val targetDoc = if (isSenderAli) "kevin" else "ali"
         val now = System.currentTimeMillis()
 
-        // 1. Magic Packet Wake-on-LAN vía FCM push prioritario (CERO impacto en cuotas Firestore)
+        // 1. Dual Ping: Registro en Firestore para respuesta instantánea (0ms) si la app de la pareja está abierta
+        try {
+            val pingMap = mapOf(
+                "requestedAt" to now,
+                "requestedBy" to senderName,
+                "senderId" to senderId,
+                "targetDoc" to targetDoc
+            )
+            db.collection("locations").document(safeCoupleId)
+                .collection("pings").document(targetDoc)
+                .set(pingMap, SetOptions.merge())
+                .addOnSuccessListener {
+                    Log.d(TAG, "⚡ [DUAL PING] Firestore ping registrado para $targetDoc")
+                }
+                .addOnFailureListener { e ->
+                    Log.w(TAG, "Error registrando ping en Firestore: ${e.message}")
+                }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error registrando ping Firestore", e)
+        }
+
+        // 2. Dual Ping: Magic Packet Wake-on-LAN vía FCM push prioritario (despierta el celular si la app está en segundo plano o cerrada)
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val creds = MainActivity.getGoogleCredentials(context)
@@ -1472,11 +1503,13 @@ object ThorRadarManager {
 
         fun updateCandidate(newLoc: Location?) {
             if (newLoc == null || (newLoc.latitude == 0.0 && newLoc.longitude == 0.0)) return
+            val now = System.currentTimeMillis()
+            val isFresh = (now - newLoc.time) < 180_000L
             val currentBest = bestCandidate
-            if (currentBest == null || (newLoc.hasAccuracy() && newLoc.accuracy < currentBest.accuracy) || (newLoc.time > currentBest.time && newLoc.accuracy <= (currentBest.accuracy + 20f))) {
+            if (currentBest == null || (newLoc.hasAccuracy() && newLoc.accuracy < currentBest.accuracy) || (isFresh && newLoc.time > currentBest.time && newLoc.accuracy <= (currentBest.accuracy + 20f))) {
                 bestCandidate = newLoc
             }
-            if (newLoc.hasAccuracy() && newLoc.accuracy <= 75f) {
+            if (newLoc.hasAccuracy() && newLoc.accuracy <= 75f && isFresh) {
                 mainHandler.removeCallbacks(timeoutRunnable)
                 finish(newLoc)
             }

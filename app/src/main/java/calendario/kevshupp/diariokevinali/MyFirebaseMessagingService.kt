@@ -56,7 +56,24 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 remoteMessage.data["magic_packet"] == "WOL_LOCATION_WAKEUP"
 
         if (isMagicPacket) {
-            Log.d("FCM", "⚡ [MAGIC PACKET] Petición radar_ping recibida. Ejecutando handleMagicLocationPing de forma silenciosa...")
+            val prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE)
+            val myId = prefs.getString("userId", "")?.trim()?.lowercase() ?: ""
+            val myName = prefs.getString("userName", "")?.trim()?.lowercase() ?: ""
+            val myDoc = ThorRadarManager.getMyDocName(myId, myName)
+            val targetDoc = remoteMessage.data["targetDoc"]?.trim()?.lowercase() ?: ""
+
+            // Ignorar si el ping era para el otro usuario o si fui yo quien lo emitió
+            val authIdNorm = authorId?.trim()?.lowercase() ?: ""
+            if (authIdNorm.isNotEmpty() && (authIdNorm == myId || (myName.isNotEmpty() && authIdNorm == myName))) {
+                Log.d("FCM", "⚡ [MAGIC PACKET] Ignorando ping emitido por mí mismo")
+                return
+            }
+            if (targetDoc.isNotEmpty() && targetDoc != myDoc) {
+                Log.d("FCM", "⚡ [MAGIC PACKET] Ignorando ping porque targetDoc ($targetDoc) != myDoc ($myDoc)")
+                return
+            }
+
+            Log.d("FCM", "⚡ [MAGIC PACKET] Petición radar_ping recibida para $myDoc. Ejecutando handleMagicLocationPing de forma silenciosa...")
             try {
                 ThorRadarManager.handleMagicLocationPing(this)
             } catch (e: Exception) {

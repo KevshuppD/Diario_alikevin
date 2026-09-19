@@ -85,9 +85,12 @@ class ThorRadarService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        // En arquitectura On-Demand, el servicio en segundo plano se mantiene en reposo absoluto
-        // esperando únicamente señales push Magic Packet WOL o la apertura de la app por el usuario.
-        Log.d(TAG, "ThorRadarService en reposo activo On-Demand listo para recibir Magic Packets.")
+        if (PermissionHelper.hasLocationPermission(this)) {
+            val isBatterySaver = prefs.getBoolean("radar_battery_saver", false)
+            val interval = if (isBatterySaver) 60_000L else 30_000L
+            ThorRadarManager.startLiveTracking(this, interval, isForeground = false)
+        }
+        Log.d(TAG, "ThorRadarService activo en segundo plano listo para recibir Magic Packets y movimiento pasivo.")
 
         return START_STICKY
     }

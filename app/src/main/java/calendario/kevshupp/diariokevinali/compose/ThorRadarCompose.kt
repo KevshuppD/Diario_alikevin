@@ -330,8 +330,7 @@ fun ThorRadarScreen(
                     val reqTime = snapshot.getLong("requestedAt") ?: 0L
                     if (reqTime > 0L && (System.currentTimeMillis() - reqTime) < 60_000L) {
                         Log.d("ThorRadarCompose", "⚡ Solicitud de ping recibida vía Firestore. Actualizando ubicación...")
-                        ThorRadarManager.publishHeartbeat(context, force = true)
-                        ThorRadarManager.forceLocationUpdate(context)
+                        ThorRadarManager.handleMagicLocationPing(context)
                     }
                 }
             }
@@ -347,7 +346,7 @@ fun ThorRadarScreen(
     // Tracking de ubicación mientras la pantalla está activa
     LaunchedEffect(isSharingLocation) {
         if (isSharingLocation && PermissionHelper.hasLocationPermission(context)) {
-            ThorRadarManager.startLiveTracking(context, 10_000L)
+            ThorRadarManager.startLiveTracking(context, 8_000L, isForeground = true)
         } else {
             ThorRadarManager.stopLiveTracking()
         }
@@ -359,8 +358,8 @@ fun ThorRadarScreen(
             val isSharing = prefs.getBoolean("radar_is_sharing", true)
             if (isSharing && PermissionHelper.hasLocationPermission(context)) {
                 val isBatterySaver = prefs.getBoolean("radar_battery_saver", false)
-                val interval = if (isBatterySaver) 30_000L else 10_000L
-                ThorRadarManager.startLiveTracking(context, interval)
+                val interval = if (isBatterySaver) 60_000L else 30_000L
+                ThorRadarManager.startLiveTracking(context, interval, isForeground = false)
             } else {
                 ThorRadarManager.stopLiveTracking()
             }
