@@ -1537,6 +1537,7 @@
       border-color: rgba(255, 255, 255, 0.15);
     }
     /* Radar & Device Management Styles */
+    /* Radar & Device Management Styles */
     .radar-dashboard {
       padding: 16px 20px;
       max-width: 1200px;
@@ -1558,7 +1559,7 @@
     }
     .radar-cards-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
       gap: 24px;
       margin-bottom: 24px;
     }
@@ -1588,11 +1589,14 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      flex-wrap: wrap;
     }
     .radar-user-info {
       display: flex;
       align-items: center;
       gap: 12px;
+      min-width: 0;
+      flex: 1 1 auto;
     }
     .radar-user-avatar {
       width: 46px;
@@ -1601,17 +1605,20 @@
       border: 2px solid var(--card-border);
       object-fit: cover;
       background: rgba(0,0,0,0.3);
+      flex-shrink: 0;
     }
     .radar-status-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px;
+      padding: 5px 12px;
       border-radius: 20px;
       font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .radar-status-badge.online {
       background: rgba(16, 185, 129, 0.15);
@@ -1635,6 +1642,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      flex-wrap: wrap;
       transition: all 0.3s ease;
     }
     .radar-power-box.active {
@@ -1658,19 +1666,21 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
+      min-width: 0;
     }
     .radar-telemetry-label {
       font-size: 11px;
       color: var(--text-muted);
       font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .radar-telemetry-value {
       font-size: 13px;
       color: var(--text-color);
       font-weight: 700;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      word-break: break-word;
     }
     .radar-battery-track {
       width: 100%;
@@ -1689,6 +1699,107 @@
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
+    }
+    .radar-actions-grid .btn {
+      flex: 1 1 calc(33.333% - 8px);
+      min-width: 130px;
+      justify-content: center;
+      text-align: center;
+    }
+
+    /* Half-Screen & Responsive Media Queries */
+    @media (max-width: 1080px) {
+      header {
+        padding: 10px 16px;
+        gap: 12px;
+      }
+      .header-controls {
+        gap: 8px;
+        width: 100%;
+        justify-content: flex-start;
+      }
+      .mode-btn {
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+      .radar-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+      .radar-dashboard {
+        padding: 12px 14px;
+      }
+      .radar-hero {
+        padding: 16px;
+        margin-bottom: 18px;
+      }
+      .radar-user-card {
+        padding: 18px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      header {
+        padding: 10px 12px;
+      }
+      .logo-container h1 {
+        font-size: 18px;
+      }
+      .header-controls {
+        width: 100%;
+        gap: 6px;
+      }
+      .mode-switch {
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .mode-switch::-webkit-scrollbar {
+        display: none;
+      }
+      .mode-btn {
+        padding: 4px 8px;
+        font-size: 11.5px;
+        white-space: nowrap;
+      }
+      .connection-status-pill, .user-badge {
+        padding: 4px 8px;
+        font-size: 11px;
+      }
+      .radar-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      .radar-power-box {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        text-align: center;
+      }
+      .radar-power-box button {
+        width: 100%;
+      }
+      .radar-telemetry-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .radar-actions-grid .btn {
+        flex: 1 1 100%;
+        width: 100%;
+      }
+      .content-area {
+        padding: 12px;
+      }
+      .spirit-slots-grid {
+        grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+        gap: 8px;
+      }
+      .category-card {
+        padding: 12px;
+        margin-bottom: 14px;
+      }
     }
   </style>
 </head>
@@ -3532,7 +3643,7 @@
       // Escuchar estado en tiempo real de celulares y Thor Radar
       if (radarUnsubscribe) radarUnsubscribe();
       radarUnsubscribe = db.collection("locations").doc(coupleId).collection("users")
-        .onSnapshot(snapshot => {
+        .onSnapshot({ includeMetadataChanges: true }, snapshot => {
           snapshot.forEach(doc => {
             if (doc.id === "kevin" || doc.id === "ali") {
               radarUsersData[doc.id] = doc.data();
@@ -3545,7 +3656,7 @@
 
       if (radarZonesUnsubscribe) radarZonesUnsubscribe();
       radarZonesUnsubscribe = db.collection("locations").doc(coupleId).collection("zones")
-        .onSnapshot(snapshot => {
+        .onSnapshot({ includeMetadataChanges: true }, snapshot => {
           radarZonesData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
           if (currentMode === "radar") {
             renderRadarManager();
@@ -5149,6 +5260,11 @@
     window.toggleRemoteRadar = async function(userKey, enable) {
       try {
         const userName = userKey === "kevin" ? "Kevin" : "Ali";
+        if (!radarUsersData[userKey]) radarUsersData[userKey] = {};
+        radarUsersData[userKey].isSharing = enable;
+        radarUsersData[userKey].timestamp = Date.now();
+        renderRadarManager();
+
         showToast(`Actualizando Thor Radar para ${userName}...`, false);
         await db.collection("locations").doc(coupleId).collection("users").doc(userKey).set({
           isSharing: enable,
@@ -5161,36 +5277,90 @@
       }
     };
 
+    window.toggleRemoteSos = async function(userKey, enable) {
+      try {
+        const userName = userKey === "kevin" ? "Kevin" : "Ali";
+        if (!radarUsersData[userKey]) radarUsersData[userKey] = {};
+        radarUsersData[userKey].sosActive = enable;
+        radarUsersData[userKey].timestamp = Date.now();
+        renderRadarManager();
+
+        showToast(`${enable ? '🚨 Activando' : '✅ Desactivando'} SOS para ${userName}...`, false);
+        await db.collection("locations").doc(coupleId).collection("users").doc(userKey).set({
+          sosActive: enable,
+          timestamp: Date.now()
+        }, { merge: true });
+        showToast(`Alerta SOS de ${userName} ${enable ? 'ACTIVADA' : 'DESACTIVADA'}.`, false);
+      } catch(err) {
+        console.error("Error toggle SOS:", err);
+        showToast("Error al modificar SOS: " + err.message, true);
+      }
+    };
+
+    let radarPingLoading = { kevin: false, ali: false };
+
     window.sendRemoteMagicPing = async function(userKey) {
       try {
         const userName = userKey === "kevin" ? "Kevin" : "Ali";
-        showToast(`Enviando Magic Packet a ${userName}...`, false);
+        radarPingLoading[userKey] = true;
+        renderRadarManager();
+
+        showToast(`🚀 Enviando Magic Packet a ${userName}...`, false);
         await db.collection("locations").doc(coupleId).collection("pings").doc(userKey).set({
           requestedAt: Date.now(),
-          requestedBy: currentUser ? currentUser.name : "Web Panel"
+          requestedBy: currentUser ? currentUser.name : "Web Panel",
+          targetDoc: userKey
         });
         showToast(`🚀 Magic Packet enviado con éxito a ${userName}. El celular despertará y actualizará su fix GPS.`, false);
+        setTimeout(() => {
+          radarPingLoading[userKey] = false;
+          renderRadarManager();
+        }, 4500);
       } catch(err) {
         console.error("Error sending ping:", err);
+        radarPingLoading[userKey] = false;
+        renderRadarManager();
         showToast("Error enviando ping: " + err.message, true);
       }
     };
 
-    window.toggleRemoteSos = async function(userKey, enable) {
+    window.resetDevicePresence = async function(userKey) {
       try {
         const userName = userKey === "kevin" ? "Kevin" : "Ali";
+        if (!radarUsersData[userKey]) radarUsersData[userKey] = {};
+        radarUsersData[userKey].isSharing = false;
+        radarUsersData[userKey].timestamp = 0;
+        radarUsersData[userKey].activity = "OFFLINE";
+        radarUsersData[userKey].sosActive = false;
+        renderRadarManager();
+
+        showToast(`Marcando celular de ${userName} como desconectado...`, false);
         await db.collection("locations").doc(coupleId).collection("users").doc(userKey).set({
-          sosActive: enable,
-          sosTimestamp: enable ? Date.now() : 0
+          isSharing: false,
+          timestamp: 0,
+          activity: "OFFLINE",
+          sosActive: false
         }, { merge: true });
-        showToast(enable ? `🚨 Alerta SOS activada para pruebas en ${userName}` : `✅ Alerta SOS desactivada para ${userName}`, false);
+        showToast(`🧹 Celular de ${userName} marcado como desconectado (Gasto 0).`, false);
       } catch(err) {
-        console.error("Error SOS:", err);
-        showToast("Error modificando alerta SOS", true);
+        console.error("Error reset presence:", err);
+        showToast("Error al limpiar presencia: " + err.message, true);
       }
     };
 
+    let radarLiveTimer = null;
+    function ensureRadarLiveTimer() {
+      if (!radarLiveTimer) {
+        radarLiveTimer = setInterval(() => {
+          if (currentMode === "radar") {
+            renderRadarManager();
+          }
+        }, 1000); // Actualizar telemetría, contadores y tiempos cada 1 segundo en vivo
+      }
+    }
+
     window.renderRadarManager = function() {
+      ensureRadarLiveTimer();
       const container = document.getElementById("radar-container");
       if (!container) return;
 
@@ -5210,7 +5380,7 @@
       }
 
       function getConnectionStatus(userData) {
-        if (!userData || !userData.timestamp) return { text: "⚪ Desconectado", cls: "offline" };
+        if (!userData || !userData.timestamp || userData.timestamp === 0) return { text: "⚪ Desconectado", cls: "offline" };
         const diffMin = (Date.now() - userData.timestamp) / (1000 * 60);
         if (userData.isSharing === false) return { text: "🛑 Radar Apagado", cls: "offline" };
         if (diffMin < 2) return { text: "🟢 En Línea (En Vivo)", cls: "online" };
@@ -5220,13 +5390,13 @@
 
       function renderUserCard(userKey, name, color, icon, data) {
         const status = getConnectionStatus(data);
-        const isSharing = data.isSharing !== false; // true by default
+        const isSharing = data.isSharing !== false && data.timestamp > 0; // false if explicit or cleared
         const battery = data.batteryLevel !== undefined ? data.batteryLevel : "--";
         const isCharging = data.isCharging === true;
         const speed = data.speedKmh !== undefined ? Math.round(data.speedKmh) : 0;
         const accuracy = data.accuracy !== undefined ? Math.round(data.accuracy) : "--";
         const activity = data.activity || "STILL";
-        const activityText = activity === "WALKING" ? "🚶 Caminando" : activity === "IN_VEHICLE" ? "🚗 En Vehículo" : activity === "ON_BICYCLE" ? "🚴 En Bicicleta" : "🛑 En Reposo";
+        const activityText = activity === "WALKING" ? "🚶 Caminando" : activity === "IN_VEHICLE" ? "🚗 En Vehículo" : activity === "ON_BICYCLE" ? "🚴 En Bicicleta" : activity === "OFFLINE" ? "⚪ Desconectado" : "🛑 En Reposo";
         const zone = data.currentZone ? `📍 ${data.currentZone}` : (data.address || (data.latitude ? `${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}` : "Sin ubicación reciente"));
         const lat = data.latitude || 0;
         const lon = data.longitude || 0;
@@ -5250,7 +5420,7 @@
                   <h3 style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:700; color:${color}; margin:0;">
                     ${name} <span style="font-size:12px; color:var(--text-muted); font-weight:500;">(${data.userName || (userKey === 'kevin' ? 'Kevin' : 'Ali')})</span>
                   </h3>
-                  <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Doc: <code>locations/${coupleId}/users/${userKey}</code></div>
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">ID: <code>locations/${coupleId}/users/${userKey}</code></div>
                 </div>
               </div>
               <span class="radar-status-badge ${status.cls}">${status.text}</span>
@@ -5323,11 +5493,14 @@
             <div style="border-top: 1px solid var(--card-border); padding-top: 12px;">
               <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block; margin-bottom:8px;">🛠️ ACCIONES DE CONTROL Y PRUEBAS:</span>
               <div class="radar-actions-grid">
-                <button class="btn btn-secondary" onclick="sendRemoteMagicPing('${userKey}')" style="font-size:11px; padding:6px 10px;" title="Dispara Wake-on-LAN para forzar actualización de fix GPS">
-                  ⚡ Ping Magic Packet
+                <button class="btn btn-secondary" onclick="sendRemoteMagicPing('${userKey}')" ${radarPingLoading[userKey] ? 'disabled style="opacity:0.6; pointer-events:none; font-size:11px; padding:6px 10px;"' : 'style="font-size:11px; padding:6px 10px;"'} title="Dispara Wake-on-LAN para forzar actualización de fix GPS">
+                  ${radarPingLoading[userKey] ? '⏳ Solicitando GPS...' : '⚡ Ping Magic Packet'}
                 </button>
                 <button class="btn ${isSos ? 'btn-success' : 'btn-danger'}" onclick="toggleRemoteSos('${userKey}', ${!isSos})" style="font-size:11px; padding:6px 10px;" title="Simular alarma SOS para pruebas de receptor">
                   ${isSos ? '✅ Desactivar SOS' : '🚨 Probar Alerta SOS'}
+                </button>
+                <button class="btn btn-secondary" onclick="resetDevicePresence('${userKey}')" style="font-size:11px; padding:6px 10px; color: #f87171;" title="Marcar como desconectado (útil si desinstalaste la app o estás haciendo pruebas)">
+                  🧹 Marcar Desconectado
                 </button>
               </div>
             </div>
@@ -5347,7 +5520,10 @@
                 Supervisa el estado en tiempo real de Kevin y Ali, gestiona su conectividad y desactiva el radar de cualquier celular remotamente durante pruebas para evitar escrituras o errores no deseados.
               </p>
             </div>
-            <div style="display:flex; gap:10px; align-items:center;">
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <span style="display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#10b981; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); padding:6px 10px; border-radius:20px;">
+                <span style="width:7px; height:7px; border-radius:50%; background:#10b981; box-shadow:0 0 8px #10b981;"></span> Sincronización en vivo (1s)
+              </span>
               <button class="btn btn-secondary" onclick="renderRadarManager()" style="font-size:12px; padding:8px 12px;">
                 🔄 Refrescar Vista
               </button>

@@ -825,6 +825,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     }
 
     private var radarControlListener: ListenerRegistration? = null
+    private var radarPingListener: ListenerRegistration? = null
 
     private fun setupRadarRemoteControlListener() {
         val myDocName = if (ThorRadarManager.isAli(currentUserId, currentUserName)) "ali" else "kevin"
@@ -858,11 +859,25 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     }
                 }
             }
+
+        radarPingListener?.remove()
+        radarPingListener = db.collection("locations").document(safeCoupleId)
+            .collection("pings").document(myDocName)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && snapshot.exists()) {
+                    val reqTime = snapshot.getLong("requestedAt") ?: 0L
+                    if (reqTime > 0L && (System.currentTimeMillis() - reqTime) < 60_000L) {
+                        Log.d("MainActivity", "⚡ [MAGIC PACKET] Solicitud de ping recibida vía Firestore para $myDocName. Adquiriendo fix GPS fresco...")
+                        ThorRadarManager.handleMagicLocationPing(this)
+                    }
+                }
+            }
     }
 
     override fun onDestroy() {
         sosListener?.remove()
         radarControlListener?.remove()
+        radarPingListener?.remove()
         networkStatusTracker?.stopListening()
         try {
             fcmExecutor.shutdown()
