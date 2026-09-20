@@ -56,6 +56,17 @@
         <span id="user-icon">🔵</span>
         <span id="user-name">Kevin</span>
       </div>
+
+      <!-- Connection Status Badge -->
+      <div class="connection-status-pill" id="db-status-pill">
+        <span class="status-dot online" id="db-status-dot"></span>
+        <span class="status-text" id="db-status-text">Firestore Conectado 🟢</span>
+      </div>
+
+      <div class="connection-status-pill ws-pill" id="ws-status-pill">
+        <span class="status-dot online" id="ws-status-dot"></span>
+        <span class="status-text" id="ws-status-text">WS: En vivo (1)</span>
+      </div>
     </div>
   </header>
 
@@ -69,105 +80,122 @@
         <p id="sidebar-subtext">Arrastra imágenes a las categorías para asignarlas o haz clic para moverlas.</p>
       </div>
       <div class="gallery-grid" id="gallery-container">
-        <!-- Rendered dynamically -->
+        <!-- Rendered dynamically by edit-view.js -->
       </div>
     </div>
 
     <!-- Central Content Area -->
     <div class="content-area">
       
-      <!-- 1. VISTA NORMAL (Álbum) -->
-      <div id="normalView" class="view-panel">
-        <!-- Normal Mode Toolbar: Stats -->
-        <div class="normal-toolbar" id="normal-toolbar">
-          <div class="stats-container">
-            <div class="stat-pill kevin">
-              <span class="stat-label">🔵 Kevin:</span>
-              <span class="stat-val" id="stat-kevin">0 / 0</span>
-            </div>
-            <div class="stat-pill ali">
-              <span class="stat-label">🔴 Ali:</span>
-              <span class="stat-val" id="stat-ali">0 / 0</span>
-            </div>
-            <div class="stat-pill both">
-              <span class="stat-label">💜 Ambos:</span>
-              <span class="stat-val" id="stat-both">0 / 0</span>
-            </div>
+      <!-- Normal Mode Toolbar: Stats -->
+      <div class="normal-toolbar" id="normal-toolbar">
+        <div class="stats-container">
+          <div class="stat-pill kevin">
+            <span class="stat-label">🔵 Kevin:</span>
+            <span class="stat-val" id="stat-kevin">0 / 0</span>
           </div>
-        </div>
-
-        <!-- Search Input Bar -->
-        <div class="search-bar-container" id="shared-search-bar-container">
-          <div class="search-input-wrapper">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="spirit-search-input" placeholder="Buscar espíritu por nombre, # ID o variante..." oninput="window.onSearchInput(this.value)">
-            <button class="clear-search-btn" id="clear-search-btn" onclick="window.clearSearch()" style="display:none;" title="Limpiar búsqueda">✕ Limpiar</button>
+          <div class="stat-pill ali">
+            <span class="stat-label">🔴 Ali:</span>
+            <span class="stat-val" id="stat-ali">0 / 0</span>
           </div>
-        </div>
-
-        <!-- Filter Bar -->
-        <div class="normal-toolbar">
-          <div class="filter-bar">
-            <span style="font-size: 13px; color: var(--text-muted); font-weight: 600; margin-right: 4px;">Filtrar:</span>
-            <button class="filter-btn active" onclick="window.setNormalFilter('ALL', this)">Todos</button>
-            <button class="filter-btn" onclick="window.setNormalFilter('no_obtenidos', this)">❌ Faltantes para mí</button>
-            <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_otro_no_yo', this)">🔁 Tiene mi pareja (no yo)</button>
-            <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_yo_no_otro', this)">⭐ Solo yo</button>
-            <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_ambos', this)">💜 Ambos</button>
-            <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_sin_maestria', this)">👑 Obtenidos sin Maestría</button>
-            <button class="filter-btn" onclick="window.setNormalFilter('sin_maestria', this)">☆ Sin Maestría</button>
-            <button class="filter-btn" onclick="window.setNormalFilter('maestria_otro_no_yo', this)">👑 Pareja Maestría (yo no)</button>
-            <button class="filter-btn" onclick="window.setNormalFilter('maestria_yo_no_otro', this)">👑 Mi Maestría (pareja no)</button>
+          <div class="stat-pill both">
+            <span class="stat-label">💜 Ambos:</span>
+            <span class="stat-val" id="stat-both">0 / 0</span>
           </div>
-        </div>
-
-        <!-- Categories Container for Normal Mode -->
-        <div class="categories-list" id="categories-container">
-          <!-- Rendered dynamically by normal-view.js -->
         </div>
       </div>
 
-      <!-- 2. VISTA DE EDICIÓN -->
-      <div id="editView" class="view-panel" style="display: none;">
-        <div class="actions-bar" id="edit-actions-bar">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <button class="btn btn-secondary" id="btn-toggle-gallery" onclick="window.toggleGalleryDrawer()" style="border-color: var(--accent-color); color: #e040fb;">
-              <span>🖼️</span> <span id="btn-gallery-label">Mostrar Galería</span>
-            </button>
-            <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px;">Estructura de Categorías & Ranuras</h2>
-          </div>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <button class="btn btn-secondary" onclick="window.openNewSpiritModal()">➕ Nuevo Espíritu</button>
-          </div>
-        </div>
-
-        <!-- Categories Container in Edit Mode -->
-        <div class="categories-list" id="edit-categories-container">
-          <!-- Rendered dynamically -->
+      <!-- Search Input Bar (Modo Normal y Modo Edición) -->
+      <div class="search-bar-container" id="shared-search-bar-container">
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="spirit-search-input" placeholder="Buscar espíritu por nombre, # ID o variante..." oninput="window.onSearchInput(this.value)">
+          <button class="clear-search-btn" id="clear-search-btn" onclick="window.clearSearch()" style="display:none;" title="Limpiar búsqueda">✕ Limpiar</button>
         </div>
       </div>
 
-      <!-- 3. VISTA DE CATEGORÍAS Y TIPOS -->
-      <div id="categoriesView" class="view-panel" style="display: none;">
-        <div class="db-inspector-area" id="categoriesManagerContainer">
-          <!-- Rendered dynamically by categories-view.js -->
+      <!-- Filter Bar (Modo Normal) -->
+      <div class="normal-toolbar" id="normal-filters-toolbar">
+        <div class="filter-bar">
+          <span style="font-size: 13px; color: var(--text-muted); font-weight: 600; margin-right: 4px;">Filtrar:</span>
+          <button class="filter-btn active" onclick="window.setNormalFilter('ALL', this)">Todos</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('no_obtenidos', this)">❌ Faltantes para mí</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_otro_no_yo', this)">🔁 Tiene mi pareja (no yo)</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_yo_no_otro', this)">⭐ Solo yo</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_ambos', this)">💜 Ambos</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_sin_maestria', this)">👑 Obtenidos sin Maestría</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('sin_maestria', this)">☆ Sin Maestría</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('maestria_otro_no_yo', this)">👑 Pareja Maestría (yo no)</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('maestria_yo_no_otro', this)">👑 Mi Maestría (pareja no)</button>
         </div>
       </div>
 
-      <!-- 4. VISTA DE RADAR GPS -->
-      <div id="radarView" class="view-panel" style="display: none;">
-        <div class="db-inspector-area" id="radar-container">
-          <!-- Rendered dynamically by radar-view.js -->
+      <!-- Action buttons bar for Edition Mode -->
+      <div class="actions-bar" id="edit-actions-bar" style="display: none;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn btn-secondary" id="btn-toggle-gallery" onclick="window.toggleGalleryDrawer()" style="border-color: var(--accent-color); color: #e040fb;">
+            <span>🖼️</span> <span id="btn-gallery-label">Mostrar Galería</span>
+          </button>
+          <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px;">Estructura de Categorías en Firestore</h2>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn btn-secondary" id="btn-add-category" onclick="window.openNewSpiritModal()">➕ Nuevo Espíritu</button>
         </div>
       </div>
 
-      <!-- 5. VISTA DE CONFIGURACIÓN -->
-      <div id="configView" class="view-panel" style="display: none;">
-        <div class="db-inspector-area" id="config-container">
-          <!-- Rendered dynamically by config-view.js -->
-        </div>
+      <!-- Categories Container for Normal & Edit Modes -->
+      <div class="categories-list" id="categories-container">
+        <!-- Rendered dynamically by normal-view.js -->
       </div>
 
+      <!-- Categories & Types Manager Container (/categorias) -->
+      <div class="db-inspector-area" id="categoriesManagerContainer" style="display: none;">
+        <!-- Rendered dynamically by categories-view.js -->
+      </div>
+
+      <!-- Radar & Devices Manager Container (/radar) -->
+      <div class="db-inspector-area" id="radar-container" style="display: none;">
+        <!-- Rendered dynamically by radar-view.js -->
+      </div>
+
+      <!-- Configuration Dashboard Container (/configuracion) -->
+      <div class="db-inspector-area" id="config-container" style="display: none;">
+        <!-- Rendered dynamically by config-view.js -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal for Mobile Assignment in Edit Mode -->
+  <div class="modal-overlay" id="assign-modal">
+    <div class="modal-content">
+      <h3 id="assign-modal-title">Asignar Espíritu</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Selecciona la categoría a la que deseas mover este espíritu:</p>
+      <select id="assign-category-select" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+      </select>
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px;">
+        <button class="btn btn-secondary" onclick="window.closeAssignModal()">Cancelar</button>
+        <button class="btn" onclick="const s = document.getElementById('assign-category-select'); if (s && window.activeModalSpiritId) window.moveSpiritToCategory(window.activeModalSpiritId, s.value); window.closeAssignModal();">Asignar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Editing Spirit Image -->
+  <div class="modal-overlay" id="edit-image-modal">
+    <div class="modal-content" style="max-width: 440px;">
+      <h3 id="edit-image-modal-title">🖼️ Cambiar Imagen del Espíritu</h3>
+      <div style="text-align: center; margin: 14px 0;">
+        <div style="display: inline-block; padding: 12px; border-radius: 12px; border: 2px solid var(--card-border); background: repeating-conic-gradient(#1f2233 0% 25%, #131520 0% 50%) 50% / 16px 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);">
+          <img id="edit-image-preview" src="" alt="Vista previa" style="width: 100px; height: 100px; object-fit: contain; image-rendering: pixelated; display: block;">
+        </div>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label style="display: block; font-size: 12px; font-weight: bold; margin-bottom: 6px; color: var(--text-color);">Subir Sprite / Archivo de Imagen:</label>
+        <input type="file" id="edit-image-file-input" accept="image/*" style="width: 100%; font-size: 12px; color: #fff; background: #12131a; padding: 8px; border-radius: 8px; border: 1px solid var(--card-border);">
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px;">
+        <button type="button" class="btn btn-secondary" onclick="window.closeEditImageModal()">Cerrar</button>
+      </div>
     </div>
   </div>
 

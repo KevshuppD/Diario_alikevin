@@ -1,255 +1,331 @@
 /**
- * edit-view.js - Vista de Modo Edición / Gestión de Ranuras y Galería de Espíritus
+ * edit-view.js - Vista de Modo Edición, Gestión de Ranuras/Categorías, Galería y Modales
  */
 
 import { state } from './state.js';
-import { getOptimizedCloudinaryUrl } from './image-utils.js';
-import { saveChanges } from './firestore.js';
-import { sendWebSocketBroadcast } from './websocket.js';
+import { defaultNames, defaultSpiritsList, defaultCategories } from './constants.js';
+import { triggerAutoSave } from './firestore.js';
+import { getSpiritImgUrl, getSpiritName, getSpiritCurrentType, computeSpiritName, handleSpiritImgError, renderWorkspace, updateStats, matchesFilter } from './normal-view.js';
+import { processSpiritImage, optimizeCloudinaryUrl } from './image-utils.js';
 
-export function renderEditGrid() {
-  const container = document.getElementById('editGridContainer');
-  if (!container) return;
+let isGalleryOpen = false;
+let activeModalSpiritId = null;
 
-  const spirits = state.activeSeason === 1 ? state.season1Spirits : state.season2Spirits;
-  const currentSlots = state.activeSeason === 1 ? state.season1Slots : state.season2Slots;
-  const spiritsMap = new Map(spirits.map(s => [s.id, s]));
-
-  let html = '';
-  for (let slotNum = 1; slotNum <= 28; slotNum++) {
-    const assignedId = currentSlots[slotNum];
-    const spirit = assignedId ? spiritsMap.get(assignedId) : null;
-    const isSelected = state.selectedSlot === slotNum;
-
-    if (spirit) {
-      const imgUrl = getOptimizedCloudinaryUrl(spirit.imageUrl || spirit.image, 160);
-      html += `
-        <div class="edit-slot filled ${isSelected ? 'selected' : ''}" 
-             data-slot="${slotNum}" 
-             onclick="window.selectSpiritSlot(${slotNum})">
-          <div class="slot-badge">#${slotNum}</div>
-          <button class="remove-btn" title="Desasignar espíritu" onclick="event.stopPropagation(); window.removeSpiritFromSlot(${slotNum})">✕</button>
-          <div class="slot-img-wrap">
-            <img src="${imgUrl}" alt="${spirit.name}" loading="lazy" onerror="this.src='https://placehold.co/120x120/1e293b/a855f7?text=?';">
-          </div>
-          <div class="slot-info">
-            <div class="slot-name">${spirit.name}</div>
-            <div class="slot-type">${spirit.type || 'Común'}</div>
-          </div>
-        </div>
-      `;
-    } else {
-      html += `
-        <div class="edit-slot empty ${isSelected ? 'selected' : ''}" 
-             data-slot="${slotNum}" 
-             onclick="window.selectSpiritSlot(${slotNum})">
-          <div class="slot-badge">#${slotNum}</div>
-          <div class="empty-icon">➕</div>
-          <div class="empty-label">Ranura Vacía</div>
-        </div>
-      `;
-    }
+export function toggleGalleryDrawer() {
+  isGalleryOpen = !isGalleryOpen;
+  const sidebar = document.getElementById("sidebar");
+  const label = document.getElementById("btn-gallery-label");
+  
+  if (isGalleryOpen) {
+    if (sidebar) sidebar.classList.remove("hidden");
+    if (label) label.textContent = "Ocultar Galería";
+    renderGallery();
+  } else {
+    if (sidebar) sidebar.classList.add("hidden");
+    if (label) label.textContent = "Mostrar Galería";
   }
-
-  container.innerHTML = html;
 }
 
 export function renderGallery() {
-  const container = document.getElementById('galleryGridContainer');
+  const container = document.getElementById("gallery-container");
   if (!container) return;
+  container.innerHTML = "";
+  
+  const activeList = state.currentSeason === 1 ? (state.spiritsList.length > 0 ? state.spiritsList : defaultSpiritsList) : state.spiritsList;
+  const listToRender = [...activeList].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
 
-  const spirits = state.activeSeason === 1 ? state.season1Spirits : state.season2Spirits;
-  const currentSlots = state.activeSeason === 1 ? state.season1Slots : state.season2Slots;
-  const assignedIds = new Set(Object.values(currentSlots).filter(Boolean));
-
-  let filtered = spirits;
-  if (state.gallerySearch) {
-    const q = state.gallerySearch.toLowerCase().trim();
-    filtered = filtered.filter(s => 
-      s.name.toLowerCase().includes(q) || 
-      (s.type && s.type.toLowerCase().includes(q)) || 
-      (s.category && s.category.toLowerCase().includes(q))
-    );
+  const sidebarTitle = document.getElementById("sidebar-title");
+  if (sidebarTitle) {
+    sidebarTitle.textContent = `Galería T${state.currentSeason} (${listToRender.length})`;
   }
 
-  if (state.galleryCategoryFilter !== 'ALL') {
-    filtered = filtered.filter(s => s.category === state.galleryCategoryFilter);
-  }
-
-  if (state.galleryTypeFilter !== 'ALL') {
-    filtered = filtered.filter(s => s.type === state.galleryTypeFilter);
-  }
-
-  if (state.galleryUsageFilter === 'ASSIGNED') {
-    filtered = filtered.filter(s => assignedIds.has(s.id));
-  } else if (state.galleryUsageFilter === 'UNASSIGNED') {
-    filtered = filtered.filter(s => !assignedIds.has(s.id));
-  }
-
-  let html = '';
-  filtered.forEach(spirit => {
-    const isAssigned = assignedIds.has(spirit.id);
-    const imgUrl = getOptimizedCloudinaryUrl(spirit.imageUrl || spirit.image, 140);
-    html += `
-      <div class="gallery-card ${isAssigned ? 'assigned' : ''}" 
-           data-id="${spirit.id}"
-           onclick="window.assignSpiritToSlot(${spirit.id})">
-        <div class="gallery-img-box">
-          <img src="${imgUrl}" alt="${spirit.name}" loading="lazy" onerror="this.src='https://placehold.co/100x100/1e293b/a855f7?text=?';">
-          ${isAssigned ? '<span class="assigned-pill">En uso</span>' : ''}
-        </div>
-        <div class="gallery-card-meta">
-          <div class="gallery-name" title="${spirit.name}">${spirit.name}</div>
-          <div class="gallery-tags">
-            <span class="gallery-cat">${spirit.category || 'Sin Cat.'}</span>
-            <span class="gallery-type">${spirit.type || 'Común'}</span>
-          </div>
-        </div>
-        <div class="gallery-actions">
-          <button class="gallery-edit-img-btn" title="Editar en Estudio de Arte" onclick="event.stopPropagation(); window.openStudioModal(${spirit.id});">🎨</button>
-        </div>
-      </div>
-    `;
+  const assignedIds = new Set();
+  state.categories.forEach(cat => {
+    (cat.spiritIds || []).forEach(id => assignedIds.add(id));
   });
 
-  if (filtered.length === 0) {
-    html = `<div class="empty-gallery-msg">No se encontraron espíritus con los filtros seleccionados.</div>`;
-  }
+  let unassignedCount = 0;
+  const galleryFragment = document.createDocumentFragment();
 
-  container.innerHTML = html;
-}
+  listToRender.forEach((id, index) => {
+    if (state.searchQuery !== "" && !matchesFilter(id)) return;
 
-export function selectSpiritSlot(slotNumber) {
-  state.selectedSlot = slotNumber;
-  renderEditGrid();
+    const isUnassigned = !assignedIds.has(id);
+    if (isUnassigned) unassignedCount++;
 
-  // Si es pantalla móvil, abrir modal de selección rápida
-  if (window.innerWidth <= 768) {
-    openMobileAssignModal(slotNumber);
-  }
-}
+    const displayNumber = String(index + 1).padStart(2, '0');
 
-export function assignSpiritToSlot(spiritId) {
-  if (!state.selectedSlot) {
-    if (window.customAlert) {
-      window.customAlert('Primero selecciona una ranura (1 al 28) en la cuadrícula de edición.', 'Aviso');
+    const item = document.createElement("div");
+    item.className = `gallery-item ${isUnassigned ? 'unassigned' : ''}`;
+    item.draggable = true;
+    item.dataset.id = id;
+    item.innerHTML = `
+      ${isUnassigned ? '<span class="unassigned-tag">SUELTO</span>' : ''}
+      <button class="gallery-delete-btn" onclick="window.deleteFromGallery(event, '${id}')" title="Eliminar espíritu">🗑</button>
+      <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" draggable="false" onerror="window.handleSpiritImgError(this, '${id}')">
+      <span class="badge">#${displayNumber}</span>
+    `;
+    
+    item.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", id);
+    });
+
+    item.addEventListener("click", () => {
+      openAssignModal(id);
+    });
+    
+    galleryFragment.appendChild(item);
+  });
+
+  container.appendChild(galleryFragment);
+
+  const sidebarSub = document.getElementById("sidebar-subtext");
+  if (sidebarSub) {
+    if (unassignedCount > 0) {
+      sidebarSub.innerHTML = `<span style="color: #ff4455; font-weight: 700;">⚠️ ${unassignedCount} espíritu(s) sin asignar (etiqueta SUELTO)</span>`;
     } else {
-      alert('Primero selecciona una ranura (1 al 28).');
+      sidebarSub.textContent = "Todos los espíritus están asignados a categorías.";
     }
+  }
+}
+
+export function deleteFromGallery(event, spiritId) {
+  if (event) event.stopPropagation();
+  permanentlyDeleteSpirit(spiritId);
+}
+
+export function moveSpiritToCategory(spiritId, targetCatName) {
+  if (!spiritId && spiritId !== 0) return;
+  const idStr = String(spiritId).trim();
+  const formattedId = idStr.padStart(2, '0');
+  const numId = String(parseInt(idStr, 10));
+
+  state.categories.forEach(cat => {
+    cat.spiritIds = (cat.spiritIds || []).filter(id => {
+      const s = String(id).trim();
+      return s !== idStr && s !== formattedId && s !== numId;
+    });
+  });
+
+  if (targetCatName !== "__uncategorized__") {
+    const cat = state.categories.find(c => c.name === targetCatName);
+    if (cat) {
+      if (!cat.spiritIds) cat.spiritIds = [];
+      if (!cat.spiritIds.some(id => String(id).padStart(2, '0') === formattedId)) {
+        cat.spiritIds.push(formattedId);
+      }
+    }
+
+    const currentType = getSpiritCurrentType(formattedId);
+    const newFullName = computeSpiritName(formattedId, targetCatName, currentType);
+    const defName = defaultNames[parseInt(formattedId, 10) - 1] || "";
+    if (newFullName && newFullName !== defName) {
+      state.customNames[formattedId] = newFullName;
+    }
+    state.customCategories[formattedId] = targetCatName;
+  } else {
+    delete state.customCategories[formattedId];
+  }
+
+  if (!state.spiritsList.some(id => String(id).padStart(2, '0') === formattedId)) {
+    state.spiritsList.push(formattedId);
+  }
+  state.spiritsList = Array.from(new Set(state.spiritsList.map(id => String(id).padStart(2, '0')))).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+
+  renderWorkspace();
+  if (isGalleryOpen) renderGallery();
+  triggerAutoSave(50);
+}
+
+export function removeSpiritFromCategory(spiritId, categoryName) {
+  if (!spiritId && spiritId !== 0) return;
+  const formattedId = String(spiritId).padStart(2, '0');
+  const cat = state.categories.find(c => c.name === categoryName);
+  if (cat && cat.spiritIds) {
+    cat.spiritIds = cat.spiritIds.filter(id => String(id).padStart(2, '0') !== formattedId);
+  }
+  renderWorkspace();
+  if (isGalleryOpen) renderGallery();
+  triggerAutoSave(50);
+}
+
+export function permanentlyDeleteSpirit(spiritId) {
+  if (window.customConfirm) {
+    window.customConfirm(`¿Eliminar permanentemente el espíritu ID ${spiritId}?`, "⚠️", () => {
+      executeDeleteSpirit(spiritId);
+    });
+  } else {
+    if (confirm(`¿Eliminar espíritu #${spiritId}?`)) {
+      executeDeleteSpirit(spiritId);
+    }
+  }
+}
+
+function executeDeleteSpirit(spiritId) {
+  state.spiritsList = state.spiritsList.filter(id => id !== spiritId);
+  state.categories.forEach(cat => {
+    cat.spiritIds = (cat.spiritIds || []).filter(id => id !== spiritId);
+  });
+  state.kevinList = state.kevinList.filter(id => id !== spiritId);
+  state.aliList = state.aliList.filter(id => id !== spiritId);
+  state.kevinMastery = state.kevinMastery.filter(id => id !== spiritId);
+  state.aliMastery = state.aliMastery.filter(id => id !== spiritId);
+  delete state.customNames[spiritId];
+
+  updateStats();
+  renderGallery();
+  renderWorkspace();
+  triggerAutoSave(50);
+}
+
+export function deleteAllUncategorizedSpirits() {
+  const assignedIds = new Set();
+  state.categories.forEach(cat => {
+    (cat.spiritIds || []).forEach(id => assignedIds.add(id));
+  });
+  const uncategorizedIds = state.spiritsList.filter(id => !assignedIds.has(id));
+
+  if (uncategorizedIds.length === 0) {
+    if (window.customAlert) window.customAlert("No hay espíritus sueltos para eliminar.", "ℹ️");
     return;
   }
 
-  const currentSlots = state.activeSeason === 1 ? state.season1Slots : state.season2Slots;
-  
-  // Si el espíritu ya estaba en otra ranura, desasignarlo de la anterior
-  for (const [sNum, sId] of Object.entries(currentSlots)) {
-    if (sId === spiritId) {
-      currentSlots[sNum] = null;
-    }
+  const confirmAction = () => {
+    const deletedSet = new Set(uncategorizedIds);
+    state.spiritsList = state.spiritsList.filter(id => !deletedSet.has(id));
+    state.kevinList = state.kevinList.filter(id => !deletedSet.has(id));
+    state.aliList = state.aliList.filter(id => !deletedSet.has(id));
+    state.kevinMastery = state.kevinMastery.filter(id => !deletedSet.has(id));
+    state.aliMastery = state.aliMastery.filter(id => !deletedSet.has(id));
+
+    uncategorizedIds.forEach(id => {
+      delete state.customNames[id];
+      delete state.customImages[id];
+    });
+
+    updateStats();
+    renderGallery();
+    renderWorkspace();
+    triggerAutoSave(50);
+  };
+
+  if (window.customConfirm) {
+    window.customConfirm(`¿Eliminar los ${uncategorizedIds.length} espíritus sueltos?`, "🗑️", confirmAction);
+  } else {
+    if (confirm(`¿Eliminar los ${uncategorizedIds.length} espíritus sueltos?`)) confirmAction();
   }
-
-  currentSlots[state.selectedSlot] = spiritId;
-  saveChanges();
-  sendWebSocketBroadcast({ type: 'SLOTS_UPDATED', season: state.activeSeason });
-  renderEditGrid();
-  renderGallery();
-  closeMobileAssignModal();
 }
 
-export function removeSpiritFromSlot(slotNumber) {
-  const currentSlots = state.activeSeason === 1 ? state.season1Slots : state.season2Slots;
-  currentSlots[slotNumber] = null;
-  saveChanges();
-  sendWebSocketBroadcast({ type: 'SLOTS_UPDATED', season: state.activeSeason });
-  renderEditGrid();
-  renderGallery();
+export function deleteCategory(index) {
+  const cat = state.categories[index];
+  if (!cat) return;
+  const displayName = state.customCategories[cat.name] || cat.name;
+
+  const confirmAction = () => {
+    delete state.customCategories[cat.name];
+    state.categories.splice(index, 1);
+    renderWorkspace();
+    triggerAutoSave(50);
+  };
+
+  if (window.customConfirm) {
+    window.customConfirm(`¿Eliminar la categoría "${displayName}"? Los espíritus pasarán a Sueltos.`, "🗑️", confirmAction);
+  } else {
+    if (confirm(`¿Eliminar categoría "${displayName}"?`)) confirmAction();
+  }
 }
 
-export function openMobileAssignModal(slotNumber) {
-  state.selectedSlot = slotNumber;
-  const modal = document.getElementById('mobileAssignModal');
-  const modalSlotTitle = document.getElementById('mobileAssignSlotTitle');
-  if (modalSlotTitle) modalSlotTitle.innerText = `Asignar a Ranura #${slotNumber}`;
-  if (modal) modal.classList.add('active');
-  renderMobileAssignGallery();
+export function changeSpiritType(id, newTypeName) {
+  const foundCat = state.categories.find(c => (c.spiritIds || []).includes(id));
+  const catName = foundCat ? foundCat.name : "__uncategorized__";
+  const newFullName = computeSpiritName(id, catName, newTypeName);
+  const defName = defaultNames[parseInt(id, 10) - 1] || "";
+
+  if (newFullName === defName) {
+    delete state.customNames[id];
+  } else {
+    state.customNames[id] = newFullName;
+  }
+  renderWorkspace();
+  triggerAutoSave(50);
 }
 
-export function closeMobileAssignModal() {
-  const modal = document.getElementById('mobileAssignModal');
-  if (modal) modal.classList.remove('active');
-}
-
-function renderMobileAssignGallery() {
-  const container = document.getElementById('mobileAssignGallery');
-  if (!container) return;
-
-  const spirits = state.activeSeason === 1 ? state.season1Spirits : state.season2Spirits;
-  let html = '';
-  spirits.forEach(spirit => {
-    const imgUrl = getOptimizedCloudinaryUrl(spirit.imageUrl || spirit.image, 120);
-    html += `
-      <div class="mobile-spirit-opt" onclick="window.assignSpiritToSlot(${spirit.id})">
-        <img src="${imgUrl}" alt="${spirit.name}">
-        <span>${spirit.name}</span>
-      </div>
-    `;
+export function openAssignModal(id) {
+  if (state.currentMode !== "edit") return;
+  activeModalSpiritId = id;
+  const titleEl = document.getElementById("assign-modal-title");
+  if (titleEl) titleEl.textContent = `Asignar Espíritu #${id} (${getSpiritName(id)})`;
+  
+  let currentCatName = "__uncategorized__";
+  const foundCat = state.categories.find(c => (c.spiritIds || []).includes(id));
+  if (foundCat) currentCatName = foundCat.name;
+  
+  let assignOptionsHtml = "";
+  state.categories.forEach(c => {
+    const isCurrent = c.name === currentCatName;
+    assignOptionsHtml += `<option value="${c.name}" ${isCurrent ? 'selected' : ''}>${state.customCategories[c.name] || c.name}</option>`;
   });
-  container.innerHTML = html;
+  assignOptionsHtml += `<option value="__uncategorized__" ${currentCatName === "__uncategorized__" ? 'selected' : ''}>Sin Categoría / Suelto</option>`;
+  
+  const selectEl = document.getElementById("assign-category-select");
+  if (selectEl) selectEl.innerHTML = assignOptionsHtml;
+  
+  const modal = document.getElementById("assign-modal");
+  if (modal) modal.classList.add("show");
+}
+
+export function closeAssignModal() {
+  const modal = document.getElementById("assign-modal");
+  if (modal) modal.classList.remove("show");
+  activeModalSpiritId = null;
 }
 
 export function openNewSpiritModal() {
-  const modal = document.getElementById('newSpiritModal');
-  if (modal) modal.classList.add('active');
+  const modal = document.getElementById("new-spirit-modal") || document.getElementById("newSpiritModal");
+  if (modal) {
+    modal.classList.add("active");
+    modal.classList.add("show");
+  }
 }
 
 export function closeNewSpiritModal() {
-  const modal = document.getElementById('newSpiritModal');
-  if (modal) modal.classList.remove('active');
+  const modal = document.getElementById("new-spirit-modal") || document.getElementById("newSpiritModal");
+  if (modal) {
+    modal.classList.remove("active");
+    modal.classList.remove("show");
+  }
 }
 
-export async function saveNewSpirit() {
-  const nameInput = document.getElementById('newSpiritName');
-  const catInput = document.getElementById('newSpiritCat');
-  const typeInput = document.getElementById('newSpiritType');
-  const imgInput = document.getElementById('newSpiritImgUrl');
+export function openEditImageModal(id) {
+  state.editingSpiritImageId = id;
+  const modal = document.getElementById("edit-image-modal");
+  if (!modal) return;
+  const title = document.getElementById("edit-image-modal-title");
+  if (title) title.textContent = `🖼️ Cambiar Imagen - ${getSpiritName(id)} (#${id})`;
+  const preview = document.getElementById("edit-image-preview");
+  if (preview) preview.src = getSpiritImgUrl(id);
+  modal.classList.add("show");
+}
 
-  const name = nameInput?.value.trim();
-  if (!name) {
-    if (window.customAlert) window.customAlert('Ingresa un nombre válido para el nuevo espíritu.', 'Error');
-    return;
-  }
-
-  const spirits = state.activeSeason === 1 ? state.season1Spirits : state.season2Spirits;
-  const maxId = spirits.reduce((max, s) => Math.max(max, s.id || 0), 0);
-  const nextId = maxId + 1;
-
-  const newSpirit = {
-    id: nextId,
-    name: name,
-    category: catInput?.value || 'Común',
-    type: typeInput?.value || 'Común',
-    imageUrl: imgInput?.value.trim() || 'https://res.cloudinary.com/dvzjcxvkr/image/upload/v1722448408/spirits/ic_spirit_01.png'
-  };
-
-  spirits.push(newSpirit);
-  saveChanges();
-  sendWebSocketBroadcast({ type: 'SPIRIT_CREATED', season: state.activeSeason, spirit: newSpirit });
-  
-  if (nameInput) nameInput.value = '';
-  if (imgInput) imgInput.value = '';
-  closeNewSpiritModal();
-  renderGallery();
-  if (window.customToast) window.customToast(`Espíritu "${name}" creado con éxito ✨`);
+export function closeEditImageModal() {
+  const modal = document.getElementById("edit-image-modal");
+  if (modal) modal.classList.remove("show");
+  state.editingSpiritImageId = null;
 }
 
 // Window bindings
-window.renderEditGrid = renderEditGrid;
+window.toggleGalleryDrawer = toggleGalleryDrawer;
 window.renderGallery = renderGallery;
-window.selectSpiritSlot = selectSpiritSlot;
-window.assignSpiritToSlot = assignSpiritToSlot;
-window.removeSpiritFromSlot = removeSpiritFromSlot;
-window.openMobileAssignModal = openMobileAssignModal;
-window.closeMobileAssignModal = closeMobileAssignModal;
+window.deleteFromGallery = deleteFromGallery;
+window.moveSpiritToCategory = moveSpiritToCategory;
+window.removeSpiritFromCategory = removeSpiritFromCategory;
+window.permanentlyDeleteSpirit = permanentlyDeleteSpirit;
+window.deleteAllUncategorizedSpirits = deleteAllUncategorizedSpirits;
+window.deleteCategory = deleteCategory;
+window.changeSpiritType = changeSpiritType;
+window.openAssignModal = openAssignModal;
+window.closeAssignModal = closeAssignModal;
 window.openNewSpiritModal = openNewSpiritModal;
 window.closeNewSpiritModal = closeNewSpiritModal;
-window.saveNewSpirit = saveNewSpirit;
+window.openEditImageModal = openEditImageModal;
+window.closeEditImageModal = closeEditImageModal;

@@ -6,169 +6,127 @@ import { state, getStoredTheme } from './state.js';
 import { initWebSocket } from './websocket.js';
 import { initFirestore } from './firestore.js';
 import { initRouter, switchModeSPA, switchSeason } from './router.js';
-import { renderNormalGrid, renderNormalStats, toggleSpiritOwned, toggleSpiritMastery, setNormalFilter, setNormalSort } from './normal-view.js';
-import { renderEditGrid, renderGallery, selectSpiritSlot, assignSpiritToSlot, removeSpiritFromSlot, openNewSpiritModal, closeNewSpiritModal, saveNewSpirit } from './edit-view.js';
+import { renderWorkspace, updateStats, toggleSpiritOwned, toggleSpiritMastery, setFilter, onSearchInput, clearSearch } from './normal-view.js';
+import { renderGallery, toggleGalleryDrawer, moveSpiritToCategory, removeSpiritFromCategory, permanentlyDeleteSpirit, deleteAllUncategorizedSpirits, deleteCategory, openAssignModal, closeAssignModal, openNewSpiritModal, closeNewSpiritModal, openEditImageModal, closeEditImageModal } from './edit-view.js';
 import { renderCategoriesManager } from './categories-view.js';
 import { renderConfigView } from './config-view.js';
 import { initRadarView, sendRemoteMagicPing } from './radar-view.js';
-import { openStudioModal, closeStudioModal, studioUndo, studioRedo, studioAutoTrim, studioSaveAndUpload, setStudioTool } from './studio-view.js';
 
-// Modal and Toast System
-export function customAlert(message, title = 'Notificación') {
-  return new Promise((resolve) => {
-    const modal = document.getElementById('customModal');
-    const titleEl = document.getElementById('customModalTitle');
-    const bodyEl = document.getElementById('customModalBody');
-    const footerEl = document.getElementById('customModalFooter');
+// Custom Dialog & Toast System
+function _showDialog(icon, msg, inputVisible, inputPlaceholder, buttons) {
+  const overlay = document.getElementById("custom-dialog-overlay");
+  const iconEl = document.getElementById("custom-dialog-icon");
+  const msgEl = document.getElementById("custom-dialog-msg");
+  const inputEl = document.getElementById("custom-dialog-input");
+  const btnsEl = document.getElementById("custom-dialog-btns");
 
-    if (!modal || !titleEl || !bodyEl || !footerEl) {
-      alert(message);
-      return resolve();
+  if (!overlay || !msgEl || !btnsEl) {
+    if (inputVisible) return prompt(msg, inputPlaceholder);
+    if (buttons.length > 1) return confirm(msg);
+    return alert(msg);
+  }
+
+  if (iconEl) iconEl.textContent = icon || "ℹ️";
+  msgEl.textContent = msg;
+
+  if (inputVisible) {
+    inputEl.style.display = "block";
+    inputEl.value = "";
+    inputEl.placeholder = inputPlaceholder || "";
+    setTimeout(() => inputEl.focus(), 80);
+  } else {
+    inputEl.style.display = "none";
+  }
+
+  btnsEl.innerHTML = "";
+  buttons.forEach(b => {
+    const btn = document.createElement("button");
+    btn.textContent = b.label;
+    btn.className = b.primary ? "btn" : "btn btn-secondary";
+    if (b.danger) {
+      btn.style.background = "rgba(239,68,68,0.15)";
+      btn.style.borderColor = "#ef4444";
+      btn.style.color = "#ef4444";
     }
-
-    titleEl.innerText = title;
-    bodyEl.innerHTML = `<p>${message}</p>`;
-    footerEl.innerHTML = `<button class="btn-primary" id="customModalOkBtn">Aceptar</button>`;
-
-    modal.classList.add('active');
-
-    document.getElementById('customModalOkBtn').onclick = () => {
-      modal.classList.remove('active');
-      resolve();
+    btn.onclick = () => {
+      overlay.classList.remove("show");
+      if (b.action) b.action(inputEl.value);
     };
+    btnsEl.appendChild(btn);
   });
-}
 
-export function customConfirm(message, title = 'Confirmación') {
-  return new Promise((resolve) => {
-    const modal = document.getElementById('customModal');
-    const titleEl = document.getElementById('customModalTitle');
-    const bodyEl = document.getElementById('customModalBody');
-    const footerEl = document.getElementById('customModalFooter');
-
-    if (!modal || !titleEl || !bodyEl || !footerEl) {
-      return resolve(confirm(message));
-    }
-
-    titleEl.innerText = title;
-    bodyEl.innerHTML = `<p>${message}</p>`;
-    footerEl.innerHTML = `
-      <button class="btn-secondary" id="customModalCancelBtn">Cancelar</button>
-      <button class="btn-primary" id="customModalConfirmBtn">Confirmar</button>
-    `;
-
-    modal.classList.add('active');
-
-    document.getElementById('customModalCancelBtn').onclick = () => {
-      modal.classList.remove('active');
-      resolve(false);
-    };
-
-    document.getElementById('customModalConfirmBtn').onclick = () => {
-      modal.classList.remove('active');
-      resolve(true);
-    };
-  });
-}
-
-export function customPrompt(message, defaultValue = '', title = 'Entrada de datos') {
-  return new Promise((resolve) => {
-    const modal = document.getElementById('customModal');
-    const titleEl = document.getElementById('customModalTitle');
-    const bodyEl = document.getElementById('customModalBody');
-    const footerEl = document.getElementById('customModalFooter');
-
-    if (!modal || !titleEl || !bodyEl || !footerEl) {
-      return resolve(prompt(message, defaultValue));
-    }
-
-    titleEl.innerText = title;
-    bodyEl.innerHTML = `
-      <p style="margin-bottom: 10px;">${message}</p>
-      <input type="text" id="customModalInput" class="pixel-input" value="${defaultValue}" style="width: 100%;">
-    `;
-    footerEl.innerHTML = `
-      <button class="btn-secondary" id="customModalCancelBtn">Cancelar</button>
-      <button class="btn-primary" id="customModalConfirmBtn">Aceptar</button>
-    `;
-
-    modal.classList.add('active');
-    const input = document.getElementById('customModalInput');
-    input.focus();
-    input.select();
-
-    input.onkeydown = (e) => {
-      if (e.key === 'Enter') {
-        const val = input.value;
-        modal.classList.remove('active');
-        resolve(val);
+  inputEl.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      const primary = buttons.find(b => b.primary);
+      if (primary) {
+        overlay.classList.remove("show");
+        if (primary.action) primary.action(inputEl.value);
       }
-    };
+    }
+  };
 
-    document.getElementById('customModalCancelBtn').onclick = () => {
-      modal.classList.remove('active');
-      resolve(null);
-    };
-
-    document.getElementById('customModalConfirmBtn').onclick = () => {
-      const val = input.value;
-      modal.classList.remove('active');
-      resolve(val);
-    };
-  });
+  overlay.classList.add("show");
 }
 
-export function customToast(message, duration = 3000) {
-  let toast = document.getElementById('globalToast');
+export function customAlert(msg, icon = "ℹ️") {
+  _showDialog(icon, msg, false, "", [
+    { label: "Aceptar", primary: true, action: null }
+  ]);
+}
+
+export function customConfirm(msg, icon = "❓", onConfirm) {
+  _showDialog(icon, msg, false, "", [
+    { label: "Cancelar", primary: false, action: null },
+    { label: "Confirmar", primary: true, danger: false, action: () => { if (onConfirm) onConfirm(); } }
+  ]);
+}
+
+export function customPrompt(msg, icon = "✏️", onConfirm) {
+  _showDialog(icon, msg, true, "", [
+    { label: "Cancelar", primary: false, action: null },
+    { label: "Aceptar", primary: true, action: (val) => { if (onConfirm) onConfirm(val); } }
+  ]);
+}
+
+export function showToast(msg, isError = false) {
+  let toast = document.getElementById('global-toast');
   if (!toast) {
     toast = document.createElement('div');
-    toast.id = 'globalToast';
+    toast.id = 'global-toast';
     toast.className = 'global-toast';
     document.body.appendChild(toast);
   }
 
-  toast.innerText = message;
-  toast.classList.add('visible');
+  toast.textContent = msg;
+  toast.style.borderColor = isError ? '#ef4444' : 'var(--accent-color)';
+  toast.classList.add('show');
 
   setTimeout(() => {
-    toast.classList.remove('visible');
-  }, duration);
+    toast.classList.remove('show');
+  }, 3500);
 }
 
 // Window global assignments
 window.customAlert = customAlert;
 window.customConfirm = customConfirm;
 window.customPrompt = customPrompt;
-window.customToast = customToast;
-
-// Setup UI Search and Filter Listeners
-function setupEventListeners() {
-  const normalSearchInput = document.getElementById('normalSearchInput');
-  if (normalSearchInput) {
-    normalSearchInput.addEventListener('input', (e) => {
-      state.normalSearch = e.target.value;
-      renderNormalGrid();
-    });
-  }
-
-  const gallerySearchInput = document.getElementById('gallerySearchInput');
-  if (gallerySearchInput) {
-    gallerySearchInput.addEventListener('input', (e) => {
-      state.gallerySearch = e.target.value;
-      renderGallery();
-    });
-  }
-}
+window.showToast = showToast;
+window.customToast = showToast;
 
 // Inicialización general al cargar el DOM
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 Iniciando Gestor de Diario de Ali y Kevin...');
   
-  // Cargar tema guardado
   const savedTheme = getStoredTheme();
   document.body.className = `theme-${savedTheme}`;
 
-  setupEventListeners();
+  const overlay = document.getElementById("custom-dialog-overlay");
+  if (overlay) {
+    overlay.addEventListener("click", function(e) {
+      if (e.target === this) this.classList.remove("show");
+    });
+  }
+
   initFirestore();
   initWebSocket();
   initRouter();

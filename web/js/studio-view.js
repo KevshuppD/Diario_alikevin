@@ -7,7 +7,7 @@ import { trimCanvasTransparency } from './image-utils.js';
 import { saveChanges } from './firestore.js';
 import { sendWebSocketBroadcast } from './websocket.js';
 import { renderGallery } from './edit-view.js';
-import { renderNormalGrid } from './normal-view.js';
+import { renderWorkspace } from './normal-view.js';
 
 let currentEditingSpiritId = null;
 let studioCanvas = null;
@@ -239,7 +239,7 @@ export async function studioSaveAndUpload() {
       });
 
       renderGallery();
-      renderNormalGrid();
+      renderWorkspace();
       closeStudioModal();
       if (window.customToast) window.customToast('¡Imagen guardada y sincronizada en tiempo real! ✨');
     } else {

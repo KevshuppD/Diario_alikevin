@@ -1,13 +1,14 @@
 /**
- * router.js - Enrutador SPA de Vistas y Gestión de Temporadas
+ * router.js - Enrutador SPA de Vistas, Modos y Gestión de Temporadas
  */
 
 import { state } from './state.js';
-import { renderNormalGrid, renderNormalStats } from './normal-view.js';
-import { renderEditGrid, renderGallery } from './edit-view.js';
+import { renderWorkspace, updateStats } from './normal-view.js';
+import { renderGallery } from './edit-view.js';
 import { renderCategoriesManager } from './categories-view.js';
 import { renderConfigView } from './config-view.js';
-import { initRadarView } from './radar-view.js';
+import { renderRadarManager } from './radar-view.js';
+import { listenFirestore } from './firestore.js';
 
 export function getRouteFromPath(pathname) {
   const cleanPath = pathname.toLowerCase().replace(/^\/web\/?/, '/').replace(/\/$/, '') || '/';
@@ -30,42 +31,70 @@ export function getPathFromRoute(route) {
   }
 }
 
-export function switchModeSPA(mode, updateUrl = true) {
-  state.currentView = mode;
+export function setMode(mode) {
+  if (mode === "db") mode = "normal";
+  state.currentMode = mode;
+  try { localStorage.setItem("spirit_mode", mode); } catch(e) {}
 
-  // Actualizar estado activo en la barra de navegación superior
-  document.querySelectorAll('.nav-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.mode === mode);
-  });
+  // Actualizar botones de modo en la barra superior
+  const btnNormal = document.getElementById("btn-mode-normal");
+  const btnEdit = document.getElementById("btn-mode-edit");
+  const btnCategories = document.getElementById("btn-mode-categories");
+  const btnRadar = document.getElementById("btn-mode-radar");
+  const btnConfig = document.getElementById("btn-mode-config");
 
-  // Ocultar todas las secciones de vista
-  const views = ['normalView', 'editView', 'categoriesView', 'configView', 'radarView'];
-  views.forEach(vId => {
-    const el = document.getElementById(vId);
-    if (el) el.style.display = 'none';
-  });
+  if (btnNormal) btnNormal.classList.toggle("active", mode === "normal");
+  if (btnEdit) btnEdit.classList.toggle("active", mode === "edit");
+  if (btnCategories) btnCategories.classList.toggle("active", mode === "categories");
+  if (btnRadar) btnRadar.classList.toggle("active", mode === "radar");
+  if (btnConfig) btnConfig.classList.toggle("active", mode === "config");
 
-  // Mostrar la vista activa y ejecutar su renderizador correspondiente
-  const targetId = `${mode}View`;
-  const targetEl = document.getElementById(targetId);
-  if (targetEl) targetEl.style.display = 'block';
+  // Mostrar / Ocultar componentes según el modo activo
+  const searchBar = document.getElementById("shared-search-bar-container");
+  const normalToolbar = document.getElementById("normal-toolbar");
+  const editActionsBar = document.getElementById("edit-actions-bar");
+  const categoriesContainer = document.getElementById("categories-container");
+  const categoriesManagerContainer = document.getElementById("categoriesManagerContainer");
+  const radarContainer = document.getElementById("radar-container");
+  const configContainer = document.getElementById("config-container");
+  const sidebar = document.getElementById("sidebar");
 
-  // Título de la pestaña del navegador
+  if (searchBar) searchBar.style.display = (mode === "normal" || mode === "edit") ? "block" : "none";
+  if (normalToolbar) normalToolbar.style.display = mode === "normal" ? "flex" : "none";
+  if (editActionsBar) editActionsBar.style.display = mode === "edit" ? "flex" : "none";
+  if (categoriesContainer) categoriesContainer.style.display = (mode === "normal" || mode === "edit") ? "flex" : "none";
+  if (categoriesManagerContainer) categoriesManagerContainer.style.display = mode === "categories" ? "block" : "none";
+  if (radarContainer) radarContainer.style.display = mode === "radar" ? "block" : "none";
+  if (configContainer) configContainer.style.display = mode === "config" ? "block" : "none";
+
+  if (sidebar) {
+    sidebar.classList.toggle("hidden", mode !== "edit");
+  }
+
+  // Título del documento
   document.title = 'Gestor de diario de ali y kevin';
 
-  if (mode === 'normal') {
-    renderNormalGrid();
-    renderNormalStats();
-  } else if (mode === 'edit') {
-    renderEditGrid();
-    renderGallery();
-  } else if (mode === 'categories') {
+  // Ejecutar renderizadores correspondientes
+  if (mode === "categories") {
     renderCategoriesManager();
-  } else if (mode === 'config') {
+  } else if (mode === "radar") {
+    renderRadarManager();
+  } else if (mode === "config") {
     renderConfigView();
-  } else if (mode === 'radar') {
-    initRadarView();
+  } else {
+    updateStats();
+    renderWorkspace();
+    if (mode === "edit") {
+      renderGallery();
+    }
   }
+}
+
+export function switchModeSPA(mode, updateUrl = true) {
+  if (mode === "db") mode = "normal";
+  if (state.currentMode === mode && !updateUrl) return;
+
+  setMode(mode);
 
   if (updateUrl) {
     const targetUrl = getPathFromRoute(mode);
@@ -78,22 +107,18 @@ export function switchModeSPA(mode, updateUrl = true) {
 export function switchSeason(season) {
   const sNum = parseInt(season, 10);
   if (sNum !== 1 && sNum !== 2) return;
+  if (state.currentSeason === sNum) return;
 
-  state.activeSeason = sNum;
+  state.currentSeason = sNum;
+  try { localStorage.setItem("current_season", String(sNum)); } catch(e) {}
 
-  document.querySelectorAll('.season-btn').forEach(btn => {
-    btn.classList.toggle('active', parseInt(btn.dataset.season, 10) === sNum);
-  });
+  const btnS1 = document.getElementById("btn-season-1");
+  const btnS2 = document.getElementById("btn-season-2");
+  if (btnS1) btnS1.classList.toggle("active", sNum === 1);
+  if (btnS2) btnS2.classList.toggle("active", sNum === 2);
 
-  if (state.currentView === 'normal') {
-    renderNormalGrid();
-    renderNormalStats();
-  } else if (state.currentView === 'edit') {
-    renderEditGrid();
-    renderGallery();
-  } else if (state.currentView === 'categories') {
-    renderCategoriesManager();
-  }
+  // Re-escuchar Firestore para la nueva temporada
+  listenFirestore();
 }
 
 export function initRouter() {
@@ -102,12 +127,13 @@ export function initRouter() {
     switchModeSPA(route, false);
   });
 
-  // Enrutamiento inicial
+  // Enrutamiento inicial al cargar la página
   const initialRoute = getRouteFromPath(window.location.pathname);
   switchModeSPA(initialRoute, false);
 }
 
 // Window bindings
 window.switchModeSPA = switchModeSPA;
-window.setMode = (mode) => switchModeSPA(mode, true);
+window.setMode = setMode;
 window.switchSeason = switchSeason;
+window.initRouter = initRouter;
