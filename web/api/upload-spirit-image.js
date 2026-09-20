@@ -26,14 +26,14 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ success: false, error: 'Configuración de Cloudinary incompleta en el servidor' });
   }
 
-  const { spiritId, imageBase64 } = req.body || {};
+  const { spiritId, imageBase64, season = 2 } = req.body || {};
 
   if (!spiritId || !imageBase64) {
     return res.status(400).json({ success: false, error: 'Faltan spiritId o imageBase64' });
   }
 
   const twoDigitId = String(spiritId).padStart(2, '0');
-  const publicId = `spirits/ic_spirit_${twoDigitId}`;
+  const publicId = parseInt(season) === 2 ? `spirits_s2/ic_spirit_s2_${twoDigitId}` : `spirits/ic_spirit_${twoDigitId}`;
 
   try {
     console.log(`📤 Subiendo espíritu ${twoDigitId} a Cloudinary...`);

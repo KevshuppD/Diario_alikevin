@@ -1560,17 +1560,50 @@
     <div class="header-controls">
       <!-- Season Switcher Pill -->
       <div class="mode-switch" id="season-switch" style="background: rgba(156, 39, 176, 0.2); border-color: var(--accent-color);">
-        <button type="button" id="btn-season-2" class="mode-btn active" onclick="switchSeason(2)" style="font-weight: 700;">🌟 Temporada 2</button>
+        <button type="button" id="btn-season-2" class="mode-btn" onclick="switchSeason(2)" style="font-weight: 700;">🌟 Temporada 2</button>
         <button type="button" id="btn-season-1" class="mode-btn" onclick="switchSeason(1)" style="font-weight: 700;">🕰️ Temporada 1</button>
       </div>
+      <script>
+        (function() {
+          try {
+            var s = localStorage.getItem("current_season") || "2";
+            if (s === "1") {
+              var b1 = document.getElementById("btn-season-1");
+              if (b1) b1.classList.add("active");
+            } else {
+              var b2 = document.getElementById("btn-season-2");
+              if (b2) b2.classList.add("active");
+            }
+          } catch(e) {}
+        })();
+      </script>
 
       <!-- Mode Toggle Pill -->
-      <div class="mode-switch">
-        <button type="button" id="btn-mode-normal" class="mode-btn active" onclick="switchModeSPA('normal')">👁️ Modo Normal</button>
+      <div class="mode-switch" id="mode-switch-bar">
+        <button type="button" id="btn-mode-normal" class="mode-btn" onclick="switchModeSPA('normal')">👁️ Modo Normal</button>
         <button type="button" id="btn-mode-edit" class="mode-btn" onclick="switchModeSPA('edit')">✏️ Modo Edición</button>
-        <button type="button" id="btn-mode-db" class="mode-btn" onclick="switchModeSPA('db')">📂 Base de Datos</button>
         <button type="button" id="btn-mode-config" class="mode-btn" onclick="switchModeSPA('config')">🏷️ Tipos y Categorías</button>
       </div>
+      <script>
+        (function() {
+          try {
+            var p = window.location.pathname.split('/').pop().replace('.html', '');
+            var m = "normal";
+            if (p === "edit" || p === "config") {
+              m = p;
+            } else {
+              var s = localStorage.getItem("spirit_mode");
+              if (s && (s === "normal" || s === "edit" || s === "config")) m = s;
+            }
+            var targetBtn = document.getElementById("btn-mode-" + m);
+            if (targetBtn) targetBtn.classList.add("active");
+            else {
+              var nBtn = document.getElementById("btn-mode-normal");
+              if (nBtn) nBtn.classList.add("active");
+            }
+          } catch(e) {}
+        })();
+      </script>
 
       <!-- Logged User Badge -->
       <div id="user-badge" class="user-badge kevin">
@@ -1676,11 +1709,6 @@
       <!-- Categories Container -->
       <div class="categories-list" id="categories-container">
         <!-- Rendered dynamically -->
-      </div>
-
-      <!-- DB Inspector Container -->
-      <div class="db-inspector-area" id="db-inspector-container" style="display: none; margin-top: 20px;">
-        <!-- Dynamic DB view here -->
       </div>
 
       <!-- Configuration / Types and Categories Manager Container -->
@@ -2193,12 +2221,12 @@
 
     // 1. Firebase Configuration
     const firebaseConfig = {
-      apiKey: "AIzaSyAY4lXaHIXNlftWZ3XcLgm4xuQE0atLnoM",
-      authDomain: "diario-pareja-a2d35.firebaseapp.com",
-      projectId: "diario-pareja-a2d35",
-      storageBucket: "diario-pareja-a2d35.firebasestorage.app",
-      messagingSenderId: "439201068702",
-      appId: "1:439201068702:web:baaa7771e132758a3ced8f"
+      apiKey: "AIzaSyDH4Pt9gejrD0hh3e-ph_LzTUyxJXGTOYE",
+      authDomain: "diario-ali-kevin.firebaseapp.com",
+      projectId: "diario-ali-kevin",
+      storageBucket: "diario-ali-kevin.firebasestorage.app",
+      messagingSenderId: "767110805470",
+      appId: "1:767110805470:web:baaa7771e132758a3ced8f"
     };
 
     firebase.initializeApp(firebaseConfig);
@@ -2214,11 +2242,16 @@
     const pageName = window.location.pathname.split('/').pop().replace('.html', '');
     let currentMode = "normal";
     if (pageName === "edit") currentMode = "edit";
-    else if (pageName === "db") currentMode = "db";
     else if (pageName === "config") currentMode = "config";
+    else {
+      const savedMode = localStorage.getItem("spirit_mode");
+      if (savedMode && ["normal", "edit", "config"].includes(savedMode)) {
+        currentMode = savedMode;
+      }
+    }
 
     // Normalizar automáticamente la barra de direcciones a URL limpia en 0ms
-    if (window.location.pathname.startsWith('/web') || window.location.pathname.includes('.html')) {
+    if (window.location.pathname.startsWith('/web') || window.location.pathname.includes('.html') || (window.location.pathname === '/' && currentMode !== 'normal')) {
       const cleanPath = (currentMode === "normal") ? '/' : `/${currentMode}`;
       window.history.replaceState({ mode: currentMode }, '', cleanPath);
     }
@@ -2228,7 +2261,8 @@
     let currentUser = null; // { username: 'kevin'|'ali', name: 'Kevin'|'Ali', key: 'kevin_list'|'ali_list', masteryKey: 'kevin_mastery'|'ali_mastery' }
 
     // Season Selection (Default: 2)
-    let currentSeason = 2;
+    let currentSeason = parseInt(localStorage.getItem("current_season") || "2", 10);
+    if (currentSeason !== 1 && currentSeason !== 2) currentSeason = 2;
     function getFirestoreCollection() {
       return currentSeason === 1 ? "fortnite_spirits" : "fortnite_spirits_s2";
     }
@@ -2261,10 +2295,29 @@
     const defaultSpiritTypesT2 = [
       { name: "Normal", suffix: "" },
       { name: "Dorado", suffix: " Dorado" },
-      { name: "Matrix", suffix: " Matrix" }
+      { name: "Hacker", suffix: " Hacker" },
+      { name: "Hacker de botin", suffix: " Hacker de botin" },
+      { name: "Cazarrecompensas", suffix: " Cazarrecompensas" },
+      { name: "Matrix", suffix: " Matrix" },
+      { name: "Galaxia", suffix: " Galaxia" },
+      { name: "Cazarrecompensas Especial", suffix: " Cazarrecompensas Especial" },
+      { name: "Especial", suffix: " Especial" }
     ];
 
-    let spiritTypes = cachedData && cachedData.spirit_types ? cachedData.spirit_types : (currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
+    function mergeSpiritTypes(existingTypes, defaultTypes) {
+      if (!existingTypes || !Array.isArray(existingTypes) || existingTypes.length === 0) {
+        return [...defaultTypes];
+      }
+      const result = [...existingTypes];
+      defaultTypes.forEach(dt => {
+        if (!result.some(t => t.name.toLowerCase() === dt.name.toLowerCase())) {
+          result.push(dt);
+        }
+      });
+      return result;
+    }
+
+    let spiritTypes = mergeSpiritTypes(cachedData && cachedData.spirit_types, currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
     let kevinList = cachedData && cachedData.kevin_list ? cachedData.kevin_list : [];
     let aliList = cachedData && cachedData.ali_list ? cachedData.ali_list : [];
     let kevinMastery = cachedData && cachedData.kevin_mastery ? cachedData.kevin_mastery : [];
@@ -2777,7 +2830,9 @@
 
     // 4. Mode Switching (Instant 0ms SPA Client Routing)
     window.switchModeSPA = function(mode) {
+      if (mode === "db") mode = "normal";
       if (currentMode === mode) return;
+      try { localStorage.setItem("spirit_mode", mode); } catch(e) {}
       window.history.pushState({ mode }, '', `/${mode}`);
       setMode(mode);
     };
@@ -2786,7 +2841,6 @@
       const pageName = window.location.pathname.split('/').pop().replace('.html', '');
       let mode = "normal";
       if (pageName === "edit") mode = "edit";
-      else if (pageName === "db") mode = "db";
       else if (pageName === "config") mode = "config";
       setMode(mode);
     });
@@ -2809,24 +2863,26 @@
     };
 
     window.setMode = function(mode) {
+      if (mode === "db") mode = "normal";
       currentMode = mode;
-      document.getElementById("btn-mode-normal").classList.toggle("active", mode === "normal");
-      document.getElementById("btn-mode-edit").classList.toggle("active", mode === "edit");
-      document.getElementById("btn-mode-db").classList.toggle("active", mode === "db");
-      document.getElementById("btn-mode-config").classList.toggle("active", mode === "config");
+      try { localStorage.setItem("spirit_mode", mode); } catch(e) {}
+      const btnNormal = document.getElementById("btn-mode-normal");
+      const btnEdit = document.getElementById("btn-mode-edit");
+      const btnConfig = document.getElementById("btn-mode-config");
+      if (btnNormal) btnNormal.classList.toggle("active", mode === "normal");
+      if (btnEdit) btnEdit.classList.toggle("active", mode === "edit");
+      if (btnConfig) btnConfig.classList.toggle("active", mode === "config");
 
       // La galería permanece oculta por defecto al entrar a Edit Mode para máxima velocidad
-      document.getElementById("sidebar").classList.toggle("hidden", !isGalleryOpen || mode !== "edit");
+      const sidebar = document.getElementById("sidebar");
+      if (sidebar) sidebar.classList.toggle("hidden", !isGalleryOpen || mode !== "edit");
       document.getElementById("shared-search-bar-container").style.display = (mode === "normal" || mode === "edit") ? "block" : "none";
       document.getElementById("normal-toolbar").style.display = mode === "normal" ? "flex" : "none";
       document.getElementById("edit-actions-bar").style.display = mode === "edit" ? "flex" : "none";
-      document.getElementById("categories-container").style.display = (mode !== "db" && mode !== "config") ? "flex" : "none";
-      document.getElementById("db-inspector-container").style.display = mode === "db" ? "block" : "none";
+      document.getElementById("categories-container").style.display = (mode !== "config") ? "flex" : "none";
       document.getElementById("config-container").style.display = mode === "config" ? "block" : "none";
 
-      if (mode === "db") {
-        renderDbInspector();
-      } else if (mode === "config") {
+      if (mode === "config") {
         renderConfigEditor();
       } else {
         renderWorkspace();
@@ -2842,6 +2898,23 @@
       btnEl.classList.add("active");
       renderWorkspace();
     };
+
+    function extractSpiritId(val) {
+      if (!val && val !== 0) return null;
+      const str = String(val).trim();
+      if (/^\d+$/.test(str)) {
+        return str.padStart(2, '0');
+      }
+      const urlMatch = str.match(/ic_spirit(?:_s\d+)?_(\d+)/i);
+      if (urlMatch) {
+        return urlMatch[1].padStart(2, '0');
+      }
+      const numMatch = str.match(/(\d+)(?:\.\w+)?$/);
+      if (numMatch) {
+        return numMatch[1].padStart(2, '0');
+      }
+      return null;
+    }
 
     function getSpiritBaseCategoryName(catName) {
       if (!catName || catName === "__uncategorized__") return "";
@@ -2878,13 +2951,40 @@
       return url;
     }
 
-    function getSpiritImgUrl(id) {
-      if (customImages && customImages[id]) {
-        const cacheBust = imageCacheBusters[id] ? `?v=${imageCacheBusters[id]}` : '';
-        return optimizeCloudinaryUrl(`${customImages[id]}${cacheBust}`);
-      }
+    window.handleSpiritImgError = function(imgEl, id) {
+      if (!imgEl) return;
       const formattedId = String(id).padStart(2, '0');
-      const cacheBust = imageCacheBusters[id] ? `?v=${imageCacheBusters[id]}` : '?v=20260915_t1_hd';
+      const fallbackUrl = currentSeason === 2 
+        ? `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits_s2/ic_spirit_s2_${formattedId}.png`
+        : `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+      
+      if (!imgEl.dataset.hasFailedOnce) {
+        imgEl.dataset.hasFailedOnce = "true";
+        imgEl.src = fallbackUrl;
+      } else {
+        imgEl.src = `https://placehold.co/180x180/1a1a1a/ffffff?text=#${formattedId}`;
+      }
+    };
+
+    function getSpiritImgUrl(id) {
+      if (!id && id !== 0) return 'https://placehold.co/180x180?text=?';
+      const rawId = String(id).trim();
+      const formattedId = rawId.padStart(2, '0');
+      const numId = String(parseInt(rawId, 10));
+
+      // 1. Buscar en customImages soportando clave con/sin cero
+      if (customImages && typeof customImages === 'object') {
+        const custom = customImages[rawId] || customImages[formattedId] || customImages[numId];
+        if (custom && typeof custom === 'string' && custom.trim() !== '') {
+          const cacheBust = (imageCacheBusters[rawId] || imageCacheBusters[formattedId]) 
+            ? `?v=${imageCacheBusters[rawId] || imageCacheBusters[formattedId]}` : '';
+          return optimizeCloudinaryUrl(`${custom.trim()}${cacheBust}`);
+        }
+      }
+
+      // 2. Ruta estándar de Cloudinary
+      const cacheBust = (imageCacheBusters[rawId] || imageCacheBusters[formattedId]) 
+        ? `?v=${imageCacheBusters[rawId] || imageCacheBusters[formattedId]}` : '?v=20260915_t1_hd';
       const folder = currentSeason === 2 ? 'spirits_s2/ic_spirit_s2_' : 'spirits/ic_spirit_';
       return `https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/${folder}${formattedId}.png${cacheBust}`;
     }
@@ -2895,11 +2995,19 @@
       return defaultNames[idx] || `Espíritu ${id}`;
     }
 
+    function getSortedTypesWithSuffix() {
+      const types = (spiritTypes && spiritTypes.length > 0) ? spiritTypes : (currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
+      return types
+        .filter(t => t.suffix && t.suffix.length > 0)
+        .sort((a, b) => b.suffix.length - a.suffix.length);
+    }
+
     function getSpiritCurrentType(id) {
       const name = getSpiritName(id);
-      for (let i = spiritTypes.length - 1; i >= 1; i--) {
-        if (name.endsWith(spiritTypes[i].suffix)) {
-          return spiritTypes[i].name;
+      const sorted = getSortedTypesWithSuffix();
+      for (const t of sorted) {
+        if (name.endsWith(t.suffix)) {
+          return t.name;
         }
       }
       return "Normal";
@@ -2907,9 +3015,10 @@
 
     function getSpiritBaseName(id) {
       const name = getSpiritName(id);
-      for (let i = spiritTypes.length - 1; i >= 1; i--) {
-        if (name.endsWith(spiritTypes[i].suffix)) {
-          return name.slice(0, -spiritTypes[i].suffix.length);
+      const sorted = getSortedTypesWithSuffix();
+      for (const t of sorted) {
+        if (name.endsWith(t.suffix)) {
+          return name.slice(0, -t.suffix.length);
         }
       }
       return name;
@@ -3175,11 +3284,7 @@
               customCategories = data.custom_categories || {};
               customImages = data.custom_images || {};
               
-              if (data.spirit_types && Array.isArray(data.spirit_types)) {
-                spiritTypes = data.spirit_types;
-              } else {
-                spiritTypes = currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2;
-              }
+              spiritTypes = mergeSpiritTypes(data.spirit_types, currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
 
               const dbCategoriesData = data.categories || [];
               let dbCategoriesList = [];
@@ -3253,6 +3358,7 @@
     window.switchSeason = function(season) {
       if (currentSeason === season) return;
       currentSeason = season;
+      try { localStorage.setItem("current_season", String(season)); } catch(e) {}
 
       // Update Season buttons UI
       const btnS1 = document.getElementById("btn-season-1");
@@ -3276,7 +3382,7 @@
           customNames = seasonCache.custom_names || {};
           customCategories = seasonCache.custom_categories || {};
           customImages = seasonCache.custom_images || {};
-          spiritTypes = seasonCache.spirit_types || (currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
+          spiritTypes = mergeSpiritTypes(seasonCache.spirit_types, currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
           kevinList = seasonCache.kevin_list || [];
           aliList = seasonCache.ali_list || [];
           kevinMastery = seasonCache.kevin_mastery || [];
@@ -3536,7 +3642,7 @@
         item.innerHTML = `
           ${isUnassigned ? '<span class="unassigned-tag">SUELTO</span>' : ''}
           <button class="gallery-delete-btn" onclick="deleteFromGallery(event, '${id}')" title="Eliminar espíritu e imagen física">🗑</button>
-          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" onerror="this.src='https://placehold.co/44x44?text=${id}'">
+          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" draggable="false" onerror="handleSpiritImgError(this, '${id}')">
           <span class="badge">#${displayNumber}</span>
         `;
         
@@ -3628,6 +3734,11 @@
               } else {
                 customNames[sid] = newFullName;
               }
+              const formattedSid = String(sid).padStart(2, '0');
+              const sInput = card.querySelector(`input[data-id="${sid}"], input[data-id="${formattedSid}"]`);
+              if (sInput) {
+                sInput.value = newFullName;
+              }
             });
 
             triggerAutoSave(400);
@@ -3680,8 +3791,11 @@
           slotsGrid.addEventListener("drop", (e) => {
             e.preventDefault();
             slotsGrid.classList.remove("drag-over");
-            const spiritId = e.dataTransfer.getData("text/plain");
-            moveSpiritToCategory(spiritId, cat.name);
+            const rawData = e.dataTransfer.getData("text/plain") || e.dataTransfer.getData("text/uri-list");
+            const spiritId = extractSpiritId(rawData);
+            if (spiritId) {
+              moveSpiritToCategory(spiritId, cat.name);
+            }
           });
         }
 
@@ -3701,9 +3815,13 @@
         const uncatKevinMastery = uncategorizedIds.filter(id => kevinMastery.includes(id)).length;
         const uncatAliMastery = uncategorizedIds.filter(id => aliMastery.includes(id)).length;
 
+        const deleteMassBtn = (currentMode === "edit" && uncategorizedIds.length > 0)
+          ? `<button class="btn btn-danger" style="padding: 4px 10px; font-size: 11px; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" onclick="deleteAllUncategorizedSpirits()" title="Eliminar todos los espíritus sueltos en masa">🗑️ Eliminar Sueltos (${uncategorizedIds.length})</button>`
+          : '';
+
         looseCard.innerHTML = `
           <div class="category-header">
-            <div class="category-title-edit" style="flex-wrap: wrap; gap: 8px 12px;">
+            <div class="category-title-edit" style="flex-wrap: wrap; gap: 8px 12px; width: 100%; align-items: center;">
               <span style="font-size: 20px;">📦</span>
               <span style="font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: var(--error-color);">Sin Categoría / Sueltos</span>
               <span style="font-size: 12px; color: var(--text-muted);">(${uncategorizedIds.length})</span>
@@ -3713,6 +3831,7 @@
                   <span class="cat-stat-badge ali" title="Obtenidos / Maestría de Ali">🔴 ${uncatAliCount} <span style="color:#fbbf24; font-weight:700;">⭐${uncatAliMastery}</span></span>
                 </div>
               ` : ''}
+              ${deleteMassBtn}
             </div>
           </div>
         `;
@@ -3741,8 +3860,11 @@
           looseGrid.addEventListener("drop", (e) => {
             e.preventDefault();
             looseGrid.classList.remove("drag-over");
-            const spiritId = e.dataTransfer.getData("text/plain");
-            moveSpiritToCategory(spiritId, "__uncategorized__");
+            const rawData = e.dataTransfer.getData("text/plain") || e.dataTransfer.getData("text/uri-list");
+            const spiritId = extractSpiritId(rawData);
+            if (spiritId) {
+              moveSpiritToCategory(spiritId, "__uncategorized__");
+            }
           });
         }
 
@@ -3789,7 +3911,7 @@
         slot.innerHTML = `
           <span class="spirit-id-badge">#${displayNumber}</span>
           <div class="spirit-img-container">
-            <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async">
+            <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" onerror="handleSpiritImgError(this, '${id}')">
             <span class="mastery-star ${isCurrentMastered ? 'active' : ''}" onclick="toggleSpiritMastery('${id}', event)" title="Alternar Maestría ⭐ (${currentUser ? currentUser.name : ''})">
               ⭐
             </span>
@@ -3806,7 +3928,14 @@
         `;
       } else {
         // Edit Mode Slot
-        slot.className = "spirit-slot";
+        slot.className = "spirit-slot edit-mode-slot";
+        slot.draggable = true;
+        slot.dataset.id = id;
+        slot.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("text/plain", id);
+          e.dataTransfer.setData("spirit-id", id);
+          e.dataTransfer.effectAllowed = "move";
+        });
 
         let optionsHtml = `<option value="" disabled selected>Mover a...</option>`;
         categories.forEach(c => {
@@ -3828,7 +3957,7 @@
         slot.innerHTML = `
           ${deleteBtnHtml}
           <span class="spirit-id-badge">#${displayNumber}</span>
-          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" style="cursor: pointer;" onclick="openEditImageModal('${id}')" title="Haz clic para cambiar la imagen">
+          <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" draggable="false" style="cursor: pointer;" onclick="openEditImageModal('${id}')" title="Haz clic para cambiar la imagen" onerror="handleSpiritImgError(this, '${id}')">
           <button type="button" class="btn" style="padding: 2px 4px; font-size: 9px; margin-bottom: 4px; width: 100%; font-family: inherit; justify-content: center;" onclick="openEditImageModal('${id}')">🖼️ Cambiar Imagen</button>
           <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}" style="margin-bottom: 4px;">
           <select class="type-select" data-id="${id}" style="width: 100%; font-size: 10px; border-radius: 4px; padding: 2px; margin-bottom: 4px;">
@@ -3849,6 +3978,56 @@
           } else {
             customNames[sid] = newVal;
           }
+
+          // Auto-propagate to category siblings if base/normal spirit is renamed
+          const foundCat = categories.find(c => (c.spiritIds || []).includes(sid));
+          if (foundCat && categoryName !== "__uncategorized__" && newVal !== "") {
+            const currentType = getSpiritCurrentType(sid);
+            const isBaseSpirit = (currentType === "Normal" || (foundCat.spiritIds && foundCat.spiritIds[0] === sid));
+            if (isBaseSpirit) {
+              const sortedTypes = getSortedTypesWithSuffix();
+              let newBaseName = newVal;
+              for (const t of sortedTypes) {
+                if (newBaseName.endsWith(t.suffix)) {
+                  newBaseName = newBaseName.slice(0, -t.suffix.length);
+                  break;
+                }
+              }
+
+              const catCard = slot.closest(".category-card");
+
+              foundCat.spiritIds.forEach(sibId => {
+                if (sibId !== sid) {
+                  const sibType = getSpiritCurrentType(sibId);
+                  const sibTypeObj = spiritTypes.find(t => t.name === sibType);
+                  const sibSuffix = sibTypeObj ? sibTypeObj.suffix : "";
+                  const sibFullName = newBaseName + sibSuffix;
+                  const sibDefName = defaultNames[parseInt(sibId) - 1] || "";
+                  if (sibFullName === sibDefName) {
+                    delete customNames[sibId];
+                  } else {
+                    customNames[sibId] = sibFullName;
+                  }
+                  if (catCard) {
+                    const formattedSibId = String(sibId).padStart(2, '0');
+                    const sibInput = catCard.querySelector(`input[data-id="${sibId}"], input[data-id="${formattedSibId}"]`);
+                    if (sibInput) {
+                      sibInput.value = sibFullName;
+                    }
+                  }
+                }
+              });
+
+              customCategories[foundCat.name] = newBaseName;
+              if (catCard) {
+                const titleInput = catCard.querySelector(".category-title-edit input");
+                if (titleInput) {
+                  titleInput.value = newBaseName;
+                }
+              }
+            }
+          }
+
           triggerAutoSave(400);
         };
         nameInput.addEventListener("input", handleNameUpdate);
@@ -3908,29 +4087,55 @@
     }
 
     function moveSpiritToCategory(spiritId, targetCatName) {
+      if (!spiritId && spiritId !== 0) return;
+      const idStr = String(spiritId).trim();
+      const formattedId = idStr.padStart(2, '0');
+      const numId = String(parseInt(idStr, 10));
+
+      // 1. Limpiar espíritu de todas las categorías en cualquier formato
       categories.forEach(cat => {
-        cat.spiritIds = cat.spiritIds.filter(id => id !== spiritId);
+        cat.spiritIds = (cat.spiritIds || []).filter(id => {
+          const s = String(id).trim();
+          return s !== idStr && s !== formattedId && s !== numId;
+        });
       });
 
+      // 2. Asignar a la categoría destino si no es suelto
       if (targetCatName !== "__uncategorized__") {
         const cat = categories.find(c => c.name === targetCatName);
-        if (cat && !cat.spiritIds.includes(spiritId)) {
-          cat.spiritIds.push(spiritId);
+        if (cat) {
+          if (!cat.spiritIds) cat.spiritIds = [];
+          if (!cat.spiritIds.some(id => String(id).padStart(2, '0') === formattedId)) {
+            cat.spiritIds.push(formattedId);
+          }
         }
 
-        const currentType = getSpiritCurrentType(spiritId);
-        const newFullName = computeSpiritName(spiritId, targetCatName, currentType);
-        const defName = defaultNames[parseInt(spiritId) - 1] || "";
-        if (newFullName === defName) {
-          delete customNames[spiritId];
-        } else {
-          customNames[spiritId] = newFullName;
+        const currentType = getSpiritCurrentType(formattedId);
+        const newFullName = computeSpiritName(formattedId, targetCatName, currentType);
+        const defName = defaultNames[parseInt(formattedId, 10) - 1] || "";
+        if (newFullName && newFullName !== defName) {
+          customNames[formattedId] = newFullName;
+          if (customNames[numId] && numId !== formattedId) delete customNames[numId];
         }
+        customCategories[formattedId] = targetCatName;
+      } else {
+        delete customCategories[formattedId];
+        if (customCategories[numId]) delete customCategories[numId];
       }
 
-      if (!spiritsList.includes(spiritId)) {
-        spiritsList.push(spiritId);
-        spiritsList.sort();
+      // 3. Garantizar que está en spiritsList en formato normalizado
+      if (!spiritsList.some(id => String(id).padStart(2, '0') === formattedId)) {
+        spiritsList.push(formattedId);
+      }
+      // Ordenar spiritsList numéricamente
+      spiritsList = Array.from(new Set(spiritsList.map(id => String(id).padStart(2, '0')))).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+
+      // 4. Preservar customImages para evitar cualquier pérdida de imagen
+      if (customImages && typeof customImages === 'object') {
+        const existingImg = customImages[idStr] || customImages[formattedId] || customImages[numId];
+        if (existingImg) {
+          customImages[formattedId] = existingImg;
+        }
       }
 
       renderWorkspace();
@@ -3938,9 +4143,11 @@
     }
 
     window.removeSpiritFromCategory = function(spiritId, categoryName) {
+      if (!spiritId && spiritId !== 0) return;
+      const formattedId = String(spiritId).padStart(2, '0');
       const cat = categories.find(c => c.name === categoryName);
-      if (cat) {
-        cat.spiritIds = cat.spiritIds.filter(id => id !== spiritId);
+      if (cat && cat.spiritIds) {
+        cat.spiritIds = cat.spiritIds.filter(id => String(id).padStart(2, '0') !== formattedId);
       }
       renderWorkspace();
       triggerAutoSave(50);
@@ -3987,6 +4194,54 @@
         .catch(err => {
           console.warn("No se pudo conectar al servidor local para borrar el archivo físico:", err);
         });
+      });
+    };
+
+    window.deleteAllUncategorizedSpirits = function() {
+      const assignedIds = new Set();
+      categories.forEach(cat => {
+        (cat.spiritIds || []).forEach(id => assignedIds.add(id));
+      });
+      const uncategorizedIds = spiritsList.filter(id => !assignedIds.has(id));
+
+      if (uncategorizedIds.length === 0) {
+        showToast("No hay espíritus sueltos para eliminar", false);
+        return;
+      }
+
+      customConfirm(`¿Estás seguro de eliminar PERMANENTEMENTE los ${uncategorizedIds.length} espíritus sueltos (sin categoría)? Se quitarán de la base de datos.`, "🗑️", () => {
+        const deletedSet = new Set(uncategorizedIds);
+
+        // 1. Remove from spiritsList
+        spiritsList = spiritsList.filter(id => !deletedSet.has(id));
+
+        // 2. Remove from categories
+        categories.forEach(cat => {
+          cat.spiritIds = (cat.spiritIds || []).filter(id => !deletedSet.has(id));
+        });
+
+        // 3. Remove from owned and mastery lists
+        kevinList = kevinList.filter(id => !deletedSet.has(id));
+        aliList = aliList.filter(id => !deletedSet.has(id));
+        kevinMastery = kevinMastery.filter(id => !deletedSet.has(id));
+        aliMastery = aliMastery.filter(id => !deletedSet.has(id));
+
+        // 4. Remove custom names and custom images
+        uncategorizedIds.forEach(id => {
+          delete customNames[id];
+          const formattedId = String(id).padStart(2, '0');
+          delete customNames[formattedId];
+          delete customImages[id];
+          delete customImages[formattedId];
+        });
+
+        // 5. Update UI & stats immediately
+        updateStats();
+        renderGallery();
+        renderWorkspace();
+
+        triggerAutoSave(50);
+        showToast(`🗑️ Se eliminaron ${uncategorizedIds.length} espíritus sueltos correctamente.`, false);
       });
     };
 
@@ -4132,177 +4387,6 @@
       };
       return db.collection(getFirestoreCollection()).doc(coupleId).set(updates);
     }
-
-    // 10b. DB Inspector Renderer
-    function renderDbInspector() {
-      const container = document.getElementById("db-inspector-container");
-      if (!container) return;
-
-      const data = window.rawFirestoreData || null;
-
-      if (!data) {
-        container.innerHTML = `
-          <div class="db-inspector-card">
-            <div class="db-inspector-title">📂 Base de Datos de Firestore (Vacía / No cargada)</div>
-            <p style="color: var(--text-muted);">No hay datos cargados para el coupleId: <strong>${coupleId}</strong>.</p>
-            <p style="color: var(--text-muted);">Por favor, asegúrate de hacer clic en "Cargar" en el panel superior.</p>
-          </div>
-        `;
-        return;
-      }
-
-      const rawJson = JSON.stringify(data, null, 2);
-      
-      // Calculate statistics
-      const totalSpirits = Array.isArray(data.spirits_list) ? data.spirits_list.length : 0;
-      const customNamesCount = data.custom_names ? Object.keys(data.custom_names).length : 0;
-      const customCategoriesCount = data.custom_categories ? Object.keys(data.custom_categories).length : 0;
-      const categoriesCount = Array.isArray(data.categories) ? data.categories.length : 0;
-      const kevinSpiritsCount = Array.isArray(data.kevin_list) ? data.kevin_list.length : 0;
-      const aliSpiritsCount = Array.isArray(data.ali_list) ? data.ali_list.length : 0;
-      const kevinMasteryCount = Array.isArray(data.kevin_mastery) ? data.kevin_mastery.length : 0;
-      const aliMasteryCount = Array.isArray(data.ali_mastery) ? data.ali_mastery.length : 0;
-      const schemaVersion = data.schema_version !== undefined ? data.schema_version : "Desconocido";
-
-      container.innerHTML = `
-        <div class="db-inspector-card">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-            <div class="db-inspector-title" style="margin-bottom: 0;">
-              <span>📂</span> Inspector de Base de Datos (Documento: <span style="color: var(--accent-color);">${coupleId}</span>)
-            </div>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button class="db-action-btn" onclick="copyDbJson()">
-                <span>📋</span> Copiar JSON
-              </button>
-              <button class="db-action-btn" onclick="downloadDbJson()">
-                <span>💾</span> Descargar JSON
-              </button>
-              <button class="db-action-btn" onclick="document.getElementById('db-upload-input').click()">
-                <span>📤</span> Importar JSON
-              </button>
-              <input type="file" id="db-upload-input" style="display: none;" accept=".json" onchange="uploadDbJson(event)">
-            </div>
-          </div>
-
-          <div class="db-stats-grid">
-            <div class="db-stat-box">
-              <div class="db-stat-number">${schemaVersion}</div>
-              <div class="db-stat-name">Esquema Versión</div>
-            </div>
-            <div class="db-stat-box">
-              <div class="db-stat-number">${totalSpirits}</div>
-              <div class="db-stat-name">Total Espíritus</div>
-            </div>
-            <div class="db-stat-box">
-              <div class="db-stat-number">${categoriesCount}</div>
-              <div class="db-stat-name">Categorías</div>
-            </div>
-            <div class="db-stat-box">
-              <div class="db-stat-number">${customNamesCount}</div>
-              <div class="db-stat-name">Nombres Modif.</div>
-            </div>
-            <div class="db-stat-box">
-              <div class="db-stat-number">${customCategoriesCount}</div>
-              <div class="db-stat-name">Cat. Modif.</div>
-            </div>
-            <div class="db-stat-box">
-              <div class="db-stat-number" style="color: var(--kevin-color);">${kevinSpiritsCount}</div>
-              <div class="db-stat-name">Espíritus Kevin</div>
-            </div>
-            <div class="db-stat-box">
-              <div class="db-stat-number" style="color: var(--ali-color);">${aliSpiritsCount}</div>
-              <div class="db-stat-name">Espíritus Ali</div>
-            </div>
-            <div class="db-stat-box">
-              <div class="db-stat-number" style="color: var(--kevin-color); text-shadow: 0 0 10px rgba(59, 130, 246, 0.4);">${kevinMasteryCount}</div>
-              <div class="db-stat-name">Maestría Kevin</div>
-            </div>
-            <div class="db-stat-box">
-              <div class="db-stat-number" style="color: var(--ali-color); text-shadow: 0 0 10px rgba(236, 72, 153, 0.4);">${aliMasteryCount}</div>
-              <div class="db-stat-name">Maestría Ali</div>
-            </div>
-          </div>
-
-          <h3 style="font-family: 'Outfit', sans-serif; font-size: 16px; margin-bottom: 10px; color: var(--text-color);">JSON en tiempo real desde Firestore:</h3>
-          <pre class="db-raw-json-container"><code id="db-json-code">${escapeHtml(rawJson)}</code></pre>
-        </div>
-      `;
-    }
-
-    // Helper to escape HTML characters
-    function escapeHtml(text) {
-      return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-
-    // Global copy function
-    window.copyDbJson = function() {
-      const codeEl = document.getElementById("db-json-code");
-      if (codeEl) {
-        navigator.clipboard.writeText(codeEl.textContent)
-          .then(() => showToast("¡JSON copiado al portapapeles! 📋", false))
-          .catch(() => showToast("Error al copiar el JSON", true));
-      }
-    };
-
-    // Download JSON function
-    window.downloadDbJson = function() {
-      if (!window.rawFirestoreData) {
-        showToast("No hay datos disponibles para descargar", true);
-        return;
-      }
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.rawFirestoreData, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `diario_espiritus_${coupleId}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      showToast("¡JSON descargado con éxito! 💾", false);
-    };
-
-    // Import JSON function
-    window.uploadDbJson = function(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const parsedData = JSON.parse(e.target.result);
-          
-          // Basic validation
-          if (!parsedData.categories || !Array.isArray(parsedData.categories)) {
-            customAlert("El archivo JSON no es válido. Debe contener un arreglo de 'categories'.", "❌");
-            return;
-          }
-          if (!parsedData.spirits_list || !Array.isArray(parsedData.spirits_list)) {
-            customAlert("El archivo JSON no es válido. Debe contener un arreglo de 'spirits_list'.", "❌");
-            return;
-          }
-
-          customConfirm("¿Importar este JSON? Se reemplazarán las categorías, espíritus y estados de obtención actuales en Firestore.", "📤", () => {
-            parsedData.schema_version = 4;
-            db.collection(getFirestoreCollection()).doc(coupleId).set(parsedData)
-              .then(() => {
-                showToast("¡Base de datos importada con éxito! 🚀", false);
-              })
-              .catch(err => {
-                console.error("Error al importar JSON:", err);
-                showToast("Error al subir el JSON a Firestore", true);
-              });
-          });
-        } catch (err) {
-          customAlert("Error al parsear el archivo JSON: " + err.message, "❌");
-        }
-      };
-      reader.readAsText(file);
-      event.target.value = "";
-    };
 
     // Open New Spirit Modal
     window.openNewSpiritModal = function() {
@@ -4489,9 +4573,14 @@
             <div class="db-inspector-title" style="margin-bottom: 0;">
               <span>🏷️</span> Gestión de Tipos y Categorías
             </div>
-            <div class="autosave-status-pill" id="config-autosave-pill" title="Los cambios se guardan automáticamente en Firestore y se sincronizan en vivo">
-              <span class="autosave-icon" id="config-autosave-icon">✓</span>
-              <span class="autosave-text" id="config-autosave-text">Autoguardado</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <button class="btn btn-secondary" onclick="normalizeAllSpiritNames()" style="padding: 6px 14px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-weight: 600;" title="Normaliza los nombres de todos los espíritus según su categoría y variante activa">
+                <span>🪄</span> Normalizar Nombres
+              </button>
+              <div class="autosave-status-pill" id="config-autosave-pill" title="Los cambios se guardan automáticamente en Firestore y se sincronizan en vivo">
+                <span class="autosave-icon" id="config-autosave-icon">✓</span>
+                <span class="autosave-text" id="config-autosave-text">Autoguardado</span>
+              </div>
             </div>
           </div>
 
@@ -4541,94 +4630,6 @@
               </div>
             </div>
 
-          </div>
-
-          <!-- Section 3: App Theme Selector (Sincronizado con Android) -->
-          <div style="margin-top: 35px; padding-top: 25px; border-top: 1px solid var(--card-border);">
-            <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; margin-bottom: 8px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
-              <span>🎨</span> Tema Visual Sincronizado con la App
-            </h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Selecciona el tema y paleta de colores para tu perfil (<strong>${currentUser ? currentUser.name : 'Usuario'}</strong>). Al cambiarlo aquí, se aplicará instantáneamente tanto en la web como en la app móvil:</p>
-            
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 24px;">
-              <div onclick="changeTheme('Pixel Oscuro'); if(currentMode==='config') renderConfigEditor();" style="flex: 1; min-width: 180px; padding: 14px 18px; border-radius: 10px; background: ${userTheme === 'Pixel Oscuro' ? 'rgba(156, 39, 176, 0.2)' : 'rgba(255,255,255,0.03)'}; border: 2px solid ${userTheme === 'Pixel Oscuro' ? 'var(--accent-color)' : 'var(--card-border)'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <span style="font-size: 22px;">🌙</span>
-                  <div>
-                    <div style="font-weight: 700; font-size: 15px; color: var(--text-color);">Pixel Oscuro</div>
-                    <div style="font-size: 11px; color: var(--text-muted);">Gris profundo y neón rosa</div>
-                  </div>
-                </div>
-                <input type="radio" name="theme-choice" value="Pixel Oscuro" ${userTheme === 'Pixel Oscuro' ? 'checked' : ''} style="cursor: pointer;">
-              </div>
-
-              <div onclick="changeTheme('Pixel Claro'); if(currentMode==='config') renderConfigEditor();" style="flex: 1; min-width: 180px; padding: 14px 18px; border-radius: 10px; background: ${userTheme === 'Pixel Claro' ? 'rgba(124, 77, 255, 0.15)' : 'rgba(255,255,255,0.03)'}; border: 2px solid ${userTheme === 'Pixel Claro' ? 'var(--accent-color)' : 'var(--card-border)'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <span style="font-size: 22px;">☀️</span>
-                  <div>
-                    <div style="font-weight: 700; font-size: 15px; color: var(--text-color);">Pixel Claro</div>
-                    <div style="font-size: 11px; color: var(--text-muted);">Crema y café tradicional</div>
-                  </div>
-                </div>
-                <input type="radio" name="theme-choice" value="Pixel Claro" ${userTheme === 'Pixel Claro' ? 'checked' : ''} style="cursor: pointer;">
-              </div>
-
-              <div onclick="changeTheme('Pixel Monocromático'); if(currentMode==='config') renderConfigEditor();" style="flex: 1; min-width: 180px; padding: 14px 18px; border-radius: 10px; background: ${userTheme === 'Pixel Monocromático' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255,255,255,0.03)'}; border: 2px solid ${userTheme === 'Pixel Monocromático' ? 'var(--accent-color)' : 'var(--card-border)'}; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <span style="font-size: 22px;">🏁</span>
-                  <div>
-                    <div style="font-weight: 700; font-size: 15px; color: var(--text-color);">Pixel Monocromático</div>
-                    <div style="font-size: 11px; color: var(--text-muted);">Retro Game Boy 8-bit</div>
-                  </div>
-                </div>
-                <input type="radio" name="theme-choice" value="Pixel Monocromático" ${userTheme === 'Pixel Monocromático' ? 'checked' : ''} style="cursor: pointer;">
-              </div>
-            </div>
-
-            <!-- Color Palette Selector Organizado por Familias -->
-            <h4 style="font-family: 'Outfit', sans-serif; font-size: 15px; color: var(--text-color); margin-bottom: 12px;">
-              ${userTheme === 'Pixel Monocromático' ? '🏁 PALETAS RETRO MONOCROMÁTICAS (8-BIT)' : (userTheme === 'Pixel Claro' ? '🎨 PALETAS POR FAMILIAS (PIXEL CLARO)' : '🎨 PALETAS POR FAMILIAS (PIXEL OSCURO)')}
-            </h4>
-            <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 10px; border: 1px solid var(--card-border); margin-bottom: 20px;">
-              ${(() => {
-                const fams = userTheme === 'Pixel Monocromático' ? MONO_COLOR_FAMILIES : (userTheme === 'Pixel Claro' ? LIGHT_COLOR_FAMILIES : DARK_COLOR_FAMILIES);
-                const activeColor = userTheme === 'Pixel Claro' ? userLightColor : userDarkColor;
-                return fams.map(fam => `
-                  <div style="margin-bottom: 14px;">
-                    <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">${fam.title}</div>
-                    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                      ${fam.colors.map(hex => `
-                        <div onclick="changeBarColor('${hex}')" style="width: 36px; height: 36px; border-radius: 50%; background-color: ${hex}; border: 3px solid ${activeColor.toUpperCase() === hex.toUpperCase() ? '#fff' : 'transparent'}; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s; position: relative;" title="Seleccionar ${hex}">
-                          ${activeColor.toUpperCase() === hex.toUpperCase() ? '<span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; font-weight: bold; color: ' + (hex === '#FFFFFF' || hex === '#FFF59D' || hex === '#E1F5FE' ? '#000' : '#fff') + ';">✓</span>' : ''}
-                        </div>
-                      `).join('')}
-                    </div>
-                  </div>
-                `).join('');
-              })()}
-            </div>
-
-            <!-- Custom Background Checkbox -->
-            <div onclick="toggleCustomBgPreference()" style="display: inline-flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); margin-bottom: 20px;">
-              <input type="checkbox" ${userUseCustomBg ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px;">
-              <span style="font-size: 13px; font-weight: 600; color: var(--text-color);">Usar tinte de color de barra como fondo adaptativo (Fondo Personalizado)</span>
-            </div>
-
-            <!-- Refresh Rate Selector (Sincronizado con Android) -->
-            <h4 style="font-family: 'Outfit', sans-serif; font-size: 15px; color: var(--text-color); margin-top: 15px; margin-bottom: 6px;">
-              ⚡ Tasa de Refresco en la App Móvil (Hz)
-            </h4>
-            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-              Configura los hercios de la pantalla en la app Android (90 Hz recomendado por defecto):
-            </p>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
-              ${[60, 90, 100, 120].map(hz => `
-                <div onclick="changeRefreshRate(${hz})" style="flex: 1; min-width: 90px; padding: 12px 14px; border-radius: 8px; background: ${userRefreshRate === hz ? (userTheme === 'Pixel Oscuro' ? 'rgba(156, 39, 176, 0.25)' : 'rgba(124, 77, 255, 0.2)') : 'rgba(255,255,255,0.03)'}; border: 2px solid ${userRefreshRate === hz ? 'var(--accent-color)' : 'var(--card-border)'}; cursor: pointer; text-align: center; transition: all 0.2s;">
-                  <div style="font-weight: 700; font-size: 16px; color: var(--text-color);">${hz} Hz</div>
-                  <div style="font-size: 11px; color: var(--text-muted);">${hz === 90 ? 'Recomendado' : (hz === 60 ? 'Estándar' : (hz === 120 ? 'Ultra Fluido' : 'Alto'))}</div>
-                </div>
-              `).join('')}
-            </div>
           </div>
         </div>
       `;
@@ -4740,6 +4741,68 @@
         }
       });
     }
+
+    window.normalizeAllSpiritNames = function() {
+      customConfirm("¿Deseas normalizar automáticamente los nombres de todos los espíritus según su categoría asignada y su tipo/variante activa?", "🪄", () => {
+        let updatedCount = 0;
+
+        // 1. Process all categories
+        categories.forEach(cat => {
+          const catBaseTitle = customCategories[cat.name] || cat.name;
+          
+          (cat.spiritIds || []).forEach(sid => {
+            const currentType = getSpiritCurrentType(sid);
+            const typeObj = spiritTypes.find(t => t.name === currentType);
+            const suffix = typeObj ? typeObj.suffix : "";
+            
+            let targetFullName = "";
+            if (sid === "13" && currentType === "Normal" && catBaseTitle.includes("Cacahuete")) {
+              targetFullName = "TheBurntPeanut (Espíritu del Cacahuete)";
+            } else {
+              targetFullName = catBaseTitle + suffix;
+            }
+
+            const defName = defaultNames[parseInt(sid, 10) - 1] || "";
+            if (targetFullName === defName) {
+              if (customNames[sid]) {
+                delete customNames[sid];
+                updatedCount++;
+              }
+            } else {
+              if (customNames[sid] !== targetFullName) {
+                customNames[sid] = targetFullName;
+                updatedCount++;
+              }
+            }
+          });
+        });
+
+        // 2. Process uncategorized spirits
+        const assignedIds = new Set();
+        categories.forEach(c => (c.spiritIds || []).forEach(id => assignedIds.add(id)));
+        
+        spiritsList.forEach(sid => {
+          if (!assignedIds.has(sid)) {
+            const currentName = customNames[sid];
+            if (currentName) {
+              const defName = defaultNames[parseInt(sid, 10) - 1] || "";
+              if (currentName.trim() === "" || currentName === defName) {
+                delete customNames[sid];
+                updatedCount++;
+              }
+            }
+          }
+        });
+
+        // 3. Render and save
+        renderWorkspace();
+        if (currentMode === "config") {
+          renderConfigEditor();
+        }
+        triggerAutoSave(50);
+        showToast(`✨ Se normalizaron los nombres de los espíritus (${updatedCount} actualizados)`, false);
+      });
+    };
 
     window.updateConfigCategoryName = function(index, newValue) {
       if (!categories[index]) return;

@@ -29,6 +29,13 @@ class InstallResultReceiver : BroadcastReceiver() {
             }
             PackageInstaller.STATUS_SUCCESS -> {
                 Log.d("InstallResultReceiver", "¡Instalación silenciosa completada con éxito!")
+                try {
+                    val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                    launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    context.startActivity(launchIntent)
+                } catch (e: Exception) {
+                    Log.e("InstallResultReceiver", "Error relaunching app: ${e.message}")
+                }
             }
             else -> {
                 Log.e("InstallResultReceiver", "Error en instalación silenciosa ($status): $message")

@@ -223,12 +223,8 @@ fun SpiritRow(
                 if (!customImageUrl.isNullOrBlank()) {
                     customImageUrl
                 } else {
-                    val publicPath = if (currentSeason == 2) "spirits_s2/ic_spirit_s2_$formattedId" else "spirits/ic_spirit_$formattedId"
-                    try {
-                        com.cloudinary.android.MediaManager.get().url().generate(publicPath)
-                    } catch (e: Exception) {
-                        "https://res.cloudinary.com/dhaqjw7se/image/upload/$publicPath.png"
-                    }
+                    val folder = if (currentSeason == 2) "spirits_s2/ic_spirit_s2_" else "spirits/ic_spirit_"
+                    "https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/$folder$formattedId.png"
                 }
             }
             val finalUrl = remember(spiritImageUrl, imageRefreshKey) {
@@ -254,8 +250,8 @@ fun SpiritRow(
             AsyncImage(
                 model = imageModel,
                 contentDescription = "Espíritu $spiritId",
-                placeholder = if (spiritResId != 0) painterResource(id = spiritResId) else null,
-                error = if (spiritResId != 0) painterResource(id = spiritResId) else null,
+                placeholder = if (currentSeason == 1 && spiritResId != 0) painterResource(id = spiritResId) else null,
+                error = if (currentSeason == 1 && spiritResId != 0) painterResource(id = spiritResId) else null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
@@ -498,12 +494,8 @@ fun SpiritGridCard(
             if (!customImageUrl.isNullOrBlank()) {
                 customImageUrl
             } else {
-                val publicPath = if (currentSeason == 2) "spirits_s2/ic_spirit_s2_$formattedId" else "spirits/ic_spirit_$formattedId"
-                try {
-                    com.cloudinary.android.MediaManager.get().url().generate(publicPath)
-                } catch (e: Exception) {
-                    "https://res.cloudinary.com/dhaqjw7se/image/upload/$publicPath.png"
-                }
+                val folder = if (currentSeason == 2) "spirits_s2/ic_spirit_s2_" else "spirits/ic_spirit_"
+                "https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/$folder$formattedId.png"
             }
         }
         val finalUrl = remember(spiritImageUrl, imageRefreshKey) {
@@ -529,8 +521,8 @@ fun SpiritGridCard(
         AsyncImage(
             model = imageModel,
             contentDescription = spiritName,
-            placeholder = if (spiritResId != 0) painterResource(id = spiritResId) else null,
-            error = if (spiritResId != 0) painterResource(id = spiritResId) else null,
+            placeholder = if (currentSeason == 1 && spiritResId != 0) painterResource(id = spiritResId) else null,
+            error = if (currentSeason == 1 && spiritResId != 0) painterResource(id = spiritResId) else null,
             modifier = Modifier
                 .size(72.dp)
                 .align(Alignment.Center)
@@ -583,7 +575,8 @@ fun SpiritsChecklistView(
     // User Session Configuration
     val prefs = remember(context) { context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE) }
     val currentUserId = remember(prefs) { prefs.getString("userId", "user_kevin_01") ?: "user_kevin_01" }
-    val coupleId = remember(prefs) { prefs.getString("coupleId", "vínculo_único_123") ?: "vínculo_único_123" }
+    val rawCoupleId = remember(prefs) { prefs.getString("coupleId", "vínculo_único_123") ?: "vínculo_único_123" }
+    val coupleId = remember(rawCoupleId) { java.text.Normalizer.normalize(rawCoupleId.trim(), java.text.Normalizer.Form.NFC) }
     
     // Deterministic identification of roles
     val isKevin = currentUserId == "user_kevin_01"
@@ -619,6 +612,35 @@ fun SpiritsChecklistView(
         )
     }
     val defaultSpiritsListT1 = remember { (1..141).map { String.format("%02d", it) } }
+
+    val defaultCategoriesT2 = remember {
+        listOf(
+            SpiritCategory("Espíritu de Rex", listOf("01", "02", "03", "52", "71")),
+            SpiritCategory("Espíritu Táctico", listOf("04", "05", "06", "51", "72")),
+            SpiritCategory("Espíritu Agente", listOf("07", "08", "09", "53", "73")),
+            SpiritCategory("Espíritu Game Boy", listOf("10", "11", "12", "54", "74")),
+            SpiritCategory("Espíritu Conejo", listOf("13", "14", "15", "55", "75")),
+            SpiritCategory("Espíritu Rey", listOf("16", "17", "18", "56", "76")),
+            SpiritCategory("Espíritu Pícaro", listOf("19", "20", "21", "50", "77")),
+            SpiritCategory("Espíritu Erizo", listOf("22", "23", "24", "61", "78")),
+            SpiritCategory("Espíritu Oni", listOf("25", "26", "27", "60", "79")),
+            SpiritCategory("Espíritu de Shadow", listOf("28", "29", "30", "58", "80")),
+            SpiritCategory("Espíritu de Tails", listOf("31", "32", "33", "59", "81")),
+            SpiritCategory("Espíritu de Sonic", listOf("34", "35", "36", "57", "82")),
+            SpiritCategory("Espíritu Caballero", listOf("37", "38", "39", "40", "95")),
+            SpiritCategory("Espíritu Onigiri", listOf("41", "42", "43", "44", "83")),
+            SpiritCategory("Espíritu Científico", listOf("45", "46", "47", "48", "84")),
+            SpiritCategory("Espíritu Especial/Invitado", listOf("49")),
+            SpiritCategory("Espíritu de Blinky", listOf("62", "63", "64", "65", "66")),
+            SpiritCategory("Espíritu de Cash Bandicoot", listOf("67", "68", "69", "70", "85")),
+            SpiritCategory("Espíritu del Estanque", listOf("96", "97", "98", "99", "100")),
+            SpiritCategory("Espíritu de Morgana", listOf("86", "87", "88", "89", "90")),
+            SpiritCategory("Espíritu de Cumpleaños", listOf("101", "102", "103", "104", "105"))
+        )
+    }
+    val defaultSpiritsListT2 = remember {
+        (1..105).map { String.format("%02d", it) }
+    }
     val spiritNames = remember {
         listOf(
             // Fila 1
@@ -682,8 +704,8 @@ fun SpiritsChecklistView(
         )
     }
 
-    var categories by remember { mutableStateOf(emptyList<SpiritCategory>()) }
-    var spiritsList by remember { mutableStateOf(emptyList<String>()) }
+    var categories by remember(currentSeason) { mutableStateOf(if (currentSeason == 2) defaultCategoriesT2 else defaultCategoriesT1) }
+    var spiritsList by remember(currentSeason) { mutableStateOf(if (currentSeason == 2) defaultSpiritsListT2 else defaultSpiritsListT1) }
 
     // Firebase references
     val db = FirebaseFirestore.getInstance()
@@ -708,9 +730,13 @@ fun SpiritsChecklistView(
 
     // Read real-time values from Firestore based on coupleId and currentSeason
     DisposableEffect(coupleId, currentSeason) {
-        val listener = db.collection(firestoreCollection).document(coupleId)
+        val targetCollection = if (currentSeason == 1) "fortnite_spirits" else "fortnite_spirits_s2"
+        val listener = db.collection(targetCollection).document(coupleId)
             .addSnapshotListener { snapshot, e ->
-                if (e != null) return@addSnapshotListener
+                if (e != null) {
+                    e.printStackTrace()
+                    return@addSnapshotListener
+                }
                 if (snapshot != null && snapshot.exists()) {
                     val kList = snapshot.get("kevin_list") as? List<*>
                     val aList = snapshot.get("ali_list") as? List<*>
@@ -739,19 +765,14 @@ fun SpiritsChecklistView(
                         SpiritCategory(name, spiritIds)
                     } ?: emptyList()
 
-                    var schemaVersion = (snapshot.get("schema_version") as? Number)?.toInt() ?: 1
+                    val idsInCategories = parsedCategories.flatMap { it.spiritIds }.toSet()
+                    val combinedSpiritsList = (parsedSpiritsList + idsInCategories).distinct().sortedBy { it.toIntOrNull() ?: 9999 }
 
-                    if (parsedSpiritsList.isEmpty()) {
-                        if (currentSeason == 1) {
-                            categories = defaultCategoriesT1
-                            spiritsList = defaultSpiritsListT1
-                        } else {
-                            categories = emptyList()
-                            spiritsList = emptyList()
-                        }
-                    } else {
-                        // Apply selection migration if version is 1 (for Season 1)
-                        if (currentSeason == 1 && schemaVersion == 1) {
+                    android.util.Log.d("SpiritsDebug", "Snapshot received! Season: $currentSeason, Col: $targetCollection, Doc: $coupleId, parsedSpirits: ${parsedSpiritsList.size}, cats: ${parsedCategories.size}, combined: ${combinedSpiritsList.size}")
+
+                    if (currentSeason == 1) {
+                        var schemaVersion = (snapshot.get("schema_version") as? Number)?.toInt() ?: 1
+                        if (schemaVersion == 1) {
                             val migrateSelections = { oldList: List<String> ->
                                 oldList.map { id ->
                                     val num = id.toIntOrNull() ?: return@map id
@@ -768,19 +789,19 @@ fun SpiritsChecklistView(
                             aliList = migrateSelections(aliList)
                             kevinMastery = migrateSelections(kevinMastery)
                             aliMastery = migrateSelections(aliMastery)
-                            schemaVersion = 3 // Promotion to base v3 for local logic
                         }
 
-                        if (currentSeason == 1 && schemaVersion < 4) {
+                        if (schemaVersion < 4) {
                             val baseCategories = parsedCategories.ifEmpty { defaultCategoriesT1 }
-                            val mergedCategories = mergeCategories(baseCategories, defaultCategoriesT1, (122..141).map { String.format("%02d", it) })
-                            categories = mergedCategories
+                            categories = mergeCategories(baseCategories, defaultCategoriesT1, (122..141).map { String.format("%02d", it) })
                             spiritsList = defaultSpiritsListT1
                         } else {
-                            // Firestore document is up to date, use its values
-                            categories = if (currentSeason == 1) parsedCategories.ifEmpty { defaultCategoriesT1 } else parsedCategories
-                            spiritsList = if (currentSeason == 1) parsedSpiritsList.ifEmpty { defaultSpiritsListT1 } else parsedSpiritsList
+                            categories = parsedCategories.ifEmpty { defaultCategoriesT1 }
+                            spiritsList = if (combinedSpiritsList.isNotEmpty()) combinedSpiritsList else defaultSpiritsListT1
                         }
+                    } else {
+                        categories = if (parsedCategories.isNotEmpty()) parsedCategories else defaultCategoriesT2
+                        spiritsList = if (combinedSpiritsList.isNotEmpty()) combinedSpiritsList else defaultSpiritsListT2
                     }
                 } else {
                     kevinList = emptyList()
@@ -789,13 +810,9 @@ fun SpiritsChecklistView(
                     aliMastery = emptyList()
                     customNames = emptyMap()
                     customCategories = emptyMap()
-                    if (currentSeason == 1) {
-                        categories = defaultCategoriesT1
-                        spiritsList = defaultSpiritsListT1
-                    } else {
-                        categories = emptyList()
-                        spiritsList = emptyList()
-                    }
+                    customImages = emptyMap()
+                    categories = if (currentSeason == 2) defaultCategoriesT2 else defaultCategoriesT1
+                    spiritsList = if (currentSeason == 2) defaultSpiritsListT2 else defaultSpiritsListT1
                 }
             }
         onDispose {
@@ -803,11 +820,66 @@ fun SpiritsChecklistView(
         }
     }
 
-    val onSaveSpiritChanges: (String, String, String) -> Unit = { spiritId, newName, targetCategoryName ->
-        val newCustomNames = if (newName.isBlank()) {
-            customNames - spiritId
+    val spiritTypeSuffixes = listOf(
+        " Cazarrecompensas Especial",
+        " Galaxia Oscura",
+        " Hacker de botin",
+        " Cazarrecompensas",
+        " Hacker Dorado",
+        " Arcoíris",
+        " Holofoil",
+        " Especial",
+        " Galaxia",
+        " Gomita",
+        " Matrix",
+        " Dorado",
+        " Quack",
+        " Extra",
+        " Hacker",
+        " Cubo",
+        " Gema"
+    )
+
+    val getSpiritDisplayName: (String) -> String = { id ->
+        val formattedId = id.toIntOrNull()?.let { String.format("%02d", it) } ?: id
+        val plainId = id.toIntOrNull()?.toString() ?: id
+        val custom = customNames[id] ?: customNames[formattedId] ?: customNames[plainId]
+        if (!custom.isNullOrBlank()) {
+            custom
+        } else if (currentSeason == 2) {
+            val cat = categories.find { it.spiritIds.contains(id) || it.spiritIds.contains(formattedId) || it.spiritIds.contains(plainId) }
+            if (cat != null) {
+                customCategories[cat.name] ?: cat.name
+            } else {
+                "Espíritu #$formattedId"
+            }
         } else {
-            customNames + (spiritId to newName)
+            val idx = id.toIntOrNull()?.minus(1) ?: 0
+            spiritNames.getOrElse(idx) { "Espíritu #$formattedId" }
+        }
+    }
+
+    val onSaveSpiritChanges: (String, String, String) -> Unit = { spiritId, newName, targetCategoryName ->
+        val cleanName = newName.trim()
+        val updatedCustomNames = customNames.toMutableMap()
+        if (cleanName.isBlank()) {
+            updatedCustomNames.remove(spiritId)
+        } else {
+            updatedCustomNames[spiritId] = cleanName
+
+            val matchedSuffix = spiritTypeSuffixes.firstOrNull { cleanName.endsWith(it) } ?: ""
+            val newBaseName = if (matchedSuffix.isNotEmpty()) cleanName.removeSuffix(matchedSuffix) else cleanName
+
+            val cat = categories.find { it.name == targetCategoryName }
+            if (cat != null && (matchedSuffix.isEmpty() || cat.spiritIds.firstOrNull() == spiritId)) {
+                cat.spiritIds.forEach { sid ->
+                    if (sid != spiritId) {
+                        val currentSibName = getSpiritDisplayName(sid)
+                        val sibSuffix = spiritTypeSuffixes.firstOrNull { currentSibName.endsWith(it) } ?: ""
+                        updatedCustomNames[sid] = newBaseName + sibSuffix
+                    }
+                }
+            }
         }
 
         val updatedCategories = categories.map { category ->
@@ -828,7 +900,7 @@ fun SpiritsChecklistView(
         }
 
         val updates = mapOf(
-            "custom_names" to newCustomNames,
+            "custom_names" to updatedCustomNames,
             "categories" to categoriesMap,
             "schema_version" to 4
         )
@@ -846,13 +918,9 @@ fun SpiritsChecklistView(
         val targetCat = categories.find { it.name == originalName }
         val updatedCustomNames = customNames.toMutableMap()
         if (targetCat != null && cleanName.isNotBlank()) {
-            val typeSuffixes = listOf(" Dorado", " Gomita", " Galaxia", " Gema", " Holofoil", " Cubo", " Extra", " Especial", " Hacker", " Hacker Dorado")
             targetCat.spiritIds.forEach { sid ->
-                val currentName = customNames[sid] ?: run {
-                    val idx = sid.toIntOrNull()?.minus(1) ?: 0
-                    spiritNames.getOrElse(idx) { "Espíritu #$sid" }
-                }
-                val matchedSuffix = typeSuffixes.findLast { currentName.endsWith(it) } ?: ""
+                val currentName = getSpiritDisplayName(sid)
+                val matchedSuffix = spiritTypeSuffixes.firstOrNull { currentName.endsWith(it) } ?: ""
                 updatedCustomNames[sid] = cleanName + matchedSuffix
             }
         }
@@ -1352,7 +1420,7 @@ fun SpiritsChecklistView(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         rowSpirits.forEach { spiritId ->
-                            val nameIndex = spiritId.toInt() - 1
+                            val formattedId = spiritId.toIntOrNull()?.let { String.format("%02d", it) } ?: spiritId
                             val hasKevin = kevinList.contains(spiritId)
                             val hasAli = aliList.contains(spiritId)
                             val hasKevinMastery = kevinMastery.contains(spiritId)
@@ -1361,7 +1429,8 @@ fun SpiritsChecklistView(
                                 val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
                                 if (id != 0) id else android.R.drawable.ic_menu_gallery
                             }
-                            val currentName = customNames[spiritId] ?: spiritNames.getOrElse(nameIndex) { "Espíritu #$spiritId" }
+                            val currentName = getSpiritDisplayName(spiritId)
+                            val customImg = customImages[spiritId] ?: customImages[formattedId]
                             Box(modifier = Modifier.weight(1f)) {
                                 SpiritGridCard(
                                     spiritId = spiritId,
@@ -1386,7 +1455,7 @@ fun SpiritsChecklistView(
                                     },
                                     onToggleCheck = onToggleCheck,
                                     onToggleMastery = onToggleMastery,
-                                    customImageUrl = customImages[spiritId],
+                                    customImageUrl = customImg,
                                     imageRefreshKey = imageRefreshKey,
                                     currentSeason = currentSeason
                                 )
@@ -1399,7 +1468,7 @@ fun SpiritsChecklistView(
                 }
             } else if (viewMode == "lista") {
                 items(filteredSpirits, key = { "spirit_$it" }) { spiritId ->
-                    val nameIndex = spiritId.toInt() - 1
+                    val formattedId = spiritId.toIntOrNull()?.let { String.format("%02d", it) } ?: spiritId
                     val hasKevin = kevinList.contains(spiritId)
                     val hasAli = aliList.contains(spiritId)
                     val hasKevinMastery = kevinMastery.contains(spiritId)
@@ -1408,7 +1477,8 @@ fun SpiritsChecklistView(
                         val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
                         if (id != 0) id else android.R.drawable.ic_menu_gallery
                     }
-                    val currentName = customNames[spiritId] ?: spiritNames.getOrElse(nameIndex) { "Espíritu #$spiritId" }
+                    val currentName = getSpiritDisplayName(spiritId)
+                    val customImg = customImages[spiritId] ?: customImages[formattedId]
                     SpiritRow(
                         spiritId = spiritId,
                         spiritResId = spiritResId,
@@ -1432,7 +1502,7 @@ fun SpiritsChecklistView(
                         },
                         onToggleCheck = onToggleCheck,
                         onToggleMastery = onToggleMastery,
-                        customImageUrl = customImages[spiritId],
+                        customImageUrl = customImg,
                         imageRefreshKey = imageRefreshKey,
                         currentSeason = currentSeason
                     )
@@ -1480,7 +1550,7 @@ fun SpiritsChecklistView(
                         
                         if (isExpanded) {
                             items(filteredCategorySpiritIds, key = { "spirit_$it" }) { spiritId ->
-                                val index = spiritId.toInt() - 1
+                                val formattedId = spiritId.toIntOrNull()?.let { String.format("%02d", it) } ?: spiritId
                                 val hasKevin = kevinList.contains(spiritId)
                                 val hasAli = aliList.contains(spiritId)
                                 val hasKevinMastery = kevinMastery.contains(spiritId)
@@ -1489,7 +1559,8 @@ fun SpiritsChecklistView(
                                     val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
                                     if (id != 0) id else android.R.drawable.ic_menu_gallery
                                 }
-                                val currentName = customNames[spiritId] ?: spiritNames.getOrElse(index) { "Espíritu #$spiritId" }
+                                val currentName = getSpiritDisplayName(spiritId)
+                                val customImg = customImages[spiritId] ?: customImages[formattedId]
                                 SpiritRow(
                                     spiritId = spiritId,
                                     spiritResId = spiritResId,
@@ -1513,7 +1584,7 @@ fun SpiritsChecklistView(
                                     },
                                     onToggleCheck = onToggleCheck,
                                     onToggleMastery = onToggleMastery,
-                                    customImageUrl = customImages[spiritId],
+                                    customImageUrl = customImg,
                                     imageRefreshKey = imageRefreshKey,
                                     currentSeason = currentSeason
                                 )
@@ -1558,7 +1629,7 @@ fun SpiritsChecklistView(
 
                     if (isExpanded) {
                         items(uncategorizedIds, key = { "spirit_$it" }) { spiritId ->
-                            val index = spiritId.toInt() - 1
+                            val formattedId = spiritId.toIntOrNull()?.let { String.format("%02d", it) } ?: spiritId
                             val hasKevin = kevinList.contains(spiritId)
                             val hasAli = aliList.contains(spiritId)
                             val hasKevinMastery = kevinMastery.contains(spiritId)
@@ -1567,7 +1638,8 @@ fun SpiritsChecklistView(
                                 val id = context.resources.getIdentifier("ic_spirit_$spiritId", "drawable", context.packageName)
                                 if (id != 0) id else android.R.drawable.ic_menu_gallery
                             }
-                            val currentName = customNames[spiritId] ?: spiritNames.getOrElse(index) { "Espíritu #$spiritId" }
+                            val currentName = getSpiritDisplayName(spiritId)
+                            val customImg = customImages[spiritId] ?: customImages[formattedId]
                             SpiritRow(
                                 spiritId = spiritId,
                                 spiritResId = spiritResId,
@@ -1591,7 +1663,7 @@ fun SpiritsChecklistView(
                                 },
                                 onToggleCheck = onToggleCheck,
                                 onToggleMastery = onToggleMastery,
-                                customImageUrl = customImages[spiritId],
+                                customImageUrl = customImg,
                                 imageRefreshKey = imageRefreshKey,
                                 currentSeason = currentSeason
                             )

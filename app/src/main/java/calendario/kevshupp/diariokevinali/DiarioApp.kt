@@ -31,78 +31,90 @@ class DiarioApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
 
-        // Habilitar persistencia offline de Firestore con un límite de caché de 100 MB
-        val db = FirebaseFirestore.getInstance()
-        val settings = FirebaseFirestoreSettings.Builder()
-            .setLocalCacheSettings(
-                com.google.firebase.firestore.PersistentCacheSettings.newBuilder()
-                    .setSizeBytes(100L * 1024 * 1024) // 100 MB máximo
-                    .build()
-            )
-            .build()
-        db.firestoreSettings = settings
+        // Habilitar persistencia offline de Firestore con un límite de caché de 100 MB de forma segura
+        try {
+            val db = FirebaseFirestore.getInstance()
+            val settings = FirebaseFirestoreSettings.Builder()
+                .setLocalCacheSettings(
+                    com.google.firebase.firestore.PersistentCacheSettings.newBuilder()
+                        .setSizeBytes(100L * 1024 * 1024) // 100 MB máximo
+                        .build()
+                )
+                .build()
+            db.firestoreSettings = settings
+        } catch (e: Exception) {
+            Log.w("DiarioApp", "Firestore settings already initialized or persistence notice: ${e.message}")
+        }
 
         // Configuración y límite estricto de caché de mapa Osmdroid
-        org.osmdroid.config.Configuration.getInstance().apply {
-            load(this@DiarioApp, getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE))
-            tileFileSystemCacheMaxBytes = 100L * 1024 * 1024 // 100 MB max
-            tileFileSystemCacheTrimBytes = 80L * 1024 * 1024 // Recorte a 80 MB
+        try {
+            org.osmdroid.config.Configuration.getInstance().apply {
+                load(this@DiarioApp, getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE))
+                tileFileSystemCacheMaxBytes = 100L * 1024 * 1024 // 100 MB max
+                tileFileSystemCacheTrimBytes = 80L * 1024 * 1024 // Recorte a 80 MB
+            }
+        } catch (e: Exception) {
+            Log.w("DiarioApp", "Osmdroid configuration notice: ${e.message}")
         }
 
         val config: MutableMap<String, Any> = HashMap()
         config["cloud_name"] = "dhaqjw7se"
 
-        MediaManager.init(this, object : SignatureProvider {
-            override fun provideSignature(options: Map<*, *>): Signature {
-                val apiSecret = "mU2Dk2JSYPVpjkuYJebvOaiGLyc"
-                val apiKey = "199351452699291"
+        try {
+            MediaManager.init(this, object : SignatureProvider {
+                override fun provideSignature(options: Map<*, *>): Signature {
+                    val apiSecret = "mU2Dk2JSYPVpjkuYJebvOaiGLyc"
+                    val apiKey = "199351452699291"
 
-                // Crear una copia editable de los parámetros
-                val params = HashMap<String, Any>()
-                for ((key, value) in options) {
-                    if (key is String && value != null) {
-                        params[key] = value
+                    // Crear una copia editable de los parámetros
+                    val params = HashMap<String, Any>()
+                    for ((key, value) in options) {
+                        if (key is String && value != null) {
+                            params[key] = value
+                        }
                     }
-                }
 
-                // Cloudinary requiere un timestamp. Si no viene, lo generamos.
-                if (params["timestamp"] == null) {
-                    params["timestamp"] = System.currentTimeMillis() / 1000
-                }
-
-                // Ordenar parámetros alfabéticamente para la firma
-                val sorted = TreeMap<String, Any>(params)
-                val sb = StringBuilder()
-                for ((key, value) in sorted) {
-                    if (sb.isNotEmpty()) sb.append("&")
-                    sb.append(key).append("=").append(value)
-                }
-
-                // Añadir el API Secret al final de la cadena
-                sb.append(apiSecret)
-
-                val signature = sha1(sb.toString())
-
-                // Obtener el timestamp de forma segura para el objeto Signature
-                var timestamp: Long = 0
-                val tsValue = params["timestamp"]
-                if (tsValue is Number) {
-                    timestamp = tsValue.toLong()
-                } else if (tsValue != null) {
-                    try {
-                        timestamp = tsValue.toString().toLong()
-                    } catch (e: NumberFormatException) {
-                        timestamp = System.currentTimeMillis() / 1000
+                    // Cloudinary requiere un timestamp. Si no viene, lo generamos.
+                    if (params["timestamp"] == null) {
+                        params["timestamp"] = System.currentTimeMillis() / 1000
                     }
+
+                    // Ordenar parámetros alfabéticamente para la firma
+                    val sorted = TreeMap<String, Any>(params)
+                    val sb = StringBuilder()
+                    for ((key, value) in sorted) {
+                        if (sb.isNotEmpty()) sb.append("&")
+                        sb.append(key).append("=").append(value)
+                    }
+
+                    // Añadir el API Secret al final de la cadena
+                    sb.append(apiSecret)
+
+                    val signature = sha1(sb.toString())
+
+                    // Obtener el timestamp de forma segura para el objeto Signature
+                    var timestamp: Long = 0
+                    val tsValue = params["timestamp"]
+                    if (tsValue is Number) {
+                        timestamp = tsValue.toLong()
+                    } else if (tsValue != null) {
+                        try {
+                            timestamp = tsValue.toString().toLong()
+                        } catch (e: NumberFormatException) {
+                            timestamp = System.currentTimeMillis() / 1000
+                        }
+                    }
+
+                    return Signature(signature, apiKey, timestamp)
                 }
 
-                return Signature(signature, apiKey, timestamp)
-            }
-
-            override fun getName(): String {
-                return "DiarioAppSignatureProvider"
-            }
-        }, config)
+                override fun getName(): String {
+                    return "DiarioAppSignatureProvider"
+                }
+            }, config)
+        } catch (e: Exception) {
+            Log.w("DiarioApp", "MediaManager already initialized: ${e.message}")
+        }
 
         createNotificationChannel()
 

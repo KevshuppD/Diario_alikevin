@@ -96,7 +96,7 @@ app.post('/api/broadcast', (req, res) => {
 app.get('/', (req, res) => res.sendFile(path.join(distDir, 'normal.html')));
 app.get('/normal', (req, res) => res.sendFile(path.join(distDir, 'normal.html')));
 app.get('/edit', (req, res) => res.sendFile(path.join(distDir, 'edit.html')));
-app.get('/db', (req, res) => res.sendFile(path.join(distDir, 'db.html')));
+app.get('/db', (req, res) => res.redirect('/'));
 app.get('/config', (req, res) => res.sendFile(path.join(distDir, 'config.html')));
 app.get('/migrate', (req, res) => res.sendFile(path.join(distDir, 'migrate.html')));
 
@@ -105,14 +105,14 @@ app.use(express.static(distDir));
 
 // API: Subir imagen de espíritu a Cloudinary
 app.post('/api/upload-spirit-image', async (req, res) => {
-  const { spiritId, imageBase64 } = req.body;
+  const { spiritId, imageBase64, season = 2 } = req.body;
 
   if (!spiritId || !imageBase64) {
     return res.status(400).json({ success: false, error: 'Faltan spiritId o imageBase64' });
   }
 
   const twoDigitId = String(spiritId).padStart(2, '0');
-  const publicId = `spirits/ic_spirit_${twoDigitId}`;
+  const publicId = parseInt(season) === 2 ? `spirits_s2/ic_spirit_s2_${twoDigitId}` : `spirits/ic_spirit_${twoDigitId}`;
 
   try {
     const result = await cloudinary.uploader.upload(imageBase64, {
