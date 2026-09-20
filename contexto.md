@@ -503,15 +503,26 @@ graph TD
     - **Unificación de Navegación (`ProfileSettingsCompose.kt`):** Fusión de las opciones separadas de "Avanzado" y "Panel Administrador" en un único botón de acceso intuitivo: `🛠️ Avanzado y Admin`.
     - **Diagnóstico y Control Maestro Integrados (`AdvancedSettingsCompose.kt` & `AdminSettingsCompose.kt`):** La pantalla presenta arriba el diagnóstico de conexiones en vivo (Google Drive y Firestore con botones interactivos de prueba) y abajo el Panel de Control Maestro protegido por contraseña (`"123"`).
     - **Monitoreo de Cuotas Firestore (Spark Plan):** Tarjeta informativa que detalla los límites diarios gratuitos (50.000 lecturas, 20.000 escrituras, 20.000 eliminaciones y reinicio a las 04:00 AM Chile / 00:00 PDT) junto con el botón retro `📈 VER MÉTRICAS EN VIVO EN FIREBASE` que abre con 1 solo toque el panel de estadísticas y gráficos oficiales en tiempo real en la consola de Firebase.
-    - **Service Account en Backend Vercel (`FIREBASE_SERVICE_ACCOUNT`):** Integración y configuración de credenciales privilegiadas de Firebase Admin SDK en Vercel para soporte de tareas de servidor y administración.
 19. **Release v1.7.62 (Build 107) - Modo Híbrido Inteligente & Dual Ping para Thor Radar:**
     - **Dual Ping para 'Actualizar Ahora':** Disparo simultáneo de registro en Firestore (`locations/<coupleId>/pings/<partnerDocName>`) para respuesta instantánea (0ms) si la app está abierta, y paquete prioritario FCM Wake-on-LAN (`radar_ping` / `WOL_LOCATION_WAKEUP`) con `WakeLock` protegido para despertar el dispositivo en segundo plano.
     - **Rastreo Fluido en Primer Plano (`isForegroundTracking`):** Transmisión en vivo cada 8–12 segundos o $\ge 10\text{ metros}$ mientras la pantalla de Thor Radar permanece abierta, eliminando los congelamientos de pantalla.
     - **Ahorro Pasivo en Segundo Plano (`ThorRadarService.kt`):** Modo de bajo consumo con filtrado inteligente ($\ge 150\text{ metros}$ y $\ge 5\text{ minutos}$) y validación de frescura de Fix GPS para evitar coordenadas obsoletas con timestamps nuevos.
+
+20. **Temporada 2 de Espíritus & Unificación de Base de Datos Firestore (v1.7.63):**
+    - **Unificación de Base de Datos:** Migración y sincronización de colecciones entre Web y Android al proyecto oficial de Firebase `diario-ali-kevin` (`fortnite_spirits_s2/<coupleId>`), con 105 espíritus y 21 categorías por defecto.
+    - **Normalización Unicode NFC de Vínculo:** Aplicación estricta de `Normalizer.normalize(coupleId, Normalizer.Form.NFC)` tanto en Kotlin como en JavaScript para evitar discrepancias de codificación en el ID de documento (`vínculo_único_123`).
+    - **Carga de Imágenes Directa HTTPS (Cloudinary T2):** Carga optimizada vía Coil y Web desde Cloudinary (`https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/spirits_s2/ic_spirit_s2_$id.png`).
+    - **Categorías Nativas y Nombres Dinámicos:** Integración en `SpiritsCompose.kt` de `defaultCategoriesT2` (21 categorías) y nombres dinámicos calculados a partir del nombre de la categoría activa (`getSpiritDisplayName`).
+
+21. **Auto-actualización Blindada & Edición Web Fluida (v1.7.64 - Build 109):**
+    - **Blindaje del Ciclo de Vida en Android (`DiarioApp.kt`):** Inicialización de `firestoreSettings`, `MediaManager.init` y `Configuration.load(Osmdroid)` envuelta en bloques `try-catch` para prevenir cierres inesperados durante arranques en frío o tras actualizaciones del APK.
+    - **Reinicio Automático Post-Actualización (`InstallResultReceiver.kt`):** Relanzamiento transparente de `MainActivity` con flags limpios (`FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TOP`) tras completarse con éxito la instalación vía `PackageInstaller`.
+    - **Edición Web de Categorías Fluida y Sin Pausas:** Protección reactiva en el listener `onSnapshot` de Firestore de la Web para evitar re-renderizados del DOM (`renderWorkspace()`) mientras el usuario está escribiendo (`isActivelyTyping`) o en ecos locales (`hasPendingWrites`), garantizando una experiencia de tipeo continua y sin pérdida de foco.
 
 ---
 
 ## 15. Tareas Pendientes / Backlog
 
 *(Sin tareas pendientes inmediatas).*
+
 
