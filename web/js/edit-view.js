@@ -8,11 +8,13 @@ import { triggerAutoSave } from './firestore.js';
 import { getSpiritImgUrl, getSpiritName, getSpiritCurrentType, computeSpiritName, handleSpiritImgError, renderWorkspace, updateStats, matchesFilter } from './normal-view.js';
 import { processSpiritImage, optimizeCloudinaryUrl } from './image-utils.js';
 
-let isGalleryOpen = false;
+export let isGalleryOpen = false;
+window.isGalleryOpen = false;
 let activeModalSpiritId = null;
 
 export function toggleGalleryDrawer() {
   isGalleryOpen = !isGalleryOpen;
+  window.isGalleryOpen = isGalleryOpen;
   const sidebar = document.getElementById("sidebar");
   const label = document.getElementById("btn-gallery-label");
   

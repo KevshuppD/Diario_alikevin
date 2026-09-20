@@ -1071,27 +1071,43 @@
       filter: brightness(1.08);
     }
 
-    .spirit-slot.owned-by-me {
-      background: rgba(59, 130, 246, 0.08);
-      border-color: rgba(59, 130, 246, 0.4);
+    .spirit-slot.owned-by-me,
+    .spirit-slot.owned-kevin {
+      background: rgba(59, 130, 246, 0.15) !important;
+      border-color: #3b82f6 !important;
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25) !important;
+      opacity: 1 !important;
+      filter: none !important;
     }
 
-    .spirit-slot.owned-by-ali-user {
-      background: rgba(236, 72, 153, 0.08);
-      border-color: rgba(236, 72, 153, 0.4);
+    .spirit-slot.owned-by-ali-user,
+    .spirit-slot.owned-ali {
+      background: rgba(236, 72, 153, 0.15) !important;
+      border-color: #ec4899 !important;
+      box-shadow: 0 4px 15px rgba(236, 72, 153, 0.25) !important;
+      opacity: 1 !important;
+      filter: none !important;
     }
 
-    .spirit-slot.owned-by-both {
-      background: rgba(168, 85, 247, 0.12);
-      border-color: rgba(168, 85, 247, 0.5);
-      box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
+    .spirit-slot.owned-by-both,
+    .spirit-slot.owned-both {
+      background: rgba(168, 85, 247, 0.2) !important;
+      border-color: #a855f7 !important;
+      box-shadow: 0 0 18px rgba(168, 85, 247, 0.35) !important;
+      opacity: 1 !important;
+      filter: none !important;
     }
 
-    .spirit-slot.not-owned {
-      opacity: 0.55;
+    .spirit-slot.not-owned,
+    .spirit-slot.owned-none {
+      opacity: 0.45 !important;
+      filter: grayscale(0.2) !important;
+      border-color: rgba(255, 255, 255, 0.08) !important;
     }
-    .spirit-slot.not-owned:hover {
-      opacity: 0.9;
+    .spirit-slot.not-owned:hover,
+    .spirit-slot.owned-none:hover {
+      opacity: 0.85 !important;
+      filter: none !important;
     }
 
     .spirit-slot img {

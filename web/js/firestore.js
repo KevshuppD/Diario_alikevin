@@ -4,7 +4,7 @@
 
 import { db } from './firebase-config.js';
 import { state, getFirestoreCollection, mergeSpiritTypes } from './state.js';
-import { defaultSpiritsList, defaultCategories, defaultSpiritTypesT1, defaultSpiritTypesT2 } from './constants.js';
+import { defaultSpiritsList, defaultCategories, defaultSpiritTypesT1, defaultSpiritTypesT2, defaultNames } from './constants.js';
 import { sendWsMessage } from './websocket.js';
 
 let firestoreUnsubscribe = null;
@@ -45,8 +45,30 @@ export function updateDbStatusBadge(isOnline, isFromCache) {
     text.textContent = "Offline (Sin red)";
   } else {
     dot.className = "status-dot online";
-    text.textContent = isFromCache ? "Firestore (Caché Local) 🟢" : "Firestore Conectado 🟢";
   }
+}
+
+export function collectInputsFromDOM() {
+  document.querySelectorAll(".category-title-edit input[data-original]").forEach(input => {
+    const orig = input.dataset.original;
+    const val = input.value.trim();
+    if (val === "" || val === orig) {
+      delete state.customCategories[orig];
+    } else {
+      state.customCategories[orig] = val;
+    }
+  });
+
+  document.querySelectorAll(".spirit-slot input[data-id]").forEach(input => {
+    const sid = input.dataset.id;
+    const val = input.value.trim();
+    const defName = defaultNames[parseInt(sid, 10) - 1] || "";
+    if (val === "" || val === defName) {
+      delete state.customNames[sid];
+    } else {
+      state.customNames[sid] = val;
+    }
+  });
 }
 
 export function triggerAutoSave(delay = 400, onSavedCallback) {
@@ -56,6 +78,7 @@ export function triggerAutoSave(delay = 400, onSavedCallback) {
   autoSaveTimer = setTimeout(async () => {
     try {
       isAutoSaving = true;
+      collectInputsFromDOM();
       await saveChangesToFirestoreAsync();
       
       sendWsMessage({

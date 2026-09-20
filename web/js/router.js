@@ -4,7 +4,7 @@
 
 import { state } from './state.js';
 import { renderWorkspace, updateStats } from './normal-view.js';
-import { renderGallery } from './edit-view.js';
+import { renderGallery, isGalleryOpen } from './edit-view.js';
 import { renderCategoriesManager } from './categories-view.js';
 import { renderConfigView } from './config-view.js';
 import { renderRadarManager } from './radar-view.js';
@@ -68,7 +68,7 @@ export function setMode(mode) {
   if (configContainer) configContainer.style.display = mode === "config" ? "block" : "none";
 
   if (sidebar) {
-    sidebar.classList.toggle("hidden", mode !== "edit");
+    sidebar.classList.toggle("hidden", !isGalleryOpen || mode !== "edit");
   }
 
   // Título del documento
@@ -84,7 +84,7 @@ export function setMode(mode) {
   } else {
     updateStats();
     renderWorkspace();
-    if (mode === "edit") {
+    if (mode === "edit" && isGalleryOpen) {
       renderGallery();
     }
   }
