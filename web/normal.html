@@ -3279,7 +3279,7 @@
             const activeEl = document.activeElement;
             const isActivelyTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
 
-            if (!isActivelyTyping || isInitialLoad) {
+            if ((!isActivelyTyping && !snapshot.metadata.hasPendingWrites) || isInitialLoad) {
               customNames = data.custom_names || {};
               customCategories = data.custom_categories || {};
               customImages = data.custom_images || {};
@@ -3340,6 +3340,13 @@
             }));
           } catch(e) {}
           updateStats();
+
+          const activeEl = document.activeElement;
+          const isActivelyTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+          if (isActivelyTyping || (snapshot.metadata && snapshot.metadata.hasPendingWrites)) {
+            return;
+          }
+
           renderGallery();
           if (currentMode === "db") {
             renderDbInspector();
@@ -3716,12 +3723,13 @@
 
           const titleInput = header.querySelector("input");
           const handleCatTitleChange = (e) => {
-            const newVal = e.target.value.trim();
+            const rawVal = e.target.value;
+            const cleanVal = rawVal.trim();
             const orig = e.target.dataset.original;
-            if (newVal === "" || newVal === orig) {
+            if (cleanVal === "" || cleanVal === orig) {
               delete customCategories[orig];
             } else {
-              customCategories[orig] = newVal;
+              customCategories[orig] = cleanVal;
             }
 
             // Auto-update spirit names inside this category
@@ -3741,12 +3749,9 @@
               }
             });
 
-            triggerAutoSave(400);
+            triggerAutoSave(600);
           };
           titleInput.addEventListener("input", handleCatTitleChange);
-          titleInput.addEventListener("change", () => {
-            renderWorkspace();
-          });
         } else {
           const catKevinCount = cat.spiritIds.filter(id => kevinList.includes(id)).length;
           const catAliCount = cat.spiritIds.filter(id => aliList.includes(id)).length;
