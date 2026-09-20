@@ -1536,11 +1536,159 @@
       background: rgba(255, 255, 255, 0.05);
       border-color: rgba(255, 255, 255, 0.15);
     }
-    .draggable-config-row:active:not(.unmovable) {
-      cursor: grabbing;
+    /* Radar & Device Management Styles */
+    .radar-dashboard {
+      padding: 16px 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      animation: fadeIn 0.3s ease;
     }
-    .draggable-config-row.unmovable {
-      cursor: default;
+    .radar-hero {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    .radar-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    .radar-user-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 22px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .radar-user-card.kevin {
+      border-color: rgba(59, 130, 246, 0.35);
+      box-shadow: 0 8px 30px rgba(59, 130, 246, 0.08);
+    }
+    .radar-user-card.ali {
+      border-color: rgba(236, 72, 153, 0.35);
+      box-shadow: 0 8px 30px rgba(236, 72, 153, 0.08);
+    }
+    .radar-user-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .radar-user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .radar-user-avatar {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: 2px solid var(--card-border);
+      object-fit: cover;
+      background: rgba(0,0,0,0.3);
+    }
+    .radar-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .radar-status-badge.online {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .radar-status-badge.stale {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .radar-status-badge.offline {
+      background: rgba(156, 163, 175, 0.15);
+      color: #9ca3af;
+      border: 1px solid rgba(156, 163, 175, 0.3);
+    }
+    .radar-power-box {
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: all 0.3s ease;
+    }
+    .radar-power-box.active {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .radar-power-box.disabled {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .radar-telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .radar-telemetry-item {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .radar-telemetry-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .radar-telemetry-value {
+      font-size: 13px;
+      color: var(--text-color);
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .radar-battery-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .radar-battery-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    .radar-actions-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
     }
   </style>
 </head>
@@ -1583,17 +1731,18 @@
         <button type="button" id="btn-mode-normal" class="mode-btn" onclick="switchModeSPA('normal')">👁️ Modo Normal</button>
         <button type="button" id="btn-mode-edit" class="mode-btn" onclick="switchModeSPA('edit')">✏️ Modo Edición</button>
         <button type="button" id="btn-mode-config" class="mode-btn" onclick="switchModeSPA('config')">🏷️ Tipos y Categorías</button>
+        <button type="button" id="btn-mode-radar" class="mode-btn" onclick="switchModeSPA('radar')">📡 Dispositivos & Radar</button>
       </div>
       <script>
         (function() {
           try {
             var p = window.location.pathname.split('/').pop().replace('.html', '');
             var m = "normal";
-            if (p === "edit" || p === "config") {
+            if (p === "edit" || p === "config" || p === "radar") {
               m = p;
             } else {
               var s = localStorage.getItem("spirit_mode");
-              if (s && (s === "normal" || s === "edit" || s === "config")) m = s;
+              if (s && (s === "normal" || s === "edit" || s === "config" || s === "radar")) m = s;
             }
             var targetBtn = document.getElementById("btn-mode-" + m);
             if (targetBtn) targetBtn.classList.add("active");
@@ -1714,6 +1863,11 @@
       <!-- Configuration / Types and Categories Manager Container -->
       <div class="db-inspector-area" id="config-container" style="display: none; margin-top: 20px;">
         <!-- Dynamic Config editor here -->
+      </div>
+
+      <!-- Radar & Devices Manager Container -->
+      <div class="db-inspector-area" id="radar-container" style="display: none; margin-top: 20px;">
+        <!-- Dynamic Radar manager rendered here -->
       </div>
     </div>
   </div>
@@ -2828,6 +2982,11 @@
         }, err => console.error("Error escuchando tema de usuario:", err));
     }
 
+    let radarUsersData = { kevin: null, ali: null };
+    let radarZonesData = [];
+    let radarUnsubscribe = null;
+    let radarZonesUnsubscribe = null;
+
     // 4. Mode Switching (Instant 0ms SPA Client Routing)
     window.switchModeSPA = function(mode) {
       if (mode === "db") mode = "normal";
@@ -2842,6 +3001,7 @@
       let mode = "normal";
       if (pageName === "edit") mode = "edit";
       else if (pageName === "config") mode = "config";
+      else if (pageName === "radar") mode = "radar";
       setMode(mode);
     });
 
@@ -2869,9 +3029,11 @@
       const btnNormal = document.getElementById("btn-mode-normal");
       const btnEdit = document.getElementById("btn-mode-edit");
       const btnConfig = document.getElementById("btn-mode-config");
+      const btnRadar = document.getElementById("btn-mode-radar");
       if (btnNormal) btnNormal.classList.toggle("active", mode === "normal");
       if (btnEdit) btnEdit.classList.toggle("active", mode === "edit");
       if (btnConfig) btnConfig.classList.toggle("active", mode === "config");
+      if (btnRadar) btnRadar.classList.toggle("active", mode === "radar");
 
       // La galería permanece oculta por defecto al entrar a Edit Mode para máxima velocidad
       const sidebar = document.getElementById("sidebar");
@@ -2879,11 +3041,14 @@
       document.getElementById("shared-search-bar-container").style.display = (mode === "normal" || mode === "edit") ? "block" : "none";
       document.getElementById("normal-toolbar").style.display = mode === "normal" ? "flex" : "none";
       document.getElementById("edit-actions-bar").style.display = mode === "edit" ? "flex" : "none";
-      document.getElementById("categories-container").style.display = (mode !== "config") ? "flex" : "none";
+      document.getElementById("categories-container").style.display = (mode === "normal" || mode === "edit") ? "flex" : "none";
       document.getElementById("config-container").style.display = mode === "config" ? "block" : "none";
+      document.getElementById("radar-container").style.display = mode === "radar" ? "block" : "none";
 
       if (mode === "config") {
         renderConfigEditor();
+      } else if (mode === "radar") {
+        renderRadarManager();
       } else {
         renderWorkspace();
         if (mode === "edit" && isGalleryOpen) {
@@ -3352,6 +3517,8 @@
             renderDbInspector();
           } else if (currentMode === "config") {
             renderConfigEditor();
+          } else if (currentMode === "radar") {
+            renderRadarManager();
           } else {
             renderWorkspace();
           }
@@ -3360,6 +3527,29 @@
           updateDbStatusBadge(false, false);
           showToast("Error de conexión con Firestore", true);
         });
+
+      // Escuchar estado en tiempo real de celulares y Thor Radar
+      if (radarUnsubscribe) radarUnsubscribe();
+      radarUnsubscribe = db.collection("locations").doc(coupleId).collection("users")
+        .onSnapshot(snapshot => {
+          snapshot.forEach(doc => {
+            if (doc.id === "kevin" || doc.id === "ali") {
+              radarUsersData[doc.id] = doc.data();
+            }
+          });
+          if (currentMode === "radar") {
+            renderRadarManager();
+          }
+        }, err => console.warn("Aviso escuchando radar users:", err));
+
+      if (radarZonesUnsubscribe) radarZonesUnsubscribe();
+      radarZonesUnsubscribe = db.collection("locations").doc(coupleId).collection("zones")
+        .onSnapshot(snapshot => {
+          radarZonesData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          if (currentMode === "radar") {
+            renderRadarManager();
+          }
+        }, err => console.warn("Aviso escuchando radar zones:", err));
     }
 
     window.switchSeason = function(season) {
@@ -4952,6 +5142,257 @@
 
     window.saveConfigToFirestore = function() {
       triggerAutoSave(0);
+    };
+
+    // ---- Thor Radar & Device Remote Management ----
+    window.toggleRemoteRadar = async function(userKey, enable) {
+      try {
+        const userName = userKey === "kevin" ? "Kevin" : "Ali";
+        showToast(`Actualizando Thor Radar para ${userName}...`, false);
+        await db.collection("locations").doc(coupleId).collection("users").doc(userKey).set({
+          isSharing: enable,
+          timestamp: Date.now()
+        }, { merge: true });
+        showToast(`⚡ Thor Radar de ${userName} ha sido ${enable ? 'ENCENDIDO' : 'DESACTIVADO'} remotamente.`, false);
+      } catch(err) {
+        console.error("Error toggle radar:", err);
+        showToast("Error al modificar radar en Firestore: " + err.message, true);
+      }
+    };
+
+    window.sendRemoteMagicPing = async function(userKey) {
+      try {
+        const userName = userKey === "kevin" ? "Kevin" : "Ali";
+        showToast(`Enviando Magic Packet a ${userName}...`, false);
+        await db.collection("locations").doc(coupleId).collection("pings").doc(userKey).set({
+          requestedAt: Date.now(),
+          requestedBy: currentUser ? currentUser.name : "Web Panel"
+        });
+        showToast(`🚀 Magic Packet enviado con éxito a ${userName}. El celular despertará y actualizará su fix GPS.`, false);
+      } catch(err) {
+        console.error("Error sending ping:", err);
+        showToast("Error enviando ping: " + err.message, true);
+      }
+    };
+
+    window.toggleRemoteSos = async function(userKey, enable) {
+      try {
+        const userName = userKey === "kevin" ? "Kevin" : "Ali";
+        await db.collection("locations").doc(coupleId).collection("users").doc(userKey).set({
+          sosActive: enable,
+          sosTimestamp: enable ? Date.now() : 0
+        }, { merge: true });
+        showToast(enable ? `🚨 Alerta SOS activada para pruebas en ${userName}` : `✅ Alerta SOS desactivada para ${userName}`, false);
+      } catch(err) {
+        console.error("Error SOS:", err);
+        showToast("Error modificando alerta SOS", true);
+      }
+    };
+
+    window.renderRadarManager = function() {
+      const container = document.getElementById("radar-container");
+      if (!container) return;
+
+      const kevinData = radarUsersData.kevin || {};
+      const aliData = radarUsersData.ali || {};
+
+      function formatTimeAgo(timestamp) {
+        if (!timestamp) return "Sin datos registrados";
+        const diffSec = Math.floor((Date.now() - timestamp) / 1000);
+        if (diffSec < 15) return "Justo ahora (en vivo)";
+        if (diffSec < 60) return `Hace ${diffSec} segundos`;
+        const diffMin = Math.floor(diffSec / 60);
+        if (diffMin < 60) return `Hace ${diffMin} min`;
+        const diffHour = Math.floor(diffMin / 60);
+        if (diffHour < 24) return `Hace ${diffHour} h`;
+        return new Date(timestamp).toLocaleDateString() + " " + new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+
+      function getConnectionStatus(userData) {
+        if (!userData || !userData.timestamp) return { text: "⚪ Desconectado", cls: "offline" };
+        const diffMin = (Date.now() - userData.timestamp) / (1000 * 60);
+        if (userData.isSharing === false) return { text: "🛑 Radar Apagado", cls: "offline" };
+        if (diffMin < 2) return { text: "🟢 En Línea (En Vivo)", cls: "online" };
+        if (diffMin < 15) return { text: `🟡 Reciente (${Math.floor(diffMin)}m)`, cls: "stale" };
+        return { text: `⚪ Inactivo (${Math.floor(diffMin)}m)`, cls: "offline" };
+      }
+
+      function renderUserCard(userKey, name, color, icon, data) {
+        const status = getConnectionStatus(data);
+        const isSharing = data.isSharing !== false; // true by default
+        const battery = data.batteryLevel !== undefined ? data.batteryLevel : "--";
+        const isCharging = data.isCharging === true;
+        const speed = data.speedKmh !== undefined ? Math.round(data.speedKmh) : 0;
+        const accuracy = data.accuracy !== undefined ? Math.round(data.accuracy) : "--";
+        const activity = data.activity || "STILL";
+        const activityText = activity === "WALKING" ? "🚶 Caminando" : activity === "IN_VEHICLE" ? "🚗 En Vehículo" : activity === "ON_BICYCLE" ? "🚴 En Bicicleta" : "🛑 En Reposo";
+        const zone = data.currentZone ? `📍 ${data.currentZone}` : (data.address || (data.latitude ? `${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}` : "Sin ubicación reciente"));
+        const lat = data.latitude || 0;
+        const lon = data.longitude || 0;
+        const mapsUrl = (lat && lon) ? `https://www.google.com/maps?q=${lat},${lon}` : "#";
+        const isSos = data.sosActive === true;
+
+        let batteryColor = "#10b981";
+        if (battery !== "--") {
+          if (battery <= 20) batteryColor = "#ef4444";
+          else if (battery <= 40) batteryColor = "#f59e0b";
+        }
+
+        return `
+          <div class="radar-user-card ${userKey}">
+            <div class="radar-user-header">
+              <div class="radar-user-info">
+                <div class="radar-user-avatar" style="display:flex; align-items:center; justify-content:center; font-size:24px; border-color:${color};">
+                  ${data.profileImageUrl ? `<img src="${data.profileImageUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : icon}
+                </div>
+                <div>
+                  <h3 style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:700; color:${color}; margin:0;">
+                    ${name} <span style="font-size:12px; color:var(--text-muted); font-weight:500;">(${data.userName || (userKey === 'kevin' ? 'Kevin' : 'Ali')})</span>
+                  </h3>
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Doc: <code>locations/${coupleId}/users/${userKey}</code></div>
+                </div>
+              </div>
+              <span class="radar-status-badge ${status.cls}">${status.text}</span>
+            </div>
+
+            <!-- Thor Radar Master Power Switch Box -->
+            <div class="radar-power-box ${isSharing ? 'active' : 'disabled'}">
+              <div style="display:flex; flex-direction:column; gap:2px;">
+                <span style="font-size:13px; font-weight:700; color:${isSharing ? 'var(--success-color)' : 'var(--error-color)'};">
+                  ${isSharing ? '⚡ THOR RADAR ACTIVO' : '🛑 THOR RADAR DESACTIVADO'}
+                </span>
+                <span style="font-size:11px; color:var(--text-muted);">
+                  ${isSharing ? 'El celular transmite y responde a peticiones' : 'GPS y servicio en segundo plano suspendidos (Gasto 0)'}
+                </span>
+              </div>
+              <button class="btn ${isSharing ? 'btn-danger' : 'btn-success'}" onclick="toggleRemoteRadar('${userKey}', ${!isSharing})" style="padding: 8px 14px; font-size: 12px; font-weight: 700; white-space: nowrap;">
+                ${isSharing ? '🛑 APAGAR RADAR' : '⚡ ENCENDER RADAR'}
+              </button>
+            </div>
+
+            <!-- Telemetry Matrix -->
+            <div class="radar-telemetry-grid">
+              <div class="radar-telemetry-item">
+                <div class="radar-telemetry-label">🔋 BATERÍA</div>
+                <div class="radar-telemetry-value" style="color:${batteryColor};">
+                  ${battery}% ${isCharging ? '⚡ Cargando' : ''}
+                </div>
+                <div class="radar-battery-track">
+                  <div class="radar-battery-fill" style="width:${battery !== '--' ? Math.min(100, battery) : 0}%; background:${batteryColor};"></div>
+                </div>
+              </div>
+
+              <div class="radar-telemetry-item">
+                <div class="radar-telemetry-label">🏃 ACTIVIDAD & VELOCIDAD</div>
+                <div class="radar-telemetry-value">
+                  ${activityText} (${speed} km/h)
+                </div>
+              </div>
+
+              <div class="radar-telemetry-item" style="grid-column: span 2;">
+                <div class="radar-telemetry-label">📍 UBICACIÓN / ZONA SEGURA</div>
+                <div class="radar-telemetry-value" style="font-size:12px;" title="${zone}">
+                  ${zone}
+                </div>
+                ${(lat && lon) ? `
+                  <div style="margin-top: 4px;">
+                    <a href="${mapsUrl}" target="_blank" style="font-size: 11px; color: #60a5fa; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                      🗺️ Abrir en Google Maps (${lat.toFixed(4)}, ${lon.toFixed(4)} ±${accuracy}m) ↗
+                    </a>
+                  </div>
+                ` : ''}
+              </div>
+
+              <div class="radar-telemetry-item">
+                <div class="radar-telemetry-label">🕒 ÚLTIMA SEÑAL</div>
+                <div class="radar-telemetry-value" style="font-size:12px;">
+                  ${formatTimeAgo(data.timestamp)}
+                </div>
+              </div>
+
+              <div class="radar-telemetry-item">
+                <div class="radar-telemetry-label">🚨 ESTADO SOS</div>
+                <div class="radar-telemetry-value" style="color:${isSos ? 'var(--error-color)' : 'var(--success-color)'};">
+                  ${isSos ? '🚨 ¡SOS ACTIVO!' : '🟢 Normal'}
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Action Buttons for Testing -->
+            <div style="border-top: 1px solid var(--card-border); padding-top: 12px;">
+              <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block; margin-bottom:8px;">🛠️ ACCIONES DE CONTROL Y PRUEBAS:</span>
+              <div class="radar-actions-grid">
+                <button class="btn btn-secondary" onclick="sendRemoteMagicPing('${userKey}')" style="font-size:11px; padding:6px 10px;" title="Dispara Wake-on-LAN para forzar actualización de fix GPS">
+                  ⚡ Ping Magic Packet
+                </button>
+                <button class="btn ${isSos ? 'btn-success' : 'btn-danger'}" onclick="toggleRemoteSos('${userKey}', ${!isSos})" style="font-size:11px; padding:6px 10px;" title="Simular alarma SOS para pruebas de receptor">
+                  ${isSos ? '✅ Desactivar SOS' : '🚨 Probar Alerta SOS'}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = `
+        <div class="radar-dashboard">
+          <!-- Hero Header -->
+          <div class="radar-hero">
+            <div>
+              <h2 style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; background:linear-gradient(135deg, #00e5ff, #e040fb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
+                📡 Panel de Dispositivos Conectados & Control de Thor Radar
+              </h2>
+              <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+                Supervisa el estado en tiempo real de Kevin y Ali, gestiona su conectividad y desactiva el radar de cualquier celular remotamente durante pruebas para evitar escrituras o errores no deseados.
+              </p>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button class="btn btn-secondary" onclick="renderRadarManager()" style="font-size:12px; padding:8px 12px;">
+                🔄 Refrescar Vista
+              </button>
+            </div>
+          </div>
+
+          <!-- Cards Grid -->
+          <div class="radar-cards-grid">
+            ${renderUserCard('kevin', 'Celular de Kevin', '#3b82f6', '🔵', kevinData)}
+            ${renderUserCard('ali', 'Celular de Ali', '#ec4899', '🔴', aliData)}
+          </div>
+
+          <!-- Registered Safe Zones -->
+          <div class="category-card" style="margin-bottom: 24px;">
+            <div class="category-header">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:20px;">🏠</span>
+                <h3 style="font-family:'Outfit',sans-serif; font-size:16px; font-weight:700; color:var(--text-color);">
+                  Zonas Seguras Registradas (${radarZonesData.length})
+                </h3>
+              </div>
+            </div>
+            <div style="padding: 16px; display:flex; flex-wrap:wrap; gap:10px;">
+              ${radarZonesData.length === 0 ? `
+                <div style="font-size:12px; color:var(--text-muted);">No hay zonas seguras creadas aún en Firestore (locations/${coupleId}/zones).</div>
+              ` : radarZonesData.map(z => `
+                <div style="background:rgba(0,0,0,0.3); border:1px solid var(--card-border); border-radius:10px; padding:10px 14px; display:flex; align-items:center; gap:10px;">
+                  <span style="font-size:22px;">${z.icon || '📍'}</span>
+                  <div>
+                    <div style="font-weight:700; font-size:13px; color:var(--text-color);">${z.name}</div>
+                    <div style="font-size:11px; color:var(--text-muted);">${Math.round(z.radiusMeters || 100)}m de radio • ${z.latitude ? z.latitude.toFixed(4) + ', ' + z.longitude.toFixed(4) : ''}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Raw Telemetry Debugger -->
+          <details style="background:rgba(0,0,0,0.4); border:1px solid var(--card-border); border-radius:12px; padding:12px 16px; cursor:pointer;">
+            <summary style="font-size:12px; font-weight:700; color:var(--text-muted); user-select:none;">
+              🔍 Ver Telemetría JSON Cruda en Vivo (Debug)
+            </summary>
+            <pre style="margin-top:12px; padding:12px; background:#0d0e15; border-radius:8px; font-size:11px; color:#a78bfa; overflow-x:auto; font-family:monospace;">${JSON.stringify({ coupleId: coupleId, users: radarUsersData, zones: radarZonesData }, null, 2)}</pre>
+          </details>
+        </div>
+      `;
     };
     // ---- Custom dialog system (replaces native alert/confirm/prompt) ----
     function _showDialog(icon, msg, inputVisible, inputPlaceholder, buttons) {

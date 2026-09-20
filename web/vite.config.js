@@ -14,6 +14,7 @@ export default defineConfig({
         edit: resolve(__dirname, 'edit.html'),
         db: resolve(__dirname, 'db.html'),
         config: resolve(__dirname, 'config.html'),
+        radar: resolve(__dirname, 'radar.html'),
         index: resolve(__dirname, 'index.html'),
       },
     },

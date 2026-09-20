@@ -388,6 +388,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         setupDynamicMargins()
         setupOfflineStatusListener()
         setupSosEmergencyListener()
+        setupRadarRemoteControlListener()
         
         btnMenuMore.setOnClickListener { showOverflowMenu(it) }
 
@@ -823,8 +824,45 @@ class MainActivity : AppCompatActivity(), AppNavigation {
             }
     }
 
+    private var radarControlListener: ListenerRegistration? = null
+
+    private fun setupRadarRemoteControlListener() {
+        val myDocName = if (ThorRadarManager.isAli(currentUserId, currentUserName)) "ali" else "kevin"
+        val safeCoupleId = ThorRadarManager.normalizeCoupleId(currentCoupleId)
+
+        radarControlListener?.remove()
+        radarControlListener = db.collection("locations").document(safeCoupleId)
+            .collection("users").document(myDocName)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && snapshot.exists()) {
+                    val remoteSharing = snapshot.getBoolean("isSharing")
+                    if (remoteSharing != null) {
+                        val prefs = getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+                        val currentLocalSharing = prefs.getBoolean("radar_is_sharing", true)
+                        if (remoteSharing != currentLocalSharing) {
+                            prefs.edit().putBoolean("radar_is_sharing", remoteSharing).apply()
+                            if (!remoteSharing) {
+                                Log.d("MainActivity", "🛑 [REMOTE CONTROL] Thor Radar desactivado remotamente desde la Web/Firestore")
+                                ThorRadarManager.stopLiveTracking()
+                                ThorRadarService.stopService(this)
+                            } else {
+                                Log.d("MainActivity", "⚡ [REMOTE CONTROL] Thor Radar activado remotamente desde la Web/Firestore")
+                                if (PermissionHelper.hasLocationPermission(this)) {
+                                    val isBatterySaver = prefs.getBoolean("radar_battery_saver", false)
+                                    val interval = if (isBatterySaver) 60_000L else 30_000L
+                                    ThorRadarManager.startLiveTracking(this, interval, isForeground = false)
+                                    ThorRadarService.startService(this)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+    }
+
     override fun onDestroy() {
         sosListener?.remove()
+        radarControlListener?.remove()
         networkStatusTracker?.stopListening()
         try {
             fcmExecutor.shutdown()

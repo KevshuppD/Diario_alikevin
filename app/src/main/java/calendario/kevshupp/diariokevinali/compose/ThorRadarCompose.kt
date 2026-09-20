@@ -297,6 +297,13 @@ fun ThorRadarScreen(
                     val data = RadarLocationData.fromDocument(snapshot)
                     myLocationData = data
                     ThorRadarManager.saveCachedLocation(context, myDocName, data)
+
+                    val remoteSharing = snapshot.getBoolean("isSharing")
+                    if (remoteSharing != null && remoteSharing != isSharingLocation) {
+                        isSharingLocation = remoteSharing
+                        val prefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+                        prefs.edit().putBoolean("radar_is_sharing", remoteSharing).apply()
+                    }
                 }
             }
 

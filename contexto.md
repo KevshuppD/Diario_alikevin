@@ -519,6 +519,12 @@ graph TD
     - **Reinicio Automático Post-Actualización (`InstallResultReceiver.kt`):** Relanzamiento transparente de `MainActivity` con flags limpios (`FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TOP`) tras completarse con éxito la instalación vía `PackageInstaller`.
     - **Edición Web de Categorías Fluida y Sin Pausas:** Protección reactiva en el listener `onSnapshot` de Firestore de la Web para evitar re-renderizados del DOM (`renderWorkspace()`) mientras el usuario está escribiendo (`isActivelyTyping`) o en ecos locales (`hasPendingWrites`), garantizando una experiencia de tipeo continua y sin pérdida de foco.
 
+22. **Panel de Dispositivos Conectados & Control Remoto de Thor Radar (Web & App):**
+    - **Pestaña `📡 Dispositivos & Radar` en la Web:** Nuevo panel de monitoreo y telemetría en tiempo real (`radar.html` / `switchModeSPA('radar')`) que visualiza el estado de conexión de los celulares de Kevin y Ali, porcentaje y estado de carga de batería, velocidad, actividad (`STILL`, `WALKING`, `IN_VEHICLE`), zonas seguras registradas, precisión GPS y visor de datos crudos en vivo.
+    - **Interruptor Maestro Remoto de Thor Radar (ON / OFF):** Control interactivo desde la web (`toggleRemoteRadar`) para encender o apagar el radar en el celular de Kevin o Ali (`isSharing: true | false`).
+    - **Escucha en Tiempo Real en Android (`MainActivity.kt` & `ThorRadarCompose.kt`):** El dispositivo escucha cambios en su documento `locations/<coupleId>/users/<user>` y, si se desactiva remotamente, suspende inmediatamente el Foreground Service (`ThorRadarService`), detiene el tracking GPS y actualiza el switch local sin requerir reiniciar la app.
+    - **Herramientas de Pruebas Integradas:** Capacidad de enviar Magic Packets bajo demanda (`pings/<user>`) para forzar fijaciones GPS frescas y disparar/desactivar alertas de prueba SOS (`sosActive`).
+
 ---
 
 ## 15. Tareas Pendientes / Backlog

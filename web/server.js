@@ -98,6 +98,7 @@ app.get('/normal', (req, res) => res.sendFile(path.join(distDir, 'normal.html'))
 app.get('/edit', (req, res) => res.sendFile(path.join(distDir, 'edit.html')));
 app.get('/db', (req, res) => res.redirect('/'));
 app.get('/config', (req, res) => res.sendFile(path.join(distDir, 'config.html')));
+app.get('/radar', (req, res) => res.sendFile(path.join(distDir, 'radar.html')));
 app.get('/migrate', (req, res) => res.sendFile(path.join(distDir, 'migrate.html')));
 
 // Sirve los archivos estáticos
