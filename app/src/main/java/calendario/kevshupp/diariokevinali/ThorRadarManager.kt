@@ -1349,60 +1349,75 @@ object ThorRadarManager {
 
         // 2. Dual Ping: Magic Packet Wake-on-LAN vía FCM push prioritario (despierta el celular si la app está en segundo plano o cerrada)
         CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val creds = MainActivity.getGoogleCredentials(context)
-                val token = creds.accessToken.tokenValue
-                val projectId = com.google.firebase.FirebaseApp.getInstance().options.projectId ?: "diario-ali-kevin"
-                val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
+            val projectId = com.google.firebase.FirebaseApp.getInstance().options.projectId ?: "diario-pareja-a2d35"
+            val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
+            val topicName = "diario_" + safeCoupleId.lowercase()
+                .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                .replace("ñ", "n").replace(" ", "_")
 
-                val topicName = "diario_" + safeCoupleId.lowercase()
-                    .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
-                    .replace("ñ", "n").replace(" ", "_")
-
-                val jsonBody = JSONObject().apply {
-                    val message = JSONObject().apply {
-                        put("topic", topicName)
-                        val data = JSONObject().apply {
-                            put("authorId", senderId)
-                            put("authorName", senderName)
-                            put("targetDoc", targetDoc)
-                            put("click_type", "radar_ping")
-                            put("type", "radar_ping")
-                            put("magic_packet", "WOL_LOCATION_WAKEUP")
-                            put("timestamp", now.toString())
-                            put("title", "📍 Actualización de Thor Radar")
-                            put("body", "¡$senderName ha solicitado tu ubicación en vivo!")
-                        }
-                        put("data", data)
-                        val android = JSONObject().apply {
-                            put("priority", "HIGH")
-                            put("ttl", "120s")
-                        }
-                        put("android", android)
+            val jsonBody = JSONObject().apply {
+                val message = JSONObject().apply {
+                    put("topic", topicName)
+                    val data = JSONObject().apply {
+                        put("authorId", senderId)
+                        put("authorName", senderName)
+                        put("targetDoc", targetDoc)
+                        put("click_type", "radar_ping")
+                        put("type", "radar_ping")
+                        put("magic_packet", "WOL_LOCATION_WAKEUP")
+                        put("timestamp", now.toString())
+                        put("title", "📍 Actualización de Thor Radar")
+                        put("body", "¡$senderName ha solicitado tu ubicación en vivo!")
                     }
-                    put("message", message)
+                    put("data", data)
+                    val android = JSONObject().apply {
+                        put("priority", "HIGH")
+                        put("ttl", "120s")
+                    }
+                    put("android", android)
                 }
+                put("message", message)
+            }
+            val mediaType = "application/json; charset=utf-8".toMediaType()
 
-                val mediaType = "application/json; charset=utf-8".toMediaType()
-                val reqBody = jsonBody.toString().toRequestBody(mediaType)
-                val request = Request.Builder()
-                    .url(url)
-                    .post(reqBody)
-                    .addHeader("Authorization", "Bearer $token")
-                    .build()
-
-                val response = DiarioApp.getOkHttpClient().newCall(request).execute()
-                val isSuccess = response.isSuccessful
-                Log.d(TAG, "⚡ [MAGIC PACKET] Push FCM status code: ${response.code}")
-                response.close()
-                withContext(Dispatchers.Main) {
-                    onComplete?.invoke(isSuccess)
+            // Hasta 2 intentos: si el 1º devuelve 401 (token expirado), invalidar caché y reintentar con token fresco
+            var lastSuccess = false
+            for (attempt in 0..1) {
+                try {
+                    val creds = MainActivity.getGoogleCredentials(context)
+                    val token = creds.accessToken?.tokenValue
+                    if (token.isNullOrBlank()) {
+                        Log.w(TAG, "⚡ [MAGIC PACKET] Token OAuth2 vacío en intento ${attempt + 1}, abortando FCM")
+                        break
+                    }
+                    val reqBody = jsonBody.toString().toRequestBody(mediaType)
+                    val request = Request.Builder()
+                        .url(url)
+                        .post(reqBody)
+                        .addHeader("Authorization", "Bearer $token")
+                        .build()
+                    val response = DiarioApp.getOkHttpClient().newCall(request).execute()
+                    val code = response.code
+                    Log.d(TAG, "⚡ [MAGIC PACKET] Push FCM intento ${attempt + 1} → HTTP $code")
+                    lastSuccess = response.isSuccessful
+                    response.close()
+                    if (code == 401 && attempt == 0) {
+                        // Token rechazado: forzar invalidación del caché para que el próximo intento obtenga uno nuevo
+                        MainActivity.invalidateGoogleCredentials()
+                        Log.w(TAG, "⚡ [MAGIC PACKET] Token 401 — invalidando caché y reintentando con token fresco...")
+                        continue
+                    }
+                    break // Éxito (2xx) o error no recuperable (4xx/5xx distinto de 401)
+                } catch (e: Exception) {
+                    Log.e(TAG, "⚡ [MAGIC PACKET] Error enviando ping FCM intento ${attempt + 1}", e)
+                    lastSuccess = false
+                    if (attempt < 1) {
+                        try { kotlinx.coroutines.delay(500L) } catch (_: Exception) {}
+                    }
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "⚡ [MAGIC PACKET] Error enviando ping de ubicación FCM", e)
-                withContext(Dispatchers.Main) {
-                    onComplete?.invoke(false)
-                }
+            }
+            withContext(Dispatchers.Main) {
+                onComplete?.invoke(lastSuccess)
             }
         }
     }

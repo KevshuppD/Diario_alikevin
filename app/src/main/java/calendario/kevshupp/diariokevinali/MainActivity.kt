@@ -117,16 +117,56 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     cachedGoogleCredentials = creds
                 }
             }
-            try {
-                if (creds!!.accessToken == null) {
+            // Intentar hasta 3 veces: refreshIfExpired → force refresh → force refresh desde cero
+            var lastException: Exception? = null
+            for (attempt in 0..2) {
+                try {
+                    val token = creds!!.accessToken
+                    if (token == null || token.tokenValue.isNullOrBlank()) {
+                        // Sin token previo: obtener uno nuevo siempre
+                        creds!!.refresh()
+                    } else {
+                        // Token existente: solo renovar si está por vencer
+                        creds!!.refreshIfExpired()
+                    }
+                    // Verificar que el token resultante sea válido
+                    val finalToken = creds!!.accessToken
+                    if (finalToken != null && !finalToken.tokenValue.isNullOrBlank()) {
+                        return creds!!
+                    }
+                    // Token inválido tras refresh → forzar de nuevo
                     creds!!.refresh()
-                } else {
-                    creds!!.refreshIfExpired()
+                } catch (e: Exception) {
+                    lastException = e
+                    android.util.Log.w("MainActivity", "getGoogleCredentials intento ${attempt + 1} fallido: ${e.message}")
+                    if (attempt == 1) {
+                        // En el 2º fallo, reinicializar credenciales desde cero por si el objeto se corrompió
+                        try {
+                            context.assets.open("service-account.json").use { `is` ->
+                                creds = GoogleCredentials.fromStream(`is`)
+                                    .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"))
+                                cachedGoogleCredentials = creds
+                            }
+                        } catch (reloadEx: Exception) {
+                            android.util.Log.e("MainActivity", "Error recargando service-account.json", reloadEx)
+                        }
+                    }
+                    if (attempt < 2) {
+                        try { Thread.sleep(600L * (attempt + 1)) } catch (_: InterruptedException) {}
+                    }
                 }
-            } catch (e: Exception) {
-                creds!!.refresh()
             }
+            // Si después de 3 intentos sigue fallando, devolver las credenciales aunque sean imperfectas
+            // (el llamador decidirá si el token es válido al hacer la llamada HTTP)
+            android.util.Log.e("MainActivity", "getGoogleCredentials: no se pudo refrescar tras 3 intentos", lastException)
             return creds!!
+        }
+
+        /** Fuerza que el próximo llamado a getGoogleCredentials obtenga un token completamente nuevo. */
+        @Synchronized
+        fun invalidateGoogleCredentials() {
+            cachedGoogleCredentials = null
+            android.util.Log.d("MainActivity", "getGoogleCredentials: caché invalidado — próxima llamada obtendrá token fresco")
         }
     }
 

@@ -282,11 +282,12 @@ graph TD
    - **Temporada 1:** Preserva los 141 espíritus originales y su historial en `fortnite_spirits/<coupleId>`.
    - **Temporada 2:** Nueva colección activa por defecto en `fortnite_spirits_s2/<coupleId>`.
    - Selector de temporada interactivo integrado en la App (`[T2] / [T1]`) y en la Web (`[🌟 Temporada 2] / [🕰️ Temporada 1]`).
-2. **Extracción y Procesamiento de la Planilla Fortnite Override (Capítulo 7 T4):**
+2. **Extracción y Procesamiento de la Planilla Fortnite Override (Capítulo 7 T4) y Fortnite.gg:**
    - **Tanda 1 (01 a 36):** Recorte y limpieza de 36 espíritus iniciales (12 personajes con variantes: *Normal*, *Dorado*, *Hacker*).
-   - **Tanda 2 (37 a 61):** Extracción, recorte y limpieza con transparencia antialiasing de 25 nuevos espíritus (Caballero, Onigiri, Científico con variantes Normal/Matrix/Dorado/Galaxia, Megabot, variantes Matrix de Pirata, Táctico, Erizo, Gabardina, Game Boy, Conejo, Demonio, Sonic, Shadow, Tails, Rey Llama y Klombo).
-   - **Total Temporada 2:** 61 espíritus completamente alojados en Cloudinary (`spirits/ic_spirit_01` a `61`), vinculados en Firestore (`fortnite_spirits_s2/<coupleId>`) y compatibles con sincronización en tiempo real en Web y Android Compose.
-   - Activos individuales preservados localmente en `scripts/spirits_s2_extracted/` y `scripts/spirits_s2_new_extracted/`.
+   - **Tanda 2 (37 a 61):** Extracción, recorte y limpieza con transparencia de 25 espíritus (Caballero, Onigiri, Científico con variantes Normal/Matrix/Dorado/Hacker de botín, Megabot, variantes Hacker de botín).
+   - **Tanda 3 (62 a 109 - 48 nuevos agregados desde Fortnite.gg):** Incorporación de Blinky (62..66), Crash Bandicoot (67..70, 85), 5tas variantes Cazarrecompensas de todos los personajes (71..84), Morgana (86..90), Sobreescudo (91..95), Estanque (96..100), Cumpleaños (101..105) y Colaboraciones Especiales: John Wick (106), Ironmouse (107), Pollo (108) y Vini Jr. (109).
+   - **Total Temporada 2:** **109 espíritus** completamente alojados en Cloudinary (`spirits_s2/ic_spirit_s2_01` a `109`), vinculados en Firestore (`fortnite_spirits_s2/<coupleId>`) y compatibles con sincronización en tiempo real en Web y Android Compose.
+   - Activos individuales preservados localmente en `scripts/spirits_s2_extracted/`, `scripts/spirits_s2_new_extracted/` y `scripts/spirits_s2_extracted_new_39/`.
 3. **Sincronización Automática de Nombres al Renombrar Categorías:**
    - Al cambiar el nombre de cualquier categoría (ej. *"Espíritu de Rex"* ➔ *"Espíritu de Klombo"*), tanto la Web (`web/config.html`, `/edit`) como la App Android (`SpiritsCompose.kt`) detectan todos los espíritus pertenecientes a esa categoría, preservan sus sufijos de tipo (*Normal, Dorado, Hacker, etc.*) y actualizan en tiempo real los registros en `custom_names` y `custom_categories` en Firestore.
 4. **Rediseño Completo del Editor de Imágenes Studio (Recorte & Quitar Fondo):**

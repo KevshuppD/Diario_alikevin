@@ -710,12 +710,16 @@ fun ThorRadarScreen(
                     senderId = currentUserId,
                     senderName = myDisplayName,
                     partnerName = partnerName
-                ) { success ->
-                    if (success) {
-                        Toast.makeText(context, "📡 Señal enviada: actualizando radar de $partnerName...", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "⚠️ Error de red al sincronizar", Toast.LENGTH_SHORT).show()
-                    }
+                ) { fcmSuccess ->
+                    // El Firestore ping ya fue enviado independientemente del FCM.
+                    // Mostrar confirmación siempre — si el FCM falló, la señal llegó igual
+                    // vía Firestore a la app de la pareja si estaba abierta.
+                    Toast.makeText(
+                        context,
+                        if (fcmSuccess) "📡 Señal enviada: actualizando radar de $partnerName..."
+                        else "📡 Señal Firestore enviada a $partnerName",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         )
