@@ -72,9 +72,10 @@ fun PartnerLiveCard(
 ) {
     val isDark = theme == "Pixel Oscuro"
     val hasValidData = partnerData.timestamp > 0L && partnerData.latitude != 0.0
-    val isOnline = hasValidData && (System.currentTimeMillis() - partnerData.timestamp) < 600_000L // Activo en los últimos 10 min
     val timeDiffMs = if (partnerData.timestamp > 0L) System.currentTimeMillis() - partnerData.timestamp else Long.MAX_VALUE
-    val isStale = hasValidData && (!partnerData.isSharing || timeDiffMs >= 15 * 60 * 1000L) // Solo aviso de inactividad si hay datos y pasaron >15m o si apagó el radar
+    val isSharing = partnerData.isSharing
+    val isOnline = hasValidData && isSharing && timeDiffMs < 2 * 60 * 1000L // En línea si transmitió hace menos de 2 min y radar encendido
+    val isStale = !isSharing || !hasValidData || timeDiffMs >= 15 * 60 * 1000L
 
     val distanceText = when {
         !hasValidData -> "Esperando señal GPS de $partnerName..."
@@ -103,6 +104,21 @@ fun PartnerLiveCard(
                 else -> "Hace ${diffSec / 86400}d"
             }
         }
+    }
+
+    val statusText = when {
+        !isSharing -> "Apagado"
+        !hasValidData -> "Sin señal"
+        isOnline -> "En línea"
+        timeDiffMs < 15 * 60 * 1000L -> timeAgo
+        else -> "Inactivo ($timeAgo)"
+    }
+    val statusColor = when {
+        !isSharing -> if (isDark) Color(0xFFEF5350) else Color(0xFFD32F2F)
+        !hasValidData -> Color.Gray
+        isOnline -> Color(0xFF4CAF50)
+        timeDiffMs < 15 * 60 * 1000L -> if (isDark) Color(0xFFFFB74D) else Color(0xFFF57C00)
+        else -> if (isDark) Color(0xFF9E9E9E) else Color(0xFF757575)
     }
 
     Box(
@@ -157,14 +173,14 @@ fun PartnerLiveCard(
                             modifier = Modifier
                                 .size(7.dp)
                                 .clip(CircleShape)
-                                .background(if (isOnline) Color(0xFF4CAF50) else Color(0xFFFF9800))
+                                .background(statusColor)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isOnline) "Activo" else timeAgo,
+                            text = statusText,
                             fontFamily = Vt323,
                             fontSize = 13.sp,
-                            color = if (isOnline) Color(0xFF4CAF50) else Color(0xFFFF9800)
+                            color = statusColor
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Box(

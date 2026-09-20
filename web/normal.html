@@ -2397,9 +2397,10 @@
     let currentMode = "normal";
     if (pageName === "edit") currentMode = "edit";
     else if (pageName === "config") currentMode = "config";
+    else if (pageName === "radar") currentMode = "radar";
     else {
       const savedMode = localStorage.getItem("spirit_mode");
-      if (savedMode && ["normal", "edit", "config"].includes(savedMode)) {
+      if (savedMode && ["normal", "edit", "config", "radar"].includes(savedMode)) {
         currentMode = savedMode;
       }
     }
