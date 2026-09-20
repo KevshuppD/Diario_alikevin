@@ -16,6 +16,8 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.*
 
 class ThorRadarService : Service() {
@@ -24,6 +26,8 @@ class ThorRadarService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private var heartbeatJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var pingListener: ListenerRegistration? = null
+    private var remoteControlListener: ListenerRegistration? = null
 
     companion object {
         const val CHANNEL_ID = "radar_channel"
@@ -74,15 +78,19 @@ class ThorRadarService : Service() {
             return START_NOT_STICKY
         }
 
-        val notification = createNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        try {
+            val notification = createNotification()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "startForeground en segundo plano restringido por el SO: ${e.message}")
         }
 
         if (PermissionHelper.hasLocationPermission(this)) {
@@ -90,9 +98,69 @@ class ThorRadarService : Service() {
             val interval = if (isBatterySaver) 60_000L else 30_000L
             ThorRadarManager.startLiveTracking(this, interval, isForeground = false)
         }
-        Log.d(TAG, "ThorRadarService activo en segundo plano listo para recibir Magic Packets y movimiento pasivo.")
+
+        setupFirestoreListeners()
+        Log.d(TAG, "ThorRadarService activo en segundo plano con listeners de Firestore y Magic Packets.")
 
         return START_STICKY
+    }
+
+    private fun setupFirestoreListeners() {
+        val prefs = getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+        val rawUserId = prefs.getString("userId", "user_kevin_01") ?: "user_kevin_01"
+        val rawUserName = prefs.getString("userName", null)
+        val coupleId = ThorRadarManager.normalizeCoupleId(prefs.getString("coupleId", "vínculo_único_123"))
+        val myDocName = ThorRadarManager.getMyDocName(rawUserId, rawUserName)
+        val db = FirebaseFirestore.getInstance()
+
+        pingListener?.remove()
+        pingListener = db.collection("locations").document(coupleId)
+            .collection("pings").document(myDocName)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && snapshot.exists()) {
+                    val reqTime = snapshot.getLong("requestedAt") ?: 0L
+                    val requestedBy = snapshot.getString("requestedBy") ?: "Tu pareja"
+                    val isSilent = snapshot.getBoolean("silent") == true || snapshot.getBoolean("is_silent") == true
+                    if (reqTime > 0L && (System.currentTimeMillis() - reqTime) < 60_000L) {
+                        Log.d(TAG, "⚡ [MAGIC PACKET / FIRESTORE] Solicitud de ping recibida en ThorRadarService para $myDocName (isSilent=$isSilent).")
+                        ThorRadarManager.handleMagicLocationPing(this)
+                        if (!isSilent) {
+                            showPingNotification(requestedBy)
+                        }
+                    }
+                }
+            }
+
+        remoteControlListener?.remove()
+        remoteControlListener = db.collection("locations").document(coupleId)
+            .collection("users").document(myDocName)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && snapshot.exists()) {
+                    val remoteSharing = snapshot.getBoolean("isSharing")
+                    if (remoteSharing != null) {
+                        val currentSharing = prefs.getBoolean("radar_is_sharing", true)
+                        if (remoteSharing != currentSharing) {
+                            prefs.edit().putBoolean("radar_is_sharing", remoteSharing).apply()
+                            if (!remoteSharing) {
+                                Log.d(TAG, "🛑 [REMOTE CONTROL] Thor Radar desactivado desde Firestore en servicio")
+                                ThorRadarManager.stopLiveTracking()
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                    stopForeground(STOP_FOREGROUND_REMOVE)
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    stopForeground(true)
+                                }
+                                stopSelf()
+                            } else {
+                                Log.d(TAG, "⚡ [REMOTE CONTROL] Thor Radar reactivado desde Firestore en servicio")
+                                if (PermissionHelper.hasLocationPermission(this)) {
+                                    ThorRadarManager.startLiveTracking(this, 30_000L, isForeground = false)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
     }
 
     private fun acquireWakeLock(timeoutMs: Long) {
@@ -120,11 +188,18 @@ class ThorRadarService : Service() {
     }
 
     override fun onDestroy() {
+        pingListener?.remove()
+        remoteControlListener?.remove()
         heartbeatJob?.cancel()
         serviceJob.cancelChildren()
         releaseWakeLock()
         super.onDestroy()
         ThorRadarManager.stopLiveTracking()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.d(TAG, "Tarea principal removida de recientes. Manteniendo ThorRadarService activo en primer plano sin reinicios ilegales.")
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -163,5 +238,31 @@ class ThorRadarService : Service() {
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
+    }
+
+    private fun showPingNotification(requestedBy: String) {
+        val launchIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("click_type", "radar")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            1006,
+            launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val noti = NotificationCompat.Builder(this, "diario_channel")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("📍 Thor Radar")
+            .setContentText("¡$requestedBy ha solicitado tu ubicación en vivo!")
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager?.notify(2025, noti)
     }
 }

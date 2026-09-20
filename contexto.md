@@ -525,10 +525,17 @@ graph TD
     - **Escucha en Tiempo Real en Android (`MainActivity.kt` & `ThorRadarCompose.kt`):** El dispositivo escucha cambios en su documento `locations/<coupleId>/users/<user>` y, si se desactiva remotamente, suspende inmediatamente el Foreground Service (`ThorRadarService`), detiene el tracking GPS y actualiza el switch local sin requerir reiniciar la app.
     - **Herramientas de Pruebas Integradas:** Capacidad de enviar Magic Packets bajo demanda (`pings/<user>`) para forzar fijaciones GPS frescas y disparar/desactivar alertas de prueba SOS (`sosActive`).
 
+23. **Diagnóstico y Blindaje de Thor Radar en Segundo Plano & FCM Magic Packet (v1.7.65):**
+    - **Persistencia Robusta del Servicio en Background (`ThorRadarService.kt` / `AndroidManifest.xml`):** Configuración de `android:stopWithTask="false"` e implementación de `onTaskRemoved(rootIntent)` en `ThorRadarService` para asegurar que el Foreground Service continúe en ejecución y responda a pings y transiciones de geocercas aunque el usuario deslice la app de la lista de tareas recientes.
+    - **Throttling Inteligente y Heartbeat en Reposo (`ThorRadarManager.kt`):** Se calibra el algoritmo de emisión de latidos para permitir un pulso ligero cada 20 minutos de inactividad o cuando el nivel de batería cambie significativamente ($\ge 15\%$) o se conecte/desconecte el cargador (tras al menos 5 min), evitando que el dispositivo parezca desconectado mientras se preserva estrictamente el cupo de Firestore (~3 escrituras por hora en reposo).
+    - **Blindaje del Magic Packet FCM v1 & Recuperación de Token OAuth2:** Manejo robusto de credenciales de servicio con invalidación en caché (`invalidateGoogleCredentials`) y reintento automático si se recibe HTTP 401, corrección del fallback del `projectId` a `diario-ali-kevin`, y confirmación visual clara en la UI al pulsar *"Actualizar"* (`onPingPartner`).
+    - **Unificación de Documentación:** Integración total de los diagnósticos y soluciones de `radar.md` directamente en la fuente única de verdad del proyecto.
+
 ---
 
 ## 15. Tareas Pendientes / Backlog
 
 *(Sin tareas pendientes inmediatas).*
+
 
 

@@ -12,6 +12,7 @@ export default defineConfig({
       input: {
         normal: resolve(__dirname, 'normal.html'),
         edit: resolve(__dirname, 'edit.html'),
+        categories: resolve(__dirname, 'categories.html'),
         db: resolve(__dirname, 'db.html'),
         config: resolve(__dirname, 'config.html'),
         radar: resolve(__dirname, 'radar.html'),

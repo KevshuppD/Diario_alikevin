@@ -73,11 +73,22 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 return
             }
 
-            Log.d("FCM", "⚡ [MAGIC PACKET] Petición radar_ping recibida para $myDoc. Ejecutando handleMagicLocationPing de forma silenciosa...")
+            val isSilent = remoteMessage.data["silent"] == "true" ||
+                    remoteMessage.data["is_silent"] == "true" ||
+                    remoteMessage.data["silent_ping"] == "true"
+
+            Log.d("FCM", "⚡ [MAGIC PACKET] Petición radar_ping recibida para $myDoc (isSilent=$isSilent). Ejecutando handleMagicLocationPing...")
             try {
                 ThorRadarManager.handleMagicLocationPing(this)
             } catch (e: Exception) {
                 Log.e("FCM", "Error en handleMagicLocationPing tras radar_ping", e)
+            }
+
+            if (!isSilent) {
+                val displayTitle = title.ifBlank { "📍 Thor Radar" }
+                val sender = authorName ?: "Tu pareja"
+                val displayBody = body.ifBlank { "¡$sender ha solicitado tu ubicación en vivo!" }
+                sendNotification(displayTitle, displayBody, null, "radar", remoteMessage.data)
             }
             return
         }

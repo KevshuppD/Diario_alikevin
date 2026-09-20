@@ -709,16 +709,24 @@ object ThorRadarManager {
         // SMART THROTTLING:
         // 1. Si force == true: acción explícita (usuario abrió radar, pulsó Actualizar o respondió a Magic Packet) -> subir inmediatamente.
         // 2. Si isForegroundTracking == true (usuario con la pantalla de Thor Radar abierta):
-        //    -> Subir en tiempo real si se desplazó >= 10 metros o si pasaron >= 12 segundos.
-        // 3. Si en background / pasivo (pantalla apagada):
-        //    -> Subir si hubo desplazamiento real significativo (>= 150 metros) y pasaron al menos 5 minutos.
+        //    -> Subir en tiempo real si se desplazó >= 10 metros o si pasaron >= 10 segundos.
+        // 3. Si en background / pasivo (pantalla apagada o en segundo plano):
+        //    -> En movimiento (caminando, auto, bici): subir si hubo desplazamiento real significativo (>= 40 metros y >= 60 segundos).
+        //    -> En reposo / quieto: emitir latido cada 6 minutos (360 segundos) para mantener telemetría y batería fresca.
+        //    -> O si el nivel de batería cambió significativamente (>= 10%) o cambió el estado de carga tras >= 3 minutos.
         val distMovedSinceUpload = if (lastUploadedLat != 0.0 && lat != 0.0) calculateDistance(lastUploadedLat, lastUploadedLng, lat, lon) else Float.MAX_VALUE
         val timeSinceUpload = now - lastUploadedTime
+        val batteryPctChanged = Math.abs(batteryInfo.first - lastUploadedBatteryPct) >= 10
+        val chargingChanged = (batteryInfo.second != lastUploadedChargingState)
 
         val shouldUpload = when {
             force -> true
-            isForegroundTracking -> (distMovedSinceUpload >= 10f || timeSinceUpload >= 12_000L)
-            else -> (distMovedSinceUpload >= 150f && timeSinceUpload >= 300_000L)
+            isForegroundTracking -> (distMovedSinceUpload >= 10f || timeSinceUpload >= 10_000L)
+            else -> (
+                (distMovedSinceUpload >= 40f && timeSinceUpload >= 60_000L) ||
+                timeSinceUpload >= 360_000L || // 6 min en reposo
+                (timeSinceUpload >= 180_000L && (batteryPctChanged || chargingChanged))
+            )
         }
 
         if (!shouldUpload) {
@@ -1349,7 +1357,7 @@ object ThorRadarManager {
 
         // 2. Dual Ping: Magic Packet Wake-on-LAN vía FCM push prioritario (despierta el celular si la app está en segundo plano o cerrada)
         CoroutineScope(Dispatchers.IO).launch {
-            val projectId = com.google.firebase.FirebaseApp.getInstance().options.projectId ?: "diario-pareja-a2d35"
+            val projectId = com.google.firebase.FirebaseApp.getInstance().options.projectId ?: "diario-ali-kevin"
             val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
             val topicName = "diario_" + safeCoupleId.lowercase()
                 .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
@@ -1423,8 +1431,8 @@ object ThorRadarManager {
     }
 
     /**
-     * Manejador del Magic Packet tipo Wake-on-LAN al recibir un radar_ping de FCM.
-     * Adquiere un WakeLock, obtiene la ubicación fresca y responde a Firestore en 1 sola escritura.
+     * Manejador del Magic Packet tipo Wake-on-LAN al recibir un radar_ping de FCM o Firestore.
+     * Adquiere un WakeLock, obtiene la ubicación fresca suspendiendo hasta el fix o timeout, y responde a Firestore en 1 sola escritura garantizada.
      */
     fun handleMagicLocationPing(context: Context) {
         val appContext = context.applicationContext
@@ -1433,7 +1441,7 @@ object ThorRadarManager {
         val powerManager = appContext.getSystemService(Context.POWER_SERVICE) as? PowerManager
         val wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Diario:MagicLocationWakeLock")
         try {
-            wakeLock?.acquire(35_000L)
+            wakeLock?.acquire(45_000L)
         } catch (e: Exception) {
             Log.w(TAG, "No se pudo adquirir WakeLock: ${e.message}")
         }
@@ -1445,19 +1453,19 @@ object ThorRadarManager {
                 val isSharing = prefs.getBoolean("radar_is_sharing", true)
 
                 if (isSharing && PermissionHelper.hasLocationPermission(appContext)) {
-                    // Adquirir Fix GPS fresco de alta precisión y responder en 1 sola emisión
-                    requestHighAccuracyFix(appContext, timeoutMs = 15_000L) { freshLoc ->
-                        val finalLoc = freshLoc ?: getLastKnownLocationFallback(appContext)
-                        publishHeartbeat(appContext, finalLoc, force = true)
-                        Log.d(TAG, "⚡ [MAGIC PACKET] Ubicación respondida a Firestore con éxito (lat=${finalLoc?.latitude}, lon=${finalLoc?.longitude})")
-                    }
+                    // Adquirir Fix GPS fresco de alta precisión suspendiendo hasta obtener resultado o agotar timeout
+                    val freshLoc = requestHighAccuracyFixSuspend(appContext, timeoutMs = 15_000L)
+                    val finalLoc = freshLoc ?: getLastKnownLocationFallback(appContext)
+                    publishHeartbeat(appContext, finalLoc, force = true)
+                    Log.d(TAG, "⚡ [MAGIC PACKET] Ubicación respondida a Firestore con éxito (lat=${finalLoc?.latitude}, lon=${finalLoc?.longitude})")
                 } else {
                     publishHeartbeat(appContext, null, force = true)
                 }
+                // Breve pausa para asegurar el flush del paquete TCP de Firestore antes de dormir el CPU
+                delay(2000L)
             } catch (e: Exception) {
                 Log.e(TAG, "⚡ [MAGIC PACKET] Error procesando wakeup", e)
             } finally {
-                delay(2000L)
                 try {
                     if (wakeLock != null && wakeLock.isHeld) {
                         wakeLock.release()
@@ -1471,15 +1479,14 @@ object ThorRadarManager {
     }
 
     @SuppressLint("MissingPermission")
-    private fun requestHighAccuracyFix(
+    private suspend fun requestHighAccuracyFixSuspend(
         context: Context,
-        timeoutMs: Long = 20_000L,
-        onResult: (Location?) -> Unit
-    ) {
+        timeoutMs: Long = 15_000L
+    ): Location? = kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
         val appContext = context.applicationContext
         if (!PermissionHelper.hasLocationPermission(appContext)) {
-            onResult(null)
-            return
+            if (continuation.isActive) continuation.resumeWith(Result.success(null))
+            return@suspendCancellableCoroutine
         }
 
         init(appContext)
@@ -1495,26 +1502,40 @@ object ThorRadarManager {
         val rawUserName = prefs.getString("userName", null)
         val docName = getMyDocName(rawUserId, rawUserName)
 
+        val mainHandler = Handler(Looper.getMainLooper())
+        var timeoutRunnable: Runnable? = null
+        var earlyCheckRunnable: Runnable? = null
+
+        fun cleanup() {
+            try {
+                fusedCallback?.let { fusedLocationClient?.removeLocationUpdates(it) }
+            } catch (e: Exception) {}
+            try {
+                nativeListener?.let { locationManager?.removeUpdates(it) }
+            } catch (e: Exception) {}
+            timeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+            earlyCheckRunnable?.let { mainHandler.removeCallbacks(it) }
+        }
+
         fun finish(loc: Location?) {
             if (completed.compareAndSet(false, true)) {
+                cleanup()
                 val chosenLoc = loc ?: bestCandidate ?: getLastKnownLocationFallback(appContext) ?: loadCachedLocationAsLocation(appContext, docName)
-                try {
-                    fusedCallback?.let { fusedLocationClient?.removeLocationUpdates(it) }
-                } catch (e: Exception) {}
-                try {
-                    nativeListener?.let { locationManager?.removeUpdates(it) }
-                } catch (e: Exception) {}
-
-                onResult(chosenLoc)
+                if (continuation.isActive) {
+                    continuation.resumeWith(Result.success(chosenLoc))
+                }
             }
         }
 
-        val mainHandler = Handler(Looper.getMainLooper())
-        val timeoutRunnable = Runnable {
+        timeoutRunnable = Runnable {
             Log.d(TAG, "requestHighAccuracyFix: timeout de ${timeoutMs}ms alcanzado. Usando mejor candidato disponible.")
             finish(bestCandidate ?: getLastKnownLocationFallback(appContext) ?: loadCachedLocationAsLocation(appContext, docName))
         }
-        mainHandler.postDelayed(timeoutRunnable, timeoutMs)
+        mainHandler.postDelayed(timeoutRunnable!!, timeoutMs)
+
+        continuation.invokeOnCancellation {
+            cleanup()
+        }
 
         fun updateCandidate(newLoc: Location?) {
             if (newLoc == null || (newLoc.latitude == 0.0 && newLoc.longitude == 0.0)) return
@@ -1525,7 +1546,6 @@ object ThorRadarManager {
                 bestCandidate = newLoc
             }
             if (newLoc.hasAccuracy() && newLoc.accuracy <= 75f && isFresh) {
-                mainHandler.removeCallbacks(timeoutRunnable)
                 finish(newLoc)
             }
         }
@@ -1615,12 +1635,13 @@ object ThorRadarManager {
         }
 
         // Si tras 4 segundos ya tenemos algún candidato válido (ej: de red o lastLocation), terminar temprano
-        mainHandler.postDelayed({
+        earlyCheckRunnable = Runnable {
             if (!completed.get() && bestCandidate != null && (bestCandidate!!.accuracy <= 120f || bestCandidate!!.latitude != 0.0)) {
                 Log.d(TAG, "requestHighAccuracyFix: candidato aceptable obtenido a los 4s, finalizando temprano.")
                 finish(bestCandidate)
             }
-        }, 4000L)
+        }
+        mainHandler.postDelayed(earlyCheckRunnable!!, 4000L)
     }
 
     suspend fun searchPlaces(context: Context, query: String): List<RadarSearchResult> = withContext(Dispatchers.IO) {

@@ -92,12 +92,21 @@ app.post('/api/broadcast', (req, res) => {
   return res.json({ success: true, clients: wss.clients.size });
 });
 
+// Redirecciones y soporte para prefijo /web e index.html
+app.get('/web', (req, res) => res.redirect('/'));
+app.get('/web/index.html', (req, res) => res.redirect('/'));
+app.get('/web/:page', (req, res) => res.redirect('/' + req.params.page));
+app.get('/index.html', (req, res) => res.redirect('/'));
+
 // Rutas limpias sin extensión .html
-app.get('/', (req, res) => res.sendFile(path.join(distDir, 'normal.html')));
+app.get('/', (req, res) => res.sendFile(path.join(distDir, 'index.html')));
 app.get('/normal', (req, res) => res.sendFile(path.join(distDir, 'normal.html')));
 app.get('/edit', (req, res) => res.sendFile(path.join(distDir, 'edit.html')));
+app.get('/categorias', (req, res) => res.sendFile(path.join(distDir, 'categories.html')));
+app.get('/categories', (req, res) => res.sendFile(path.join(distDir, 'categories.html')));
 app.get('/db', (req, res) => res.redirect('/'));
 app.get('/config', (req, res) => res.sendFile(path.join(distDir, 'config.html')));
+app.get('/configuracion', (req, res) => res.sendFile(path.join(distDir, 'config.html')));
 app.get('/radar', (req, res) => res.sendFile(path.join(distDir, 'radar.html')));
 app.get('/migrate', (req, res) => res.sendFile(path.join(distDir, 'migrate.html')));
 
