@@ -372,11 +372,19 @@ class SettingsFragment : Fragment() {
                             updateFirestoreSetting("theme", newTheme)
                         },
                         onCheckUpdates = {
+                            PixelToastHelper.showPixelToast(requireActivity(), "🔍 Comprobando actualizaciones...")
                             act?.getUpdateManager()?.checkForUpdates(object : UpdateManager.UpdateCallback {
-                                override fun onUpdateAvailable(url: String) { act.showUpdateDialog(url) }
+                                override fun onUpdateAvailable(info: AppUpdateInfo) {
+                                    act.showUpdateDialog(info)
+                                }
                                 override fun onNoUpdate() {
                                     act?.runOnUiThread {
-                                        android.widget.Toast.makeText(requireContext(), "No hay actualizaciones disponibles", android.widget.Toast.LENGTH_SHORT).show()
+                                        PixelToastHelper.showPixelToast(requireActivity(), "✨ ¡Ya tienes la última versión instalada!")
+                                    }
+                                }
+                                override fun onError(error: String) {
+                                    act?.runOnUiThread {
+                                        PixelToastHelper.showPixelToast(requireActivity(), "⚠️ $error")
                                     }
                                 }
                                 override fun onDownloadProgress(progress: Int) {}

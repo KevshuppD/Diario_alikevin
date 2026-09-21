@@ -7,4 +7,7 @@ interface AppNavigation {
     fun getCurrentTheme(): String
     fun applyTheme(theme: String)
     fun showUpdateDialog(url: String)
+    fun showUpdateDialog(info: AppUpdateInfo) {
+        showUpdateDialog(info.downloadUrl)
+    }
 }

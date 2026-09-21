@@ -116,6 +116,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             val combined = "$title $body".lowercase(java.util.Locale.ROOT)
             when {
                 combined.contains("receta") -> "receta"
+                combined.contains("actualización") || combined.contains("actualizacion") || combined.contains("versión") || combined.contains("version") || combined.contains("update") -> "update"
                 combined.contains("cita") || combined.contains("evento") || combined.contains("calendario") -> "cita"
                 combined.contains("medicamento") || combined.contains("pastilla") || combined.contains("remedio") -> "medicamento"
                 combined.contains("thor") || combined.contains("mascota") -> "mascota"

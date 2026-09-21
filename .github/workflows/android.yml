@@ -51,3 +51,11 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send FCM Update Notification
+        if: success()
+        run: |
+          pip install google-auth requests
+          python3 .github/scripts/send_update_notification.py "${{ github.ref_name }}" "${{ github.repository }}"
+        env:
+          SERVICE_ACCOUNT_PATH: "app/src/main/assets/service-account.json"

@@ -69,7 +69,9 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 - [LastMessageWidget.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/LastMessageWidget.kt) / [LastMessageLargeWidget.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/LastMessageLargeWidget.kt): Widgets de escritorio con vista previa de la última carta recibida de la pareja.
 
 ### 📁 Actualizaciones Automáticas
-- [UpdateManager.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/UpdateManager.kt) & [UpdateWorker.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/UpdateWorker.kt): Consulta de la API de GitHub Releases, descarga de la APK firmada e instalación automática.
+- [UpdateManager.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/UpdateManager.kt) & [UpdateWorker.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/UpdateWorker.kt): Consulta de la API de GitHub Releases con modelo `AppUpdateInfo`, descarga gestionada y soporte de cancelación.
+- [UpdateDialogCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/UpdateDialogCompose.kt): Diálogo modal estético Retro Pixel-Art con comparador de versiones, notas de lanzamiento scrollables, barra de progreso pixelada en tiempo real y botones ergonómicos.
+- [send_update_notification.py](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/.github/scripts/send_update_notification.py): Script en GitHub Actions que despacha notificación push FCM v1 al topic `diario_app_updates` inmediatamente tras compilar y publicar el APK Release.
 
 ### 📁 Pantallas en Jetpack Compose (`compose/`)
 - [MessageFeedCompose.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt): Feed principal con paginación de 5 en 5 cartas, tarjeta de mascota adaptativa (`PetCard` para Thor / Cuky) con animaciones en Draw Phase (`graphicsLayer { ... }`), getters dinámicos (`getActive...()`), estado de racha y diálogo de confirmación de borrado.
@@ -225,9 +227,11 @@ graph TD
 
 ### CI/CD en GitHub Actions
 - **Incrustar versión obligatoria:** Antes de publicar, incrementar `versionCode` y `versionName` en [app/build.gradle.kts](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/build.gradle.kts).
-- **Creación de Tag:** Empujar el tag `v<versionName>` a `master` dispara el workflow `.github/workflows/android.yml`, el cual firma y publica `app-release.apk` en GitHub Releases.
+- **Creación de Tag:** Empujar el tag `v<versionName>` a `master` dispara el workflow [`.github/workflows/android.yml`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/.github/workflows/android.yml), el cual compila, firma y publica `app-release.apk` en GitHub Releases.
+- **Notificación Push Push Automática (FCM v1):** Tras crear la Release, GitHub Actions ejecuta [`.github/scripts/send_update_notification.py`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/.github/scripts/send_update_notification.py) usando el `service-account.json` para emitir un push instantáneo al topic `diario_app_updates`. Todos los dispositivos con la app instalada reciben la alerta de actualización en tiempo real con enlace directo de descarga.
 
-### Actualizaciones Silenciosas Desatendidas (Android 12+ / PackageInstaller)
+### Diálogo Retro Pixel-Art y Actualizaciones Silenciosas (Android 12+ / PackageInstaller)
+- **Diálogo Modal Pixel-Art (`UpdateDialogCompose.kt`):** Presenta el comparador de versión actual vs nueva, notas de la versión en caja con scroll anti-overflow, barra de progreso pixelada en tiempo real (0 a 100%) y cancelación de descarga.
 - **Instalación sin Diálogos en Android 12+ (API 31+):** Se utiliza `PackageInstaller.SessionParams` con `setRequireUserAction(USER_ACTION_NOT_REQUIRED)` y streaming de flujo de entrada (`openInputStream`/`openWrite`). La app se actualiza silenciosamente en segundo plano sin mostrar la ventana del instalador del sistema.
 - **Recepción de Estado:** `InstallResultReceiver` escucha el resultado del commit (`STATUS_SUCCESS` o `STATUS_PENDING_USER_ACTION` para fallback con confirmación de usuario).
 - **Fallback Automático (Android 11 o inferior):** Si la API nativa de Android 12+ no está disponible o falla, la app abre directamente el instalador con `Intent.ACTION_VIEW`.

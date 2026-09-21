@@ -124,6 +124,11 @@ class DiarioApp : Application(), ImageLoaderFactory {
                 .getLong("updateInterval", 720L) // 12h por defecto
             rescheduleUpdateCheck(this@DiarioApp, interval, ExistingPeriodicWorkPolicy.KEEP)
             schedulePetCareCheck(this@DiarioApp)
+            try {
+                com.google.firebase.messaging.FirebaseMessaging.getInstance().subscribeToTopic("diario_app_updates")
+            } catch (e: Exception) {
+                Log.w("DiarioApp", "Error subscribing to updates topic: ${e.message}")
+            }
         }
     }
 

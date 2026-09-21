@@ -189,6 +189,8 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     private val isUploadingState: MutableState<Boolean> = mutableStateOf(false)
     private val overlayMessageState: MutableState<String> = mutableStateOf("Cargando...")
     private val petState: MutableState<Pet> = mutableStateOf(Pet())
+    private val updateInfoState: MutableState<AppUpdateInfo?> = mutableStateOf(null)
+    private val updateDownloadProgressState: MutableState<Int?> = mutableStateOf(null)
 
     private var messages: List<Message> = ArrayList()
     private lateinit var etMessage: EditText
@@ -464,10 +466,12 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         })
         
         updateManager.checkForUpdates(object : UpdateManager.UpdateCallback {
-            override fun onUpdateAvailable(url: String) { showUpdateDialog(url) }
+            override fun onUpdateAvailable(info: AppUpdateInfo) {
+                showUpdateDialog(info)
+            }
             override fun onNoUpdate() {}
-            override fun onDownloadProgress(progress: Int) { runOnUiThread { downloadProgressBar.progress = progress } }
-            override fun onDownloadComplete() { runOnUiThread { downloadProgressContainer.visibility = View.GONE; updateManager.installApk() } }
+            override fun onDownloadProgress(progress: Int) {}
+            override fun onDownloadComplete() {}
         })
     }
 
@@ -501,23 +505,19 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     }
 
     override fun showUpdateDialog(url: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Actualización disponible")
-            .setMessage("Una nueva versión está disponible en GitHub. ¿Deseas descargarla?")
-            .setPositiveButton("Descargar") { _, _ ->
-                overlayMessageState.value = "Descargando actualización..."
-                isUploadingState.value = true
-                updateManager.downloadUpdate(url, object : UpdateManager.UpdateCallback {
-                    override fun onUpdateAvailable(url: String) {}
-                    override fun onNoUpdate() {}
-                    override fun onDownloadProgress(progress: Int) { 
-                        runOnUiThread { overlayMessageState.value = "Descargando actualización: $progress%" } 
-                    }
-                    override fun onDownloadComplete() { runOnUiThread { isUploadingState.value = false; updateManager.installApk() } }
-                })
-            }
-            .setNegativeButton("Cancelar", null)
-            .show()
+        val info = AppUpdateInfo(
+            versionName = url.substringAfterLast("/").replace(".apk", "").replace("DiarioKevinali_", ""),
+            currentVersion = BuildConfig.VERSION_NAME,
+            downloadUrl = url,
+            releaseNotes = ""
+        )
+        showUpdateDialog(info)
+    }
+
+    override fun showUpdateDialog(info: AppUpdateInfo) {
+        runOnUiThread {
+            updateInfoState.value = info
+        }
     }
 
     private fun initViews() {
@@ -1104,6 +1104,13 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     Log.e("FCM", "Error al suscribirse al tema fcm", task.exception)
                 }
             }
+        // Suscripción al canal global de actualizaciones de la app
+        FirebaseMessaging.getInstance().subscribeToTopic("diario_app_updates")
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d("FCM", "Suscrito con éxito al tema: diario_app_updates")
+                }
+            }
     }
 
     private fun savePetDataToWidgetPrefs(p: Pet) {
@@ -1122,15 +1129,40 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         ThorWidgetProvider.triggerUpdate(this)
     }
 
-
-
     private fun handleUpdateIntent(intent: Intent?) {
         if (intent != null) {
-            if (intent.hasExtra("update_url")) {
+            val clickType = intent.getStringExtra("click_type")
+                ?: intent.getStringExtra("type")
+                ?: intent.getStringExtra("destination")
+                ?: intent.getStringExtra("screen")
+                ?: intent.getStringExtra("tab")
+                ?: intent.getStringExtra("action")
+
+            if (clickType == "update" || intent.hasExtra("update_url")) {
                 val url = intent.getStringExtra("update_url")
-                if (url != null) {
-                    showUpdateDialog(url)
+                val ver = intent.getStringExtra("version") ?: ""
+                val notes = intent.getStringExtra("release_notes") ?: ""
+                if (!url.isNullOrBlank()) {
+                    val info = AppUpdateInfo(
+                        versionName = ver.ifBlank { "Nueva versión" },
+                        currentVersion = BuildConfig.VERSION_NAME,
+                        downloadUrl = url,
+                        releaseNotes = notes
+                    )
+                    showUpdateDialog(info)
+                } else {
+                    updateManager.checkForUpdates(object : UpdateManager.UpdateCallback {
+                        override fun onUpdateAvailable(info: AppUpdateInfo) {
+                            showUpdateDialog(info)
+                        }
+                        override fun onNoUpdate() {}
+                        override fun onDownloadProgress(progress: Int) {}
+                        override fun onDownloadComplete() {}
+                    })
                 }
+                intent.removeExtra("update_url")
+                intent.removeExtra("version")
+                intent.removeExtra("release_notes")
             }
             if (intent.hasExtra("sync_error_msg")) {
                 val errorMsg = intent.getStringExtra("sync_error_msg")
@@ -1139,14 +1171,8 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     intent.removeExtra("sync_error_msg")
                 }
             }
-            val clickType = intent.getStringExtra("click_type")
-                ?: intent.getStringExtra("type")
-                ?: intent.getStringExtra("destination")
-                ?: intent.getStringExtra("screen")
-                ?: intent.getStringExtra("tab")
-                ?: intent.getStringExtra("action")
 
-            if (clickType != null) {
+            if (clickType != null && clickType != "update") {
                 navigateToClickType(clickType)
                 intent.removeExtra("click_type")
                 intent.removeExtra("type")
@@ -1945,7 +1971,46 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     private fun setupOverlays() {
         val overlayCompose = findViewById<ComposeView>(R.id.overlayCompose)
         if (overlayCompose != null) {
-            setOverlayContent(overlayCompose, isUploadingState, overlayMessageState)
+            setOverlayContent(
+                overlayCompose,
+                isUploadingState,
+                overlayMessageState,
+                updateInfoState,
+                updateDownloadProgressState,
+                themeState,
+                onDownloadAndInstall = {
+                    val info = updateInfoState.value ?: return@setOverlayContent
+                    updateDownloadProgressState.value = 0
+                    updateManager.downloadUpdate(info.downloadUrl, object : UpdateManager.UpdateCallback {
+                        override fun onDownloadProgress(progress: Int) {
+                            runOnUiThread {
+                                updateDownloadProgressState.value = progress
+                            }
+                        }
+                        override fun onDownloadComplete() {
+                            runOnUiThread {
+                                updateDownloadProgressState.value = 100
+                                updateManager.installApk()
+                            }
+                        }
+                        override fun onError(error: String) {
+                            runOnUiThread {
+                                updateDownloadProgressState.value = null
+                                PixelToastHelper.showPixelToast(this@MainActivity, "⚠️ $error")
+                            }
+                        }
+                        override fun onNoUpdate() {}
+                    })
+                },
+                onCancelDownload = {
+                    updateManager.cancelDownload()
+                    updateDownloadProgressState.value = null
+                },
+                onDismissUpdate = {
+                    updateInfoState.value = null
+                    updateDownloadProgressState.value = null
+                }
+            )
         }
     }
 

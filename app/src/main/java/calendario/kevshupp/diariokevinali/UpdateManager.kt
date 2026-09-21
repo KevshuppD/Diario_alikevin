@@ -1,27 +1,33 @@
 package calendario.kevshupp.diariokevinali
 
 import android.app.DownloadManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInstaller
 import android.database.Cursor
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import androidx.annotation.NonNull
 import okhttp3.Call
 import okhttp3.Callback
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 
-import android.app.PendingIntent
-import android.content.pm.PackageInstaller
-import android.os.Build
+data class AppUpdateInfo(
+    val versionName: String,
+    val currentVersion: String = BuildConfig.VERSION_NAME,
+    val downloadUrl: String,
+    val releaseNotes: String = "",
+    val apkSizeBytes: Long = 0L,
+    val publishedAt: String = ""
+) : java.io.Serializable
 
 class UpdateManager(private val context: Context) {
     private val TAG = "UpdateManager"
@@ -32,10 +38,14 @@ class UpdateManager(private val context: Context) {
     private var updateProgressRunnable: Runnable? = null
 
     interface UpdateCallback {
-        fun onUpdateAvailable(url: String)
+        fun onUpdateAvailable(url: String) {}
+        fun onUpdateAvailable(info: AppUpdateInfo) {
+            onUpdateAvailable(info.downloadUrl)
+        }
         fun onNoUpdate()
         fun onDownloadProgress(progress: Int)
         fun onDownloadComplete()
+        fun onError(error: String) {}
     }
 
     fun checkForUpdates(callback: UpdateCallback?) {
@@ -50,7 +60,10 @@ class UpdateManager(private val context: Context) {
             override fun onFailure(call: Call, e: IOException) {
                 Log.e(TAG, "Request failed", e)
                 callback?.let {
-                    Handler(Looper.getMainLooper()).post { it.onNoUpdate() }
+                    Handler(Looper.getMainLooper()).post {
+                        it.onError(e.message ?: "Error de conexión con GitHub")
+                        it.onNoUpdate()
+                    }
                 }
             }
 
@@ -61,23 +74,36 @@ class UpdateManager(private val context: Context) {
                         val body = response.body!!.string()
                         val j = JSONObject(body)
                         val latestTag = j.getString("tag_name")
+                        val releaseNotes = j.optString("body", "").trim()
+                        val publishedAt = j.optString("published_at", "")
                         val currentVersion = BuildConfig.VERSION_NAME
 
                         Log.d(TAG, "Checking updates. Current: $currentVersion, Latest on GitHub: $latestTag")
 
                         if (isNewerVersion(currentVersion, latestTag)) {
                             var url: String? = null
+                            var apkSize: Long = 0L
                             val assets: JSONArray = j.getJSONArray("assets")
                             for (i in 0 until assets.length()) {
                                 val asset = assets.getJSONObject(i)
                                 if (asset.getString("name").endsWith(".apk")) {
                                     url = asset.getString("browser_download_url")
+                                    apkSize = asset.optLong("size", 0L)
                                     break
                                 }
                             }
                             if (url != null && callback != null) {
-                                val finalUrl = url
-                                Handler(Looper.getMainLooper()).post { callback.onUpdateAvailable(finalUrl) }
+                                val updateInfo = AppUpdateInfo(
+                                    versionName = latestTag,
+                                    currentVersion = currentVersion,
+                                    downloadUrl = url,
+                                    releaseNotes = releaseNotes,
+                                    apkSizeBytes = apkSize,
+                                    publishedAt = publishedAt
+                                )
+                                Handler(Looper.getMainLooper()).post {
+                                    callback.onUpdateAvailable(updateInfo)
+                                }
                             } else {
                                 callback?.let {
                                     Handler(Looper.getMainLooper()).post { it.onNoUpdate() }
@@ -104,7 +130,7 @@ class UpdateManager(private val context: Context) {
         })
     }
 
-    private fun isNewerVersion(current: String?, latest: String?): Boolean {
+    fun isNewerVersion(current: String?, latest: String?): Boolean {
         if (current == null || latest == null) return false
         try {
             val cleanCurrent = current.lowercase().replace("v", "").split("-")[0]
@@ -129,7 +155,22 @@ class UpdateManager(private val context: Context) {
         return false
     }
 
+    fun cancelDownload() {
+        updateProgressRunnable?.let { updateHandler.removeCallbacks(it) }
+        updateProgressRunnable = null
+        if (latestDownloadId != -1L) {
+            try {
+                downloadManager.remove(latestDownloadId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Error al cancelar descarga: ${e.message}")
+            }
+            latestDownloadId = -1L
+        }
+    }
+
     fun downloadUpdate(url: String, callback: UpdateCallback?) {
+        cancelDownload()
+
         val request = DownloadManager.Request(Uri.parse(url))
         request.setTitle("Descargando actualización")
         request.setDescription("Versión " + url.substring(url.lastIndexOf("/") + 1))
@@ -169,13 +210,14 @@ class UpdateManager(private val context: Context) {
                                 updateProgressRunnable = null
                                 return
                             } else if (status == DownloadManager.STATUS_FAILED) {
+                                callback?.onError("Descarga fallida del archivo APK")
                                 updateProgressRunnable = null
                                 return
                             }
                         }
                     }
                 }
-                updateHandler.postDelayed(this, 500)
+                updateHandler.postDelayed(this, 300)
             }
         }
         updateProgressRunnable?.let { updateHandler.post(it) }

@@ -71,11 +71,33 @@ fun LoadingOverlay(
 fun setOverlayContent(
     composeView: androidx.compose.ui.platform.ComposeView,
     isUploadingState: androidx.compose.runtime.MutableState<Boolean>,
-    messageState: androidx.compose.runtime.MutableState<String>? = null
+    messageState: androidx.compose.runtime.MutableState<String>? = null,
+    updateInfoState: androidx.compose.runtime.MutableState<calendario.kevshupp.diariokevinali.AppUpdateInfo?>? = null,
+    updateDownloadProgressState: androidx.compose.runtime.MutableState<Int?>? = null,
+    themeState: androidx.compose.runtime.MutableState<String>? = null,
+    onDownloadAndInstall: (() -> Unit)? = null,
+    onCancelDownload: (() -> Unit)? = null,
+    onDismissUpdate: (() -> Unit)? = null
 ) {
     composeView.setContent {
         val msg = messageState?.value ?: "Cargando..."
         LoadingOverlay(isVisible = isUploadingState.value, message = msg)
+
+        if (updateInfoState != null && themeState != null) {
+            val info = updateInfoState.value
+            val progress = updateDownloadProgressState?.value
+            val currentTheme = themeState.value
+            if (info != null) {
+                UpdateDialogCompose(
+                    updateInfo = info,
+                    downloadProgress = progress,
+                    theme = currentTheme,
+                    onDownloadAndInstall = { onDownloadAndInstall?.invoke() },
+                    onCancelDownload = { onCancelDownload?.invoke() },
+                    onDismiss = { onDismissUpdate?.invoke() }
+                )
+            }
+        }
     }
 }
 

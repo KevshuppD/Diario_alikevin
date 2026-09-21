@@ -34,6 +34,7 @@ app/Antigravity.tar.gz
 # Python / Virtual Envs
 venv/
 *.py
+!.github/scripts/send_update_notification.py
 __pycache__/
 
 # Captures and logs
@@ -54,4 +55,5 @@ web/dist/
 # Variables de entorno locales (nunca subir al repo)
 .env
 web/.env
-scripts/
+/scripts/
+

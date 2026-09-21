@@ -15,7 +15,11 @@ import androidx.core.content.res.ResourcesCompat
 
 object PixelToastHelper {
 
-    fun showStyledPixelToast(activity: Activity, message: String, currentTheme: String) {
+    fun showPixelToast(activity: Activity, message: String, currentTheme: String = "Pixel Claro") {
+        showStyledPixelToast(activity, message, currentTheme)
+    }
+
+    fun showStyledPixelToast(activity: Activity, message: String, currentTheme: String = "Pixel Claro") {
         activity.runOnUiThread {
             try {
                 if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
