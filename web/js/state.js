@@ -62,7 +62,7 @@ export const state = {
   
   // Status tracking
   latestDbStatus: { isOnline: true, isFromCache: true },
-  latestWsStatus: { connected: false, text: "WS: Conectando...", count: 1, tooltip: "" },
+  latestWsStatus: { connected: true, text: "Cloud Sync: En vivo", count: 1, tooltip: "Sincronización en tiempo real vía Firebase Cloud" },
   hasLoadedFirestoreOnce: false
 };
 

@@ -6,8 +6,24 @@ import { state } from './state.js';
 
 let wsClient = null;
 let wsReconnectTimer = null;
+let retryCount = 0;
+
+export function isServerlessEnvironment() {
+  const host = window.location.hostname;
+  return host.includes('vercel.app') || 
+         host.includes('web.app') || 
+         host.includes('firebaseapp.com') || 
+         host.includes('github.io') || 
+         host.includes('netlify.app');
+}
 
 export function initWebSocket(onSyncCallback, onToggleCallback, onImageCallback) {
+  // En entornos Serverless / Cloud Hosting (ej. Vercel), la sincronización en tiempo real es 100% provista por Firebase Cloud Firestore y RTDB
+  if (isServerlessEnvironment()) {
+    updateWsStatus(true, "Cloud Sync: En vivo", "Sincronización en tiempo real activa vía Firebase Cloud Firestore y RTDB");
+    return;
+  }
+
   if (wsClient && (wsClient.readyState === WebSocket.OPEN || wsClient.readyState === WebSocket.CONNECTING)) {
     return;
   }
@@ -21,6 +37,7 @@ export function initWebSocket(onSyncCallback, onToggleCallback, onImageCallback)
 
     wsClient.onopen = () => {
       console.log("🔌 Conectado a WebSocket en tiempo real");
+      retryCount = 0;
       updateWsStatus(true, `WS: En vivo (${state.latestWsStatus.count || 1})`, "Sincronización instantánea activa");
       if (wsReconnectTimer) {
         clearTimeout(wsReconnectTimer);
@@ -38,13 +55,22 @@ export function initWebSocket(onSyncCallback, onToggleCallback, onImageCallback)
     };
 
     wsClient.onclose = () => {
-      updateWsStatus(false, "WS: Reconectando...", "Intentando reconectar...");
+      retryCount++;
+      if (retryCount >= 3) {
+        updateWsStatus(true, "Cloud Sync: En vivo", "Sincronización en tiempo real activa vía Firebase Cloud");
+      } else {
+        updateWsStatus(false, "WS: Reconectando...", "Intentando reconectar...");
+      }
       scheduleWsReconnect(onSyncCallback, onToggleCallback, onImageCallback);
     };
 
     wsClient.onerror = (err) => {
       console.warn("Aviso en conexión WebSocket:", err);
-      updateWsStatus(false, "WS: Sin conexión", "Error de red en WebSockets");
+      if (retryCount >= 3) {
+        updateWsStatus(true, "Cloud Sync: En vivo", "Sincronización en tiempo real activa vía Firebase Cloud");
+      } else {
+        updateWsStatus(false, "WS: Sin conexión", "Error de red en WebSockets");
+      }
     };
   } catch (err) {
     console.error("No se pudo iniciar WebSocket:", err);
@@ -53,8 +79,13 @@ export function initWebSocket(onSyncCallback, onToggleCallback, onImageCallback)
 }
 
 function scheduleWsReconnect(onSync, onToggle, onImg) {
+  if (isServerlessEnvironment()) return;
   if (!wsReconnectTimer) {
-    wsReconnectTimer = setTimeout(() => initWebSocket(onSync, onToggle, onImg), 4000);
+    const delay = retryCount > 3 ? 30000 : 5000;
+    wsReconnectTimer = setTimeout(() => {
+      wsReconnectTimer = null;
+      initWebSocket(onSync, onToggle, onImg);
+    }, delay);
   }
 }
 

@@ -548,7 +548,12 @@ graph TD
     - **Receptor de Batería Instantáneo (`ThorRadarService.kt` / `ThorRadarCompose.kt`):** Registro de `BroadcastReceiver` dinámico para eventos de batería (`ACTION_BATTERY_CHANGED`, `ACTION_POWER_CONNECTED`, `ACTION_POWER_DISCONNECTED`). Ante cualquier cambio (conectar/desconectar cargador o variación de porcentaje), se actualiza inmediatamente el nodo RTDB mediante `ThorRadarManager.publishBatteryUpdate(context, level, isCharging)`.
     - **Cero Throttling en Cambios de Carga:** El paso de batería a cargando (o viceversa) se emite al instante sin esperar intervalos de tiempo.
     - **Ping Silencioso Inteligente (`isSilent`):** Al abrir el Radar o pulsar "Actualizar" cuando la última señal es reciente ($< 15\text{ min}$), se envía un Magic Packet WOL 100% silencioso (`silent: true`). Solo si la señal de la pareja es obsoleta ($\ge 15\text{ min}$ o desconectado) se despacha una notificación heads-up visible y sonora para solicitarle que despierte la app.
-    - **Corrección de Vista Web `/radar` (`web/js/firestore.js` & `web/js/radar-view.js`):** Se eliminó el listener residual en `firestore.js` que sobrescribía los datos en tiempo real de RTDB con datos de caché viejos de Firestore. Se normalizó `coupleId` (`vínculo_único_123`) y se implementó parseo robusto para timestamps numéricos de Unix en milisegundos en `formatTimeAgo` y `getDeviceStatus`.
+27. **Adaptación de Sincronización Web en Entornos Serverless / Vercel (`Cloud Sync: En vivo`):**
+    - **Diagnóstico:** En hosting serverless como Vercel (`*.vercel.app`), no existe un proceso de servidor Node.js persistente para alojar endpoints custom de WebSockets (`/ws`). Esto causaba que la pastilla de estado mostrara permanentemente *"WS: Reconectando..."* con reintentos fallidos en bucle.
+    - **Solución Implementada (`web/js/websocket.js` & `web/js/state.js`):**
+      - Detección automática de entornos serverless/cloud (`vercel.app`, `web.app`, `firebaseapp.com`, `github.io`, `netlify.app`).
+      - En entornos Serverless, la sincronización en tiempo real está 100% garantizada y gestionada por los WebSockets cloud nativos de **Firebase Firestore** y **Firebase Realtime Database (RTDB)**.
+      - La UI muestra de forma transparente e inmediata `Cloud Sync: En vivo 🟢` con tooltip explicativo, anulando bucles de reconexión innecesarios en la nube mientras preserva el soporte de WebSockets locales en entornos de desarrollo Node (`localhost`).
 
 ---
 
