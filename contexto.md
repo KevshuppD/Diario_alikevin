@@ -531,11 +531,29 @@ graph TD
     - **Blindaje del Magic Packet FCM v1 & Recuperación de Token OAuth2:** Manejo robusto de credenciales de servicio con invalidación en caché (`invalidateGoogleCredentials`) y reintento automático si se recibe HTTP 401, corrección del fallback del `projectId` a `diario-ali-kevin`, y confirmación visual clara en la UI al pulsar *"Actualizar"* (`onPingPartner`).
     - **Unificación de Documentación:** Integración total de los diagnósticos y soluciones de `radar.md` directamente en la fuente única de verdad del proyecto.
 
+24. **Migración Completa de Thor Radar a Firebase Realtime Database (RTDB) & Gasto 0 en Firestore (v1.7.67 - v1.7.68):**
+    - **Migración de Telemetría a RTDB:** Toda la telemetría de ubicación (`latitude`, `longitude`, `accuracy`, `speedKmh`, `activity`, `address`, `currentZone`), control remoto (`isSharing`, `sosActive`) y pings se migró de Cloud Firestore a **Firebase Realtime Database** (`/locations/<coupleId>/users/{kevin|ali}` y `/locations/<coupleId>/pings/{kevin|ali}`).
+    - **Gasto 0 en Cuota de Firestore:** Elimina el 100% de las operaciones de escritura del GPS y pings en Firestore, preservando intacto el límite de 20.000 escrituras diarias del Spark Plan.
+    - **Latencia Ultrabaja (<50ms):** Comunicación por WebSockets nativos de Firebase RTDB para movimiento y telemetría en tiempo real sin recargar vistas.
+    - **Reglas de Seguridad RTDB:** Configuración de lectura/escritura abierta para el nodo `locations` (`{ "rules": { "locations": { ".read": true, ".write": true } } }`).
+
+25. **Resolución de Pantalla Negra / Congelamiento al Entrar desde Notificaciones (v1.7.69 - Build 114):**
+    - **Causa Identificada:** `MainActivity.kt` ejecutaba `popBackStackImmediate` dentro de `window.decorView.post` durante las transiciones de ciclo de vida al recibir intents de notificaciones, y `showFragment` acumulaba fragmentos en la pila con `addToBackStack(null)`, provocando desincronización y desvinculación de `ComposeView` en `fragmentContainer`.
+    - **Solución Implementada:**
+      - `showFragment` reemplaza directamente el fragmento sin apilar transacciones redundantes de pestañas principales.
+      - `navigateToClickType` utiliza `popBackStack` seguro y no bloqueante.
+      - `onBackPressedDispatcher` y `btnHome` limpian y remueven explícitamente cualquier fragmento activo al regresar al feed principal, garantizando sincronización total de visibilidad (`fragmentContainer` vs `composeFeed`).
+
+26. **Sincronización de Batería en Tiempo Real, Ping Silencioso Inteligente & Corrección Web RTDB (v1.7.69):**
+    - **Receptor de Batería Instantáneo (`ThorRadarService.kt` / `ThorRadarCompose.kt`):** Registro de `BroadcastReceiver` dinámico para eventos de batería (`ACTION_BATTERY_CHANGED`, `ACTION_POWER_CONNECTED`, `ACTION_POWER_DISCONNECTED`). Ante cualquier cambio (conectar/desconectar cargador o variación de porcentaje), se actualiza inmediatamente el nodo RTDB mediante `ThorRadarManager.publishBatteryUpdate(context, level, isCharging)`.
+    - **Cero Throttling en Cambios de Carga:** El paso de batería a cargando (o viceversa) se emite al instante sin esperar intervalos de tiempo.
+    - **Ping Silencioso Inteligente (`isSilent`):** Al abrir el Radar o pulsar "Actualizar" cuando la última señal es reciente ($< 15\text{ min}$), se envía un Magic Packet WOL 100% silencioso (`silent: true`). Solo si la señal de la pareja es obsoleta ($\ge 15\text{ min}$ o desconectado) se despacha una notificación heads-up visible y sonora para solicitarle que despierte la app.
+    - **Corrección de Vista Web `/radar` (`web/js/firestore.js` & `web/js/radar-view.js`):** Se eliminó el listener residual en `firestore.js` que sobrescribía los datos en tiempo real de RTDB con datos de caché viejos de Firestore. Se normalizó `coupleId` (`vínculo_único_123`) y se implementó parseo robusto para timestamps numéricos de Unix en milisegundos en `formatTimeAgo` y `getDeviceStatus`.
+
 ---
 
 ## 15. Tareas Pendientes / Backlog
 
-*(Sin tareas pendientes inmediatas).*
 
 
 
