@@ -49,6 +49,7 @@ class CalendarFragment : Fragment() {
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 val eventsState = _events.collectAsState()
                 val dateState = _selectedDate.collectAsState()

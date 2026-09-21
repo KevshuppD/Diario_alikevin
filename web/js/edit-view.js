@@ -3,7 +3,7 @@
  */
 
 import { state } from './state.js';
-import { defaultNames, defaultSpiritsList, defaultCategories } from './constants.js';
+import { defaultNames, defaultSpiritsList, defaultCategories, defaultSpiritsListT1, defaultSpiritsListT2 } from './constants.js';
 import { triggerAutoSave } from './firestore.js';
 import { getSpiritImgUrl, getSpiritName, getSpiritCurrentType, computeSpiritName, handleSpiritImgError, renderWorkspace, updateStats, matchesFilter } from './normal-view.js';
 import { processSpiritImage, optimizeCloudinaryUrl } from './image-utils.js';
@@ -33,7 +33,8 @@ export function renderGallery() {
   if (!container) return;
   container.innerHTML = "";
   
-  const activeList = state.currentSeason === 1 ? (state.spiritsList.length > 0 ? state.spiritsList : defaultSpiritsList) : state.spiritsList;
+  const defaultList = state.currentSeason === 1 ? defaultSpiritsListT1 : defaultSpiritsListT2;
+  const activeList = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : defaultList;
   const listToRender = [...activeList].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
 
   const sidebarTitle = document.getElementById("sidebar-title");

@@ -3,7 +3,7 @@
  */
 
 import { state } from './state.js';
-import { db } from './firebase-config.js';
+import { db, rtdb } from './firebase-config.js';
 import { sendWsMessage } from './websocket.js';
 
 let radarMap = null;
@@ -12,18 +12,27 @@ let aliMarker = null;
 let radarUnsubscribe = null;
 let radarZonesUnsubscribe = null;
 
+function parseTimestampMillis(timestamp) {
+  if (!timestamp) return 0;
+  if (typeof timestamp === 'number') return timestamp;
+  if (timestamp.toMillis && typeof timestamp.toMillis === 'function') return timestamp.toMillis();
+  if (timestamp.toDate && typeof timestamp.toDate === 'function') return timestamp.toDate().getTime();
+  const parsed = Number(timestamp);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 function formatTimeAgo(timestamp) {
-  if (!timestamp) return "Sin datos";
+  const tsMillis = parseTimestampMillis(timestamp);
+  if (!tsMillis) return "Sin datos";
   try {
-    const d = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    const now = new Date();
-    const diffSecs = Math.floor((now - d) / 1000);
+    const diffSecs = Math.floor((Date.now() - tsMillis) / 1000);
     if (diffSecs < 10) return "Justo ahora";
     if (diffSecs < 60) return `Hace ${diffSecs}s`;
     const diffMins = Math.floor(diffSecs / 60);
     if (diffMins < 60) return `Hace ${diffMins} min`;
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `Hace ${diffHours} h`;
+    const d = new Date(tsMillis);
     return d.toLocaleDateString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   } catch (e) {
     return "Fecha inválida";
@@ -34,19 +43,20 @@ function getDeviceStatus(data) {
   if (!data || !data.timestamp) {
     return { cls: 'offline', text: 'Desconectado' };
   }
-  const d = data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
-  const diffSecs = Math.floor((new Date() - d) / 1000);
+  const tsMillis = parseTimestampMillis(data.timestamp);
+  const diffSecs = Math.floor((Date.now() - tsMillis) / 1000);
   
-  if (data.isSharingLocation === false) {
+  const isSharing = data.isSharing !== undefined ? data.isSharing : data.isSharingLocation !== false;
+  if (!isSharing) {
     return { cls: 'offline', text: 'Radar Apagado' };
   }
-  if (diffSecs < 45) {
+  if (diffSecs < 120) {
     return { cls: 'online', text: 'En Línea 🟢' };
   }
-  if (diffSecs < 300) {
-    return { cls: 'stale', text: 'Inactivo 🟡' };
+  if (diffSecs < 900) {
+    return { cls: 'stale', text: `Inactivo (${Math.floor(diffSecs / 60)}m) 🟡` };
   }
-  return { cls: 'offline', text: 'Desconectado ⚪' };
+  return { cls: 'offline', text: `Desconectado (${formatTimeAgo(tsMillis)}) ⚪` };
 }
 
 export function initRadarView() {
@@ -128,12 +138,14 @@ export function renderRadarManager() {
 }
 
 function renderUserCard(userKey, name, color, icon, data) {
-  const isSharing = data.isSharingLocation !== false;
+  const isSharing = (data.isSharing !== undefined) ? data.isSharing : (data.isSharingLocation !== false);
   const status = getDeviceStatus(data);
   const battery = (data.batteryLevel !== undefined && data.batteryLevel !== null) ? data.batteryLevel : "--";
   const isCharging = data.isCharging === true;
   const activityText = data.activity || "Estacionario";
-  const speed = (data.speed !== undefined && data.speed !== null) ? Math.round(data.speed * 3.6) : 0; // m/s a km/h
+  const speed = (data.speedKmh !== undefined && data.speedKmh !== null)
+    ? Math.round(data.speedKmh)
+    : ((data.speed !== undefined && data.speed !== null) ? Math.round(data.speed * 3.6) : 0);
   const accuracy = (data.accuracy !== undefined && data.accuracy !== null) ? Math.round(data.accuracy) : "--";
   const zone = data.currentZone ? `📍 ${data.currentZone}` : (data.address || (data.latitude ? `${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}` : "Sin ubicación reciente"));
   const lat = data.latitude || 0;
@@ -252,21 +264,27 @@ function renderUserCard(userKey, name, color, icon, data) {
 }
 
 export function listenToRadarLocations() {
-  if (radarUnsubscribe) radarUnsubscribe();
+  if (radarUnsubscribe) {
+    if (typeof radarUnsubscribe === 'function') radarUnsubscribe();
+    else if (radarUnsubscribe.off) radarUnsubscribe.off();
+  }
   if (radarZonesUnsubscribe) radarZonesUnsubscribe();
 
   try {
-    radarUnsubscribe = db.collection("locations").doc(state.coupleId).collection("users")
-      .onSnapshot({ includeMetadataChanges: true }, snapshot => {
-        snapshot.docs.forEach(doc => {
-          const uKey = doc.id.toLowerCase();
-          if (uKey === 'kevin' || uKey === 'ali') {
-            state.radarUsersData[uKey] = doc.data();
-          }
-        });
-        renderRadarManager();
-      }, err => console.warn("Aviso radar users:", err));
+    // Escuchar usuarios en Realtime Database
+    const usersRef = rtdb.ref("locations/" + state.coupleId + "/users");
+    usersRef.on("value", snapshot => {
+      const val = snapshot.val() || {};
+      ['kevin', 'ali'].forEach(uKey => {
+        if (val[uKey]) {
+          state.radarUsersData[uKey] = val[uKey];
+        }
+      });
+      renderRadarManager();
+    }, err => console.warn("Aviso RTDB users:", err));
+    radarUnsubscribe = usersRef;
 
+    // Escuchar Zonas Seguras en Firestore
     radarZonesUnsubscribe = db.collection("locations").doc(state.coupleId).collection("zones")
       .onSnapshot({ includeMetadataChanges: true }, snapshot => {
         state.radarZonesData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -283,11 +301,11 @@ export async function sendRemoteMagicPing(targetUser, silent = true) {
   renderRadarManager();
 
   try {
-    const coupleDoc = db.collection("locations").doc(state.coupleId);
-    await coupleDoc.collection("radar_pings").doc(Date.now().toString()).set({
-      target: targetUser,
+    const now = Date.now();
+    await rtdb.ref("locations/" + state.coupleId + "/pings/" + targetUser).set({
+      targetDoc: targetUser,
       silent: silent,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      requestedAt: now,
       requestedBy: state.currentUser ? state.currentUser.username : "web_manager"
     });
 
@@ -295,7 +313,7 @@ export async function sendRemoteMagicPing(targetUser, silent = true) {
       type: 'MAGIC_PACKET_PING',
       target: targetUser,
       silent: silent,
-      timestamp: Date.now()
+      timestamp: now
     });
 
     const pingText = silent ? '⚡ Magic Packet Silencioso enviado' : '🔔 Magic Packet con Notificación enviado';
@@ -317,10 +335,10 @@ export async function sendRemoteMagicPing(targetUser, silent = true) {
 
 export async function toggleRemoteRadar(targetUser, enable) {
   try {
-    await db.collection("locations").doc(state.coupleId).collection("users").doc(targetUser).set({
-      isSharingLocation: enable,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    await rtdb.ref("locations/" + state.coupleId + "/users/" + targetUser).update({
+      isSharing: enable,
+      timestamp: Date.now()
+    });
 
     if (window.showToast) {
       window.showToast(enable ? `⚡ Radar activado para ${targetUser}` : `🛑 Radar desactivado para ${targetUser}`);
@@ -333,10 +351,10 @@ export async function toggleRemoteRadar(targetUser, enable) {
 
 export async function toggleRemoteSos(targetUser, active) {
   try {
-    await db.collection("locations").doc(state.coupleId).collection("users").doc(targetUser).set({
+    await rtdb.ref("locations/" + state.coupleId + "/users/" + targetUser).update({
       sosActive: active,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+      sosTimestamp: active ? Date.now() : 0
+    });
 
     if (window.showToast) {
       window.showToast(active ? `🚨 SOS activado para ${targetUser}` : `✅ SOS desactivado`);
@@ -349,9 +367,10 @@ export async function toggleRemoteSos(targetUser, active) {
 
 export async function resetDevicePresence(targetUser) {
   try {
-    await db.collection("locations").doc(state.coupleId).collection("users").doc(targetUser).set({
-      timestamp: null
-    }, { merge: true });
+    await rtdb.ref("locations/" + state.coupleId + "/users/" + targetUser).update({
+      timestamp: 0,
+      isOnline: false
+    });
 
     if (window.showToast) window.showToast(`🧹 Estado desconectado para ${targetUser}`);
     renderRadarManager();

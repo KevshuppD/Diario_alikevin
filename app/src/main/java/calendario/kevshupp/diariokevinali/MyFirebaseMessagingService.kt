@@ -139,7 +139,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         dataMap: Map<String, String> = emptyMap()
     ) {
         val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             for ((key, value) in dataMap) {
                 putExtra(key, value)
             }

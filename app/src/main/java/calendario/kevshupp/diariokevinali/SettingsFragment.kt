@@ -55,6 +55,7 @@ class SettingsFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val userId = arguments?.getString("userId") ?: "user_kevin_01"
         return ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 val act = activity as? MainActivity
                 val prefs = act?.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)

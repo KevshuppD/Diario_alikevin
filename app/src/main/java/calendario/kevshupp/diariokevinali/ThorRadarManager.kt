@@ -16,6 +16,10 @@ import android.os.PowerManager
 import android.util.Log
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.CancellationTokenSource
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -57,7 +61,8 @@ data class RadarLocationData(
     val timestamp: Long = 0L,
     val isSharing: Boolean = true,
     val sosActive: Boolean = false,
-    val sosTimestamp: Long = 0L
+    val sosTimestamp: Long = 0L,
+    val isOnline: Boolean = true
 ) {
     fun toMap(): Map<String, Any> {
         return mapOf(
@@ -76,7 +81,8 @@ data class RadarLocationData(
             "timestamp" to timestamp,
             "isSharing" to isSharing,
             "sosActive" to sosActive,
-            "sosTimestamp" to sosTimestamp
+            "sosTimestamp" to sosTimestamp,
+            "isOnline" to isOnline
         )
     }
 
@@ -84,6 +90,17 @@ data class RadarLocationData(
         fun fromDocument(doc: DocumentSnapshot?): RadarLocationData {
             if (doc == null || !doc.exists()) return RadarLocationData()
             val data = doc.data ?: return RadarLocationData()
+            return fromMap(data)
+        }
+
+        fun fromDataSnapshot(snapshot: DataSnapshot?): RadarLocationData {
+            if (snapshot == null || !snapshot.exists()) return RadarLocationData()
+            val data = snapshot.value as? Map<*, *> ?: return RadarLocationData()
+            return fromMap(data)
+        }
+
+        fun fromMap(data: Map<*, *>?): RadarLocationData {
+            if (data == null) return RadarLocationData()
             return RadarLocationData(
                 userId = data["userId"] as? String ?: "",
                 userName = data["userName"] as? String ?: "",
@@ -98,9 +115,10 @@ data class RadarLocationData(
                 currentZone = data["currentZone"] as? String ?: "",
                 address = data["address"] as? String ?: "",
                 timestamp = (data["timestamp"] as? Number)?.toLong() ?: 0L,
-                isSharing = data["isSharing"] as? Boolean ?: true,
+                isSharing = data["isSharing"] as? Boolean ?: (data["isSharingLocation"] as? Boolean ?: true),
                 sosActive = data["sosActive"] as? Boolean ?: false,
-                sosTimestamp = (data["sosTimestamp"] as? Number)?.toLong() ?: 0L
+                sosTimestamp = (data["sosTimestamp"] as? Number)?.toLong() ?: 0L,
+                isOnline = data["isOnline"] as? Boolean ?: true
             )
         }
     }
@@ -181,9 +199,20 @@ data class RadarHistoryPoint(
 
 object ThorRadarManager {
     private const val TAG = "ThorRadarManager"
+    const val RTDB_URL = "https://diario-ali-kevin-default-rtdb.firebaseio.com"
+
     private var fusedLocationClient: FusedLocationProviderClient? = null
     private var locationCallback: LocationCallback? = null
     private val db = FirebaseFirestore.getInstance()
+    private var presenceSetup = false
+
+    fun getDatabase(): FirebaseDatabase {
+        return try {
+            FirebaseDatabase.getInstance(RTDB_URL)
+        } catch (e: Exception) {
+            FirebaseDatabase.getInstance()
+        }
+    }
 
     private var lastUploadedLat: Double = 0.0
     private var lastUploadedLng: Double = 0.0
@@ -368,6 +397,39 @@ object ThorRadarManager {
         val prefs = context.applicationContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
         val coupleId = normalizeCoupleId(prefs.getString("coupleId", "vínculo_único_123"))
         startListeningToZones(coupleId, context.applicationContext)
+        setupPresence(context.applicationContext)
+    }
+
+    fun setupPresence(context: Context) {
+        if (presenceSetup) return
+        val appContext = context.applicationContext
+        val prefs = appContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+        val rawUserId = prefs.getString("userId", "user_kevin_01") ?: "user_kevin_01"
+        val rawUserName = prefs.getString("userName", null)
+        val coupleId = normalizeCoupleId(prefs.getString("coupleId", "vínculo_único_123"))
+        val docName = getMyDocName(rawUserId, rawUserName)
+
+        try {
+            val rtdb = getDatabase()
+            val connectedRef = rtdb.reference.child(".info/connected")
+            val userRef = rtdb.reference.child("locations").child(coupleId).child("users").child(docName)
+
+            connectedRef.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val connected = snapshot.getValue(Boolean::class.java) ?: false
+                    if (connected) {
+                        userRef.child("isOnline").onDisconnect().setValue(false)
+                        userRef.child("isOnline").setValue(true)
+                    }
+                }
+                override fun onCancelled(error: DatabaseError) {
+                    Log.w(TAG, "Presence listener cancelado: ${error.message}")
+                }
+            })
+            presenceSetup = true
+        } catch (e: Exception) {
+            Log.w(TAG, "Error configurando presencia RTDB: ${e.message}")
+        }
     }
 
     fun startListeningToZones(coupleId: String, context: Context? = null) {
@@ -507,6 +569,39 @@ object ThorRadarManager {
 
         // Si no hay recientes, devolver el mejor candidato conocido disponible
         return candidateLocations.minByOrNull { it.accuracy } ?: candidateLocations.maxByOrNull { it.time }
+    }
+
+    fun publishBatteryUpdate(context: Context, batteryLevel: Int, isCharging: Boolean) {
+        if (batteryLevel !in 0..100) return
+        if (batteryLevel == lastUploadedBatteryPct && isCharging == lastUploadedChargingState) {
+            return
+        }
+        lastUploadedBatteryPct = batteryLevel
+        lastUploadedChargingState = isCharging
+
+        val appContext = context.applicationContext
+        val prefs = appContext.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
+        val rawUserId = prefs.getString("userId", "user_kevin_01") ?: "user_kevin_01"
+        val rawUserName = prefs.getString("userName", null)
+        val coupleId = normalizeCoupleId(prefs.getString("coupleId", "vínculo_único_123"))
+        val docName = getMyDocName(rawUserId, rawUserName)
+
+        val rtdb = getDatabase()
+        val userRef = rtdb.reference.child("locations").child(coupleId).child("users").child(docName)
+
+        val updates = hashMapOf<String, Any>(
+            "batteryLevel" to batteryLevel,
+            "isCharging" to isCharging,
+            "timestamp" to System.currentTimeMillis()
+        )
+
+        userRef.updateChildren(updates)
+            .addOnSuccessListener {
+                Log.d(TAG, "⚡ [BATTERY RTDB] Actualizado estado en tiempo real para $docName: $batteryLevel%, isCharging=$isCharging")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Error actualizando batería en RTDB ($docName)", e)
+            }
     }
 
     fun getBatteryStatus(context: Context): Pair<Int, Boolean> {
@@ -708,24 +803,26 @@ object ThorRadarManager {
 
         // SMART THROTTLING:
         // 1. Si force == true: acción explícita (usuario abrió radar, pulsó Actualizar o respondió a Magic Packet) -> subir inmediatamente.
-        // 2. Si isForegroundTracking == true (usuario con la pantalla de Thor Radar abierta):
-        //    -> Subir en tiempo real si se desplazó >= 10 metros o si pasaron >= 10 segundos.
-        // 3. Si en background / pasivo (pantalla apagada o en segundo plano):
+        // 2. Si chargingChanged == true: cambió el estado de enchufe/cargador -> subir inmediatamente.
+        // 3. Si isForegroundTracking == true (usuario con la pantalla de Thor Radar abierta):
+        //    -> Subir en tiempo real si se desplazó >= 10 metros, si pasaron >= 10 segundos, o si la batería cambió.
+        // 4. Si en background / pasivo (pantalla apagada o en segundo plano):
         //    -> En movimiento (caminando, auto, bici): subir si hubo desplazamiento real significativo (>= 40 metros y >= 60 segundos).
         //    -> En reposo / quieto: emitir latido cada 6 minutos (360 segundos) para mantener telemetría y batería fresca.
-        //    -> O si el nivel de batería cambió significativamente (>= 10%) o cambió el estado de carga tras >= 3 minutos.
+        //    -> O si el nivel de batería cambió (>= 3%) tras >= 60 segundos.
         val distMovedSinceUpload = if (lastUploadedLat != 0.0 && lat != 0.0) calculateDistance(lastUploadedLat, lastUploadedLng, lat, lon) else Float.MAX_VALUE
         val timeSinceUpload = now - lastUploadedTime
-        val batteryPctChanged = Math.abs(batteryInfo.first - lastUploadedBatteryPct) >= 10
+        val batteryPctChanged = Math.abs(batteryInfo.first - lastUploadedBatteryPct) >= 3
         val chargingChanged = (batteryInfo.second != lastUploadedChargingState)
 
         val shouldUpload = when {
             force -> true
-            isForegroundTracking -> (distMovedSinceUpload >= 10f || timeSinceUpload >= 10_000L)
+            chargingChanged -> true
+            isForegroundTracking -> (distMovedSinceUpload >= 10f || timeSinceUpload >= 10_000L || batteryPctChanged)
             else -> (
                 (distMovedSinceUpload >= 40f && timeSinceUpload >= 60_000L) ||
                 timeSinceUpload >= 360_000L || // 6 min en reposo
-                (timeSinceUpload >= 180_000L && (batteryPctChanged || chargingChanged))
+                (timeSinceUpload >= 60_000L && batteryPctChanged)
             )
         }
 
@@ -741,31 +838,17 @@ object ThorRadarManager {
         lastUploadedBatteryPct = batteryInfo.first
         lastUploadedChargingState = batteryInfo.second
 
-        // Si tenemos coordenadas válidas, actualizar documento completo con ubicación.
-        // Si no tenemos coordenadas (ej: en arranque inicial sin fix), actualizar SOLO batería, timestamp y estado sin borrar lat/lon previas en Firestore
-        val firestoreMap = if (lat != 0.0 && lon != 0.0) {
-            locationData.toMap()
-        } else {
-            mutableMapOf<String, Any>(
-                "userId" to finalUserId,
-                "userName" to displayName,
-                "batteryLevel" to batteryInfo.first,
-                "isCharging" to batteryInfo.second,
-                "timestamp" to now,
-                "isSharing" to isSharing
-            ).apply {
-                if (profileImageUrl.isNotBlank()) put("profileImageUrl", profileImageUrl)
-            }
-        }
+        val rtdb = getDatabase()
+        val userRef = rtdb.reference.child("locations").child(coupleId).child("users").child(docName)
 
-        db.collection("locations").document(coupleId)
-            .collection("users").document(docName)
-            .set(firestoreMap, SetOptions.merge())
+        val rtdbMap = locationData.toMap()
+
+        userRef.setValue(rtdbMap)
             .addOnSuccessListener {
-                Log.d(TAG, "Heartbeat emitido para $docName: bat=${batteryInfo.first}%, lat=$lat, lon=$lon")
+                Log.d(TAG, "Heartbeat RTDB emitido para $docName: bat=${batteryInfo.first}%, lat=$lat, lon=$lon")
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "Error emitiendo heartbeat", e)
+                Log.e(TAG, "Error emitiendo heartbeat RTDB ($docName)", e)
             }
 
         if (isSharing && lat != 0.0 && lon != 0.0) {
@@ -840,22 +923,36 @@ object ThorRadarManager {
             return
         }
 
+        val fallback = getLastKnownLocationFallback(appContext)
+        // Publicar inmediatamente la última ubicación conocida para respuesta instantánea
+        if (fallback != null) {
+            publishHeartbeat(appContext, fallback, force = true)
+        }
+
         try {
-            fusedLocationClient?.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+            val cts = CancellationTokenSource()
+            fusedLocationClient?.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token)
                 ?.addOnSuccessListener { loc ->
-                    val finalLoc = loc ?: getLastKnownLocationFallback(appContext)
+                    val finalLoc = loc ?: fallback
                     publishHeartbeat(appContext, finalLoc, force = true)
                     onComplete?.invoke(true)
                 }
                 ?.addOnFailureListener {
-                    val fallback = getLastKnownLocationFallback(appContext)
-                    publishHeartbeat(appContext, fallback, force = true)
+                    if (fallback != null) {
+                        publishHeartbeat(appContext, fallback, force = true)
+                    }
                     onComplete?.invoke(true)
                 }
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    cts.cancel()
+                } catch (e: Exception) {}
+            }, 5000L)
         } catch (e: Exception) {
             Log.e(TAG, "Error en forceLocationUpdate", e)
-            val fallback = getLastKnownLocationFallback(appContext)
-            publishHeartbeat(appContext, fallback, force = true)
+            val fb = getLastKnownLocationFallback(appContext)
+            publishHeartbeat(appContext, fb, force = true)
             onComplete?.invoke(true)
         }
     }
@@ -1033,20 +1130,25 @@ object ThorRadarManager {
         val displayName = getMyDisplayName(userId, userName)
         val myUserId = if (docName == "ali") "user_ali_02" else "user_kevin_01"
         val now = System.currentTimeMillis()
-        val updateMap = mapOf(
+        val updateMap = mapOf<String, Any>(
             "sosActive" to true,
             "sosTimestamp" to now
         )
 
-        db.collection("locations").document(safeCoupleId)
-            .collection("users").document(docName)
-            .set(updateMap, SetOptions.merge())
-            .addOnSuccessListener {
-                Log.d(TAG, "Alerta SOS guardada exitosamente en Firestore para $docName")
-            }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "Error guardando alerta SOS en Firestore", e)
-            }
+        try {
+            val rtdb = getDatabase()
+            rtdb.reference.child("locations").child(safeCoupleId)
+                .child("users").child(docName)
+                .updateChildren(updateMap)
+                .addOnSuccessListener {
+                    Log.d(TAG, "Alerta SOS guardada exitosamente en RTDB para $docName")
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Error guardando alerta SOS en RTDB", e)
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error accediendo a RTDB para SOS", e)
+        }
 
         // Enviar notificación FCM de emergencia
         sendEmergencyNotification(context, safeCoupleId, myUserId, displayName)
@@ -1055,14 +1157,22 @@ object ThorRadarManager {
     fun cancelSos(coupleId: String, userId: String) {
         val safeCoupleId = normalizeCoupleId(coupleId)
         val docName = getMyDocName(userId, null)
-        val updateMap = mapOf(
+        val updateMap = mapOf<String, Any>(
             "sosActive" to false,
             "sosTimestamp" to 0L
         )
 
-        db.collection("locations").document(safeCoupleId)
-            .collection("users").document(docName)
-            .set(updateMap, SetOptions.merge())
+        try {
+            val rtdb = getDatabase()
+            rtdb.reference.child("locations").child(safeCoupleId)
+                .child("users").child(docName)
+                .updateChildren(updateMap)
+                .addOnSuccessListener {
+                    Log.d(TAG, "Alerta SOS cancelada en RTDB para $docName")
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cancelando SOS en RTDB", e)
+        }
     }
 
     private fun sendEmergencyNotification(context: Context, coupleId: String, senderId: String, senderName: String) {
@@ -1327,6 +1437,7 @@ object ThorRadarManager {
         senderId: String,
         senderName: String,
         partnerName: String,
+        isSilent: Boolean = true,
         onComplete: ((Boolean) -> Unit)? = null
     ) {
         val safeCoupleId = normalizeCoupleId(coupleId)
@@ -1334,25 +1445,28 @@ object ThorRadarManager {
         val targetDoc = if (isSenderAli) "kevin" else "ali"
         val now = System.currentTimeMillis()
 
-        // 1. Dual Ping: Registro en Firestore para respuesta instantánea (0ms) si la app de la pareja está abierta
+        // 1. Dual Ping: Registro en Realtime Database para respuesta instantánea (<50ms) si la app de la pareja está abierta
         try {
             val pingMap = mapOf(
                 "requestedAt" to now,
                 "requestedBy" to senderName,
                 "senderId" to senderId,
-                "targetDoc" to targetDoc
+                "targetDoc" to targetDoc,
+                "silent" to isSilent,
+                "is_silent" to isSilent
             )
-            db.collection("locations").document(safeCoupleId)
-                .collection("pings").document(targetDoc)
-                .set(pingMap, SetOptions.merge())
+            val rtdb = getDatabase()
+            rtdb.reference.child("locations").child(safeCoupleId)
+                .child("pings").child(targetDoc)
+                .setValue(pingMap)
                 .addOnSuccessListener {
-                    Log.d(TAG, "⚡ [DUAL PING] Firestore ping registrado para $targetDoc")
+                    Log.d(TAG, "⚡ [DUAL PING] RTDB ping registrado para $targetDoc (isSilent=$isSilent)")
                 }
                 .addOnFailureListener { e ->
-                    Log.w(TAG, "Error registrando ping en Firestore: ${e.message}")
+                    Log.w(TAG, "Error registrando ping en RTDB: ${e.message}")
                 }
         } catch (e: Exception) {
-            Log.w(TAG, "Error registrando ping Firestore", e)
+            Log.w(TAG, "Error registrando ping RTDB", e)
         }
 
         // 2. Dual Ping: Magic Packet Wake-on-LAN vía FCM push prioritario (despierta el celular si la app está en segundo plano o cerrada)
@@ -1374,8 +1488,12 @@ object ThorRadarManager {
                         put("type", "radar_ping")
                         put("magic_packet", "WOL_LOCATION_WAKEUP")
                         put("timestamp", now.toString())
-                        put("title", "📍 Actualización de Thor Radar")
-                        put("body", "¡$senderName ha solicitado tu ubicación en vivo!")
+                        put("silent", if (isSilent) "true" else "false")
+                        put("is_silent", if (isSilent) "true" else "false")
+                        if (!isSilent) {
+                            put("title", "📍 Actualización de Thor Radar")
+                            put("body", "¡$senderName ha solicitado tu ubicación en vivo!")
+                        }
                     }
                     put("data", data)
                     val android = JSONObject().apply {

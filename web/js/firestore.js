@@ -2,9 +2,19 @@
 // FIRESTORE ENGINE & REALTIME LISTENERS
 // ==========================================
 
-import { db } from './firebase-config.js';
+import { db, rtdb } from './firebase-config.js';
 import { state, getFirestoreCollection, mergeSpiritTypes } from './state.js';
-import { defaultSpiritsList, defaultCategories, defaultSpiritTypesT1, defaultSpiritTypesT2, defaultNames } from './constants.js';
+import { 
+  defaultSpiritsList, 
+  defaultCategories, 
+  defaultSpiritsListT1, 
+  defaultSpiritsListT2, 
+  defaultCategoriesT1, 
+  defaultCategoriesT2, 
+  defaultSpiritTypesT1, 
+  defaultSpiritTypesT2, 
+  defaultNames 
+} from './constants.js';
 import { sendWsMessage } from './websocket.js';
 
 let firestoreUnsubscribe = null;
@@ -204,16 +214,18 @@ export function listenFirestore(onDataUpdated) {
           if (parsedCategories.length > 0) {
             state.categories = parsedCategories;
           } else {
-            state.categories = state.currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategories)) : [];
+            state.categories = state.currentSeason === 1 
+              ? JSON.parse(JSON.stringify(defaultCategoriesT1)) 
+              : JSON.parse(JSON.stringify(defaultCategoriesT2));
           }
 
           const idsInCategories = new Set();
           state.categories.forEach(cat => cat.spiritIds.forEach(id => idsInCategories.add(id)));
 
-          if (data.spirits_list && Array.isArray(data.spirits_list)) {
+          if (data.spirits_list && Array.isArray(data.spirits_list) && data.spirits_list.length > 0) {
             state.spiritsList = Array.from(new Set([...data.spirits_list, ...idsInCategories])).sort((a, b) => parseInt(a) - parseInt(b));
           } else {
-            state.spiritsList = state.currentSeason === 1 ? [...defaultSpiritsList] : [];
+            state.spiritsList = state.currentSeason === 1 ? [...defaultSpiritsListT1] : [...defaultSpiritsListT2];
           }
         }
       } else {
@@ -222,8 +234,10 @@ export function listenFirestore(onDataUpdated) {
         state.kevinMastery = [];
         state.aliMastery = [];
         if (state.currentMode !== "edit") {
-          state.spiritsList = state.currentSeason === 1 ? [...defaultSpiritsList] : [];
-          state.categories = state.currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategories)) : [];
+          state.spiritsList = state.currentSeason === 1 ? [...defaultSpiritsListT1] : [...defaultSpiritsListT2];
+          state.categories = state.currentSeason === 1 
+            ? JSON.parse(JSON.stringify(defaultCategoriesT1)) 
+            : JSON.parse(JSON.stringify(defaultCategoriesT2));
           state.customNames = {};
           state.customCategories = {};
         }
@@ -250,17 +264,22 @@ export function listenFirestore(onDataUpdated) {
       updateDbStatusBadge(false, false);
     });
 
-  // Escuchar radar
-  if (radarUnsubscribe) radarUnsubscribe();
-  radarUnsubscribe = db.collection("locations").doc(state.coupleId).collection("users")
-    .onSnapshot({ includeMetadataChanges: true }, snapshot => {
-      snapshot.forEach(doc => {
-        if (doc.id === "kevin" || doc.id === "ali") {
-          state.radarUsersData[doc.id] = doc.data();
-        }
-      });
-      if (onDataUpdated && state.currentMode === "radar") onDataUpdated();
-    }, err => console.warn("Aviso radar users:", err));
+  // Escuchar radar en Realtime Database
+  if (radarUnsubscribe) {
+    if (typeof radarUnsubscribe === 'function') radarUnsubscribe();
+    else if (radarUnsubscribe.off) radarUnsubscribe.off();
+  }
+  const usersRef = rtdb.ref(`locations/${state.coupleId}/users`);
+  usersRef.on("value", snapshot => {
+    const val = snapshot.val() || {};
+    ['kevin', 'ali'].forEach(uKey => {
+      if (val[uKey]) {
+        state.radarUsersData[uKey] = val[uKey];
+      }
+    });
+    if (onDataUpdated && state.currentMode === "radar") onDataUpdated();
+  }, err => console.warn("Aviso RTDB users en firestore.js:", err));
+  radarUnsubscribe = usersRef;
 
   if (radarZonesUnsubscribe) radarZonesUnsubscribe();
   radarZonesUnsubscribe = db.collection("locations").doc(state.coupleId).collection("zones")

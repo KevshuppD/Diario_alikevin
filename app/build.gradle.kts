@@ -12,8 +12,8 @@ android {
         applicationId = "calendario.kevshupp.diariokevinali"
         minSdk = 24
         targetSdk = 35
-        versionCode = 113
-        versionName = "1.7.68"
+        versionCode = 114
+        versionName = "1.7.69"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -97,6 +97,7 @@ dependencies {
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.database)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.messaging)

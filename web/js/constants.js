@@ -2,9 +2,11 @@
 // CONSTANTS & PALETTES - DIARIO ALI Y KEVIN
 // ==========================================
 
-export const defaultSpiritsList = Array.from({ length: 117 }, (_, i) => String(i + 1).padStart(2, '0'));
+export const defaultSpiritsListT1 = Array.from({ length: 141 }, (_, i) => String(i + 1).padStart(2, '0'));
+export const defaultSpiritsListT2 = Array.from({ length: 105 }, (_, i) => String(i + 1).padStart(2, '0'));
+export const defaultSpiritsList = defaultSpiritsListT1;
 
-export const defaultCategories = [
+export const defaultCategoriesT1 = [
   { name: "Espíritu de Batman", spiritIds: ["98", "99", "100", "101", "102", "103", "104"] },
   { name: "Espíritu de Agua", spiritIds: ["01", "02", "03", "04", "66", "67", "112"] },
   { name: "Espíritu de Tierra", spiritIds: ["09", "10", "11", "12", "70", "71", "114"] },
@@ -27,6 +29,31 @@ export const defaultCategories = [
   { name: "Espíritu de Bananín", spiritIds: ["129", "130", "131", "132", "133"] },
   { name: "Espíritu de Cubo", spiritIds: ["127", "128"] },
   { name: "Espíritu Especial/Invitado", spiritIds: ["13", "119", "120", "121", "140", "141"] }
+];
+export const defaultCategories = defaultCategoriesT1;
+
+export const defaultCategoriesT2 = [
+  { name: "Espíritu de Rex", spiritIds: ["01", "02", "03", "52", "71"] },
+  { name: "Espíritu Táctico", spiritIds: ["04", "05", "06", "51", "72"] },
+  { name: "Espíritu Agente", spiritIds: ["07", "08", "09", "53", "73"] },
+  { name: "Espíritu Game Boy", spiritIds: ["10", "11", "12", "54", "74"] },
+  { name: "Espíritu Conejo", spiritIds: ["13", "14", "15", "55", "75"] },
+  { name: "Espíritu Rey", spiritIds: ["16", "17", "18", "56", "76"] },
+  { name: "Espíritu Pícaro", spiritIds: ["19", "20", "21", "50", "77"] },
+  { name: "Espíritu Erizo", spiritIds: ["22", "23", "24", "61", "78"] },
+  { name: "Espíritu Oni", spiritIds: ["25", "26", "27", "60", "79"] },
+  { name: "Espíritu de Shadow", spiritIds: ["28", "29", "30", "58", "80"] },
+  { name: "Espíritu de Tails", spiritIds: ["31", "32", "33", "59", "81"] },
+  { name: "Espíritu de Sonic", spiritIds: ["34", "35", "36", "57", "82"] },
+  { name: "Espíritu Caballero", spiritIds: ["37", "38", "39", "40", "95"] },
+  { name: "Espíritu Onigiri", spiritIds: ["41", "42", "43", "44", "83"] },
+  { name: "Espíritu Científico", spiritIds: ["45", "46", "47", "48", "84"] },
+  { name: "Espíritu Especial/Invitado", spiritIds: ["49"] },
+  { name: "Espíritu de Blinky", spiritIds: ["62", "63", "64", "65", "66"] },
+  { name: "Espíritu de Cash Bandicoot", spiritIds: ["67", "68", "69", "70", "85"] },
+  { name: "Espíritu del Estanque", spiritIds: ["96", "97", "98", "99", "100"] },
+  { name: "Espíritu de Morgana", spiritIds: ["86", "87", "88", "89", "90"] },
+  { name: "Espíritu de Cumpleaños", spiritIds: ["101", "102", "103", "104", "105"] }
 ];
 
 export const defaultNames = [

@@ -62,6 +62,7 @@ class AlbumFragment : Fragment() {
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 var moments by remember { mutableStateOf(listOf<Message>()) }
                 var localPhotos by remember { mutableStateOf(listOf<LocalPhoto>()) }

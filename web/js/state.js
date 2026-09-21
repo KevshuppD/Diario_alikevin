@@ -2,10 +2,25 @@
 // CENTRAL APPLICATION STATE - DIARIO ALI Y KEVIN
 // ==========================================
 
-import { defaultSpiritTypesT1, defaultSpiritTypesT2, defaultSpiritsList, defaultCategories } from './constants.js';
+import { 
+  defaultSpiritTypesT1, 
+  defaultSpiritTypesT2, 
+  defaultSpiritsListT1, 
+  defaultSpiritsListT2, 
+  defaultCategoriesT1, 
+  defaultCategoriesT2 
+} from './constants.js';
+
+function normalizeCoupleId(id) {
+  const clean = (id || "").trim();
+  if (!clean || clean === "vinculo_unico_123" || clean === "vínculo_único_123") {
+    return "vínculo_único_123";
+  }
+  return clean;
+}
 
 export const state = {
-  coupleId: localStorage.getItem("coupleId") || "vínculo_único_123",
+  coupleId: normalizeCoupleId(localStorage.getItem("coupleId")),
   currentSeason: parseInt(localStorage.getItem("current_season") || "2", 10),
   currentMode: "normal",
   currentFilter: "todos",
@@ -73,9 +88,11 @@ export function mergeSpiritTypes(existingTypes, defaultTypes) {
 // Load cached data on boot
 try {
   const cachedData = JSON.parse(localStorage.getItem(`spirits_cache_${state.coupleId}_s${state.currentSeason}`));
-  if (cachedData) {
-    state.spiritsList = cachedData.spirits_list || [];
-    state.categories = cachedData.categories || [];
+  if (cachedData && cachedData.spirits_list && cachedData.spirits_list.length > 0) {
+    state.spiritsList = cachedData.spirits_list;
+    state.categories = (cachedData.categories && cachedData.categories.length > 0) 
+      ? cachedData.categories 
+      : (state.currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategoriesT1)) : JSON.parse(JSON.stringify(defaultCategoriesT2)));
     state.customNames = cachedData.custom_names || {};
     state.customCategories = cachedData.custom_categories || {};
     state.customImages = cachedData.custom_images || {};
@@ -85,9 +102,13 @@ try {
     state.kevinMastery = cachedData.kevin_mastery || [];
     state.aliMastery = cachedData.ali_mastery || [];
   } else {
+    state.spiritsList = state.currentSeason === 1 ? [...defaultSpiritsListT1] : [...defaultSpiritsListT2];
+    state.categories = state.currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategoriesT1)) : JSON.parse(JSON.stringify(defaultCategoriesT2));
     state.spiritTypes = state.currentSeason === 1 ? [...defaultSpiritTypesT1] : [...defaultSpiritTypesT2];
   }
 } catch(e) {
+  state.spiritsList = state.currentSeason === 1 ? [...defaultSpiritsListT1] : [...defaultSpiritsListT2];
+  state.categories = state.currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategoriesT1)) : JSON.parse(JSON.stringify(defaultCategoriesT2));
   state.spiritTypes = state.currentSeason === 1 ? [...defaultSpiritTypesT1] : [...defaultSpiritTypesT2];
 }
 

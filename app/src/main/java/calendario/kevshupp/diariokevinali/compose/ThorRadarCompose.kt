@@ -1,9 +1,10 @@
 package calendario.kevshupp.diariokevinali.compose
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
-import android.util.Log
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.ColorMatrix
@@ -11,9 +12,11 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
+import android.os.BatteryManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.util.Log
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.widget.Toast
@@ -67,6 +70,9 @@ import androidx.compose.ui.window.DialogProperties
 import calendario.kevshupp.diariokevinali.*
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.delay
@@ -263,7 +269,7 @@ fun ThorRadarScreen(
         }
     }
 
-    // Configurar Osmdroid y servicio de fondo
+    // Configurar Osmdroid, servicio de fondo y estado de batería fresca
     LaunchedEffect(Unit) {
         Configuration.getInstance().load(context, context.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
         Configuration.getInstance().userAgentValue = context.packageName
@@ -272,7 +278,9 @@ fun ThorRadarScreen(
         if (isSharingLocation && PermissionHelper.hasLocationPermission(context)) {
             ThorRadarService.startService(context)
         }
-        // Emitir ubicación fresca una sola vez
+        // Emitir ubicación y batería fresca inmediatamente
+        val batteryInfo = ThorRadarManager.getBatteryStatus(context)
+        ThorRadarManager.publishBatteryUpdate(context, batteryInfo.first, batteryInfo.second)
         ThorRadarManager.forceLocationUpdate(context)
 
         // Enfoque On-Demand: Al abrir la pantalla de Radar, solicitar ubicación fresca a la pareja vía Magic Packet WOL
@@ -281,24 +289,30 @@ fun ThorRadarScreen(
             coupleId = coupleId,
             senderId = currentUserId,
             senderName = myDisplayName,
-            partnerName = partnerName
+            partnerName = partnerName,
+            isSilent = true
         )
     }
 
-    // Escuchar datos de Firestore en tiempo real
+    // Escuchar datos en tiempo real (RTDB para usuarios/telemetría/pings, Firestore para Zonas Seguras)
     DisposableEffect(coupleId, myDocName, partnerDocName) {
+        val rtdb = ThorRadarManager.getDatabase()
+        val locNode = rtdb.reference.child("locations").child(coupleId)
+
         val db = FirebaseFirestore.getInstance()
         val locRef = db.collection("locations").document(coupleId)
 
-        // Escuchar mi ubicación
-        val myListener: ListenerRegistration = locRef.collection("users").document(myDocName)
-            .addSnapshotListener { snapshot, error ->
-                if (error == null && snapshot != null && snapshot.exists()) {
-                    val data = RadarLocationData.fromDocument(snapshot)
+        // 1. Escuchar mi ubicación en RTDB
+        val myUserRef = locNode.child("users").child(myDocName)
+        val myListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    val data = RadarLocationData.fromDataSnapshot(snapshot)
                     myLocationData = data
                     ThorRadarManager.saveCachedLocation(context, myDocName, data)
 
-                    val remoteSharing = snapshot.getBoolean("isSharing")
+                    val remoteSharing = snapshot.child("isSharing").getValue(Boolean::class.java)
+                        ?: snapshot.child("isSharingLocation").getValue(Boolean::class.java)
                     if (remoteSharing != null && remoteSharing != isSharingLocation) {
                         isSharingLocation = remoteSharing
                         val prefs = context.getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
@@ -307,21 +321,34 @@ fun ThorRadarScreen(
                 }
             }
 
-        // Escuchar ubicación de la pareja
-        val partnerListener: ListenerRegistration = locRef.collection("users").document(partnerDocName)
-            .addSnapshotListener { snapshot, error ->
-                if (error == null && snapshot != null && snapshot.exists()) {
-                    val data = RadarLocationData.fromDocument(snapshot)
+            override fun onCancelled(error: DatabaseError) {
+                Log.w("ThorRadarCompose", "Error escuchando mi ubicación RTDB: ${error.message}")
+            }
+        }
+        myUserRef.addValueEventListener(myListener)
+
+        // 2. Escuchar la ubicación de mi pareja en RTDB
+        val partnerUserRef = locNode.child("users").child(partnerDocName)
+        val partnerListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    val data = RadarLocationData.fromDataSnapshot(snapshot)
                     partnerLocationData = data
                     ThorRadarManager.saveCachedLocation(context, partnerDocName, data)
                 }
             }
 
-        // Escuchar Zonas Seguras
-        val zonesListener: ListenerRegistration = locRef.collection("zones")
-            .addSnapshotListener { snapshots, error ->
-                if (error == null && snapshots != null) {
-                    val list = snapshots.documents.mapNotNull { doc ->
+            override fun onCancelled(error: DatabaseError) {
+                Log.w("ThorRadarCompose", "Error escuchando pareja RTDB: ${error.message}")
+            }
+        }
+        partnerUserRef.addValueEventListener(partnerListener)
+
+        // 3. Escuchar Zonas Seguras en Firestore
+        val zonesListener = locRef.collection("zones")
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null) {
+                    val list = snapshot.documents.mapNotNull { doc ->
                         RadarPlaceZone.fromMap(doc.data?.plus("id" to doc.id))
                     }
                     placeZones = list
@@ -330,23 +357,74 @@ fun ThorRadarScreen(
                 }
             }
 
-        // Escuchar solicitudes de ping remoto en tiempo real vía Firestore
-        val pingListener: ListenerRegistration = locRef.collection("pings").document(myDocName)
-            .addSnapshotListener { snapshot, error ->
-                if (error == null && snapshot != null && snapshot.exists()) {
-                    val reqTime = snapshot.getLong("requestedAt") ?: 0L
+        // 4. Escuchar solicitudes de ping remoto en tiempo real vía RTDB
+        val pingRef = locNode.child("pings").child(myDocName)
+        val pingListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    val reqTime = (snapshot.child("requestedAt").value as? Number)?.toLong() ?: 0L
                     if (reqTime > 0L && (System.currentTimeMillis() - reqTime) < 60_000L) {
-                        Log.d("ThorRadarCompose", "⚡ Solicitud de ping recibida vía Firestore. Actualizando ubicación...")
+                        Log.d("ThorRadarCompose", "⚡ Solicitud de ping recibida vía RTDB. Actualizando ubicación...")
                         ThorRadarManager.handleMagicLocationPing(context)
                     }
                 }
             }
 
+            override fun onCancelled(error: DatabaseError) {
+                Log.w("ThorRadarCompose", "Error escuchando ping RTDB: ${error.message}")
+            }
+        }
+        pingRef.addValueEventListener(pingListener)
+
+        // 5. Receiver de batería local en pantalla para cambios instantáneos
+        val screenBatteryReceiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, intent: Intent?) {
+                if (c == null || intent == null) return
+                val action = intent.action ?: return
+                if (action == Intent.ACTION_BATTERY_CHANGED ||
+                    action == Intent.ACTION_POWER_CONNECTED ||
+                    action == Intent.ACTION_POWER_DISCONNECTED
+                ) {
+                    val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                    val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                    var batteryPct = if (level >= 0 && scale > 0) ((level / scale.toFloat()) * 100).toInt() else -1
+                    val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                    val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
+                    val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                            status == BatteryManager.BATTERY_STATUS_FULL ||
+                            plugged > 0
+
+                    if (batteryPct < 0) {
+                        val bm = c.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+                        batteryPct = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+                    }
+
+                    if (batteryPct >= 0) {
+                        ThorRadarManager.publishBatteryUpdate(c, batteryPct, isCharging)
+                    }
+                }
+            }
+        }
+
+        var isBatteryRecRegistered = false
+        try {
+            val filter = IntentFilter().apply {
+                addAction(Intent.ACTION_BATTERY_CHANGED)
+                addAction(Intent.ACTION_POWER_CONNECTED)
+                addAction(Intent.ACTION_POWER_DISCONNECTED)
+            }
+            context.registerReceiver(screenBatteryReceiver, filter)
+            isBatteryRecRegistered = true
+        } catch (_: Exception) {}
+
         onDispose {
-            myListener.remove()
-            partnerListener.remove()
+            if (isBatteryRecRegistered) {
+                try { context.unregisterReceiver(screenBatteryReceiver) } catch (_: Exception) {}
+            }
+            myUserRef.removeEventListener(myListener)
+            partnerUserRef.removeEventListener(partnerListener)
+            pingRef.removeEventListener(pingListener)
             zonesListener.remove()
-            pingListener.remove()
         }
     }
 
@@ -710,23 +788,30 @@ fun ThorRadarScreen(
                 }
             },
             onPingPartner = {
-                Toast.makeText(context, "⚡ Sincronizando ubicación de $partnerName...", Toast.LENGTH_SHORT).show()
+                val isStale = partnerLocationData.timestamp == 0L || (System.currentTimeMillis() - partnerLocationData.timestamp) >= 15 * 60 * 1000L
+                val isSilent = !isStale
+                if (isSilent) {
+                    Toast.makeText(context, "⚡ Sincronizando ubicación silenciosamente...", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "🔔 Solicitando ubicación a $partnerName...", Toast.LENGTH_SHORT).show()
+                }
+                ThorRadarManager.forceLocationUpdate(context)
                 ThorRadarManager.sendLocationRequestPing(
                     context = context,
                     coupleId = coupleId,
                     senderId = currentUserId,
                     senderName = myDisplayName,
-                    partnerName = partnerName
+                    partnerName = partnerName,
+                    isSilent = isSilent
                 ) { fcmSuccess ->
-                    // El Firestore ping ya fue enviado independientemente del FCM.
-                    // Mostrar confirmación siempre — si el FCM falló, la señal llegó igual
-                    // vía Firestore a la app de la pareja si estaba abierta.
-                    Toast.makeText(
-                        context,
-                        if (fcmSuccess) "📡 Señal enviada: actualizando radar de $partnerName..."
-                        else "📡 Señal Firestore enviada a $partnerName",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    val msg = if (isSilent) {
+                        if (fcmSuccess) "📡 Señal silenciosa enviada a $partnerName"
+                        else "📡 Solicitud enviada a $partnerName"
+                    } else {
+                        if (fcmSuccess) "🔔 Notificación enviada a $partnerName"
+                        else "📡 Solicitud enviada a $partnerName"
+                    }
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                 }
             }
         )

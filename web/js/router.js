@@ -92,8 +92,6 @@ export function setMode(mode) {
 
 export function switchModeSPA(mode, updateUrl = true) {
   if (mode === "db") mode = "normal";
-  if (state.currentMode === mode && !updateUrl) return;
-
   setMode(mode);
 
   if (updateUrl) {
@@ -117,19 +115,27 @@ export function switchSeason(season) {
   if (btnS1) btnS1.classList.toggle("active", sNum === 1);
   if (btnS2) btnS2.classList.toggle("active", sNum === 2);
 
-  // Re-escuchar Firestore para la nueva temporada
-  listenFirestore();
+  // Re-escuchar Firestore para la nueva temporada y renderizar vista activa
+  listenFirestore(() => {
+    setMode(state.currentMode);
+  });
 }
 
 export function initRouter() {
+  const sNum = state.currentSeason || 2;
+  const btnS1 = document.getElementById("btn-season-1");
+  const btnS2 = document.getElementById("btn-season-2");
+  if (btnS1) btnS1.classList.toggle("active", sNum === 1);
+  if (btnS2) btnS2.classList.toggle("active", sNum === 2);
+
   window.addEventListener('popstate', (e) => {
     const route = e.state?.mode || getRouteFromPath(window.location.pathname);
-    switchModeSPA(route, false);
+    setMode(route);
   });
 
-  // Enrutamiento inicial al cargar la página
+  // Enrutamiento inicial garantizado al cargar la página
   const initialRoute = getRouteFromPath(window.location.pathname);
-  switchModeSPA(initialRoute, false);
+  setMode(initialRoute);
 }
 
 // Window bindings

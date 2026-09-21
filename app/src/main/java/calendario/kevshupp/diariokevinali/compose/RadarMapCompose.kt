@@ -41,6 +41,9 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
 import java.util.Locale
 import kotlin.math.roundToInt
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 
 /**
  * Animación cinemática suave para volar hacia un objetivo en el mapa.
@@ -160,37 +163,49 @@ fun PartnerLiveCard(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(
                             text = partnerName.uppercase(),
                             fontFamily = Vt323,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = textColor
+                            color = textColor,
+                            maxLines = 1
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Box(
                             modifier = Modifier
                                 .size(7.dp)
                                 .clip(CircleShape)
                                 .background(statusColor)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = statusText,
                             fontFamily = Vt323,
                             fontSize = 13.sp,
-                            color = statusColor
+                            color = statusColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Box(
                             modifier = Modifier
                                 .border(1.dp, if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100))
                                 .background(if (isDark) Color(0xFF332005) else Color(0xFFFFF3E0))
                                 .clickable { onPingPartner() }
-                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text("🔄 ACTUALIZAR", fontFamily = Vt323, fontSize = 11.sp, color = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100), fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "🔄",
+                                fontSize = 11.sp,
+                                color = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)
+                            )
                         }
                     }
 
@@ -448,11 +463,36 @@ fun RadarMapView(
         )
     }
 
-    // Ciclo de vida del MapView
-    DisposableEffect(Unit) {
+    // Ciclo de vida del MapView coordinado con el ciclo de vida de la actividad/pantalla
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, mapViewInstance) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    try {
+                        mapViewInstance?.onResume()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    try {
+                        mapViewInstance?.onPause()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
-            mapViewInstance?.onPause()
-            mapViewInstance?.onDetach()
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            try {
+                mapViewInstance?.onPause()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -520,6 +560,11 @@ fun RadarMapView(
                             GeoPoint(-33.4489, -70.6693) // Santiago fallback
                         }
                         controller.setCenter(startPoint)
+                        try {
+                            onResume()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                         mapViewInstance = this
                     }
                 },

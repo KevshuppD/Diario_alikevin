@@ -127,7 +127,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  initFirestore();
-  initWebSocket();
+  const renderCurrent = () => {
+    if (typeof window.setMode === 'function') {
+      window.setMode(state.currentMode || 'normal');
+    }
+  };
+
+  initFirestore(renderCurrent);
+  initWebSocket(renderCurrent);
   initRouter();
 });

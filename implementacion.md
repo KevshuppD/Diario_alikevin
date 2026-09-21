@@ -1,51 +1,181 @@
-# 📋 Tareas Pendientes y Estado de Implementación (Thor Radar & Dispositivos)
+# 🧭 Plan de Implementación: Firebase Realtime Database para Thor Radar
 
-Fecha: 2026-09-20 (v1.7.65)
-
----
-
-## 📌 1. Problemas Reportados por el Usuario para Próxima Sesión
-
-### A. Fallo en "Ping Magic Packet"
-- **Síntoma**: Al presionar `⚡ Ping Magic Packet` desde la web (`/radar`), el celular no reacciona ni actualiza el fix GPS a pesar de indicar que el radar está activo.
-- **Causas Identificadas a Investigar y Resolver**:
-  1. **Notificación Desechable (No Persistente / No Ongoing)**: 
-     - La notificación del servicio `ThorRadarService` actualmente permite ser deslizada/borrada (`dismissible`), lo que sugiere que no está configurada como `setOngoing(true)` / Foreground Service persistente estricto.
-     - Al ser descartable o no estar anclada, el sistema Android (Doze Mode / Memory Killer) congela o mata el proceso en segundo plano, impidiendo que escuche `locations/<coupleId>/pings/<user>` o que reciba intents locales.
-  2. **Wake-on-LAN vía FCM Data Push**:
-     - Cuando la app está cerrada o en segundo plano profundo, Firestore snapshots no se ejecutan porque el socket de Firestore se suspende.
-     - El envío de FCM Magic Packet (`radar_ping` / `WOL_LOCATION_WAKEUP`) debe ser emitido desde el backend web / Cloud Function hacia el topic de FCM con `priority: HIGH` y sin clave `notification` (solo `data` pura) para que `MyFirebaseMessagingService.onMessageReceived` despierte el dispositivo silenciosamente, adquiera WakeLock y ejecute `handleMagicLocationPing(context)`.
-  3. **Escuchador de Pings en Foreground y Background**:
-     - Asegurar que `ThorRadarService` mantenga su propio `pingListener` activo mientras el servicio en primer plano esté vivo, además del listener de `MainActivity`.
+Este documento detalla la arquitectura, configuración, estructura de datos y pasos exactos para migrar la transmisión de telemetría y coordenadas en tiempo real de **Thor Radar** desde **Cloud Firestore** a **Firebase Realtime Database (RTDB)**.
 
 ---
 
-## 🛠️ 2. Plan de Acción Técnico para la Próxima Sesión
+## 🎯 1. Fundamento Técnico y Beneficios
 
-1. **Blindaje de `ThorRadarService` (Foreground Service Persistente)**:
-   - Configurar la notificación de `ThorRadarService` con:
-     - `setOngoing(true)`
-     - `setAutoCancel(false)`
-     - `setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)`
-     - `START_STICKY` en `onStartCommand`
-   - Agregar `pingListener` dentro del propio ciclo de vida de `ThorRadarService` para responder a pings de Firestore mientras el servicio esté activo, independientemente de si la UI (`MainActivity`) está visible.
+| Característica | 🟧 Cloud Firestore | 🟨 Firebase Realtime Database (RTDB) |
+| :--- | :--- | :--- |
+| **Métrica de Límite (Spark)** | Por Operación (**Máx 20.000 escrituras / día**) | Por Ancho de Banda (**Máx 10 GB / mes**, escrituras **ilimitadas**) |
+| **Consumo GPS Continuo** | Alto riesgo de agotar la cuota diaria de la app | **Insignificante** (~1.5 MB en 4h de rastreo continuo) |
+| **Latencia de transmisión** | 200 - 500 ms | **< 100 ms** (WebSocket persistente nativo) |
+| **Detección de Desconexión** | Requiere heartbeats por tiempo / timeouts | **Presencia Nativa** con `.info/connected` y `onDisconnect()` |
 
-2. **Integración de FCM Push Magic Packet desde la Web (`/api/send-magic-ping`)**:
-   - Agregar un endpoint en `web/server.js` (o Firebase Admin / FCM HTTP v1) que emita el paquete FCM `priority: "HIGH"` directo al topic `diario_<coupleId>` con `{ "magic_packet": "WOL_LOCATION_WAKEUP", "targetDoc": userKey }`.
-   - Así, si la app está en sueño profundo (Doze mode) o cerrada, FCM despierta el teléfono en 0ms y `MyFirebaseMessagingService` ejecuta `ThorRadarManager.handleMagicLocationPing(this)` con WakeLock.
-
-3. **Verificación de la Notificación de Radar**:
-   - Asegurar que la notificación muestre en vivo el estado real del radar (`🟢 Thor Radar: Transmitiendo ubicación` vs `🛑 Thor Radar: En pausa`) y que no pueda ser eliminada accidentalmente mientras el radar esté encendido.
+### 💡 Arquitectura Híbrida Adoptada:
+- **Cloud Firestore**: Permanece para datos estáticos y persistentes (Cartas, Mascotas, Horario, Medicamentos, Recetas, Ficha Médica y **Zonas Seguras**).
+- **Firebase Realtime Database**: Maneja exclusivamente la telemetría en vivo, coordenadas, velocidad, batería, alertas SOS instantáneas y pings remotos.
 
 ---
 
-## 📦 3. Cambios Realizados en v1.7.65
+## 🔑 2. Credenciales y Configuración de Firebase
 
-- **Web**:
-  - Panel de control y monitoreo de dispositivos (`/radar`) con estado de Kevin y Ali.
-  - Sincronización en vivo constante cada 1 segundo (0 lag / sin necesidad de refrescar manualmente).
-  - Escuchadores Firestore con `includeMetadataChanges: true` y mutación de estado optimista en 0ms para botones de encendido/apagado, desconexión y alertas SOS.
-  - Diseño responsivo adaptativo para pantalla dividida (50% / media pantalla) y móviles: badges sin desbordamiento (`white-space: nowrap`), botones balanceados con `flex-grow` y tarjetas apilables en $< 1080$px.
-- **Android**:
-  - `MainActivity.kt`: Control remoto de `isSharing` y escuchador de `pings` de Firestore a nivel global.
-  - Bump de versión a `1.7.65` (Build `110`).
+- **URL Oficial de Realtime Database:**
+  ```text
+  https://diario-ali-kevin-default-rtdb.firebaseio.com/
+  ```
+- **Reglas de Seguridad (Pestaña "Rules" en Firebase Console):**
+  > [!IMPORTANT]
+  > Dado que la app utiliza autenticación propia con `userId` y vínculo de pareja (sin Firebase Auth), las reglas en la consola de Firebase Realtime Database deben permitir lectura y escritura para el nodo `locations`:
+  ```json
+  {
+    "rules": {
+      "locations": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+  ```
+
+---
+
+## 📦 3. Dependencias en Gradle (Ya preparadas)
+
+1. **`gradle/libs.versions.toml`:**
+   ```toml
+   [libraries]
+   firebase-database = { group = "com.google.firebase", name = "firebase-database" }
+   ```
+2. **`app/build.gradle.kts`:**
+   ```kotlin
+   dependencies {
+       implementation(platform(libs.firebase.bom))
+       implementation(libs.firebase.firestore)
+       implementation(libs.firebase.database)
+       // ...
+   }
+   ```
+
+---
+
+## 🌳 4. Esquema de Datos en Realtime Database
+
+```text
+locations/
+  └── <coupleId>/                     (ej. vínculo_único_123)
+        ├── users/
+        │     ├── kevin/
+        │     │     ├── userId: "user_kevin_01"
+        │     │     ├── userName: "Kevin"
+        │     │     ├── profileImageUrl: "..."
+        │     │     ├── latitude: -33.4372
+        │     │     ├── longitude: -70.6506
+        │     │     ├── accuracy: 8.5
+        │     │     ├── speedKmh: 24.5
+        │     │     ├── batteryLevel: 85
+        │     │     ├── isCharging: false
+        │     │     ├── activity: "IN_VEHICLE"
+        │     │     ├── currentZone: "Casa 🏠"
+        │     │     ├── address: "Av. Providencia 1234"
+        │     │     ├── timestamp: 1726865000000
+        │     │     ├── isSharing: true
+        │     │     ├── sosActive: false
+        │     │     ├── sosTimestamp: 0
+        │     │     └── isOnline: true
+        │     └── ali/
+        │           └── { ... }
+        └── pings/
+              ├── kevin/
+              │     ├── requestedAt: 1726865000000
+              │     ├── requestedBy: "Ali"
+              │     └── senderId: "user_ali_02"
+              └── ali/
+                    └── { ... }
+```
+
+---
+
+## 🛠️ 5. Pasos Concretos para Retomar
+
+### Paso 1: `ThorRadarManager.kt`
+1. **Instancia de Realtime Database:**
+   ```kotlin
+   const val RTDB_URL = "https://diario-ali-kevin-default-rtdb.firebaseio.com"
+
+   fun getDatabase(): FirebaseDatabase {
+       return try {
+           FirebaseDatabase.getInstance(RTDB_URL)
+       } catch (e: Exception) {
+           FirebaseDatabase.getInstance()
+       }
+   }
+   ```
+2. **Parser en `RadarLocationData`:**
+   Agregar `fromDataSnapshot(snapshot: DataSnapshot?)` para deserializar `Map<*, *>` o propiedades directas desde RTDB.
+3. **Emisión de Coordenadas (`publishHeartbeat`):**
+   Reemplazar `db.collection("locations")...set()` por:
+   ```kotlin
+   val rtdb = getDatabase()
+   val userRef = rtdb.reference.child("locations").child(safeCoupleId).child("users").child(docName)
+   userRef.updateChildren(firestoreMap)
+   ```
+4. **Presencia Automática (`setupPresence`):**
+   ```kotlin
+   val connectedRef = rtdb.reference.child(".info/connected")
+   connectedRef.addValueEventListener(object : ValueEventListener {
+       override fun onDataChange(snapshot: DataSnapshot) {
+           val connected = snapshot.getValue(Boolean::class.java) ?: false
+           if (connected) {
+               userRef.child("isOnline").onDisconnect().setValue(false)
+               userRef.child("isOnline").setValue(true)
+           }
+       }
+       override fun onCancelled(error: DatabaseError) {}
+   })
+   ```
+5. **SOS y Pings:**
+   - `triggerSos` / `cancelSos`: Actualizar `sosActive` y `sosTimestamp` en el nodo de usuario de RTDB.
+   - `sendLocationRequestPing`: Escribir en `locations/<coupleId>/pings/<targetDoc>`.
+
+---
+
+### Paso 2: `ThorRadarService.kt`
+Reemplazar `setupFirestoreListeners()` con listeners de Realtime Database:
+- `pingsRef = rtdb.reference.child("locations").child(coupleId).child("pings").child(myDocName)` ➔ `ValueEventListener`
+- `userRef = rtdb.reference.child("locations").child(coupleId).child("users").child(myDocName)` ➔ `ValueEventListener` (para control remoto de encendido/apagado).
+
+---
+
+### Paso 3: `MainActivity.kt`
+- Actualizar `setupSosListener()` para escuchar cambios de `sosActive` en RTDB (`locations/<coupleId>/users/<partnerDocName>`).
+- Actualizar `setupRadarRemoteControlListener()` para escuchar el switch remoto y solicitudes de ping en RTDB.
+
+---
+
+### Paso 4: `ThorRadarCompose.kt`
+- En el `DisposableEffect`, suscribirse mediante `ValueEventListener` a:
+  - `locations/<coupleId>/users/<myDocName>`
+  - `locations/<coupleId>/users/<partnerDocName>`
+  - `locations/<coupleId>/pings/<myDocName>`
+- Mantener las Zonas Seguras en Firestore (`locations/<coupleId>/zones`).
+
+---
+
+### Paso 5: Web de Gestión (`web/`)
+1. En `web/index.html` (y demás páginas):
+   ```html
+   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+   ```
+2. En `web/js/firebase-config.js`:
+   ```javascript
+   export const rtdb = firebase.database();
+   ```
+3. En `web/js/radar-view.js`:
+   Cambiar `db.collection("locations")...` por `rtdb.ref("locations/" + state.coupleId + "/users")`.
+
+---
+
+> [!NOTE]
+> Todo está preparado y documentado para continuar con la implementación en cualquier momento.

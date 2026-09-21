@@ -3,7 +3,15 @@
  */
 
 import { state } from './state.js';
-import { defaultNames, defaultSpiritsList, defaultCategories } from './constants.js';
+import { 
+  defaultNames, 
+  defaultSpiritsList, 
+  defaultCategories, 
+  defaultSpiritsListT1, 
+  defaultSpiritsListT2, 
+  defaultCategoriesT1, 
+  defaultCategoriesT2 
+} from './constants.js';
 import { triggerAutoSave } from './firestore.js';
 import { sendWsMessage } from './websocket.js';
 import { optimizeCloudinaryUrl } from './image-utils.js';
@@ -142,7 +150,8 @@ export function matchesFilter(id) {
 }
 
 export function updateStats() {
-  const activeSpirits = state.currentSeason === 1 ? (state.spiritsList.length > 0 ? state.spiritsList : defaultSpiritsList) : state.spiritsList;
+  const defaultList = state.currentSeason === 1 ? defaultSpiritsListT1 : defaultSpiritsListT2;
+  const activeSpirits = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : defaultList;
 
   const assignedIds = new Set();
   state.categories.forEach(cat => {
@@ -441,7 +450,8 @@ export function renderWorkspace() {
   const container = document.getElementById("categories-container");
   if (!container) return;
 
-  const activeSpirits = state.currentSeason === 1 ? (state.spiritsList.length > 0 ? state.spiritsList : defaultSpiritsList) : state.spiritsList;
+  const defaultList = state.currentSeason === 1 ? defaultSpiritsListT1 : defaultSpiritsListT2;
+  const activeSpirits = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : defaultList;
 
   container.innerHTML = "";
 

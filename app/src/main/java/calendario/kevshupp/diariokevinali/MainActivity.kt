@@ -64,6 +64,10 @@ import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.auth.oauth2.GoogleCredentials
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
@@ -421,6 +425,14 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         }
         btnHome.setOnClickListener {
             updateTabSelection(R.id.btnHome)
+            try {
+                val currentFrag = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
+                if (currentFrag != null) {
+                    supportFragmentManager.beginTransaction().remove(currentFrag).commitAllowingStateLoss()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             fragmentContainer.visibility = View.GONE
             composeFeed.visibility = View.VISIBLE
             inputArea.visibility = View.VISIBLE
@@ -429,12 +441,19 @@ class MainActivity : AppCompatActivity(), AppNavigation {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (supportFragmentManager.backStackEntryCount > 0) {
-                    supportFragmentManager.popBackStack()
+                if (fragmentContainer.visibility == View.VISIBLE) {
+                    try {
+                        val currentFrag = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
+                        if (currentFrag != null) {
+                            supportFragmentManager.beginTransaction().remove(currentFrag).commitAllowingStateLoss()
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    fragmentContainer.visibility = View.GONE
                     composeFeed.visibility = View.VISIBLE
                     inputArea.visibility = View.VISIBLE
                     btnMenuMore.visibility = View.VISIBLE
-                    fragmentContainer.visibility = View.GONE
                     updateTabSelection(R.id.btnHome)
                 } else {
                     isEnabled = false
@@ -554,15 +573,19 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     }
 
     private fun showFragment(f: androidx.fragment.app.Fragment) {
+        if (isFinishing || isDestroyed) return
         btnMenuMore.visibility = View.GONE
         composeFeed.visibility = View.GONE
         inputArea.visibility = View.GONE
         fragmentContainer.visibility = View.VISIBLE
         
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragmentContainer, f)
-            .addToBackStack(null)
-            .commit()
+        try {
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragmentContainer, f)
+                .commitAllowingStateLoss()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun setupDynamicMargins() {
@@ -782,21 +805,26 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         }
     }
 
-    private var sosListener: ListenerRegistration? = null
+    private var rtdbSosListener: ValueEventListener? = null
+    private var rtdbSosRef: DatabaseReference? = null
     private var lastSosTimestamp: Long = 0L
 
     private fun setupSosEmergencyListener() {
         val partnerDocName = if (ThorRadarManager.isAli(currentUserId, currentUserName)) "kevin" else "ali"
         val partnerDisplayName = if (ThorRadarManager.isAli(currentUserId, currentUserName)) "Kevin" else "Ali"
         val safeCoupleId = ThorRadarManager.normalizeCoupleId(currentCoupleId)
+        val rtdb = ThorRadarManager.getDatabase()
 
-        sosListener?.remove()
-        sosListener = db.collection("locations").document(safeCoupleId)
-            .collection("users").document(partnerDocName)
-            .addSnapshotListener { snapshot, error ->
-                if (error == null && snapshot != null && snapshot.exists()) {
-                    val isSos = snapshot.getBoolean("sosActive") ?: false
-                    val sosTs = snapshot.getLong("sosTimestamp") ?: 0L
+        rtdbSosListener?.let { rtdbSosRef?.removeEventListener(it) }
+        val partnerRef = rtdb.reference.child("locations").child(safeCoupleId)
+            .child("users").child(partnerDocName)
+        rtdbSosRef = partnerRef
+
+        rtdbSosListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    val isSos = snapshot.child("sosActive").getValue(Boolean::class.java) ?: false
+                    val sosTs = (snapshot.child("sosTimestamp").value as? Number)?.toLong() ?: 0L
                     if (isSos && sosTs > lastSosTimestamp && (System.currentTimeMillis() - sosTs) < 300_000L) {
                         lastSosTimestamp = sosTs
                         runOnUiThread {
@@ -808,7 +836,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                                 vibrator?.vibrate(1200L)
                             }
 
-                            AlertDialog.Builder(this)
+                            AlertDialog.Builder(this@MainActivity)
                                 .setTitle("🚨 ¡ALERTA SOS DE $partnerDisplayName!")
                                 .setMessage("¡$partnerDisplayName ha activado la alarma de emergencia en Thor Radar!\n¿Deseas abrir el mapa para ver su ubicación en vivo?")
                                 .setCancelable(false)
@@ -822,37 +850,50 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     }
                 }
             }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.w("MainActivity", "Error escuchando SOS en RTDB: ${error.message}")
+            }
+        }
+        partnerRef.addValueEventListener(rtdbSosListener!!)
     }
 
-    private var radarControlListener: ListenerRegistration? = null
-    private var radarPingListener: ListenerRegistration? = null
+    private var rtdbControlListener: ValueEventListener? = null
+    private var rtdbControlRef: DatabaseReference? = null
+    private var rtdbPingListener: ValueEventListener? = null
+    private var rtdbPingRef: DatabaseReference? = null
 
     private fun setupRadarRemoteControlListener() {
         val myDocName = if (ThorRadarManager.isAli(currentUserId, currentUserName)) "ali" else "kevin"
         val safeCoupleId = ThorRadarManager.normalizeCoupleId(currentCoupleId)
+        val rtdb = ThorRadarManager.getDatabase()
 
-        radarControlListener?.remove()
-        radarControlListener = db.collection("locations").document(safeCoupleId)
-            .collection("users").document(myDocName)
-            .addSnapshotListener { snapshot, error ->
-                if (error == null && snapshot != null && snapshot.exists()) {
-                    val remoteSharing = snapshot.getBoolean("isSharing")
+        rtdbControlListener?.let { rtdbControlRef?.removeEventListener(it) }
+        val userRef = rtdb.reference.child("locations").child(safeCoupleId)
+            .child("users").child(myDocName)
+        rtdbControlRef = userRef
+
+        rtdbControlListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    val remoteSharing = snapshot.child("isSharing").getValue(Boolean::class.java)
+                        ?: snapshot.child("isSharingLocation").getValue(Boolean::class.java)
                     if (remoteSharing != null) {
                         val prefs = getSharedPreferences("DiarioPrefs", Context.MODE_PRIVATE)
                         val currentLocalSharing = prefs.getBoolean("radar_is_sharing", true)
                         if (remoteSharing != currentLocalSharing) {
                             prefs.edit().putBoolean("radar_is_sharing", remoteSharing).apply()
                             if (!remoteSharing) {
-                                Log.d("MainActivity", "🛑 [REMOTE CONTROL] Thor Radar desactivado remotamente desde la Web/Firestore")
+                                Log.d("MainActivity", "🛑 [REMOTE CONTROL] Thor Radar desactivado remotamente desde RTDB")
                                 ThorRadarManager.stopLiveTracking()
-                                ThorRadarService.stopService(this)
+                                ThorRadarService.stopService(this@MainActivity)
                             } else {
-                                Log.d("MainActivity", "⚡ [REMOTE CONTROL] Thor Radar activado remotamente desde la Web/Firestore")
-                                if (PermissionHelper.hasLocationPermission(this)) {
+                                Log.d("MainActivity", "⚡ [REMOTE CONTROL] Thor Radar activado remotamente desde RTDB")
+                                if (PermissionHelper.hasLocationPermission(this@MainActivity)) {
                                     val isBatterySaver = prefs.getBoolean("radar_battery_saver", false)
                                     val interval = if (isBatterySaver) 60_000L else 30_000L
-                                    ThorRadarManager.startLiveTracking(this, interval, isForeground = false)
-                                    ThorRadarService.startService(this)
+                                    ThorRadarManager.startLiveTracking(this@MainActivity, interval, isForeground = false)
+                                    ThorRadarService.startService(this@MainActivity)
                                 }
                             }
                         }
@@ -860,24 +901,39 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                 }
             }
 
-        radarPingListener?.remove()
-        radarPingListener = db.collection("locations").document(safeCoupleId)
-            .collection("pings").document(myDocName)
-            .addSnapshotListener { snapshot, error ->
-                if (error == null && snapshot != null && snapshot.exists()) {
-                    val reqTime = snapshot.getLong("requestedAt") ?: 0L
+            override fun onCancelled(error: DatabaseError) {
+                Log.w("MainActivity", "Error escuchando control remoto RTDB: ${error.message}")
+            }
+        }
+        userRef.addValueEventListener(rtdbControlListener!!)
+
+        rtdbPingListener?.let { rtdbPingRef?.removeEventListener(it) }
+        val pingRef = rtdb.reference.child("locations").child(safeCoupleId)
+            .child("pings").child(myDocName)
+        rtdbPingRef = pingRef
+
+        rtdbPingListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    val reqTime = (snapshot.child("requestedAt").value as? Number)?.toLong() ?: 0L
                     if (reqTime > 0L && (System.currentTimeMillis() - reqTime) < 60_000L) {
-                        Log.d("MainActivity", "⚡ [MAGIC PACKET] Solicitud de ping recibida vía Firestore para $myDocName. Adquiriendo fix GPS fresco...")
-                        ThorRadarManager.handleMagicLocationPing(this)
+                        Log.d("MainActivity", "⚡ [MAGIC PACKET] Solicitud de ping recibida vía RTDB para $myDocName. Adquiriendo fix GPS fresco...")
+                        ThorRadarManager.handleMagicLocationPing(this@MainActivity)
                     }
                 }
             }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.w("MainActivity", "Error escuchando ping RTDB: ${error.message}")
+            }
+        }
+        pingRef.addValueEventListener(rtdbPingListener!!)
     }
 
     override fun onDestroy() {
-        sosListener?.remove()
-        radarControlListener?.remove()
-        radarPingListener?.remove()
+        rtdbSosListener?.let { rtdbSosRef?.removeEventListener(it) }
+        rtdbControlListener?.let { rtdbControlRef?.removeEventListener(it) }
+        rtdbPingListener?.let { rtdbPingRef?.removeEventListener(it) }
         networkStatusTracker?.stopListening()
         try {
             fcmExecutor.shutdown()
@@ -1104,10 +1160,15 @@ class MainActivity : AppCompatActivity(), AppNavigation {
 
     fun navigateToClickType(clickType: String?) {
         if (clickType.isNullOrBlank()) return
-        runOnUiThread {
-            // Limpiar la pila de fragmentos para llegar directo a la sección deseada
-            if (supportFragmentManager.backStackEntryCount > 0) {
-                supportFragmentManager.popBackStackImmediate(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
+        window.decorView.post {
+            if (isFinishing || isDestroyed) return@post
+            try {
+                // Limpiar la pila de fragmentos para llegar directo a la sección deseada
+                if (supportFragmentManager.backStackEntryCount > 0) {
+                    supportFragmentManager.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
 
             val target = clickType.trim().lowercase(Locale.ROOT)
