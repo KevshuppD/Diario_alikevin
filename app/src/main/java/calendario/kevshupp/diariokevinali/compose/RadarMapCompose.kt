@@ -48,12 +48,20 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 /**
  * Animación cinemática suave para volar hacia un objetivo en el mapa.
  */
-fun smoothFlyTo(map: MapView, target: GeoPoint, targetZoom: Double = 16.5) {
-    try {
-        map.controller.animateTo(target, targetZoom, 1100L)
-    } catch (e: Exception) {
-        map.controller.animateTo(target)
-        map.controller.setZoom(targetZoom)
+fun smoothFlyTo(map: MapView, target: GeoPoint, targetZoom: Double = 18.5) {
+    map.post {
+        try {
+            map.controller.animateTo(target, targetZoom, 1100L)
+        } catch (e: Exception) {
+            try {
+                map.controller.animateTo(target)
+                map.controller.setZoom(targetZoom)
+            } catch (_: Exception) {
+                try {
+                    map.controller.setCenter(target)
+                } catch (_: Exception) {}
+            }
+        }
     }
 }
 
@@ -410,20 +418,38 @@ fun RadarMapView(
                 minLat - latPad,
                 minLon - lonPad
             )
-            map.zoomToBoundingBox(box, animate, 90)
+            map.post {
+                try {
+                    val border = 90
+                    if (map.width > border * 2 && map.height > border * 2) {
+                        map.zoomToBoundingBox(box, animate, border)
+                    } else if (map.width > 20 && map.height > 20) {
+                        map.zoomToBoundingBox(box, animate, 10)
+                    } else {
+                        map.controller.setCenter(box.centerWithDateLine)
+                        map.controller.setZoom(15.0)
+                    }
+                } catch (e: Exception) {
+                    try {
+                        map.controller.setCenter(box.centerWithDateLine)
+                    } catch (_: Exception) {}
+                }
+            }
         } else if (hasPartner) {
-            smoothFlyTo(map, GeoPoint(partnerLocation.latitude, partnerLocation.longitude), 16.5)
+            smoothFlyTo(map, GeoPoint(partnerLocation.latitude, partnerLocation.longitude), 18.5)
         } else if (hasMy) {
-            smoothFlyTo(map, GeoPoint(myLocation.latitude, myLocation.longitude), 16.5)
+            smoothFlyTo(map, GeoPoint(myLocation.latitude, myLocation.longitude), 18.5)
         }
     }
 
     // Auto-centrar en ambas ubicaciones la primera vez que se cargan
-    LaunchedEffect(myLocation.latitude, partnerLocation.latitude) {
+    LaunchedEffect(mapViewInstance, myLocation.latitude, partnerLocation.latitude) {
         if (!hasAutoCentered && (myLocation.latitude != 0.0 || partnerLocation.latitude != 0.0)) {
-            mapViewInstance?.let {
-                centerBothLocations(animate = false)
-                hasAutoCentered = true
+            mapViewInstance?.let { map ->
+                map.post {
+                    centerBothLocations(animate = false)
+                    hasAutoCentered = true
+                }
             }
         }
     }
@@ -465,19 +491,27 @@ fun RadarMapView(
 
     // Ciclo de vida del MapView coordinado con el ciclo de vida de la actividad/pantalla
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, mapViewInstance) {
+    DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
+            val map = mapViewInstance
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     try {
-                        mapViewInstance?.onResume()
+                        map?.onResume()
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     try {
-                        mapViewInstance?.onPause()
+                        map?.onPause()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                Lifecycle.Event.ON_DESTROY -> {
+                    try {
+                        map?.onDetach()
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -490,6 +524,7 @@ fun RadarMapView(
             lifecycleOwner.lifecycle.removeObserver(observer)
             try {
                 mapViewInstance?.onPause()
+                mapViewInstance?.onDetach()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -618,7 +653,10 @@ fun RadarMapView(
                             icon = BitmapDrawable(context.resources, myMarkerBitmap)
                             infoWindow = null
                             setInfoWindow(null)
-                            setOnMarkerClickListener { _, _ -> true }
+                            setOnMarkerClickListener { _, _ ->
+                                smoothFlyTo(mapView, GeoPoint(myLocation.latitude, myLocation.longitude), 18.5)
+                                true
+                            }
                         }
                         mapView.overlays.add(myMarker)
                     }
@@ -632,7 +670,10 @@ fun RadarMapView(
                             icon = BitmapDrawable(context.resources, partnerMarkerBitmap)
                             infoWindow = null
                             setInfoWindow(null)
-                            setOnMarkerClickListener { _, _ -> true }
+                            setOnMarkerClickListener { _, _ ->
+                                smoothFlyTo(mapView, GeoPoint(partnerLocation.latitude, partnerLocation.longitude), 18.5)
+                                true
+                            }
                         }
                         mapView.overlays.add(partnerMarker)
                     }
@@ -675,7 +716,7 @@ fun RadarMapView(
                 ) {
                     if (partnerLocation.latitude != 0.0) {
                         mapViewInstance?.let { map ->
-                            smoothFlyTo(map, GeoPoint(partnerLocation.latitude, partnerLocation.longitude), 16.5)
+                            smoothFlyTo(map, GeoPoint(partnerLocation.latitude, partnerLocation.longitude), 18.5)
                         }
                     } else {
                         Toast.makeText(context, "Ubicación de $partnerName no disponible", Toast.LENGTH_SHORT).show()
@@ -691,7 +732,7 @@ fun RadarMapView(
                 ) {
                     if (myLocation.latitude != 0.0) {
                         mapViewInstance?.let { map ->
-                            smoothFlyTo(map, GeoPoint(myLocation.latitude, myLocation.longitude), 16.5)
+                            smoothFlyTo(map, GeoPoint(myLocation.latitude, myLocation.longitude), 18.5)
                         }
                     } else {
                         Toast.makeText(context, "Tu ubicación GPS no está disponible", Toast.LENGTH_SHORT).show()

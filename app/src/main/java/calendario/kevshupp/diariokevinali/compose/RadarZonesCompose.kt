@@ -380,6 +380,15 @@ fun AddEditZoneDialog(
 
     var mapViewRef by remember { mutableStateOf<MapView?>(null) }
 
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                mapViewRef?.onPause()
+                mapViewRef?.onDetach()
+            } catch (_: Exception) {}
+        }
+    }
+
     val emojis = listOf("🏠", "🎓", "💼", "🏋️", "☕", "🍔", "🛒", "❤️", "🌲", "🏥", "🎮", "🚗", "✈️", "🏖️", "🐾")
 
     // Geocodificación inversa automática al cambiar coordenadas
@@ -670,6 +679,9 @@ fun AddEditZoneDialog(
                                         false
                                     }
 
+                                    try {
+                                        onResume()
+                                    } catch (_: Exception) {}
                                     mapViewRef = this
                                 }
                             },
