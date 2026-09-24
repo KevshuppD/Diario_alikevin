@@ -407,7 +407,7 @@ graph TD
    - **Marcadores con Fotos de Perfil Reales:** Renderizado asíncrono con Coil (`allowHardware(false)`) y `BitmapShader` para recortar en círculo perfecto las fotos de Kevin y Ali dentro de pines vectoriales con anillos temáticos (Azul para ti, Rosa para tu pareja, y Rojo Neón pulsante si SOS está activo).
 
 4. **Sistema de Alerta de Emergencia SOS:**
-   - **Notificaciones Push de Alta Prioridad (FCM v1):** Envío directo al proyecto `diario-pareja-a2d35` y topic `diario_vinculo_unico_123` con canal prioritario `diario_channel`.
+   - **Notificaciones Push de Alta Prioridad (FCM v1):** Envío directo al proyecto `diario-ali-kevin` y topic `diario_vinculo_unico_123` con canal prioritario `diario_channel`.
    - **Listener en Tiempo Real en la App (`MainActivity.kt`):** Escucha instantánea del documento de la pareja. En cuanto se activa la alerta, el dispositivo receptor vibra y despliega un cuadro emergente de emergencia con el botón directo `[ VER EN MAPA ]`.
    - **Cuenta Regresiva de Seguridad y Cancelación:** Diálogo visual con cuenta atrás de 3 segundos (`[ ❌ CANCELAR ]` / `[ 🚨 ENVIAR YA ]`), banner rojo pulsante y botón de desactivación segura (`[ ✅ DESACTIVAR SOS (ESTOY BIEN) ]`).
 

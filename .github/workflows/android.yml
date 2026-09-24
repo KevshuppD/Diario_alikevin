@@ -42,11 +42,26 @@ jobs:
       - name: Build Release APK
         run: ./gradlew assembleRelease --no-daemon --parallel --build-cache
 
+      - name: Extract Release Notes
+        id: release_notes
+        run: |
+          TAG_MSG=$(git tag -l --format='%(contents)' "${{ github.ref_name }}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+          if [ -z "$TAG_MSG" ]; then
+            TAG_MSG=$(git log -1 --pretty=%B | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+          fi
+          if [ -z "$TAG_MSG" ]; then
+            TAG_MSG="Novedades y mejoras en la versión ${{ github.ref_name }}."
+          fi
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAG_MSG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/apk/release/app-release.apk
           name: Release ${{ github.ref_name }}
+          body: ${{ steps.release_notes.outputs.notes }}
           draft: false
           prerelease: false
         env:
@@ -56,6 +71,6 @@ jobs:
         if: success()
         run: |
           pip install google-auth requests
-          python3 .github/scripts/send_update_notification.py "${{ github.ref_name }}" "${{ github.repository }}"
+          python3 .github/scripts/send_update_notification.py "${{ github.ref_name }}" "${{ github.repository }}" "${{ steps.release_notes.outputs.notes }}"
         env:
           SERVICE_ACCOUNT_PATH: "app/src/main/assets/service-account.json"

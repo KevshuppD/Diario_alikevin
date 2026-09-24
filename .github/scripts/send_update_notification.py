@@ -34,6 +34,7 @@ def send_update_notification(tag_name: str, repo_name: str, release_notes: str =
     clean_tag = tag_name if tag_name.startswith("v") else f"v{tag_name}"
     title = "🚀 ¡Nueva actualización disponible!"
     body = f"Se ha publicado la versión {clean_tag}. Toca aquí para actualizar."
+    clean_notes = release_notes.strip() if release_notes and release_notes.strip().lower() != "null" else ""
 
     payload = {
         "message": {
@@ -48,7 +49,7 @@ def send_update_notification(tag_name: str, repo_name: str, release_notes: str =
                 "update_url": download_url,
                 "title": title,
                 "body": body,
-                "release_notes": release_notes[:500] if release_notes else ""
+                "release_notes": clean_notes[:500] if clean_notes else ""
             },
             "android": {
                 "priority": "HIGH",

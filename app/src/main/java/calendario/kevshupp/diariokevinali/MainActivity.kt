@@ -1116,15 +1116,15 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     private fun savePetDataToWidgetPrefs(p: Pet) {
         val prefs = getSharedPreferences("thor_widget_prefs", MODE_PRIVATE)
         prefs.edit()
-            .putString("pet_name", p.name)
+            .putString("pet_name", p.getActiveName())
             .putString("pet_type", p.petType)
-            .putInt("pet_level", p.level)
-            .putInt("pet_happiness", p.happiness)
+            .putInt("pet_level", p.getActiveLevel())
+            .putInt("pet_happiness", p.getActiveHappiness())
             .putString("pet_status", p.status)
             .putString("pet_accessory", p.getActiveEquippedAccessory() ?: "none")
-            .putBoolean("pet_sleeping", p.isSleeping)
-            .putInt("pet_hunger", p.hunger)
-            .putInt("pet_cleanliness", p.cleanliness)
+            .putBoolean("pet_sleeping", p.getActiveIsSleeping())
+            .putInt("pet_hunger", p.getActiveHunger())
+            .putInt("pet_cleanliness", p.getActiveCleanliness())
             .apply()
         ThorWidgetProvider.triggerUpdate(this)
     }
@@ -1141,7 +1141,8 @@ class MainActivity : AppCompatActivity(), AppNavigation {
             if (clickType == "update" || intent.hasExtra("update_url")) {
                 val url = intent.getStringExtra("update_url")
                 val ver = intent.getStringExtra("version") ?: ""
-                val notes = intent.getStringExtra("release_notes") ?: ""
+                val rawNotes = intent.getStringExtra("release_notes") ?: ""
+                val notes = if (rawNotes.trim().equals("null", ignoreCase = true)) "" else rawNotes.trim()
                 if (!url.isNullOrBlank()) {
                     val info = AppUpdateInfo(
                         versionName = ver.ifBlank { "Nueva versión" },

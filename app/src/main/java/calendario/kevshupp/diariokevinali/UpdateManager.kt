@@ -74,7 +74,8 @@ class UpdateManager(private val context: Context) {
                         val body = response.body!!.string()
                         val j = JSONObject(body)
                         val latestTag = j.getString("tag_name")
-                        val releaseNotes = j.optString("body", "").trim()
+                        val rawNotes = if (j.isNull("body")) "" else j.optString("body", "").trim()
+                        val releaseNotes = if (rawNotes.equals("null", ignoreCase = true)) "" else rawNotes
                         val publishedAt = j.optString("published_at", "")
                         val currentVersion = BuildConfig.VERSION_NAME
 

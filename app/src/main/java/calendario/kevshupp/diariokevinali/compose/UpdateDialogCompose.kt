@@ -226,8 +226,9 @@ fun UpdateDialogCompose(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    val notes = if (updateInfo.releaseNotes.isNotBlank()) {
-                        updateInfo.releaseNotes
+                    val rawNotes = updateInfo.releaseNotes.trim()
+                    val notes = if (rawNotes.isNotBlank() && !rawNotes.equals("null", ignoreCase = true)) {
+                        rawNotes
                     } else {
                         "• Mejoras de rendimiento y optimizaciones generales.\n• Corrección de errores y mayor estabilidad en sincronización."
                     }
