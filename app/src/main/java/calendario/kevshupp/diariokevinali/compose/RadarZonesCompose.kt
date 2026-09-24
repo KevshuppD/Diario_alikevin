@@ -287,6 +287,15 @@ fun RadarZonesView(
                                     fontSize = 14.sp,
                                     color = textColor.copy(alpha = 0.8f)
                                 )
+                                if (zone.wifiSsid.isNotBlank()) {
+                                    Text(
+                                        text = "📶 Wi-Fi: ${zone.wifiSsid}",
+                                        fontFamily = Vt323,
+                                        fontSize = 13.sp,
+                                        color = if (theme == "Pixel Oscuro") Color(0xFF34D399) else Color(0xFF059669),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
 
                             Row(
@@ -356,6 +365,8 @@ fun AddEditZoneDialog(
     var name by remember { mutableStateOf(existingZone?.name ?: "") }
     var selectedEmoji by remember { mutableStateOf(existingZone?.icon ?: "🏠") }
     var radiusMeters by remember { mutableStateOf(existingZone?.radiusMeters ?: 150f) }
+    var wifiSsid by remember { mutableStateOf(existingZone?.wifiSsid ?: "") }
+    val currentConnectedWifi = remember { ThorRadarManager.getConnectedWifiSsid(context) }
 
     var selectedLat by remember {
         mutableStateOf(
@@ -931,6 +942,109 @@ fun AddEditZoneDialog(
                             }
                         }
                     }
+                    // 6. Vinculación de Red Wi-Fi (Anti Falsas Alertas)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, borderColor.copy(alpha = 0.5f))
+                            .background(if (isDark) Color(0xFF222222) else Color(0xFFFBF8EE))
+                            .padding(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "📶 Red Wi-Fi Vinculada:",
+                                    fontFamily = Vt323,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "(Opcional)",
+                                    fontFamily = Vt323,
+                                    fontSize = 12.sp,
+                                    color = textColor.copy(alpha = 0.6f)
+                                )
+                            }
+
+                            if (wifiSsid.isNotBlank()) {
+                                Text(
+                                    text = "✕ Quitar",
+                                    fontFamily = Vt323,
+                                    fontSize = 13.sp,
+                                    color = Color.Red,
+                                    modifier = Modifier.clickable { wifiSsid = "" }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        OutlinedTextField(
+                            value = wifiSsid,
+                            onValueChange = { wifiSsid = it },
+                            placeholder = {
+                                Text(
+                                    text = "Nombre del Wi-Fi (SSID)...",
+                                    fontFamily = Vt323,
+                                    fontSize = 13.sp,
+                                    color = textColor.copy(alpha = 0.5f)
+                                )
+                            },
+                            singleLine = true,
+                            maxLines = 1,
+                            textStyle = TextStyle(
+                                fontFamily = Vt323,
+                                fontSize = 15.sp,
+                                color = textColor
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = textColor,
+                                unfocusedTextColor = textColor,
+                                focusedContainerColor = cardBg,
+                                unfocusedContainerColor = cardBg,
+                                focusedBorderColor = accentColor,
+                                unfocusedBorderColor = borderColor,
+                                cursorColor = accentColor
+                            ),
+                            modifier = Modifier.fillMaxWidth().height(46.dp)
+                        )
+
+                        if (!currentConnectedWifi.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier
+                                    .border(1.dp, Color(0xFF10B981))
+                                    .background(Color(0xFF10B981).copy(alpha = 0.15f))
+                                    .clickable { wifiSsid = currentConnectedWifi }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "✓ Usar Wi-Fi actual: \"$currentConnectedWifi\"",
+                                    fontFamily = Vt323,
+                                    fontSize = 13.sp,
+                                    color = if (isDark) Color(0xFF34D399) else Color(0xFF059669),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = "💡 Al estar conectado a este Wi-Fi, la app sabe con 100% de certeza que estás en este lugar y bloquea cualquier falsa alerta por saltos de GPS.",
+                            fontFamily = Vt323,
+                            fontSize = 11.sp,
+                            color = textColor.copy(alpha = 0.7f),
+                            lineHeight = 12.sp
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -960,7 +1074,8 @@ fun AddEditZoneDialog(
                                 latitude = selectedLat,
                                 longitude = selectedLng,
                                 radiusMeters = radiusMeters,
-                                addedBy = existingZone?.addedBy?.ifEmpty { userId } ?: userId
+                                addedBy = existingZone?.addedBy?.ifEmpty { userId } ?: userId,
+                                wifiSsid = wifiSsid.trim()
                             )
                             FirebaseFirestore.getInstance()
                                 .collection("locations").document(coupleId)

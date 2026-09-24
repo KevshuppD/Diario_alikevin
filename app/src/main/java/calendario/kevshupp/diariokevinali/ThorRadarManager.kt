@@ -7,6 +7,10 @@ import android.content.IntentFilter
 import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.wifi.WifiInfo
+import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -131,7 +135,8 @@ data class RadarPlaceZone(
     val latitude: Double = 0.0,
     val longitude: Double = 0.0,
     val radiusMeters: Float = 150f,
-    val addedBy: String = ""
+    val addedBy: String = "",
+    val wifiSsid: String = ""
 ) {
     fun toMap(): Map<String, Any> {
         return mapOf(
@@ -141,7 +146,8 @@ data class RadarPlaceZone(
             "latitude" to latitude,
             "longitude" to longitude,
             "radiusMeters" to radiusMeters,
-            "addedBy" to addedBy
+            "addedBy" to addedBy,
+            "wifiSsid" to wifiSsid
         )
     }
 
@@ -155,7 +161,8 @@ data class RadarPlaceZone(
                 latitude = (map["latitude"] as? Number)?.toDouble() ?: 0.0,
                 longitude = (map["longitude"] as? Number)?.toDouble() ?: 0.0,
                 radiusMeters = (map["radiusMeters"] as? Number)?.toFloat() ?: 150f,
-                addedBy = map["addedBy"] as? String ?: ""
+                addedBy = map["addedBy"] as? String ?: "",
+                wifiSsid = map["wifiSsid"] as? String ?: ""
             )
         }
 
@@ -237,6 +244,35 @@ object ThorRadarManager {
     private var lastUploadedZone: String = ""
     var isForegroundTracking: Boolean = false
 
+    fun getConnectedWifiSsid(context: Context): String? {
+        try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            if (cm != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val activeNetwork = cm.activeNetwork
+                if (activeNetwork != null) {
+                    val caps = cm.getNetworkCapabilities(activeNetwork)
+                    if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                        val wifiInfo = caps.transportInfo as? WifiInfo
+                        val ssid = wifiInfo?.ssid?.trim('"', ' ')
+                        if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>" && ssid != "0x") {
+                            return ssid
+                        }
+                    }
+                }
+            }
+
+            val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            val info = wm?.connectionInfo
+            val ssid = info?.ssid?.trim('"', ' ')
+            if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>" && ssid != "0x") {
+                return ssid
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error obteniendo SSID Wi-Fi: ${e.message}")
+        }
+        return null
+    }
+
     fun loadCachedZonesFromPrefs(context: Context): List<RadarPlaceZone> {
         try {
             val prefs = context.applicationContext.getSharedPreferences("ThorRadarZonePrefs", Context.MODE_PRIVATE)
@@ -252,7 +288,8 @@ object ThorRadarManager {
                     latitude = obj.optDouble("latitude", 0.0),
                     longitude = obj.optDouble("longitude", 0.0),
                     radiusMeters = obj.optDouble("radiusMeters", 150.0).toFloat(),
-                    addedBy = obj.optString("addedBy")
+                    addedBy = obj.optString("addedBy"),
+                    wifiSsid = obj.optString("wifiSsid", "")
                 )
                 if (zone.id.isNotEmpty() && zone.latitude != 0.0) {
                     list.add(zone)
@@ -277,6 +314,7 @@ object ThorRadarManager {
                     put("longitude", z.longitude)
                     put("radiusMeters", z.radiusMeters.toDouble())
                     put("addedBy", z.addedBy)
+                    put("wifiSsid", z.wifiSsid)
                 }
                 jsonArray.put(obj)
             }
@@ -728,10 +766,11 @@ object ThorRadarManager {
             cachedZones = zones
         }
 
-        val matchingZone = if (lat != 0.0) findMatchingZone(lat, lon, zones) else null
+        val currentWifi = getConnectedWifiSsid(appContext)
+        val matchingZone = findMatchingZone(lat, lon, zones, currentWifi)
         val zoneName = matchingZone?.name ?: ""
 
-        val zoneTransitionOccurred = if (isSharing && lat != 0.0 && lon != 0.0) {
+        val zoneTransitionOccurred = if (isSharing && (lat != 0.0 || !currentWifi.isNullOrBlank())) {
             checkAndNotifyZoneTransitions(appContext, coupleId, finalUserId, displayName, lat, lon, accuracy, speedKmh, activity)
         } else {
             false
@@ -1091,8 +1130,27 @@ object ThorRadarManager {
         publishHeartbeat(context, loc)
     }
 
-    fun findMatchingZone(lat: Double, lon: Double, zones: List<RadarPlaceZone>): RadarPlaceZone? {
-        if (lat == 0.0 && lon == 0.0 || zones.isEmpty()) return null
+    fun findMatchingZone(
+        lat: Double,
+        lon: Double,
+        zones: List<RadarPlaceZone>,
+        connectedWifiSsid: String? = null
+    ): RadarPlaceZone? {
+        if (zones.isEmpty()) return null
+
+        // 1. Prioridad 1: Coincidencia por Wi-Fi SSID conectado (100% certeza de ubicación en interiores)
+        if (!connectedWifiSsid.isNullOrBlank()) {
+            val wifiNormalized = connectedWifiSsid.trim().lowercase()
+            val wifiMatch = zones.firstOrNull {
+                it.wifiSsid.isNotBlank() && it.wifiSsid.trim().lowercase() == wifiNormalized
+            }
+            if (wifiMatch != null) {
+                return wifiMatch
+            }
+        }
+
+        // 2. Coincidencia geográfica por radio GPS
+        if (lat == 0.0 && lon == 0.0) return null
         return zones
             .map { it to calculateDistance(lat, lon, it.latitude, it.longitude) }
             .filter { (zone, dist) -> dist <= zone.radiusMeters }
@@ -1247,20 +1305,18 @@ object ThorRadarManager {
         speedKmh: Float = 0f,
         activity: String = "STILL"
     ): Boolean {
-        if (lat == 0.0 || lon == 0.0) return false
-        // Tolerar hasta 130m de precisión para capturar llegadas a interiores (hogar, universidad, trabajo)
-        if (accuracy > 130f) {
-            Log.d(TAG, "checkAndNotifyZoneTransitions omitido por precisión insuficiente: ${accuracy}m")
-            return false
-        }
         val zones = if (cachedZones.isNotEmpty()) cachedZones else loadCachedZonesFromPrefs(context)
         if (zones.isEmpty()) {
-            // Aún no hay zonas cargadas en memoria/caché.
             return false
         }
         if (cachedZones.isEmpty()) {
             cachedZones = zones
         }
+
+        val currentWifi = getConnectedWifiSsid(context)
+
+        // Si no tenemos Wi-Fi y las coordenadas no son válidas, no podemos calcular
+        if (lat == 0.0 && lon == 0.0 && currentWifi.isNullOrBlank()) return false
 
         val prefs = context.getSharedPreferences("ThorRadarZonePrefs", Context.MODE_PRIVATE)
         val lastZoneId = prefs.getString("last_active_zone_id", "") ?: ""
@@ -1270,16 +1326,41 @@ object ThorRadarManager {
         val lastEventTime = prefs.getLong("last_event_time", 0L)
         val pendingExitZoneId = prefs.getString("pending_exit_zone_id", "") ?: ""
         val pendingExitCount = prefs.getInt("pending_exit_count", 0)
+        val firstExitTime = prefs.getLong("first_exit_time", 0L)
         val wasOutside = prefs.getBoolean("was_outside_zone", false)
         val now = System.currentTimeMillis()
 
-        val currentMatching = findMatchingZone(lat, lon, zones)
+        var currentMatching = findMatchingZone(lat, lon, zones, currentWifi)
+
+        // Anclaje por Wi-Fi de la zona previa: Si estamos conectados a la red Wi-Fi de la zona activa,
+        // garantizamos 100% que seguimos en ella sin importar cuánto fluctúe el GPS en interiores
+        if (lastZoneId.isNotEmpty()) {
+            val prevZone = zones.firstOrNull { it.id == lastZoneId }
+            if (prevZone != null && !currentWifi.isNullOrBlank() && prevZone.wifiSsid.isNotBlank() &&
+                prevZone.wifiSsid.trim().equals(currentWifi.trim(), ignoreCase = true)
+            ) {
+                currentMatching = prevZone
+            }
+        }
 
         if (currentMatching != null) {
-            // Usuario está actualmente dentro del radio de una zona segura
+            // Usuario está dentro de la zona (por GPS o Wi-Fi)
             val isDifferentZone = (currentMatching.id != lastZoneId)
             val isReturningAfterOutside = (currentMatching.id == lastZoneId && (lastEventType == "EXIT" || wasOutside || (now - lastEventTime >= 3_600_000L)))
             val isDuplicateRecentEnter = (lastZoneId == currentMatching.id && lastEventType == "ENTER" && (now - lastEventTime) < 300_000L)
+            val isWifiConfirmed = (!currentWifi.isNullOrBlank() && currentMatching.wifiSsid.isNotBlank() &&
+                    currentMatching.wifiSsid.trim().equals(currentWifi.trim(), ignoreCase = true))
+
+            // Anti-flapping: Si acaba de salir hace menos de 5 min y la re-entrada NO es por Wi-Fi,
+            // exigir que la precisión sea buena (< 35m) y que esté bien centrado dentro de la zona
+            val isFlappingEnter = (lastEventType == "EXIT" && (now - lastEventTime) < 300_000L && !isWifiConfirmed)
+            if (isFlappingEnter && lat != 0.0 && lon != 0.0) {
+                val dist = calculateDistance(lat, lon, currentMatching.latitude, currentMatching.longitude)
+                if (accuracy > 35f || dist > currentMatching.radiusMeters * 0.75f) {
+                    Log.d(TAG, "checkAndNotifyZoneTransitions: Re-entrada pospuesta por anti-flapping (acc=${accuracy}m, dist=${dist.toInt()}m)")
+                    return false
+                }
+            }
 
             if ((isDifferentZone || isReturningAfterOutside) && !isDuplicateRecentEnter) {
                 // Entrada confirmada
@@ -1292,18 +1373,21 @@ object ThorRadarManager {
                     .putBoolean("was_outside_zone", false)
                     .remove("pending_exit_zone_id")
                     .remove("pending_exit_count")
+                    .remove("first_exit_time")
                     .apply()
 
                 val title = "${currentMatching.icon} ¡$senderName llegó a ${currentMatching.name}!"
                 val body = "$senderName ha llegado a ${currentMatching.name} (${currentMatching.icon})."
                 sendZonePushNotification(context, coupleId, senderId, senderName, title, body)
-                Log.d(TAG, "Notificación de llegada emitida con éxito: ${currentMatching.name}")
+                Log.d(TAG, "Notificación de llegada emitida con éxito: ${currentMatching.name} (Wi-Fi: $isWifiConfirmed)")
                 return true
             } else {
                 // Sigue en la misma zona
                 val editor = prefs.edit()
-                if (pendingExitCount > 0 || pendingExitZoneId.isNotEmpty()) {
-                    editor.remove("pending_exit_zone_id").remove("pending_exit_count")
+                if (pendingExitCount > 0 || pendingExitZoneId.isNotEmpty() || firstExitTime > 0L) {
+                    editor.remove("pending_exit_zone_id")
+                        .remove("pending_exit_count")
+                        .remove("first_exit_time")
                 }
                 editor.putBoolean("was_outside_zone", false)
                 if (lastEventType != "ENTER") {
@@ -1321,30 +1405,59 @@ object ThorRadarManager {
             if (lastZoneId.isNotEmpty()) {
                 val prevZone = zones.firstOrNull { it.id == lastZoneId }
                 if (prevZone != null) {
-                    val dist = calculateDistance(lat, lon, prevZone.latitude, prevZone.longitude)
-                    // Margen de histéresis: 35 metros más el error de precisión
-                    val exitThreshold = prevZone.radiusMeters + maxOf(35f, accuracy * 0.4f)
-
-                    // Si el usuario está en reposo / STILL (en casa o cama), evitar que el jitter GPS de interiores dispare falsas salidas
-                    val isStationary = activity == "STILL" || speedKmh < 1.8f
-                    val effectiveThreshold = if (isStationary) {
-                        prevZone.radiusMeters + maxOf(75f, accuracy * 0.7f)
-                    } else {
-                        exitThreshold
+                    // 1. REGLA 1: Si sigue conectado al Wi-Fi de la zona, JAMÁS salir
+                    if (!currentWifi.isNullOrBlank() && prevZone.wifiSsid.isNotBlank() &&
+                        prevZone.wifiSsid.trim().equals(currentWifi.trim(), ignoreCase = true)
+                    ) {
+                        Log.d(TAG, "checkAndNotifyZoneTransitions: Salida bloqueada por anclaje Wi-Fi activo ($currentWifi)")
+                        if (pendingExitCount > 0 || firstExitTime > 0L) {
+                            prefs.edit().remove("pending_exit_zone_id").remove("pending_exit_count").remove("first_exit_time").apply()
+                        }
+                        return false
                     }
 
-                    if (dist > effectiveThreshold) {
-                        // Confirmación multi-muestra o movimiento evidente
-                        val isFarAway = dist > (prevZone.radiusMeters + 80f)
-                        val isMovingAway = (speedKmh >= 2.0f || activity != "STILL")
+                    // 2. REGLA 2: Si el usuario está en REPOSO (STILL / < 2.0 km/h), descarta salidas por jitter
+                    val isStationary = activity == "STILL" || speedKmh < 2.0f
+                    if (isStationary && lat != 0.0 && lon != 0.0) {
+                        val dist = calculateDistance(lat, lon, prevZone.latitude, prevZone.longitude)
+                        // A menos que esté a más de 300m y con precisión excelente (<20m), no salir en reposo
+                        if (dist < prevZone.radiusMeters + 300f || accuracy > 20f) {
+                            Log.d(TAG, "checkAndNotifyZoneTransitions: Salida bloqueada por reposo (STILL / speed=${speedKmh} km/h, dist=${dist.toInt()}m)")
+                            if (pendingExitCount > 0 || firstExitTime > 0L) {
+                                prefs.edit().remove("pending_exit_zone_id").remove("pending_exit_count").remove("first_exit_time").apply()
+                            }
+                            return false
+                        }
+                    }
+
+                    // 3. REGLA 3: Precisión deficiente (interiores / antenas de celda) no puede confirmar salida
+                    if (accuracy > 45f) {
+                        Log.d(TAG, "checkAndNotifyZoneTransitions: Salida omitida por baja precisión GPS (${accuracy}m > 45m)")
+                        return false
+                    }
+
+                    if (lat == 0.0 && lon == 0.0) return false
+                    val dist = calculateDistance(lat, lon, prevZone.latitude, prevZone.longitude)
+                    // Margen de histéresis: 45 metros más el error de precisión
+                    val exitThreshold = prevZone.radiusMeters + maxOf(45f, accuracy * 0.5f)
+
+                    if (dist > exitThreshold) {
+                        val currentFirstExitTime = if (pendingExitZoneId == lastZoneId && firstExitTime > 0L) firstExitTime else now
                         val currentCount = if (pendingExitZoneId == lastZoneId) pendingExitCount + 1 else 1
 
-                        if (!isFarAway && !isMovingAway && currentCount < 2) {
-                            prefs.edit()
-                                .putString("pending_exit_zone_id", lastZoneId)
-                                .putInt("pending_exit_count", currentCount)
-                                .apply()
-                            Log.d(TAG, "Salida preliminar detectada para ${prevZone.name} (dist=${dist}m). Esperando confirmación...")
+                        prefs.edit()
+                            .putString("pending_exit_zone_id", lastZoneId)
+                            .putInt("pending_exit_count", currentCount)
+                            .putLong("first_exit_time", currentFirstExitTime)
+                            .apply()
+
+                        val timeOutsideMs = now - currentFirstExitTime
+                        val isDrivingAway = (speedKmh >= 15.0f && dist > (prevZone.radiusMeters + 80f))
+                        val isWalkingAway = (currentCount >= 3 && timeOutsideMs >= 60_000L && dist > (prevZone.radiusMeters + 50f) && speedKmh >= 2.5f)
+                        val isSustainedTimeOutside = (currentCount >= 4 && timeOutsideMs >= 90_000L && dist > (prevZone.radiusMeters + 70f))
+
+                        if (!isDrivingAway && !isWalkingAway && !isSustainedTimeOutside) {
+                            Log.d(TAG, "Salida preliminar para ${prevZone.name} (dist=${dist.toInt()}m, time=${timeOutsideMs/1000}s, count=$currentCount). Esperando confirmación...")
                             return false
                         }
 
@@ -1360,6 +1473,7 @@ object ThorRadarManager {
                                 .putBoolean("was_outside_zone", true)
                                 .remove("pending_exit_zone_id")
                                 .remove("pending_exit_count")
+                                .remove("first_exit_time")
                                 .apply()
 
                             val exitZoneName = prevZone.name.takeIf { it.isNotBlank() } ?: lastZoneName
@@ -1368,15 +1482,16 @@ object ThorRadarManager {
                             val title = "🚗 ¡$senderName salió de $exitZoneName!"
                             val body = "$senderName ha salido de $exitZoneName ($exitZoneIcon)."
                             sendZonePushNotification(context, coupleId, senderId, senderName, title, body)
-                            Log.d(TAG, "Notificación de salida confirmada emitida: $exitZoneName")
+                            Log.d(TAG, "Notificación de salida confirmada emitida: $exitZoneName (dist=${dist.toInt()}m, speed=${speedKmh}km/h)")
                             return true
                         }
                     } else {
-                        // Está dentro del margen de histéresis / jitter: resetear contador de salida
-                        if (pendingExitCount > 0) {
+                        // Está dentro del margen de histéresis: resetear contador
+                        if (pendingExitCount > 0 || firstExitTime > 0L) {
                             prefs.edit()
                                 .remove("pending_exit_zone_id")
                                 .remove("pending_exit_count")
+                                .remove("first_exit_time")
                                 .apply()
                         }
                     }
@@ -1391,6 +1506,7 @@ object ThorRadarManager {
                         .putBoolean("was_outside_zone", true)
                         .remove("pending_exit_zone_id")
                         .remove("pending_exit_count")
+                        .remove("first_exit_time")
                         .apply()
                 }
             } else {
