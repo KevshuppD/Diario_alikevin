@@ -208,7 +208,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Diario", NotificationManager.IMPORTANCE_HIGH)
+            val channel = NotificationChannel(channelId, "Diario", NotificationManager.IMPORTANCE_HIGH).apply {
+                enableLights(true)
+                enableVibration(true)
+                description = "Notificaciones de Diario Ali & Kevin"
+            }
             notificationManager.createNotificationChannel(channel)
         }
 

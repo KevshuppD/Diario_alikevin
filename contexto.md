@@ -559,6 +559,19 @@ graph TD
       - En entornos Serverless, la sincronización en tiempo real está 100% garantizada y gestionada por los WebSockets cloud nativos de **Firebase Firestore** y **Firebase Realtime Database (RTDB)**.
       - La UI muestra de forma transparente e inmediata `Cloud Sync: En vivo 🟢` con tooltip explicativo, anulando bucles de reconexión innecesarios en la nube mientras preserva el soporte de WebSockets locales en entornos de desarrollo Node (`localhost`).
 
+28. **Resolución de Alertas de Llegada y Salida a Zonas Seguras en Thor Radar (v1.7.72):**
+    - **Diagnóstico del Fallo:**
+      1. *Filtro de precisión restrictivo (`accuracy > 65m`):* Al llegar a interiores (casa, trabajo, universidad), la señal GPS satelital cambia a triangulación WiFi/celular (~70–120m). El filtro anterior descartaba el 100% de las lecturas bajo techo impidiendo la detección de entrada a zonas de 100–200m.
+      2. *Pérdida de Zonas en Memoria RAM:* Tras reinicios del servicio o suspensiones en segundo plano, `cachedZones` quedaba vacío en memoria sin recurrir al almacenamiento persistente local (`loadCachedZonesFromPrefs`).
+      3. *Throttling de Telemetría RTDB:* Las transiciones de geocerca no sobrepasaban el throttling de telemetría pasiva (que requería >= 40m y >= 60s), retrasando la actualización del campo `currentZone` en RTDB.
+      4. *Bloqueo de Re-ingreso por Estado Pegado:* Si una salida no alcanzaba los dos ciclos de confirmación antes de entrar en Doze mode, `last_active_zone_id` quedaba registrado en la zona anterior e impedía enviar la notificación al volver a entrar horas después.
+    - **Solución Implementada (`ThorRadarManager.kt` & `MyFirebaseMessagingService.kt`):**
+      - **Tolerancia Realista de Precisión:** Se incrementó el umbral de precisión a <= 130m, permitiendo la detección fiable de llegadas a interiores.
+      - **Respaldo Automático de Caché:** Fallback automático a `loadCachedZonesFromPrefs(context)` en todas las evaluaciones de zonas si la memoria se reinició.
+      - **Bypass Inmediato de Throttling:** Toda transición de zona (`ENTER` o `EXIT`) o cambio en `currentZone` dispara una sincronización inmediata forzada hacia Firebase Realtime Database.
+      - **Control Robusto de Ciclo Fuera/Dentro (`was_outside_zone`):** Se implementó el flag de estado `was_outside_zone` y re-evaluación tras lapsos de inactividad, asegurando que regresar a una zona segura siempre despache la notificación push FCM prioritario a la pareja.
+      - **Canal de Notificación Mejorado:** Configuración del canal con `IMPORTANCE_HIGH`, vibración y luces en `MyFirebaseMessagingService.kt`.
+
 ---
 
 ## 15. Tareas Pendientes / Backlog
