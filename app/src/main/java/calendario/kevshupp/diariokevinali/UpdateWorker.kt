@@ -17,10 +17,10 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
     override suspend fun doWork(): Result {
         val updateManager = UpdateManager(applicationContext)
         
-        val updateUrl = suspendCancellableCoroutine<String?> { continuation ->
+        val updateInfo = suspendCancellableCoroutine<AppUpdateInfo?> { continuation ->
             updateManager.checkForUpdates(object : UpdateManager.UpdateCallback {
-                override fun onUpdateAvailable(url: String) {
-                    if (continuation.isActive) continuation.resume(url)
+                override fun onUpdateAvailable(info: AppUpdateInfo) {
+                    if (continuation.isActive) continuation.resume(info)
                 }
 
                 override fun onNoUpdate() {
@@ -32,14 +32,14 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             })
         }
 
-        if (updateUrl != null) {
-            showNotification(updateUrl)
+        if (updateInfo != null) {
+            showNotification(updateInfo)
         }
 
         return Result.success()
     }
 
-    private fun showNotification(url: String) {
+    private fun showNotification(info: AppUpdateInfo) {
         val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "updates"
 
@@ -50,8 +50,10 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
 
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("update_url", url)
-            putExtra("click_type", "settings")
+            putExtra("update_url", info.downloadUrl)
+            putExtra("version", info.versionName)
+            putExtra("release_notes", info.releaseNotes)
+            putExtra("click_type", "update")
         }
         
         val pendingIntent = PendingIntent.getActivity(

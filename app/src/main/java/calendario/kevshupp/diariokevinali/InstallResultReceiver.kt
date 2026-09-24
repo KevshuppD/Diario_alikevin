@@ -30,6 +30,8 @@ class InstallResultReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_SUCCESS -> {
                 Log.d("InstallResultReceiver", "¡Instalación silenciosa completada con éxito!")
                 try {
+                    val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                    nm?.cancelAll()
                     val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
                     launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     context.startActivity(launchIntent)

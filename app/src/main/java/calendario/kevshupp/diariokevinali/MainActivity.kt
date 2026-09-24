@@ -505,8 +505,13 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     }
 
     override fun showUpdateDialog(url: String) {
+        val extractedVer = if (url.contains("/download/")) {
+            url.substringAfter("/download/").substringBefore("/")
+        } else {
+            url.substringAfterLast("/").replace(".apk", "").replace("DiarioKevinali_", "")
+        }
         val info = AppUpdateInfo(
-            versionName = url.substringAfterLast("/").replace(".apk", "").replace("DiarioKevinali_", ""),
+            versionName = extractedVer,
             currentVersion = BuildConfig.VERSION_NAME,
             downloadUrl = url,
             releaseNotes = ""
@@ -515,6 +520,10 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     }
 
     override fun showUpdateDialog(info: AppUpdateInfo) {
+        if (!updateManager.isNewerVersion(BuildConfig.VERSION_NAME, info.versionName)) {
+            Log.d("MainActivity", "No se muestra diálogo de actualización: versión instalada (${BuildConfig.VERSION_NAME}) ya es igual o superior a la remota (${info.versionName})")
+            return
+        }
         runOnUiThread {
             updateInfoState.value = info
         }
@@ -1143,14 +1152,31 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                 val ver = intent.getStringExtra("version") ?: ""
                 val rawNotes = intent.getStringExtra("release_notes") ?: ""
                 val notes = if (rawNotes.trim().equals("null", ignoreCase = true)) "" else rawNotes.trim()
-                if (!url.isNullOrBlank()) {
-                    val info = AppUpdateInfo(
-                        versionName = ver.ifBlank { "Nueva versión" },
-                        currentVersion = BuildConfig.VERSION_NAME,
-                        downloadUrl = url,
-                        releaseNotes = notes
-                    )
-                    showUpdateDialog(info)
+
+                intent.removeExtra("update_url")
+                intent.removeExtra("version")
+                intent.removeExtra("release_notes")
+                if (clickType == "update") {
+                    intent.removeExtra("click_type")
+                    intent.removeExtra("type")
+                    intent.removeExtra("destination")
+                    intent.removeExtra("screen")
+                    intent.removeExtra("tab")
+                    intent.removeExtra("action")
+                }
+
+                if (!url.isNullOrBlank() && ver.isNotBlank()) {
+                    if (updateManager.isNewerVersion(BuildConfig.VERSION_NAME, ver)) {
+                        val info = AppUpdateInfo(
+                            versionName = ver,
+                            currentVersion = BuildConfig.VERSION_NAME,
+                            downloadUrl = url,
+                            releaseNotes = notes
+                        )
+                        showUpdateDialog(info)
+                    } else {
+                        Log.d("MainActivity", "Actualización recibida por intent ($ver) ya está instalada o es inferior a ${BuildConfig.VERSION_NAME}")
+                    }
                 } else {
                     updateManager.checkForUpdates(object : UpdateManager.UpdateCallback {
                         override fun onUpdateAvailable(info: AppUpdateInfo) {
@@ -1161,9 +1187,6 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                         override fun onDownloadComplete() {}
                     })
                 }
-                intent.removeExtra("update_url")
-                intent.removeExtra("version")
-                intent.removeExtra("release_notes")
             }
             if (intent.hasExtra("sync_error_msg")) {
                 val errorMsg = intent.getStringExtra("sync_error_msg")

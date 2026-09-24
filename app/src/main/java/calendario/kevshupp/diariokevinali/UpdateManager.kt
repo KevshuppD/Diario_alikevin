@@ -132,26 +132,26 @@ class UpdateManager(private val context: Context) {
     }
 
     fun isNewerVersion(current: String?, latest: String?): Boolean {
-        if (current == null || latest == null) return false
+        if (current.isNullOrBlank() || latest.isNullOrBlank()) return false
         try {
-            val cleanCurrent = current.lowercase().replace("v", "").split("-")[0]
-            val cleanLatest = latest.lowercase().replace("v", "").split("-")[0]
+            val cleanCurrent = current.trim().lowercase().removePrefix("v").removePrefix(".").split("-")[0].trim()
+            val cleanLatest = latest.trim().lowercase().removePrefix("v").removePrefix(".").split("-")[0].trim()
 
             if (cleanCurrent == cleanLatest) return false
 
-            val currParts = cleanCurrent.split(".")
-            val lateParts = cleanLatest.split(".")
+            val currParts = cleanCurrent.split(".").map { it.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0 }
+            val lateParts = cleanLatest.split(".").map { it.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0 }
             val length = maxOf(currParts.size, lateParts.size)
 
             for (i in 0 until length) {
-                val curr = if (i < currParts.size) currParts[i].replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0 else 0
-                val late = if (i < lateParts.size) lateParts[i].replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0 else 0
+                val curr = if (i < currParts.size) currParts[i] else 0
+                val late = if (i < lateParts.size) lateParts[i] else 0
                 if (late > curr) return true
                 if (curr > late) return false
             }
         } catch (e: Exception) {
             Log.e(TAG, "Version comparison error", e)
-            return current != latest
+            return false
         }
         return false
     }

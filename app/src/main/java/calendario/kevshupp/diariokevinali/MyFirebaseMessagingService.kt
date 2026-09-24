@@ -129,6 +129,17 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             }
         }
 
+        if (clickType == "update") {
+            val updateVer = remoteMessage.data["version"]
+            if (!updateVer.isNullOrBlank()) {
+                val updateManager = UpdateManager(this)
+                if (!updateManager.isNewerVersion(BuildConfig.VERSION_NAME, updateVer)) {
+                    Log.d("FCM", "Ignorando notificación de actualización: la versión remota ($updateVer) ya está instalada o es inferior a la actual (${BuildConfig.VERSION_NAME})")
+                    return
+                }
+            }
+        }
+
         sendNotification(title, body, imageUrl, clickType, remoteMessage.data)
     }
 
