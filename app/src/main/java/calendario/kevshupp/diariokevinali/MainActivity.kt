@@ -837,24 +837,28 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     if (isSos && sosTs > lastSosTimestamp && (System.currentTimeMillis() - sosTs) < 300_000L) {
                         lastSosTimestamp = sosTs
                         runOnUiThread {
-                            val vibrator = getSystemService(Vibrator::class.java)
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 200, 500, 200, 500), -1))
-                            } else {
-                                @Suppress("DEPRECATION")
-                                vibrator?.vibrate(1200L)
-                            }
+                            SosAlarmHelper.playSosAlarm(this@MainActivity)
 
                             AlertDialog.Builder(this@MainActivity)
                                 .setTitle("🚨 ¡ALERTA SOS DE $partnerDisplayName!")
                                 .setMessage("¡$partnerDisplayName ha activado la alarma de emergencia en Thor Radar!\n¿Deseas abrir el mapa para ver su ubicación en vivo?")
                                 .setCancelable(false)
                                 .setPositiveButton("🗺️ VER EN MAPA") { _, _ ->
+                                    SosAlarmHelper.stopSosAlarm(this@MainActivity)
                                     updateTabSelection(R.id.btnMisc)
                                     showFragment(MiscFragment.newInstance(currentTheme, "radar"))
                                 }
-                                .setNegativeButton("CERRAR", null)
+                                .setNegativeButton("CERRAR") { _, _ ->
+                                    SosAlarmHelper.stopSosAlarm(this@MainActivity)
+                                }
+                                .setOnDismissListener {
+                                    SosAlarmHelper.stopSosAlarm(this@MainActivity)
+                                }
                                 .show()
+                        }
+                    } else if (!isSos && lastSosTimestamp > 0L) {
+                        runOnUiThread {
+                            SosAlarmHelper.stopSosAlarm(this@MainActivity)
                         }
                     }
                 }
@@ -940,6 +944,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     }
 
     override fun onDestroy() {
+        SosAlarmHelper.stopSosAlarm(this)
         rtdbSosListener?.let { rtdbSosRef?.removeEventListener(it) }
         rtdbControlListener?.let { rtdbControlRef?.removeEventListener(it) }
         rtdbPingListener?.let { rtdbPingRef?.removeEventListener(it) }

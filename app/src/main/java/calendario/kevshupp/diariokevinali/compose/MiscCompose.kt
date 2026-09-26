@@ -157,13 +157,27 @@ fun MiscGridView(
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
     val context = LocalContext.current
-    var showWebDialog by remember { mutableStateOf(false) }
+    // Guardar el icono del espíritu en SharedPreferences para que persista en la sesión y se cargue al 100% de la caché local
+    val spiritIconUrl = remember(context) {
+        val prefs = context.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
+        var cachedUrl = prefs.getString("misc_spirit_cached_icon", null)
+        if (cachedUrl.isNullOrBlank()) {
+            val randomNum = (1..141).random()
+            val formattedNum = String.format("%02d", randomNum)
+            cachedUrl = "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_$formattedNum.png"
+            prefs.edit().putString("misc_spirit_cached_icon", cachedUrl).apply()
+        }
+        cachedUrl
+    }
 
-    // Genera una imagen aleatoria de espíritu de Cloudinary cada vez que se entra al menú
-    val spiritIconUrl = remember {
-        val randomNum = (1..141).random()
-        val formattedNum = String.format("%02d", randomNum)
-        "https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_$formattedNum.png"
+    val spiritImageModel = remember(spiritIconUrl, context) {
+        coil.request.ImageRequest.Builder(context)
+            .data(spiritIconUrl)
+            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+            .networkCachePolicy(coil.request.CachePolicy.ENABLED)
+            .crossfade(true)
+            .build()
     }
 
     Column(
@@ -222,7 +236,7 @@ fun MiscGridView(
                         verticalArrangement = Arrangement.Center
                     ) {
                         AsyncImage(
-                            model = spiritIconUrl,
+                            model = spiritImageModel,
                             contentDescription = "Espíritus Fortnite",
                             modifier = Modifier.size(64.dp)
                         )

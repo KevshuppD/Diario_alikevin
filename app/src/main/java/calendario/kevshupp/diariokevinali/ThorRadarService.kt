@@ -30,8 +30,11 @@ class ThorRadarService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var rtdbPingListener: ValueEventListener? = null
     private var rtdbRemoteControlListener: ValueEventListener? = null
+    private var rtdbPartnerSosListener: ValueEventListener? = null
     private var rtdbPingRef: DatabaseReference? = null
     private var rtdbUserRef: DatabaseReference? = null
+    private var rtdbPartnerRef: DatabaseReference? = null
+    private var lastServiceSosTimestamp: Long = 0L
 
     companion object {
         const val CHANNEL_ID = "radar_channel"
@@ -224,6 +227,37 @@ class ThorRadarService : Service() {
             }
         }
         userRef.addValueEventListener(rtdbRemoteControlListener!!)
+
+        // 3. Escuchar alertas SOS de la pareja en RTDB
+        val partnerDocName = if (ThorRadarManager.isAli(rawUserId, rawUserName)) "kevin" else "ali"
+        val partnerDisplayName = if (ThorRadarManager.isAli(rawUserId, rawUserName)) "Kevin" else "Ali"
+        rtdbPartnerSosListener?.let { rtdbPartnerRef?.removeEventListener(it) }
+        val partnerUserRef = rtdb.reference.child("locations").child(coupleId).child("users").child(partnerDocName)
+        rtdbPartnerRef = partnerUserRef
+        rtdbPartnerSosListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    val isSos = snapshot.child("sosActive").getValue(Boolean::class.java) ?: false
+                    val sosTs = (snapshot.child("sosTimestamp").value as? Number)?.toLong() ?: 0L
+                    if (isSos && sosTs > lastServiceSosTimestamp && (System.currentTimeMillis() - sosTs) < 300_000L) {
+                        lastServiceSosTimestamp = sosTs
+                        Log.d(TAG, "🚨 ¡ALERTA SOS RECIBIDA EN RTDB SERVICIO PARA $partnerDocName!")
+                        showSosNotificationAndAlarm(partnerDisplayName)
+                    } else if (!isSos && lastServiceSosTimestamp > 0L) {
+                        // Cancelar alarma si la pareja apagó el SOS
+                        lastServiceSosTimestamp = 0L
+                        SosAlarmHelper.stopSosAlarm(this@ThorRadarService)
+                        val nm = getSystemService(NotificationManager::class.java)
+                        nm?.cancel(911)
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.w(TAG, "Error escuchando SOS de pareja en servicio: ${error.message}")
+            }
+        }
+        partnerUserRef.addValueEventListener(rtdbPartnerSosListener!!)
     }
 
     private fun acquireWakeLock(timeoutMs: Long) {
@@ -259,9 +293,11 @@ class ThorRadarService : Service() {
         }
         rtdbPingListener?.let { rtdbPingRef?.removeEventListener(it) }
         rtdbRemoteControlListener?.let { rtdbUserRef?.removeEventListener(it) }
+        rtdbPartnerSosListener?.let { rtdbPartnerRef?.removeEventListener(it) }
         heartbeatJob?.cancel()
         serviceJob.cancelChildren()
         releaseWakeLock()
+        SosAlarmHelper.stopSosAlarm(this)
         super.onDestroy()
         ThorRadarManager.stopLiveTracking()
     }
@@ -333,5 +369,57 @@ class ThorRadarService : Service() {
 
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager?.notify(2025, noti)
+    }
+
+    private fun showSosNotificationAndAlarm(partnerName: String) {
+        acquireWakeLock(10_000L)
+        SosAlarmHelper.playSosAlarm(this)
+
+        val channelId = "diario_sos_emergency_v2"
+        val notificationManager = getSystemService(NotificationManager::class.java)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val alarmUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
+                ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE)
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+
+            val sosChannel = NotificationChannel(channelId, "Alerta de Emergencia SOS", NotificationManager.IMPORTANCE_HIGH).apply {
+                enableLights(true)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 800, 200, 800, 200, 800, 400, 350, 150, 350)
+                setSound(alarmUri, audioAttributes)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                description = "Alarmas de emergencia SOS en tiempo real de tu pareja"
+            }
+            notificationManager?.createNotificationChannel(sosChannel)
+        }
+
+        val launchIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("click_type", "sos")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            911,
+            launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val noti = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("🚨 ¡ALERTA SOS DE $partnerName!")
+            .setContentText("¡$partnerName ha activado la alerta de emergencia en Thor Radar! Toca para ver su ubicación en vivo.")
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setFullScreenIntent(pendingIntent, true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        notificationManager?.notify(911, noti)
     }
 }

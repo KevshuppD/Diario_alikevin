@@ -243,10 +243,37 @@ object ThorRadarManager {
     private var hasLoadedRemoteZones = false
     private var lastUploadedZone: String = ""
     var isForegroundTracking: Boolean = false
+    @Volatile
+    private var cachedConnectedWifiSsid: String? = null
+
+    fun isConnectedToWifi(context: Context): Boolean {
+        try {
+            val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val activeNetwork = cm.activeNetwork ?: return false
+                val caps = cm.getNetworkCapabilities(activeNetwork) ?: return false
+                return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+            } else {
+                @Suppress("DEPRECATION")
+                val netInfo = cm.activeNetworkInfo
+                return netInfo != null && netInfo.type == ConnectivityManager.TYPE_WIFI && netInfo.isConnected
+            }
+        } catch (e: Exception) {
+            return false
+        }
+    }
 
     fun getConnectedWifiSsid(context: Context): String? {
+        val onWifi = isConnectedToWifi(context)
+        if (!onWifi) {
+            cachedConnectedWifiSsid = null
+            return null
+        }
+
+        var detectedSsid: String? = null
+
         try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             if (cm != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val activeNetwork = cm.activeNetwork
                 if (activeNetwork != null) {
@@ -255,22 +282,32 @@ object ThorRadarManager {
                         val wifiInfo = caps.transportInfo as? WifiInfo
                         val ssid = wifiInfo?.ssid?.trim('"', ' ')
                         if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>" && ssid != "0x") {
-                            return ssid
+                            detectedSsid = ssid
                         }
                     }
                 }
             }
 
-            val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-            val info = wm?.connectionInfo
-            val ssid = info?.ssid?.trim('"', ' ')
-            if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>" && ssid != "0x") {
-                return ssid
+            if (detectedSsid.isNullOrBlank()) {
+                val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                @Suppress("DEPRECATION")
+                val info = wm?.connectionInfo
+                val ssid = info?.ssid?.trim('"', ' ')
+                if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>" && ssid != "0x") {
+                    detectedSsid = ssid
+                }
             }
         } catch (e: Exception) {
             Log.w(TAG, "Error obteniendo SSID Wi-Fi: ${e.message}")
         }
-        return null
+
+        if (!detectedSsid.isNullOrBlank()) {
+            cachedConnectedWifiSsid = detectedSsid
+            return detectedSsid
+        }
+
+        // Si Android ocultó el SSID por background redaction pero seguimos conectados al Wi-Fi, retornar el último conocido
+        return cachedConnectedWifiSsid
     }
 
     fun loadCachedZonesFromPrefs(context: Context): List<RadarPlaceZone> {
@@ -724,22 +761,28 @@ object ThorRadarManager {
         var calculatedSpeedKmh = 0f
         if (activeLoc != null && activeLoc.hasSpeed() && activeLoc.speed > 0.35f) {
             calculatedSpeedKmh = activeLoc.speed * 3.6f
-        } else if (lastSpeedCalcTime > 0L && lastSpeedCalcLat != 0.0 && lat != 0.0) {
+        }
+
+        if (lastSpeedCalcTime > 0L && lastSpeedCalcLat != 0.0 && lat != 0.0) {
             val timeDiffSec = (now - lastSpeedCalcTime) / 1000f
-            if (timeDiffSec in 1.2f..90.0f) {
+            if (timeDiffSec in 1.2f..120.0f) {
                 val distMeters = calculateDistance(lastSpeedCalcLat, lastSpeedCalcLng, lat, lon)
                 val minMoveThreshold = maxOf(3.5f, accuracy * 0.35f)
                 if (distMeters > minMoveThreshold) {
                     val rawSpeed = (distMeters / timeDiffSec) * 3.6f
                     if (rawSpeed in 0.5f..220f) {
-                        calculatedSpeedKmh = rawSpeed
+                        // Tomar la mayor entre velocidad de GPS instantánea y velocidad de desplazamiento
+                        calculatedSpeedKmh = maxOf(calculatedSpeedKmh, rawSpeed)
                     }
                 }
             }
         }
 
-        smoothedSpeedKmh = if (smoothedSpeedKmh == 0f || calculatedSpeedKmh == 0f) {
+        smoothedSpeedKmh = if (smoothedSpeedKmh == 0f) {
             calculatedSpeedKmh
+        } else if (calculatedSpeedKmh == 0f) {
+            // Decaimiento suave en vez de caer inmediatamente a 0 (ej: bus detenido en semáforo o parada)
+            (smoothedSpeedKmh * 0.6f)
         } else {
             (smoothedSpeedKmh * 0.35f + calculatedSpeedKmh * 0.65f)
         }
@@ -753,9 +796,9 @@ object ThorRadarManager {
         }
 
         val activity = when {
-            speedKmh >= 20f -> "IN_VEHICLE"
-            speedKmh >= 7.5f -> "RUNNING"
-            speedKmh >= 2.0f -> "WALKING"
+            speedKmh >= 12.0f -> "IN_VEHICLE"
+            speedKmh >= 6.5f -> "RUNNING"
+            speedKmh >= 1.8f -> "WALKING"
             else -> "STILL"
         }
 
@@ -853,26 +896,28 @@ object ThorRadarManager {
         // 2. Si chargingChanged == true: cambió el estado de enchufe/cargador -> subir inmediatamente.
         // 3. Si zoneTransitionOccurred == true o zoneChanged == true: cambió la zona segura (entró o salió) -> subir inmediatamente para avisar al otro en tiempo real.
         // 4. Si isForegroundTracking == true (usuario con la pantalla de Thor Radar abierta):
-        //    -> Subir en tiempo real si se desplazó >= 10 metros, si pasaron >= 10 segundos, o si la batería cambió.
-        // 5. Si en background / pasivo (pantalla apagada o en segundo plano):
-        //    -> En movimiento (caminando, auto, bici): subir si hubo desplazamiento real significativo (>= 40 metros y >= 60 segundos).
-        //    -> En reposo / quieto: emitir latido cada 6 minutos (360 segundos) para mantener telemetría y batería fresca.
-        //    -> O si el nivel de batería cambió (>= 3%) tras >= 60 segundos.
+        //    -> Subir en tiempo real si se desplazó >= 8 metros, si pasaron >= 6 segundos, o si la batería cambió.
+        // 5. Si en vehículo / movimiento rápido (speed >= 10 km/h o dist >= 80m):
+        //    -> Subir cada 15 segundos para ver el trayecto en transporte público o auto fluido en tiempo real.
+        // 6. Si en movimiento a pie (caminando >= 30m): subir tras 30 segundos.
+        // 7. Si en reposo / quieto: emitir latido cada 5 minutos (300 segundos) para mantener telemetría fresca.
         val distMovedSinceUpload = if (lastUploadedLat != 0.0 && lat != 0.0) calculateDistance(lastUploadedLat, lastUploadedLng, lat, lon) else Float.MAX_VALUE
         val timeSinceUpload = now - lastUploadedTime
         val batteryPctChanged = Math.abs(batteryInfo.first - lastUploadedBatteryPct) >= 3
         val chargingChanged = (batteryInfo.second != lastUploadedChargingState)
         val zoneChanged = (zoneName != lastUploadedZone)
+        val isMovingFast = (speedKmh >= 10.0f || distMovedSinceUpload >= 80f)
 
         val shouldUpload = when {
             force -> true
             chargingChanged -> true
             zoneTransitionOccurred -> true
             zoneChanged -> true
-            isForegroundTracking -> (distMovedSinceUpload >= 10f || timeSinceUpload >= 10_000L || batteryPctChanged)
+            isForegroundTracking -> (distMovedSinceUpload >= 8f || timeSinceUpload >= 6_000L || batteryPctChanged)
+            isMovingFast -> (timeSinceUpload >= 15_000L) // En bus / auto / metro sube cada 15s
             else -> (
-                (distMovedSinceUpload >= 40f && timeSinceUpload >= 60_000L) ||
-                timeSinceUpload >= 360_000L || // 6 min en reposo
+                (distMovedSinceUpload >= 30f && timeSinceUpload >= 30_000L) ||
+                timeSinceUpload >= 300_000L || // 5 min en reposo
                 (timeSinceUpload >= 60_000L && batteryPctChanged)
             )
         }
@@ -1199,6 +1244,7 @@ object ThorRadarManager {
         val docName = getMyDocName(userId, userName)
         val displayName = getMyDisplayName(userId, userName)
         val myUserId = if (docName == "ali") "user_ali_02" else "user_kevin_01"
+        val partnerDocName = if (docName == "ali") "kevin" else "ali"
         val now = System.currentTimeMillis()
         val updateMap = mapOf<String, Any>(
             "sosActive" to true,
@@ -1216,6 +1262,19 @@ object ThorRadarManager {
                 .addOnFailureListener { e ->
                     Log.e(TAG, "Error guardando alerta SOS en RTDB", e)
                 }
+
+            // Dual Ping: Enviar alerta instantánea por RTDB a la pareja
+            val pingMap = mapOf<String, Any>(
+                "requestedBy" to displayName,
+                "requestedAt" to now,
+                "silent" to false,
+                "is_silent" to false,
+                "type" to "sos",
+                "click_type" to "sos"
+            )
+            rtdb.reference.child("locations").child(safeCoupleId)
+                .child("pings").child(partnerDocName)
+                .setValue(pingMap)
         } catch (e: Exception) {
             Log.e(TAG, "Error accediendo a RTDB para SOS", e)
         }
@@ -1227,6 +1286,7 @@ object ThorRadarManager {
     fun cancelSos(coupleId: String, userId: String) {
         val safeCoupleId = normalizeCoupleId(coupleId)
         val docName = getMyDocName(userId, null)
+        val partnerDocName = if (docName == "ali") "kevin" else "ali"
         val updateMap = mapOf<String, Any>(
             "sosActive" to false,
             "sosTimestamp" to 0L
@@ -1240,6 +1300,10 @@ object ThorRadarManager {
                 .addOnSuccessListener {
                     Log.d(TAG, "Alerta SOS cancelada en RTDB para $docName")
                 }
+
+            rtdb.reference.child("locations").child(safeCoupleId)
+                .child("pings").child(partnerDocName)
+                .removeValue()
         } catch (e: Exception) {
             Log.e(TAG, "Error cancelando SOS en RTDB", e)
         }
@@ -1313,6 +1377,7 @@ object ThorRadarManager {
             cachedZones = zones
         }
 
+        val onWifi = isConnectedToWifi(context)
         val currentWifi = getConnectedWifiSsid(context)
 
         // Si no tenemos Wi-Fi y las coordenadas no son válidas, no podemos calcular
@@ -1332,32 +1397,41 @@ object ThorRadarManager {
 
         var currentMatching = findMatchingZone(lat, lon, zones, currentWifi)
 
-        // Anclaje por Wi-Fi de la zona previa: Si estamos conectados a la red Wi-Fi de la zona activa,
-        // garantizamos 100% que seguimos en ella sin importar cuánto fluctúe el GPS en interiores
+        // Anclaje por Wi-Fi de la zona previa: Si estamos conectados a la red Wi-Fi de la zona activa
+        // (o si seguimos en Wi-Fi y la zona activa tenía Wi-Fi vinculado), garantizamos 100% que seguimos en ella
         if (lastZoneId.isNotEmpty()) {
             val prevZone = zones.firstOrNull { it.id == lastZoneId }
-            if (prevZone != null && !currentWifi.isNullOrBlank() && prevZone.wifiSsid.isNotBlank() &&
-                prevZone.wifiSsid.trim().equals(currentWifi.trim(), ignoreCase = true)
-            ) {
-                currentMatching = prevZone
+            if (prevZone != null && prevZone.wifiSsid.isNotBlank() && onWifi) {
+                val wifiMatches = if (!currentWifi.isNullOrBlank()) {
+                    prevZone.wifiSsid.trim().equals(currentWifi.trim(), ignoreCase = true)
+                } else {
+                    true // Seguimos en Wi-Fi y no se ha desconectado
+                }
+                if (wifiMatches) {
+                    currentMatching = prevZone
+                }
             }
         }
 
         if (currentMatching != null) {
             // Usuario está dentro de la zona (por GPS o Wi-Fi)
             val isDifferentZone = (currentMatching.id != lastZoneId)
-            val isReturningAfterOutside = (currentMatching.id == lastZoneId && (lastEventType == "EXIT" || wasOutside || (now - lastEventTime >= 3_600_000L)))
+            val isReturningAfterOutside = (currentMatching.id == lastZoneId && (lastEventType == "EXIT" || wasOutside))
             val isDuplicateRecentEnter = (lastZoneId == currentMatching.id && lastEventType == "ENTER" && (now - lastEventTime) < 300_000L)
-            val isWifiConfirmed = (!currentWifi.isNullOrBlank() && currentMatching.wifiSsid.isNotBlank() &&
-                    currentMatching.wifiSsid.trim().equals(currentWifi.trim(), ignoreCase = true))
+            val isWifiConfirmed = (onWifi && currentMatching.wifiSsid.isNotBlank() &&
+                    (currentWifi.isNullOrBlank() || currentMatching.wifiSsid.trim().equals(currentWifi.trim(), ignoreCase = true)))
 
             // Anti-flapping: Si acaba de salir hace menos de 5 min y la re-entrada NO es por Wi-Fi,
-            // exigir que la precisión sea buena (< 35m) y que esté bien centrado dentro de la zona
+            // exigir que la precisión sea buena (< 30m) y que esté bien centrado dentro de la zona
             val isFlappingEnter = (lastEventType == "EXIT" && (now - lastEventTime) < 300_000L && !isWifiConfirmed)
-            if (isFlappingEnter && lat != 0.0 && lon != 0.0) {
-                val dist = calculateDistance(lat, lon, currentMatching.latitude, currentMatching.longitude)
-                if (accuracy > 35f || dist > currentMatching.radiusMeters * 0.75f) {
-                    Log.d(TAG, "checkAndNotifyZoneTransitions: Re-entrada pospuesta por anti-flapping (acc=${accuracy}m, dist=${dist.toInt()}m)")
+            if (isFlappingEnter) {
+                if (lat != 0.0 && lon != 0.0) {
+                    val dist = calculateDistance(lat, lon, currentMatching.latitude, currentMatching.longitude)
+                    if (accuracy > 30f || dist > currentMatching.radiusMeters * 0.70f) {
+                        Log.d(TAG, "checkAndNotifyZoneTransitions: Re-entrada pospuesta por anti-flapping (acc=${accuracy}m, dist=${dist.toInt()}m)")
+                        return false
+                    }
+                } else {
                     return false
                 }
             }
@@ -1406,23 +1480,14 @@ object ThorRadarManager {
                 val prevZone = zones.firstOrNull { it.id == lastZoneId }
                 if (prevZone != null) {
                     // 1. REGLA 1: Si sigue conectado al Wi-Fi de la zona, JAMÁS salir
-                    if (!currentWifi.isNullOrBlank() && prevZone.wifiSsid.isNotBlank() &&
-                        prevZone.wifiSsid.trim().equals(currentWifi.trim(), ignoreCase = true)
-                    ) {
-                        Log.d(TAG, "checkAndNotifyZoneTransitions: Salida bloqueada por anclaje Wi-Fi activo ($currentWifi)")
-                        if (pendingExitCount > 0 || firstExitTime > 0L) {
-                            prefs.edit().remove("pending_exit_zone_id").remove("pending_exit_count").remove("first_exit_time").apply()
+                    if (onWifi && prevZone.wifiSsid.isNotBlank()) {
+                        val wifiMatches = if (!currentWifi.isNullOrBlank()) {
+                            prevZone.wifiSsid.trim().equals(currentWifi.trim(), ignoreCase = true)
+                        } else {
+                            true // Sigue conectado a Wi-Fi en esa zona
                         }
-                        return false
-                    }
-
-                    // 2. REGLA 2: Si el usuario está en REPOSO (STILL / < 2.0 km/h), descarta salidas por jitter
-                    val isStationary = activity == "STILL" || speedKmh < 2.0f
-                    if (isStationary && lat != 0.0 && lon != 0.0) {
-                        val dist = calculateDistance(lat, lon, prevZone.latitude, prevZone.longitude)
-                        // A menos que esté a más de 300m y con precisión excelente (<20m), no salir en reposo
-                        if (dist < prevZone.radiusMeters + 300f || accuracy > 20f) {
-                            Log.d(TAG, "checkAndNotifyZoneTransitions: Salida bloqueada por reposo (STILL / speed=${speedKmh} km/h, dist=${dist.toInt()}m)")
+                        if (wifiMatches) {
+                            Log.d(TAG, "checkAndNotifyZoneTransitions: Salida bloqueada por anclaje Wi-Fi activo")
                             if (pendingExitCount > 0 || firstExitTime > 0L) {
                                 prefs.edit().remove("pending_exit_zone_id").remove("pending_exit_count").remove("first_exit_time").apply()
                             }
@@ -1430,16 +1495,38 @@ object ThorRadarManager {
                         }
                     }
 
-                    // 3. REGLA 3: Precisión deficiente (interiores / antenas de celda) no puede confirmar salida
-                    if (accuracy > 45f) {
-                        Log.d(TAG, "checkAndNotifyZoneTransitions: Salida omitida por baja precisión GPS (${accuracy}m > 45m)")
+                    // 2. REGLA 2: Cooldown anti-flapping tras ENTER
+                    // Si acaba de entrar hace menos de 5 minutos, bloquear salida a menos que vaya a velocidad de vehículo (>20 km/h)
+                    val timeSinceEnter = now - lastEventTime
+                    if (lastEventType == "ENTER" && timeSinceEnter < 300_000L && speedKmh < 20.0f) {
+                        Log.d(TAG, "checkAndNotifyZoneTransitions: Salida bloqueada por cooldown post-entrada (${timeSinceEnter / 1000}s < 300s)")
+                        return false
+                    }
+
+                    // 3. REGLA 3: Si el usuario está en REPOSO (STILL o < 3.5 km/h), descartar salidas por jitter de interiores
+                    val isStationary = activity == "STILL" || speedKmh < 3.5f
+                    if (isStationary && lat != 0.0 && lon != 0.0) {
+                        val dist = calculateDistance(lat, lon, prevZone.latitude, prevZone.longitude)
+                        // A menos que esté a más de 350m y con precisión excelente (<20m), no salir en reposo
+                        if (dist < prevZone.radiusMeters + 350f || accuracy > 20f) {
+                            Log.d(TAG, "checkAndNotifyZoneTransitions: Salida bloqueada por reposo (STILL / speed=${speedKmh} km/h, dist=${dist.toInt()}m, acc=${accuracy}m)")
+                            if (pendingExitCount > 0 || firstExitTime > 0L) {
+                                prefs.edit().remove("pending_exit_zone_id").remove("pending_exit_count").remove("first_exit_time").apply()
+                            }
+                            return false
+                        }
+                    }
+
+                    // 4. REGLA 4: Precisión deficiente (>35m) no puede confirmar salida
+                    if (accuracy > 35f) {
+                        Log.d(TAG, "checkAndNotifyZoneTransitions: Salida omitida por baja precisión GPS (${accuracy}m > 35m)")
                         return false
                     }
 
                     if (lat == 0.0 && lon == 0.0) return false
                     val dist = calculateDistance(lat, lon, prevZone.latitude, prevZone.longitude)
-                    // Margen de histéresis: 45 metros más el error de precisión
-                    val exitThreshold = prevZone.radiusMeters + maxOf(45f, accuracy * 0.5f)
+                    // Margen de histéresis generoso: 80 metros más el radio
+                    val exitThreshold = prevZone.radiusMeters + maxOf(80f, accuracy * 0.8f)
 
                     if (dist > exitThreshold) {
                         val currentFirstExitTime = if (pendingExitZoneId == lastZoneId && firstExitTime > 0L) firstExitTime else now
@@ -1452,9 +1539,9 @@ object ThorRadarManager {
                             .apply()
 
                         val timeOutsideMs = now - currentFirstExitTime
-                        val isDrivingAway = (speedKmh >= 15.0f && dist > (prevZone.radiusMeters + 80f))
-                        val isWalkingAway = (currentCount >= 3 && timeOutsideMs >= 60_000L && dist > (prevZone.radiusMeters + 50f) && speedKmh >= 2.5f)
-                        val isSustainedTimeOutside = (currentCount >= 4 && timeOutsideMs >= 90_000L && dist > (prevZone.radiusMeters + 70f))
+                        val isDrivingAway = (speedKmh >= 18.0f && dist > (prevZone.radiusMeters + 120f) && currentCount >= 2)
+                        val isWalkingAway = (currentCount >= 5 && timeOutsideMs >= 150_000L && dist > (prevZone.radiusMeters + 90f) && speedKmh >= 3.0f)
+                        val isSustainedTimeOutside = (currentCount >= 6 && timeOutsideMs >= 180_000L && dist > (prevZone.radiusMeters + 100f))
 
                         if (!isDrivingAway && !isWalkingAway && !isSustainedTimeOutside) {
                             Log.d(TAG, "Salida preliminar para ${prevZone.name} (dist=${dist.toInt()}m, time=${timeOutsideMs/1000}s, count=$currentCount). Esperando confirmación...")
@@ -1462,7 +1549,7 @@ object ThorRadarManager {
                         }
 
                         // Salida confirmada
-                        val isRecentExit = (lastEventType == "EXIT" && (now - lastEventTime) < 180_000L)
+                        val isRecentExit = (lastEventType == "EXIT" && (now - lastEventTime) < 300_000L)
                         if (!isRecentExit) {
                             prefs.edit()
                                 .putString("last_active_zone_id", "")

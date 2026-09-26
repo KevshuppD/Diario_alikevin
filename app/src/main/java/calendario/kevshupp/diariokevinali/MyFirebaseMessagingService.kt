@@ -1,5 +1,6 @@
 package calendario.kevshupp.diariokevinali
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -140,6 +141,22 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             }
         }
 
+        if (clickType == "sos") {
+            try {
+                val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                val wl = pm?.newWakeLock(
+                    android.os.PowerManager.FULL_WAKE_LOCK or
+                            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or
+                            android.os.PowerManager.ON_AFTER_RELEASE,
+                    "Diario:SosEmergencyWakeLock"
+                )
+                wl?.acquire(10_000L)
+            } catch (e: Exception) {
+                Log.w("FCM", "No se pudo adquirir WakeLock para SOS: ${e.message}")
+            }
+            SosAlarmHelper.playSosAlarm(this)
+        }
+
         sendNotification(title, body, imageUrl, clickType, remoteMessage.data)
     }
 
@@ -150,6 +167,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         clickType: String?,
         dataMap: Map<String, String> = emptyMap()
     ) {
+        val isSos = clickType == "sos"
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             for ((key, value) in dataMap) {
@@ -159,7 +177,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 putExtra("click_type", clickType)
             }
         }
-        val requestCode = (System.currentTimeMillis() % 100000).toInt()
+        val requestCode = if (isSos) 911 else (System.currentTimeMillis() % 100000).toInt()
         val pendingIntent = PendingIntent.getActivity(
             this,
             requestCode,
@@ -167,15 +185,26 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val channelId = "diario_channel"
+        val channelId = if (isSos) "diario_sos_emergency_v2" else "diario_channel"
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(messageBody)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setPriority(if (isSos) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
+
+        if (isSos) {
+            notificationBuilder.setCategory(NotificationCompat.CATEGORY_ALARM)
+            notificationBuilder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            notificationBuilder.setFullScreenIntent(pendingIntent, true)
+            val alarmUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
+                ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE)
+            notificationBuilder.setSound(alarmUri)
+            notificationBuilder.setVibrate(longArrayOf(0, 800, 200, 800, 200, 800, 400, 350, 150, 350))
+        } else {
+            notificationBuilder.setDefaults(NotificationCompat.DEFAULT_ALL)
+        }
 
         if (!imageUrl.isNullOrBlank()) {
             serviceScope.launch {
@@ -187,10 +216,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             .setSummaryText(messageBody)
                     )
                 }
-                notifyNow(channelId, notificationBuilder)
+                notifyNow(channelId, notificationBuilder, isSos)
             }
         } else {
-            notifyNow(channelId, notificationBuilder)
+            notifyNow(channelId, notificationBuilder, isSos)
         }
     }
 
@@ -215,18 +244,38 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         return bitmap
     }
 
-    private fun notifyNow(channelId: String, notificationBuilder: NotificationCompat.Builder) {
+    private fun notifyNow(channelId: String, notificationBuilder: NotificationCompat.Builder, isSos: Boolean = false) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Diario", NotificationManager.IMPORTANCE_HIGH).apply {
-                enableLights(true)
-                enableVibration(true)
-                description = "Notificaciones de Diario Ali & Kevin"
+            if (isSos) {
+                val alarmUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
+                    ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE)
+                val audioAttributes = android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+
+                val sosChannel = NotificationChannel(channelId, "Alerta de Emergencia SOS", NotificationManager.IMPORTANCE_HIGH).apply {
+                    enableLights(true)
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 800, 200, 800, 200, 800, 400, 350, 150, 350)
+                    setSound(alarmUri, audioAttributes)
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    description = "Alarmas de emergencia SOS en tiempo real de tu pareja"
+                }
+                notificationManager.createNotificationChannel(sosChannel)
+            } else {
+                val channel = NotificationChannel(channelId, "Diario", NotificationManager.IMPORTANCE_HIGH).apply {
+                    enableLights(true)
+                    enableVibration(true)
+                    description = "Notificaciones de Diario Ali & Kevin"
+                }
+                notificationManager.createNotificationChannel(channel)
             }
-            notificationManager.createNotificationChannel(channel)
         }
 
-        notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
+        val notifId = if (isSos) 911 else System.currentTimeMillis().toInt()
+        notificationManager.notify(notifId, notificationBuilder.build())
     }
 }

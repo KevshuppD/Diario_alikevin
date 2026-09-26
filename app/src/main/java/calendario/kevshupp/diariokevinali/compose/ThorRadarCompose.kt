@@ -480,26 +480,23 @@ fun ThorRadarScreen(
 
     val isTogether = distanceMeters in 0.1f..60f
 
-    // Vibración y alerta si la pareja tiene SOS activo
+    // Alarma sonora, vibración y alerta si la pareja tiene SOS activo
     LaunchedEffect(partnerLocationData.sosActive) {
         if (partnerLocationData.sosActive) {
-            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
-                vibratorManager?.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 200, 500), -1))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(1000L)
-            }
+            SosAlarmHelper.playSosAlarm(context)
+        } else {
+            SosAlarmHelper.stopSosAlarm(context)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            SosAlarmHelper.stopSosAlarm(context)
         }
     }
 
     BackHandler {
+        SosAlarmHelper.stopSosAlarm(context)
         onBack()
     }
 
@@ -583,13 +580,27 @@ fun ThorRadarScreen(
                         color = Color(0xFFB71C1C)
                     )
                 }
-                Button(
-                    onClick = { selectedTab = 0 },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text("VER", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                Row {
+                    Button(
+                        onClick = { SosAlarmHelper.stopSosAlarm(context) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF424242)),
+                        shape = RoundedCornerShape(0.dp),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+                    ) {
+                        Text("🔇 SILENCIAR", fontFamily = Vt323, fontSize = 14.sp, color = Color.White)
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Button(
+                        onClick = {
+                            selectedTab = 0
+                            SosAlarmHelper.stopSosAlarm(context)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        shape = RoundedCornerShape(0.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("VER", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                    }
                 }
             }
         }
