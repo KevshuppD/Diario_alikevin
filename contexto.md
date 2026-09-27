@@ -225,8 +225,10 @@ graph TD
 
 ## 7. Despliegue Automatizado y Pruebas Multidispositivo
 
-### CI/CD en GitHub Actions
-- **Incrustar versión obligatoria:** Antes de publicar, incrementar `versionCode` y `versionName` en [app/build.gradle.kts](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/build.gradle.kts).
+### CI/CD en GitHub Actions & Regla de Versionado
+- **Incremento de Versión Obligatorio al Crear Tag (`versionCode` & `versionName`):**
+  - **REGLA ESTRICTA**: Siempre que el usuario solicite subir, crear o actualizar un `tag` (ej. "sube tag", "crea tag", "actualiza versión"), es **OBLIGATORIO** incrementar previamente `versionCode` (+1) y `versionName` (ej: `1.7.76` -> `1.7.77`) en [app/build.gradle.kts](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/build.gradle.kts) antes de hacer el commit y generar el tag en git.
+  - Esto garantiza que Android y el instalador in-app reconozcan el APK resultante como una actualización superior y no rechacen o ignoren la instalación por tener el mismo `versionCode`.
 - **Creación de Tag:** Empujar el tag `v<versionName>` a `master` dispara el workflow [`.github/workflows/android.yml`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/.github/workflows/android.yml), el cual compila, firma y publica `app-release.apk` en GitHub Releases.
 - **Notificación Push Push Automática (FCM v1):** Tras crear la Release, GitHub Actions ejecuta [`.github/scripts/send_update_notification.py`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/.github/scripts/send_update_notification.py) usando el `service-account.json` para emitir un push instantáneo al topic `diario_app_updates`. Todos los dispositivos con la app instalada reciben la alerta de actualización en tiempo real con enlace directo de descarga.
 

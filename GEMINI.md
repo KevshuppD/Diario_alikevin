@@ -47,3 +47,9 @@
   - **Filtro de movimiento pasivo**: Solo emitir escrituras pasivas si hubo desplazamiento real significativo ($\ge 300\text{ metros}$) y pasaron al menos 10 minutos.
   - **Historial acotado**: Solo registrar puntos de historial (`history_`) con desplazamiento real $\ge 300\text{ metros}$ y al menos 10 minutos.
 
+---
+
+## 🏷️ 6. Despliegues y Creación de Tags en Git
+- **Incremento Obligatorio de Versión (`versionCode` & `versionName`)**:
+  - Cada vez que el usuario indique subir o crear un tag (ej: `"sube tag"`, `"crea tag"`, `"nueva versión"`), es **OBLIGATORIO** incrementar previamente `versionCode` (+1) y `versionName` en `app/build.gradle.kts`.
+  - Primero se modifican las versiones en Gradle, luego se hace commit y finalmente se crea y empuja el tag (`v<versionName>`). Esto evita que Android no detecte la actualización o vuelva a pedir instalarla.
