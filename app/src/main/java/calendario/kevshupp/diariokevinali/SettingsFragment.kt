@@ -239,28 +239,25 @@ class SettingsFragment : Fragment() {
                     }
                 }
 
-                // Escuchar en tiempo real contador de Firestore de la nube
-                DisposableEffect(coupleId) {
+                // Consultar conteo de Firestore de la nube de forma agregada y ultraliviana (1 sola lectura de cuota)
+                LaunchedEffect(coupleId, isSyncing) {
                     if (coupleId.isNullOrEmpty()) {
                         cloudFilesCount = 0
-                        onDispose {}
                     } else {
-                        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                        val listener = db.collection("pets").document(coupleId).collection("drive_sync_metadata")
-                            .addSnapshotListener { snapshot, error ->
-                                if (error != null) {
-                                    Log.e("SettingsFragment", "Error escuchando metadatos de Firestore: ${error.message}")
-                                    return@addSnapshotListener
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                val aggregateQuery = db.collection("pets").document(coupleId)
+                                    .collection("drive_sync_metadata")
+                                    .whereEqualTo("eliminado", false)
+                                    .count()
+                                val snapshot = Tasks.await(aggregateQuery.get(com.google.firebase.firestore.AggregateSource.SERVER))
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    cloudFilesCount = snapshot.count.toInt()
                                 }
-                                if (snapshot != null) {
-                                    val count = snapshot.documents.count { doc ->
-                                        doc.getBoolean("eliminado") != true
-                                    }
-                                    cloudFilesCount = count
-                                }
+                            } catch (e: Exception) {
+                                Log.e("SettingsFragment", "Error consultando conteo de Drive: ${e.message}")
                             }
-                        onDispose {
-                            listener.remove()
                         }
                     }
                 }
@@ -572,11 +569,14 @@ class SettingsFragment : Fragment() {
                                     if (!coupleId.isNullOrEmpty()) {
                                         val metadataRef = db.collection("pets").document(coupleId).collection("drive_sync_metadata")
                                         val snapshot = Tasks.await(metadataRef.get())
-                                        val batch = db.batch()
-                                        for (doc in snapshot.documents) {
-                                            batch.delete(doc.reference)
+                                        val chunks = snapshot.documents.chunked(450)
+                                        for (chunk in chunks) {
+                                            val batch = db.batch()
+                                            for (doc in chunk) {
+                                                batch.delete(doc.reference)
+                                            }
+                                            Tasks.await(batch.commit())
                                         }
-                                        Tasks.await(batch.commit())
                                         Log.d("ResetDrive", "Metadatos en Firestore eliminados con éxito.")
                                     }
 

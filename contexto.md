@@ -575,7 +575,12 @@ graph TD
       - **Respaldo Automático de Caché:** Fallback automático a `loadCachedZonesFromPrefs(context)` en todas las evaluaciones de zonas si la memoria se reinició.
       - **Bypass Inmediato de Throttling:** Toda transición de zona (`ENTER` o `EXIT`) o cambio en `currentZone` dispara una sincronización inmediata forzada hacia Firebase Realtime Database.
       - **Control Robusto de Ciclo Fuera/Dentro (`was_outside_zone`):** Se implementó el flag de estado `was_outside_zone` y re-evaluación tras lapsos de inactividad, asegurando que regresar a una zona segura siempre despache la notificación push FCM prioritario a la pareja.
-      - **Canal de Notificación Mejorado:** Configuración del canal con `IMPORTANCE_HIGH`, vibración y luces en `MyFirebaseMessagingService.kt`.
+29. **Auto-Reconciliación Inteligente y Optimización de Rendimiento en Sincronización Drive (`SyncDriveWorker.kt` & `SettingsFragment.kt`):**
+    - **Auto-Reconciliación Inteligente (Self-Healing Sync):** Si la base de datos de Firestore cambia, se reinicia o está vacía, el worker consulta los archivos existentes en Google Drive (`driveService.files().list()`). Como Google Drive ya provee el `md5Checksum` y `modifiedTime` de origen, los metadatos se recuperan e insertan en lotes en Firestore en 0 segundos, evitando la resubida de fotos existentes y suprimiendo duplicados en la nube.
+    - **Desacoplamiento No Bloqueante de Progreso (`setProgressAsync`):** Eliminación de `runBlocking` en las emisiones de progreso de streams y uso de `setProgressAsync`, garantizando un flujo continuo de subida y descarga sin pausas en el hilo de red.
+    - **Aceleración de Flujo I/O y MD5:** Incremento del buffer de hashing MD5 a 64KB (`ByteArray(65536)`) y reporte de progreso por bloques (cada 64KB) en `ProgressInputStream` y `ProgressOutputStream`, reduciendo llamadas al sistema y consumo de CPU.
+    - **Ahorro Masivo de Cuota Firestore (1 Lectura Agregada):** Reemplazo del snapshot listener de todos los documentos en `SettingsFragment.kt` por una consulta agregada `count().get(AggregateSource.SERVER)`, reduciendo miles de lecturas diarias a 1 sola lectura por consulta.
+    - **Batching Seguro al Vaciar la Nube:** Fragmentación en lotes de 450 elementos (`chunked(450)`) en `onResetDrive`, previniendo errores por el límite de 500 operaciones de Firestore.
 
 ---
 

@@ -184,10 +184,53 @@ class SyncDriveWorker(
                 Pair(firestoreDeferred.await(), localFilesDeferred.await())
             }
 
-            val dbMetadataList = metadataSnapshot.documents.mapNotNull { doc ->
+            var dbMetadataList = metadataSnapshot.documents.mapNotNull { doc ->
                 val meta = doc.toObject(SyncMetadata::class.java)
                 if (meta != null) doc.id to meta else null
             }.toMap()
+
+            // Auto-reconciliación inteligente: Si Firestore no tiene metadatos (cambio de BD o reseteo) pero Drive ya tiene fotos
+            if (dbMetadataList.isEmpty() && !folderId.isNullOrEmpty()) {
+                SyncLogger.log(applicationContext, "🔍 Verificando si existen fotos previas en Google Drive para auto-reconciliar...")
+                try {
+                    val existingDriveFiles = listFilesInDriveFolder(driveService, folderId)
+                    if (existingDriveFiles.isNotEmpty()) {
+                        SyncLogger.log(applicationContext, "✓ Se encontraron ${existingDriveFiles.size} fotos en Google Drive. Reconciliando metadatos en Firestore...")
+                        val recoveredMetadataMap = mutableMapOf<String, SyncMetadata>()
+                        for (driveFile in existingDriveFiles) {
+                            val fileName = driveFile.name
+                            if (fileName.isNullOrEmpty()) continue
+                            val meta = SyncMetadata(
+                                idLocal = fileName,
+                                idDrive = driveFile.id ?: "",
+                                nombreArchivo = fileName,
+                                uriLocal = "",
+                                md5Checksum = driveFile.md5Checksum ?: "",
+                                fechaModificacion = driveFile.modifiedTime?.value ?: System.currentTimeMillis(),
+                                sincronizadoPor = userId,
+                                eliminado = false
+                            )
+                            recoveredMetadataMap[fileName] = meta
+                        }
+
+                        // Guardar metadatos recuperados en lotes de 450 en Firestore
+                        val chunks = recoveredMetadataMap.entries.chunked(450)
+                        for (chunk in chunks) {
+                            val batch = db.batch()
+                            for ((fileName, meta) in chunk) {
+                                val docRef = db.collection("pets").document(coupleId)
+                                    .collection("drive_sync_metadata").document(fileName)
+                                batch.set(docRef, meta)
+                            }
+                            Tasks.await(batch.commit())
+                        }
+                        dbMetadataList = recoveredMetadataMap
+                        SyncLogger.log(applicationContext, "✓ ${recoveredMetadataMap.size} fotos de Google Drive auto-reconciliadas exitosamente.", "SUCCESS")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "No se pudo auto-reconciliar desde Google Drive: ${e.message}")
+                }
+            }
 
             SyncLogger.log(applicationContext, "Fotos locales encontradas: ${localFiles.size} | Metadatos en Firestore: ${dbMetadataList.size}")
 
@@ -454,7 +497,7 @@ class SyncDriveWorker(
             val slotProgress = IntArray(parallelLines) { 0 }
             val freeSlotQueue = java.util.concurrent.ConcurrentLinkedQueue((0 until parallelLines).toList())
 
-            suspend fun updateSlot(slotIndex: Int, fileName: String, progress: Int, isGeneralOnly: Boolean = false) {
+            fun updateSlot(slotIndex: Int, fileName: String, progress: Int, isGeneralOnly: Boolean = false) {
                 synchronized(slots) {
                     if (!isGeneralOnly && slotIndex in 0 until parallelLines) {
                         slots[slotIndex] = fileName
@@ -491,7 +534,7 @@ class SyncDriveWorker(
                 dataBuilder.putString("status", generalStatus)
                 
                 try {
-                    safeSetProgress(dataBuilder.build())
+                    setProgressAsync(dataBuilder.build())
                 } catch (e: Exception) {
                     Log.w(TAG, "Error al actualizar progreso: ${e.message}")
                 }
@@ -528,9 +571,7 @@ class SyncDriveWorker(
                                         mimeType = mime,
                                         fileSize = localFile.size,
                                         onProgress = { currentPct ->
-                                            kotlinx.coroutines.runBlocking {
-                                                updateSlot(slotIndex, slotLabel, currentPct)
-                                            }
+                                            updateSlot(slotIndex, slotLabel, currentPct)
                                         }
                                     ) ?: throw java.io.IOException("No se pudo subir la foto a Drive")
                                 }
@@ -611,9 +652,7 @@ class SyncDriveWorker(
                                         fileName = fileName,
                                         mimeType = mimeType,
                                         onProgress = { currentPct ->
-                                            kotlinx.coroutines.runBlocking {
-                                                updateSlot(slotIndex, slotLabel, currentPct)
-                                            }
+                                            updateSlot(slotIndex, slotLabel, currentPct)
                                         }
                                     ) ?: throw java.io.IOException("No se pudo descargar la foto de Drive")
                                 }
@@ -799,6 +838,27 @@ class SyncDriveWorker(
         return folder.id
     }
 
+    private fun listFilesInDriveFolder(driveService: Drive, folderId: String): List<File> {
+        val result = mutableListOf<File>()
+        var pageToken: String? = null
+        do {
+            val query = driveService.files().list()
+                .setQ("'$folderId' in parents and trashed = false")
+                .setFields("nextPageToken, files(id, name, modifiedTime, md5Checksum, size, mimeType)")
+                .setPageSize(1000)
+            if (pageToken != null) {
+                query.pageToken = pageToken
+            }
+            val response = query.execute()
+            val files = response.files
+            if (!files.isNullOrEmpty()) {
+                result.addAll(files)
+            }
+            pageToken = response.nextPageToken
+        } while (pageToken != null)
+        return result
+    }
+
     private fun uploadToDrive(
         driveService: Drive,
         folderId: String,
@@ -871,7 +931,7 @@ class SyncDriveWorker(
         return try {
             val digest = MessageDigest.getInstance("MD5")
             applicationContext.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val buffer = ByteArray(32768)
+                val buffer = ByteArray(65536)
                 var read: Int
                 while (inputStream.read(buffer).also { read = it } > 0) {
                     digest.update(buffer, 0, read)
@@ -1021,12 +1081,16 @@ private class ProgressInputStream(
 ) : InputStream() {
     private var bytesRead: Long = 0
     private var lastPct = -1
+    private var lastReportedBytes = 0L
 
     override fun read(): Int {
         val b = inputStream.read()
         if (b != -1) {
             bytesRead++
-            report()
+            if (bytesRead - lastReportedBytes >= 65536L || bytesRead >= totalBytes) {
+                lastReportedBytes = bytesRead
+                report()
+            }
         }
         return b
     }
@@ -1035,7 +1099,10 @@ private class ProgressInputStream(
         val n = inputStream.read(b, off, len)
         if (n > 0) {
             bytesRead += n
-            report()
+            if (bytesRead - lastReportedBytes >= 65536L || bytesRead >= totalBytes) {
+                lastReportedBytes = bytesRead
+                report()
+            }
         }
         return n
     }
@@ -1062,17 +1129,24 @@ private class ProgressOutputStream(
 ) : java.io.OutputStream() {
     private var bytesWritten: Long = 0
     private var lastPct = -1
+    private var lastReportedBytes = 0L
 
     override fun write(b: Int) {
         outputStream.write(b)
         bytesWritten++
-        report()
+        if (bytesWritten - lastReportedBytes >= 65536L || bytesWritten >= totalBytes) {
+            lastReportedBytes = bytesWritten
+            report()
+        }
     }
 
     override fun write(b: ByteArray, off: Int, len: Int) {
         outputStream.write(b, off, len)
         bytesWritten += len
-        report()
+        if (bytesWritten - lastReportedBytes >= 65536L || bytesWritten >= totalBytes) {
+            lastReportedBytes = bytesWritten
+            report()
+        }
     }
 
     private fun report() {
