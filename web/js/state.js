@@ -11,6 +11,11 @@ import {
   defaultCategoriesT2 
 } from './constants.js';
 
+export const USERS = {
+  kevin: { username: "kevin", name: "Kevin", docId: "user_kevin_01", icon: "🔵", color: "#60a5fa" },
+  ali: { username: "ali", name: "Ali", docId: "user_ali_02", icon: "🔴", color: "#f472b6" }
+};
+
 function normalizeCoupleId(id) {
   const clean = (id || "").trim();
   if (!clean || clean === "vinculo_unico_123" || clean === "vínculo_único_123") {
@@ -19,13 +24,16 @@ function normalizeCoupleId(id) {
   return clean;
 }
 
+const savedUserKey = localStorage.getItem("logged_user");
+const initialUser = (savedUserKey && USERS[savedUserKey]) ? USERS[savedUserKey] : null;
+
 export const state = {
   coupleId: normalizeCoupleId(localStorage.getItem("coupleId")),
   currentSeason: parseInt(localStorage.getItem("current_season") || "2", 10),
   currentMode: "normal",
   currentFilter: "todos",
   searchQuery: "",
-  currentUser: null,
+  currentUser: initialUser,
   
   // Spirit lists & mappings
   spiritsList: [],
@@ -118,4 +126,75 @@ export function getStoredTheme() {
   if (theme === "Pixel Monocromático") return "pixel-mono";
   return "pixel-oscuro";
 }
+
+export function updateUserBadge() {
+  const badge = document.getElementById("user-badge");
+  const iconEl = document.getElementById("user-icon");
+  const nameEl = document.getElementById("user-name");
+  const logoutBtn = document.getElementById("btn-logout");
+  
+  const user = state.currentUser;
+  if (!user) {
+    if (badge) {
+      badge.className = "user-badge guest";
+      badge.title = "Sin sesión activa (Haz clic para iniciar sesión)";
+      badge.onclick = () => { if (typeof window.showLoginModal === 'function') window.showLoginModal(); };
+      if (iconEl) iconEl.textContent = "👤";
+      if (nameEl) nameEl.textContent = "Ingresar";
+    }
+    if (logoutBtn) {
+      logoutBtn.style.display = "none";
+    }
+    return;
+  }
+  
+  if (badge) {
+    badge.className = `user-badge ${user.username}`;
+    badge.title = `Conectado como ${user.name} (Clic para gestionar sesión)`;
+    badge.onclick = () => { if (typeof window.openUserModal === 'function') window.openUserModal(); };
+  }
+  if (logoutBtn) {
+    logoutBtn.style.display = "inline-flex";
+  }
+  if (iconEl) iconEl.textContent = user.icon;
+  if (nameEl) nameEl.textContent = user.name;
+}
+
+export function switchUserProfile(username) {
+  const newUser = USERS[username] || USERS.kevin;
+  state.currentUser = newUser;
+  localStorage.setItem("logged_user", newUser.username);
+  updateUserBadge();
+
+  if (typeof window.showToast === 'function') {
+    window.showToast(`👤 Usuario cambiado a: ${newUser.name}`);
+  }
+  if (typeof window.renderWorkspace === 'function') {
+    window.renderWorkspace();
+  }
+  if (typeof window.renderConfigEditor === 'function') {
+    window.renderConfigEditor();
+  }
+}
+
+export function logoutSession() {
+  localStorage.removeItem("logged_user");
+  state.currentUser = null;
+  updateUserBadge();
+
+  if (typeof window.showToast === 'function') {
+    window.showToast("🚪 Sesión cerrada correctamente");
+  }
+  if (typeof window.renderWorkspace === 'function') {
+    window.renderWorkspace();
+  }
+  if (typeof window.renderConfigEditor === 'function') {
+    window.renderConfigEditor();
+  }
+  if (typeof window.showLoginModal === 'function') {
+    window.showLoginModal();
+  }
+}
+
+
 

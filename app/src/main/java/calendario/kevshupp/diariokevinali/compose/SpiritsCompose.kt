@@ -627,14 +627,15 @@ fun SpiritsChecklistView(
             SpiritCategory("Espíritu de Shadow", listOf("28", "29", "30", "58", "80")),
             SpiritCategory("Espíritu de Tails", listOf("31", "32", "33", "59", "81")),
             SpiritCategory("Espíritu de Sonic", listOf("34", "35", "36", "57", "82")),
-            SpiritCategory("Espíritu Caballero", listOf("37", "38", "39", "40", "95")),
+            SpiritCategory("Espíritu Caballero", listOf("37", "38", "39", "40")),
             SpiritCategory("Espíritu Onigiri", listOf("41", "42", "43", "44", "83")),
             SpiritCategory("Espíritu Científico", listOf("45", "46", "47", "48", "84")),
             SpiritCategory("Espíritu Especial/Invitado", listOf("49")),
             SpiritCategory("Espíritu de Blinky", listOf("62", "63", "64", "65", "66")),
             SpiritCategory("Espíritu de Cash Bandicoot", listOf("67", "68", "69", "70", "85")),
-            SpiritCategory("Espíritu del Estanque", listOf("96", "97", "98", "99", "100")),
             SpiritCategory("Espíritu de Morgana", listOf("86", "87", "88", "89", "90")),
+            SpiritCategory("Espíritu de Sobreescudo", listOf("91", "92", "93", "94", "95")),
+            SpiritCategory("Espíritu del Estanque", listOf("96", "97", "98", "99", "100")),
             SpiritCategory("Espíritu de Cumpleaños", listOf("101", "102", "103", "104", "105"))
         )
     }

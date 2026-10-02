@@ -88,6 +88,33 @@ export function renderConfigEditor() {
         </div>
       </div>
 
+      <!-- SECTION: USER SESSION & PROFILE SWITCHER -->
+      <div class="db-inspector-card" style="margin-bottom: 24px; border-left: 4px solid #ec4899;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+          <div class="db-inspector-title" style="margin-bottom: 0;">
+            <span>👤</span> Gestión de Sesión y Usuario Activo
+          </div>
+          <button type="button" class="btn" onclick="window.logoutSession()" style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #f87171; font-size: 12px; padding: 6px 14px; border-radius: 8px;">
+            🚪 Cerrar Sesión
+          </button>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+          El usuario activo determina a quién se asignan los checks de espíritus obtenidos, maestrías y los comandos de solicitud en Thor Radar.
+        </p>
+
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+          <button type="button" class="btn ${state.currentUser?.username === 'kevin' ? '' : 'btn-secondary'}" onclick="window.switchUserProfile('kevin')" style="padding: 10px 18px; font-size: 13px; font-weight: 700; border-color: #3b82f6; color: #60a5fa; background: ${state.currentUser?.username === 'kevin' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(59, 130, 246, 0.08)'};">
+            🔵 Iniciar / Cambiar a Kevin ${state.currentUser?.username === 'kevin' ? '✓ (Activo)' : ''}
+          </button>
+          <button type="button" class="btn ${state.currentUser?.username === 'ali' ? '' : 'btn-secondary'}" onclick="window.switchUserProfile('ali')" style="padding: 10px 18px; font-size: 13px; font-weight: 700; border-color: #ec4899; color: #f472b6; background: ${state.currentUser?.username === 'ali' ? 'rgba(236, 72, 153, 0.25)' : 'rgba(236, 72, 153, 0.08)'};">
+            🔴 Iniciar / Cambiar a Ali ${state.currentUser?.username === 'ali' ? '✓ (Activo)' : ''}
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="window.openUserModal()" style="padding: 10px 14px; font-size: 12px;">
+            ⚙️ Detalles de Sesión
+          </button>
+        </div>
+      </div>
+
       <!-- SECTION 2: FIRESTORE SPARK QUOTA METRICS DASHBOARD -->
       <div class="db-inspector-card" style="margin-bottom: 24px; border-left: 4px solid #3b82f6;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">

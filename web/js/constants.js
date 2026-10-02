@@ -45,14 +45,15 @@ export const defaultCategoriesT2 = [
   { name: "Espíritu de Shadow", spiritIds: ["28", "29", "30", "58", "80"] },
   { name: "Espíritu de Tails", spiritIds: ["31", "32", "33", "59", "81"] },
   { name: "Espíritu de Sonic", spiritIds: ["34", "35", "36", "57", "82"] },
-  { name: "Espíritu Caballero", spiritIds: ["37", "38", "39", "40", "95"] },
+  { name: "Espíritu Caballero", spiritIds: ["37", "38", "39", "40"] },
   { name: "Espíritu Onigiri", spiritIds: ["41", "42", "43", "44", "83"] },
   { name: "Espíritu Científico", spiritIds: ["45", "46", "47", "48", "84"] },
   { name: "Espíritu Especial/Invitado", spiritIds: ["49"] },
   { name: "Espíritu de Blinky", spiritIds: ["62", "63", "64", "65", "66"] },
   { name: "Espíritu de Cash Bandicoot", spiritIds: ["67", "68", "69", "70", "85"] },
-  { name: "Espíritu del Estanque", spiritIds: ["96", "97", "98", "99", "100"] },
   { name: "Espíritu de Morgana", spiritIds: ["86", "87", "88", "89", "90"] },
+  { name: "Espíritu de Sobreescudo", spiritIds: ["91", "92", "93", "94", "95"] },
+  { name: "Espíritu del Estanque", spiritIds: ["96", "97", "98", "99", "100"] },
   { name: "Espíritu de Cumpleaños", spiritIds: ["101", "102", "103", "104", "105"] }
 ];
 

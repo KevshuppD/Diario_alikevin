@@ -53,3 +53,15 @@
 - **Incremento Obligatorio de Versión (`versionCode` & `versionName`)**:
   - Cada vez que el usuario indique subir o crear un tag (ej: `"sube tag"`, `"crea tag"`, `"nueva versión"`), es **OBLIGATORIO** incrementar previamente `versionCode` (+1) y `versionName` en `app/build.gradle.kts`.
   - Primero se modifican las versiones en Gradle, luego se hace commit y finalmente se crea y empuja el tag (`v<versionName>`). Esto evita que Android no detecte la actualización o vuelva a pedir instalarla.
+
+---
+
+## 🛡️ 7. Salvaguarda Estricta de Espíritus (Checklist & Firestore)
+- **Cero Sobreescritura Destructiva de Selecciones y Maestrías**:
+  - Queda terminantemente prohibido vaciar o sobreescribir `kevin_list`, `ali_list`, `kevin_mastery`, `ali_mastery` en `fortnite_spirits` y `fortnite_spirits_s2`.
+  - Toda modificación de categorías o nombres debe preservar intactos los datos de usuario existentes.
+- **Backup Obligatorio Pre-Escritura**:
+  - Antes de ejecutar cualquier script que modifique Firestore en colecciones de espíritus, es **OBLIGATORIO** ejecutar `python3 scripts/backup_firestore_spirits.py`.
+- **Catálogo Maestro**:
+  - Consultar siempre `espiritus.md` como la Fuente Única de Verdad de nombres, categorías, IDs y enlaces directos a Fortnite.GG.
+

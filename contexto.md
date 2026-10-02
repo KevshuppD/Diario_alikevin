@@ -35,7 +35,7 @@ Este documento sirve como la **Fuente Única de Verdad (Single Source of Truth)*
   - **Cloudinary:** Hosting cloud multimedia. Las fotos de las cartas se suben de forma firmada directamente a Cloudinary.
   - **GitHub API:** Localizada en [UpdateManager.kt](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/UpdateManager.kt) para verificar actualizaciones del APK e instalarlas automáticamente.
 - **Colección de Espíritus / Coleccionables:**
-  - **Checklist de Espíritus:** Un listado interactivo en el juego compuesto por **117 espíritus**. Su registro en código reside en `SpiritsCompose.kt` y `MiscCompose.kt` y sus activos de imagen pixel-art están almacenados en los recursos drawables y Cloudinary. El **Modo Edición** permite renombrar espíritus y categorías, mover espíritus a diferentes categorías y eliminar tanto espíritus como categorías de forma compartida guardando los cambios en Firestore (`fortnite_spirits/<coupleId>`).
+  - **Checklist de Espíritus (Temporada 1 y 2):** Listado interactivo en el juego y en la web sincronizado mediante Firestore (`fortnite_spirits` para T1 y `fortnite_spirits_s2` para T2) y respaldado por Cloudinary. Toda la lista detallada y catálogo de enlaces oficiales a Fortnite.GG reside en [espiritus.md](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/espiritus.md). Cuenta con estricta salvaguarda de preservación de datos (`kevin_list`, `ali_list`, `kevin_mastery`, `ali_mastery`) y copias de seguridad automáticas (`scripts/backup_firestore_spirits.py`).
 - **Estilos y UI:**
   - Estética inmersiva **Retro Pixel-Art de 8 y 16 bits**.
   - Tipografía pixelada `vt323` importada globalmente.
@@ -173,9 +173,17 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 - `idLocal: String`, `idDrive: String`, `nombreArchivo: String`, `uriLocal: String`, `md5Checksum: String`, `fechaModificacion: Long`, `sincronizadoPor: String`, `eliminado: Boolean`.
 
 ### I. Colección de Espíritus Fortnite (`fortnite_spirits/<coupleId>` para Temporada 1 / `fortnite_spirits_s2/<coupleId>` para Temporada 2)
+- **Documento Maestro de Referencia:** Ver archivo dedicado [espiritus.md](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/espiritus.md) para el desglose 1:1 de nombres, categorías, IDs y enlaces directos a `fortnite.gg`.
+- **🛡️ REGLA ESTRICTA DE SALVAGUARDA DE DATOS Y COPIAS DE SEGURIDAD (OBLIGATORIA):**
+  - **Prohibición Total de Sobreescritura Destructiva:** Queda terminantemente prohibido vaciar o sobreescribir las listas de selección y maestrías de los usuarios (`kevin_list`, `ali_list`, `kevin_mastery`, `ali_mastery`). Cualquier actualización a nivel de esquema, categorías o nombres debe preservar intactos los datos de usuario mediante operaciones no destructivas (`SetOptions.merge()` o lectura previa con inyección obligatoria de las listas existentes).
+  - **Backup Previo Obligatorio:** Antes de ejecutar cualquier script que interactúe o modifique la colección de espíritus en Firestore, es **OBLIGATORIO** ejecutar:
+    ```bash
+    python3 scripts/backup_firestore_spirits.py
+    ```
+    Dicho script guarda copias timestamped e inmutables de `fortnite_spirits` y `fortnite_spirits_s2` en `scripts/backups/`.
 - **Soporte Multitemporada:**
   - **Temporada 1**: Contiene la colección original de espíritus (1 a 141), categorías y estado histórico de checks y maestrías.
-  - **Temporada 2 (Por defecto)**: Colección activa para los nuevos espíritus, variantes y categorías creadas en la Web de Gestión con registro independiente de checks y maestrías.
+  - **Temporada 2 (Por defecto)**: Colección activa con los 105 espíritus oficiales de Fortnite Chapter 7 Season 4 "Override" (21 familias completas de 5 variantes + Mega Man #49), 22 categorías y registro independiente de checks y maestrías.
 - `schema_version: Int` (Versión 4).
 - `categories: List<SpiritCategory>` / `Map`
 - `spirits_list: List<String>`

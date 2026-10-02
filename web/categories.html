@@ -52,10 +52,16 @@
         <button type="button" id="btn-mode-config" class="mode-btn nav-tab" data-mode="config" onclick="window.switchModeSPA('config')">⚙️ Configuración</button>
       </div>
 
-      <!-- Logged User Badge -->
-      <div id="user-badge" class="user-badge kevin">
-        <span id="user-icon">🔵</span>
-        <span id="user-name">Kevin</span>
+      <!-- Logged User Badge & Logout Button -->
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div id="user-badge" class="user-badge kevin" onclick="window.openUserModal()" style="cursor: pointer;" title="Haz clic para cambiar de usuario">
+          <span id="user-icon">🔵</span>
+          <span id="user-name">Kevin</span>
+        </div>
+        <button type="button" id="btn-logout" class="btn btn-secondary" onclick="window.logoutSession()" style="padding: 6px 10px; font-size: 12px; font-weight: 600; border-radius: 10px; display: flex; align-items: center; gap: 4px; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" title="Cerrar sesión">
+          <span>🚪</span>
+          <span class="logout-text">Salir</span>
+        </button>
       </div>
 
       <!-- Connection Status Badge -->
