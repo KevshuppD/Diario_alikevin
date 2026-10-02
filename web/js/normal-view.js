@@ -355,7 +355,7 @@ export function createSpiritSlot(id, categoryName) {
       ${deleteBtnHtml}
       <span class="spirit-id-badge">#${displayNumber}</span>
       <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" draggable="false" style="cursor: pointer;" onclick="window.openEditImageModal('${id}')" title="Haz clic para cambiar la imagen" onerror="window.handleSpiritImgError(this, '${id}')">
-      <button type="button" class="btn" style="padding: 2px 4px; font-size: 9px; margin-bottom: 4px; width: 100%; font-family: inherit; justify-content: center;" onclick="window.openEditImageModal('${id}')">🖼️ Cambiar Imagen</button>
+      <button type="button" class="btn btn-secondary" style="padding: 3px 6px; font-size: 11px; margin-bottom: 4px; width: 100%; justify-content: center; font-weight: 600;" onclick="window.openEditImageModal('${id}')">🖼️ Cambiar Imagen</button>
       <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}" style="margin-bottom: 4px;">
       <select class="type-select" data-id="${id}" style="width: 100%; font-size: 10px; border-radius: 4px; padding: 2px; margin-bottom: 4px;">
         ${typesHtml}
@@ -526,8 +526,8 @@ export function renderWorkspace() {
       header.innerHTML = `
         <div class="category-title-edit" style="flex-wrap: wrap; gap: 8px 12px;">
           <span style="font-size: 20px;">📂</span>
-          <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; color: var(--text-color);">${customTitle}</h3>
-          <span style="font-size: 12px; color: var(--text-muted);">(${matchingSpirits.length}/${(cat.spiritIds || []).length})</span>
+          <h3 style="font-family: 'VT323', monospace; font-size: 24px; font-weight: 700; color: var(--text-color);">${customTitle}</h3>
+          <span style="font-size: 16px; color: var(--text-muted);">(${matchingSpirits.length}/${(cat.spiritIds || []).length})</span>
           <div style="display: inline-flex; gap: 6px; align-items: center;">
             <span class="cat-stat-badge kevin" title="Obtenidos / Maestría de Kevin">🔵 ${catKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${catKevinMastery}</span></span>
             <span class="cat-stat-badge ali" title="Obtenidos / Maestría de Ali">🔴 ${catAliCount} <span style="color:#fbbf24; font-weight:700;">⭐${catAliMastery}</span></span>
@@ -584,15 +584,15 @@ export function renderWorkspace() {
     const uncatAliMastery = uncategorizedIds.filter(id => state.aliMastery.includes(id)).length;
 
     const deleteMassBtn = (state.currentMode === "edit" && uncategorizedIds.length > 0)
-      ? `<button class="btn btn-danger" style="padding: 4px 10px; font-size: 11px; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" onclick="window.deleteAllUncategorizedSpirits()" title="Eliminar espíritus sueltos">🗑️ Eliminar Sueltos (${uncategorizedIds.length})</button>`
+      ? `<button class="btn btn-danger" style="padding: 4px 10px; font-size: 14px; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" onclick="window.deleteAllUncategorizedSpirits()" title="Eliminar espíritus sueltos">🗑️ Eliminar Sueltos (${uncategorizedIds.length})</button>`
       : '';
 
     looseCard.innerHTML = `
       <div class="category-header">
         <div class="category-title-edit" style="flex-wrap: wrap; gap: 8px 12px; width: 100%; align-items: center;">
           <span style="font-size: 20px;">📦</span>
-          <span style="font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: var(--error-color);">Sin Categoría / Sueltos</span>
-          <span style="font-size: 12px; color: var(--text-muted);">(${uncategorizedIds.length})</span>
+          <span style="font-family: 'VT323', monospace; font-size: 22px; font-weight: 700; color: var(--error-color);">Sin Categoría / Sueltos</span>
+          <span style="font-size: 16px; color: var(--text-muted);">(${uncategorizedIds.length})</span>
           ${state.currentMode === 'normal' ? `
             <div style="display: inline-flex; gap: 6px; align-items: center;">
               <span class="cat-stat-badge kevin" title="Obtenidos / Maestría de Kevin">🔵 ${uncatKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${uncatKevinMastery}</span></span>

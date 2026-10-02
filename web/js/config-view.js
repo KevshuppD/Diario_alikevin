@@ -40,10 +40,10 @@ export function renderConfigEditor() {
       <!-- Master Header -->
       <div class="radar-hero" style="margin-bottom: 24px;">
         <div>
-          <h2 style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; background:linear-gradient(135deg, #00e5ff, #e040fb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
+          <h2 style="font-family:'VT323',monospace; font-size:28px; font-weight:700; background:linear-gradient(135deg, #00e5ff, #e040fb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
             ⚙️ Centro de Configuración & Estado del Sistema
           </h2>
-          <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+          <p style="font-size:16px; color:var(--text-muted); margin-top:4px;">
             Supervisa el estado de la conexión, el consumo de cuotas de Firestore, personaliza temas pixel-art y realiza mantenimiento.
           </p>
         </div>
@@ -201,6 +201,24 @@ export function renderConfigEditor() {
           </div>
         </div>
 
+        <!-- Typography / Font Preference -->
+        <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--card-border); border-radius: 10px; padding: 16px; margin-bottom: 16px;">
+          <div style="font-size: 14px; font-weight: 700; color: var(--text-color); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <span>🔤</span> Estilo de Tipografía y Fuente:
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+            Elige si prefieres la fuente pixel-art de la app (VT323) o la tipografía moderna estilizada (Inter / Outfit).
+          </p>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button type="button" onclick="window.changeFont('pixel')" class="btn ${state.userFont !== 'modern' ? '' : 'btn-secondary'}" style="flex: 1; min-width: 180px; padding: 12px; font-size: 16px; font-weight: 700; border-color: #a855f7; color: ${state.userFont !== 'modern' ? '#fff' : '#c084fc'}; background: ${state.userFont !== 'modern' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(168, 85, 247, 0.08)'};">
+              👾 Pixel-Art (VT323) ${state.userFont !== 'modern' ? '✓' : ''}
+            </button>
+            <button type="button" onclick="window.changeFont('modern')" class="btn ${state.userFont === 'modern' ? '' : 'btn-secondary'}" style="flex: 1; min-width: 180px; padding: 12px; font-size: 14px; font-weight: 700; border-color: #3b82f6; color: ${state.userFont === 'modern' ? '#fff' : '#60a5fa'}; background: ${state.userFont === 'modern' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(59, 130, 246, 0.08)'};">
+              🔤 Moderna (Inter / Outfit) ${state.userFont === 'modern' ? '✓' : ''}
+            </button>
+          </div>
+        </div>
+
         <!-- Color Palette Families -->
         <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--card-border); border-radius: 10px; padding: 16px; margin-bottom: 16px;">
           <div style="font-size: 12px; font-weight: 700; color: var(--text-color); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -328,5 +346,41 @@ export function toggleCustomBgPreference() {
   }
 }
 
+export function applyUserFont(fontName) {
+  const font = fontName || state.userFont || "pixel";
+  document.body.classList.remove('font-pixel', 'font-modern');
+  if (font === 'modern') {
+    document.body.classList.add('font-modern');
+  } else {
+    document.body.classList.add('font-pixel');
+  }
+}
+
+export function changeFont(fontName) {
+  state.userFont = fontName;
+  localStorage.setItem("userFont", fontName);
+  applyUserFont(fontName);
+  renderConfigEditor();
+  if (window.showToast) {
+    window.showToast(`🔤 Tipografía cambiada a: ${fontName === 'modern' ? 'Moderna (Inter/Outfit)' : 'Pixel-Art (VT323)'}`);
+  }
+  if (state.currentUser && window.db) {
+    window.db.collection("users").doc(state.currentUser.docId).set({
+      fontPreference: fontName
+    }, { merge: true }).catch(err => console.error("Error guardando fuente:", err));
+  }
+}
+
 export const renderConfigView = renderConfigEditor;
+
+// Window global assignments
+window.renderConfigEditor = renderConfigEditor;
+window.renderConfigView = renderConfigView;
+window.changeTheme = changeTheme;
+window.changeFont = changeFont;
+window.applyUserFont = applyUserFont;
+window.changeBarColor = changeBarColor;
+window.changeRefreshRate = changeRefreshRate;
+window.toggleCustomBgPreference = toggleCustomBgPreference;
+
 

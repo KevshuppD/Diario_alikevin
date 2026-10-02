@@ -9,7 +9,7 @@ import { initRouter, switchModeSPA, switchSeason } from './router.js';
 import { renderWorkspace, updateStats, toggleSpiritOwned, toggleSpiritMastery, setFilter, onSearchInput, clearSearch } from './normal-view.js';
 import { renderGallery, toggleGalleryDrawer, moveSpiritToCategory, removeSpiritFromCategory, permanentlyDeleteSpirit, deleteAllUncategorizedSpirits, deleteCategory, openAssignModal, closeAssignModal, openNewSpiritModal, closeNewSpiritModal, openEditImageModal, closeEditImageModal } from './edit-view.js';
 import { renderCategoriesManager } from './categories-view.js';
-import { renderConfigView } from './config-view.js';
+import { renderConfigView, applyUserFont, changeFont } from './config-view.js';
 import { initRadarView, sendRemoteMagicPing } from './radar-view.js';
 
 // Custom Dialog & Toast System
@@ -119,8 +119,8 @@ export function showLoginModal() {
     <div class="modal-content" style="max-width: 420px; text-align: center; gap: 16px; padding: 28px 24px; border: 2px solid var(--card-border); border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
       <div style="font-size: 48px; line-height: 1; margin-bottom: 2px;">🔐</div>
       <div>
-        <h2 style="font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 800; margin: 0 0 6px 0; color: var(--text-color);">Iniciar Sesión</h2>
-        <p style="font-size: 13px; color: var(--text-muted); margin: 0; line-height: 1.4;">
+        <h2 style="font-family: 'VT323', monospace; font-size: 28px; font-weight: 700; margin: 0 0 6px 0; color: var(--text-color);">Iniciar Sesión</h2>
+        <p style="font-size: 16px; color: var(--text-muted); margin: 0; line-height: 1.3;">
           Selecciona tu perfil para acceder al Gestor del Diario y registrar tus espíritus.
         </p>
       </div>
@@ -184,8 +184,8 @@ export function openUserModal() {
   modal.innerHTML = `
     <div class="modal-content" style="max-width: 440px; text-align: center; gap: 14px;">
       <div style="font-size: 38px; margin-bottom: 2px;">👤</div>
-      <h3 style="font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 800; margin: 0; color: var(--text-color);">Sesión Activa</h3>
-      <p style="font-size: 13px; color: var(--text-muted); margin: 0;">
+      <h3 style="font-family: 'VT323', monospace; font-size: 26px; font-weight: 700; margin: 0; color: var(--text-color);">Sesión Activa</h3>
+      <p style="font-size: 16px; color: var(--text-muted); margin: 0;">
         Conectado como <strong style="color: ${currentUsername === 'kevin' ? '#60a5fa' : '#f472b6'};">${state.currentUser ? state.currentUser.name : 'Ninguno'}</strong>
       </p>
 
@@ -234,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const savedTheme = getStoredTheme();
   document.body.className = `theme-${savedTheme}`;
+  applyUserFont(state.userFont);
   updateUserBadge();
 
   if (!state.currentUser) {

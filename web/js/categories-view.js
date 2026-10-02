@@ -47,15 +47,15 @@ export function renderCategoriesConfigEditor() {
       <!-- Master Header -->
       <div class="radar-hero" style="margin-bottom: 24px;">
         <div>
-          <h2 style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; background:linear-gradient(135deg, #00e5ff, #e040fb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
+          <h2 style="font-family:'VT323',monospace; font-size:28px; font-weight:700; background:linear-gradient(135deg, #00e5ff, #e040fb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
             🏷️ Gestión de Tipos y Categorías de Espíritus
           </h2>
-          <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+          <p style="font-size:16px; color:var(--text-muted); margin-top:4px;">
             Organiza las categorías de espíritus, crea nuevas variantes/tipos y mantén sincronizados todos los nombres con la base de datos de Firestore.
           </p>
         </div>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <button class="btn btn-secondary" onclick="window.normalizeAllSpiritNames()" style="padding: 8px 14px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;" title="Normaliza los nombres de todos los espíritus según su categoría y variante activa">
+          <button class="btn btn-secondary" onclick="window.normalizeAllSpiritNames()" style="padding: 8px 14px; font-size: 16px; display: inline-flex; align-items: center; gap: 6px;" title="Normaliza los nombres de todos los espíritus según su categoría y variante activa">
             <span>🪄</span> Normalizar Nombres
           </button>
           <div class="autosave-status-pill" id="categories-autosave-pill" title="Los cambios se guardan automáticamente en Firestore y se sincronizan en vivo">
@@ -71,10 +71,10 @@ export function renderCategoriesConfigEditor() {
           
           <!-- Column 1: Categories -->
           <div style="display: flex; flex-direction: column;">
-            <h3 style="font-family: 'Outfit', sans-serif; font-size: 16px; margin-bottom: 8px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+            <h3 style="font-family: 'VT323', monospace; font-size: 22px; margin-bottom: 8px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
               <span>📁</span> Categorías de Espíritus
             </h3>
-            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Arrastra para reordenar, edita los nombres o agrega nuevas categorías.</p>
+            <p style="font-size: 15px; color: var(--text-muted); margin-bottom: 14px;">Arrastra para reordenar, edita los nombres o agrega nuevas categorías.</p>
             
             <div style="max-height: 440px; overflow-y: auto; padding-right: 8px; margin-bottom: 14px;" id="config-categories-list-box">
               ${categoriesHtml}
@@ -82,17 +82,17 @@ export function renderCategoriesConfigEditor() {
 
             <!-- Add Category Form -->
             <div style="display: flex; gap: 10px; margin-top: auto; padding: 12px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
-              <input type="text" id="config-add-category-input" placeholder="Nueva Categoría (Ej: Espíritu de Viento)" style="flex: 1; padding: 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 13px;">
-              <button class="btn" onclick="window.addConfigCategory()" style="padding: 8px 16px; font-size: 12px;">Agregar</button>
+              <input type="text" id="config-add-category-input" placeholder="Nueva Categoría (Ej: Espíritu de Viento)" style="flex: 1; padding: 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 16px;">
+              <button class="btn" onclick="window.addConfigCategory()" style="padding: 8px 16px; font-size: 16px;">Agregar</button>
             </div>
           </div>
 
           <!-- Column 2: Types -->
           <div style="display: flex; flex-direction: column;">
-            <h3 style="font-family: 'Outfit', sans-serif; font-size: 16px; margin-bottom: 8px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+            <h3 style="font-family: 'VT323', monospace; font-size: 22px; margin-bottom: 8px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
               <span>✨</span> Tipos / Variantes de Espíritus
             </h3>
-            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Configura variantes (ej. Dorado, Gomita). El sufijo se autocompleta.</p>
+            <p style="font-size: 15px; color: var(--text-muted); margin-bottom: 14px;">Configura variantes (ej. Dorado, Gomita). El sufijo se autocompleta.</p>
             
             <div style="max-height: 440px; overflow-y: auto; padding-right: 8px; margin-bottom: 14px;" id="config-types-list-box">
               <div style="display: flex; gap: 10px; padding: 4px 8px; margin-bottom: 8px; font-size: 11px; color: var(--text-muted); font-weight: 600;">
@@ -395,4 +395,17 @@ export function normalizeAllSpiritNames() {
 }
 
 export const renderCategoriesManager = renderCategoriesConfigEditor;
+
+// Window bindings for HTML event handlers
+window.updateConfigCategoryName = updateConfigCategoryName;
+window.deleteConfigCategory = deleteConfigCategory;
+window.addConfigCategory = addConfigCategory;
+window.updateConfigTypeName = updateConfigTypeName;
+window.updateConfigTypeSuffix = updateConfigTypeSuffix;
+window.deleteConfigType = deleteConfigType;
+window.addConfigType = addConfigType;
+window.normalizeAllSpiritNames = normalizeAllSpiritNames;
+window.renderCategoriesConfigEditor = renderCategoriesConfigEditor;
+window.renderCategoriesManager = renderCategoriesManager;
+
 

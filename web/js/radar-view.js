@@ -78,18 +78,18 @@ export function renderRadarManager() {
       <!-- Hero Header -->
       <div class="radar-hero">
         <div>
-          <h2 style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; background:linear-gradient(135deg, #00e5ff, #e040fb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
+          <h2 style="font-family:'VT323',monospace; font-size:28px; font-weight:700; background:linear-gradient(135deg, #00e5ff, #e040fb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
             📡 Panel de Dispositivos Conectados & Control de Thor Radar
           </h2>
-          <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+          <p style="font-size:16px; color:var(--text-muted); margin-top:4px;">
             Supervisa el estado en tiempo real de Kevin y Ali con telemetría de batería, velocidad, actividad y soporte Magic Packet Wake-on-LAN.
           </p>
         </div>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <span style="display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#10b981; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); padding:6px 10px; border-radius:20px;">
+          <span style="display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:700; color:#10b981; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); padding:6px 10px; border-radius:20px;">
             <span style="width:7px; height:7px; border-radius:50%; background:#10b981; box-shadow:0 0 8px #10b981;"></span> Sincronización en vivo (1s)
           </span>
-          <button class="btn btn-secondary" onclick="window.renderRadarManager()" style="font-size:12px; padding:8px 12px;">
+          <button class="btn btn-secondary" onclick="window.renderRadarManager()" style="font-size:16px; padding:8px 12px;">
             🔄 Refrescar Vista
           </button>
         </div>
@@ -106,20 +106,20 @@ export function renderRadarManager() {
         <div class="category-header">
           <div style="display:flex; align-items:center; gap:8px;">
             <span style="font-size:20px;">🏠</span>
-            <h3 style="font-family:'Outfit',sans-serif; font-size:16px; font-weight:700; color:var(--text-color);">
+            <h3 style="font-family:'VT323',monospace; font-size:22px; font-weight:700; color:var(--text-color);">
               Zonas Seguras Registradas (${radarZonesData.length})
             </h3>
           </div>
         </div>
         <div style="padding: 16px; display:flex; flex-wrap:wrap; gap:10px;">
           ${radarZonesData.length === 0 ? `
-            <div style="font-size:12px; color:var(--text-muted);">No hay zonas seguras creadas aún en Firestore (locations/${coupleId}/zones).</div>
+            <div style="font-size:16px; color:var(--text-muted);">No hay zonas seguras creadas aún en Firestore (locations/${coupleId}/zones).</div>
           ` : radarZonesData.map(z => `
             <div style="background:rgba(0,0,0,0.3); border:1px solid var(--card-border); border-radius:10px; padding:10px 14px; display:flex; align-items:center; gap:10px;">
               <span style="font-size:22px;">${z.icon || '📍'}</span>
               <div>
-                <div style="font-weight:700; font-size:13px; color:var(--text-color);">${z.name}</div>
-                <div style="font-size:11px; color:var(--text-muted);">${Math.round(z.radiusMeters || 100)}m de radio • ${z.latitude ? z.latitude.toFixed(4) + ', ' + z.longitude.toFixed(4) : ''}</div>
+                <div style="font-weight:700; font-size:16px; color:var(--text-color);">${z.name}</div>
+                <div style="font-size:14px; color:var(--text-muted);">${Math.round(z.radiusMeters || 100)}m de radio • ${z.latitude ? z.latitude.toFixed(4) + ', ' + z.longitude.toFixed(4) : ''}</div>
               </div>
             </div>
           `).join('')}
@@ -128,10 +128,10 @@ export function renderRadarManager() {
 
       <!-- Raw Telemetry Debugger -->
       <details style="background:rgba(0,0,0,0.4); border:1px solid var(--card-border); border-radius:12px; padding:12px 16px; cursor:pointer;">
-        <summary style="font-size:12px; font-weight:700; color:var(--text-muted); user-select:none;">
+        <summary style="font-size:15px; font-weight:700; color:var(--text-muted); user-select:none;">
           🔍 Ver Telemetría JSON Cruda en Vivo (Debug)
         </summary>
-        <pre style="margin-top:12px; padding:12px; background:#0d0e15; border-radius:8px; font-size:11px; color:#a78bfa; overflow-x:auto; font-family:monospace;">${JSON.stringify({ coupleId: coupleId, users: state.radarUsersData, zones: radarZonesData }, null, 2)}</pre>
+        <pre style="margin-top:12px; padding:12px; background:#0d0e15; border-radius:8px; font-size:14px; color:#a78bfa; overflow-x:auto; font-family:'VT323', monospace;">${JSON.stringify({ coupleId: coupleId, users: state.radarUsersData, zones: radarZonesData }, null, 2)}</pre>
       </details>
     </div>
   `;
@@ -169,8 +169,8 @@ function renderUserCard(userKey, name, color, icon, data) {
             ${data.profileImageUrl ? `<img src="${data.profileImageUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : icon}
           </div>
           <div>
-            <h3 style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:700; color:${color}; margin:0;">
-              ${name} <span style="font-size:12px; color:var(--text-muted); font-weight:500;">(${data.userName || (userKey === 'kevin' ? 'Kevin' : 'Ali')})</span>
+            <h3 style="font-family:'VT323',monospace; font-size:24px; font-weight:700; color:${color}; margin:0;">
+              ${name} <span style="font-size:16px; color:var(--text-muted); font-weight:500;">(${data.userName || (userKey === 'kevin' ? 'Kevin' : 'Ali')})</span>
             </h3>
             <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">ID: <code>locations/${state.coupleId}/users/${userKey}</code></div>
           </div>

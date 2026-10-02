@@ -264,13 +264,50 @@
     }
 
     body {
-      font-family: 'Inter', sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       overflow-x: hidden;
+    }
+
+    /* Font Preferences: Pixel-Art (Default) vs Modern */
+    body, body.font-pixel, body.font-pixel button, body.font-pixel input, body.font-pixel select, body.font-pixel textarea {
+      font-family: 'VT323', monospace, sans-serif;
+    }
+    body, body.font-pixel {
+      font-size: 18px;
+      letter-spacing: 0.5px;
+    }
+
+    body.font-modern, body.font-modern button, body.font-modern input, body.font-modern select, body.font-modern textarea {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+      font-size: 14px;
+      letter-spacing: 0px;
+    }
+    body.font-modern h1,
+    body.font-modern h2,
+    body.font-modern h3,
+    body.font-modern h4,
+    body.font-modern .logo-container h1,
+    body.font-modern .db-inspector-title,
+    body.font-modern .season-badge-pill,
+    body.font-modern .modal-content h3,
+    body.font-modern .stat-pill .stat-val {
+      font-family: 'Outfit', sans-serif !important;
+    }
+    body.font-modern .stat-pill .stat-val {
+      font-size: 20px;
+    }
+    body.font-modern .stat-pill .stat-label {
+      font-size: 12px;
+    }
+    body.font-modern .mode-btn {
+      font-size: 13px;
+    }
+    body.font-modern .btn {
+      font-size: 13px;
     }
 
     /* Background Neon Effects */
@@ -310,13 +347,13 @@
     }
 
     .logo-container h1 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 22px;
-      font-weight: 800;
+      font-family: 'VT323', monospace;
+      font-size: 28px;
+      font-weight: 700;
       background: linear-gradient(135deg, #e040fb, #00e5ff);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      letter-spacing: -0.5px;
+      letter-spacing: 0.5px;
     }
 
     /* Header Controls */
@@ -341,7 +378,7 @@
       border: none;
       background: transparent;
       color: var(--text-muted);
-      font-size: 13px;
+      font-size: 17px;
       font-weight: 600;
       border-radius: 8px;
       cursor: pointer;
@@ -738,14 +775,14 @@
     }
 
     .stat-pill .stat-label {
-      font-size: 12px;
+      font-size: 16px;
       color: var(--text-muted);
       font-weight: 500;
     }
 
     .stat-pill .stat-val {
-      font-family: 'Outfit', sans-serif;
-      font-size: 18px;
+      font-family: 'VT323', monospace;
+      font-size: 24px;
       font-weight: 700;
     }
 
@@ -760,11 +797,11 @@
       margin-left: 8px;
       padding: 2px 6px;
       border-radius: 6px;
-      font-size: 11px;
+      font-size: 15px;
       background: rgba(251, 191, 36, 0.15);
       border: 1px solid rgba(251, 191, 36, 0.4);
       color: #fbbf24;
-      font-family: monospace;
+      font-family: 'VT323', monospace;
       font-weight: 700;
     }
 
@@ -780,8 +817,8 @@
       border: 1px solid var(--accent-color);
       padding: 8px 16px;
       border-radius: 12px;
-      font-family: 'Outfit', sans-serif;
-      font-size: 14px;
+      font-family: 'VT323', monospace;
+      font-size: 18px;
       font-weight: 700;
       color: var(--text-color);
       box-shadow: 0 0 15px var(--accent-glow);
@@ -879,8 +916,8 @@
     }
 
     .empty-search-state h3 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 18px;
+      font-family: 'VT323', monospace;
+      font-size: 24px;
       color: var(--text-color);
       margin-bottom: 6px;
     }
@@ -891,7 +928,7 @@
       gap: 4px;
       padding: 3px 8px;
       border-radius: 8px;
-      font-size: 11px;
+      font-size: 15px;
       font-weight: 600;
       background: rgba(0, 0, 0, 0.3);
       border: 1px solid var(--card-border);
@@ -920,7 +957,7 @@
       color: var(--text-muted);
       padding: 6px 14px;
       border-radius: 20px;
-      font-size: 13px;
+      font-size: 16px;
       font-weight: 600;
       cursor: pointer;
       transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
@@ -988,8 +1025,8 @@
       background: transparent;
       border: 1px solid transparent;
       color: var(--text-color);
-      font-family: 'Outfit', sans-serif;
-      font-size: 18px;
+      font-family: 'VT323', monospace;
+      font-size: 24px;
       font-weight: 700;
       outline: none;
       padding: 4px 8px;
@@ -1275,8 +1312,8 @@
     }
 
     .modal-content h3 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 22px;
+      font-family: 'VT323', monospace;
+      font-size: 26px;
       color: var(--text-color);
       display: flex;
       align-items: center;
@@ -1290,7 +1327,7 @@
     }
 
     .form-group label {
-      font-size: 13px;
+      font-size: 16px;
       color: var(--text-muted);
       font-weight: 500;
     }
@@ -1298,7 +1335,7 @@
     .form-group select, .form-group input {
       padding: 10px 12px;
       border-radius: 10px;
-      font-size: 14px;
+      font-size: 18px;
       outline: none;
       width: 100%;
     }
@@ -1362,15 +1399,15 @@
     }
     .upload-loader-text {
       color: #fff;
-      font-size: 15px;
+      font-size: 18px;
       font-weight: 600;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.5px;
       text-align: center;
       max-width: 260px;
       line-height: 1.5;
     }
     .upload-loader-step {
-      font-size: 12px;
+      font-size: 15px;
       color: rgba(255,255,255,0.55);
       font-weight: 400;
       margin-top: 2px;
@@ -1404,8 +1441,8 @@
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     }
     .db-inspector-title {
-      font-family: 'Outfit', sans-serif;
-      font-size: 22px;
+      font-family: 'VT323', monospace;
+      font-size: 26px;
       font-weight: 700;
       margin-bottom: 16px;
       display: flex;
@@ -1426,14 +1463,14 @@
       text-align: center;
     }
     .db-stat-number {
-      font-family: 'Outfit', sans-serif;
-      font-size: 24px;
+      font-family: 'VT323', monospace;
+      font-size: 30px;
       font-weight: 700;
       color: var(--accent-color);
       text-shadow: 0 0 10px var(--accent-glow);
     }
     .db-stat-name {
-      font-size: 11px;
+      font-size: 15px;
       color: var(--text-muted);
       margin-top: 4px;
       text-transform: uppercase;
@@ -1444,8 +1481,8 @@
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 8px;
       padding: 16px;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 13px;
+      font-family: 'VT323', monospace;
+      font-size: 16px;
       color: #39ff14; /* Neon green terminal look */
       overflow-x: auto;
       max-height: 500px;
@@ -1457,7 +1494,7 @@
       color: var(--text-color);
       border-radius: 6px;
       padding: 6px 12px;
-      font-size: 13px;
+      font-size: 16px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -1502,9 +1539,9 @@
       margin-bottom: 10px;
     }
     #custom-dialog-msg {
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      line-height: 1.6;
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+      line-height: 1.4;
       color: var(--text-color);
       margin-bottom: 20px;
     }
