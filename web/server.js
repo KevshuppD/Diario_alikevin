@@ -101,7 +101,7 @@ app.get('/index.html', (req, res) => res.redirect('/'));
 // Rutas limpias SPA
 const sendSpaIndex = (req, res) => res.sendFile(path.join(distDir, 'index.html'));
 app.get('/', sendSpaIndex);
-app.get('/normal', sendSpaIndex);
+app.get('/normal', (req, res) => res.redirect(301, '/album'));
 app.get('/album', sendSpaIndex);
 app.get('/coleccion', sendSpaIndex);
 app.get('/edit', sendSpaIndex);

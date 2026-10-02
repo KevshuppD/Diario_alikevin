@@ -12,7 +12,7 @@ import { listenFirestore, collectInputsFromDOM, triggerAutoSave } from './firest
 
 export function getRouteFromPath(pathname) {
   const cleanPath = pathname.toLowerCase().replace(/^\/web\/?/, '/').replace(/\/$/, '') || '/';
-  if (cleanPath === '/' || cleanPath === '/normal' || cleanPath === '/album' || cleanPath === '/coleccion') return 'normal';
+  if (cleanPath === '/' || cleanPath === '/album' || cleanPath === '/normal' || cleanPath === '/coleccion') return 'normal';
   if (cleanPath === '/edit' || cleanPath === '/edicion') return 'edit';
   if (cleanPath === '/categorias' || cleanPath === '/categories') return 'categories';
   if (cleanPath === '/configuracion' || cleanPath === '/config') return 'config';
@@ -22,12 +22,16 @@ export function getRouteFromPath(pathname) {
 
 export function getPathFromRoute(route) {
   switch (route) {
-    case 'normal': return '/normal';
-    case 'edit': return '/edit';
-    case 'categories': return '/categorias';
-    case 'config': return '/configuracion';
+    case 'normal':
+    case 'album': return '/album';
+    case 'edit':
+    case 'edicion': return '/edicion';
+    case 'categories':
+    case 'categorias': return '/categorias';
+    case 'config':
+    case 'configuracion': return '/configuracion';
     case 'radar': return '/radar';
-    default: return '/';
+    default: return '/album';
   }
 }
 

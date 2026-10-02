@@ -1,5 +1,8 @@
 {
   "cleanUrls": true,
+  "redirects": [
+    { "source": "/normal", "destination": "/album", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/configuracion", "destination": "/web/configuracion.html" },
     { "source": "/config", "destination": "/web/config.html" },
@@ -9,10 +12,10 @@
     { "source": "/edit", "destination": "/web/edit.html" },
     { "source": "/album", "destination": "/web/album.html" },
     { "source": "/coleccion", "destination": "/web/coleccion.html" },
-    { "source": "/normal", "destination": "/web/normal.html" },
     { "source": "/radar", "destination": "/web/radar.html" },
     { "source": "/db", "destination": "/web/db.html" },
     { "source": "/migrate", "destination": "/web/migrate.html" },
+    { "source": "/", "destination": "/web/album.html" },
     { "source": "/((?!api/|.*\\..*).*)", "destination": "/web/index.html" }
   ]
 }

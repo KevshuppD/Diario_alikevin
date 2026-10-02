@@ -5,6 +5,9 @@
       "maxDuration": 30
     }
   },
+  "redirects": [
+    { "source": "/normal", "destination": "/album", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/configuracion", "destination": "/configuracion.html" },
@@ -15,10 +18,10 @@
     { "source": "/edit", "destination": "/edit.html" },
     { "source": "/album", "destination": "/album.html" },
     { "source": "/coleccion", "destination": "/coleccion.html" },
-    { "source": "/normal", "destination": "/normal.html" },
     { "source": "/radar", "destination": "/radar.html" },
     { "source": "/db", "destination": "/db.html" },
     { "source": "/migrate", "destination": "/migrate.html" },
+    { "source": "/", "destination": "/album.html" },
     { "source": "/((?!api/|.*\\..*).*)", "destination": "/index.html" }
   ]
 }
