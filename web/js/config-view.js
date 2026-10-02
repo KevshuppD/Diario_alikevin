@@ -278,20 +278,31 @@ export function renderConfigEditor() {
   `;
 }
 
+function hexToRgba(hex, alpha) {
+  if (!hex || typeof hex !== 'string') return `rgba(156, 39, 176, ${alpha})`;
+  let c = hex.replace('#', '');
+  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return `rgba(156, 39, 176, ${alpha})`;
+  return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
+}
+
 export function applyTheme(themeName, lightColor, darkColor, useCustomBg) {
+  const theme = themeName || state.userTheme || "Pixel Oscuro";
   document.body.classList.remove('theme-pixel-claro', 'theme-pixel-oscuro', 'theme-pixel-monocromatico');
-  if (themeName === "Pixel Claro") {
+  if (theme === "Pixel Claro") {
     document.body.classList.add('theme-pixel-claro');
-  } else if (themeName === "Pixel Monocromático") {
+  } else if (theme === "Pixel Monocromático") {
     document.body.classList.add('theme-pixel-monocromatico');
   } else {
     document.body.classList.add('theme-pixel-oscuro');
   }
 
-  const isLight = themeName === "Pixel Claro";
-  const activeColor = isLight ? (lightColor || state.userLightColor) : (darkColor || state.userDarkColor);
+  const isLight = theme === "Pixel Claro";
+  const activeColor = isLight ? (lightColor || state.userLightColor || "#D1C4E9") : (darkColor || state.userDarkColor || "#4A148C");
   if (activeColor) {
     document.documentElement.style.setProperty('--accent-color', activeColor);
+    document.documentElement.style.setProperty('--accent-glow', hexToRgba(activeColor, 0.35));
   }
 }
 
@@ -303,8 +314,12 @@ export function changeTheme(themeName) {
 
   if (state.currentUser) {
     db.collection("users").doc(state.currentUser.docId).set({
+      theme: themeName,
       appTheme: themeName
-    }, { merge: true }).catch(err => console.error("Error guardando tema:", err));
+    }, { merge: true }).catch(err => console.error("Error guardando tema en Firestore:", err));
+  }
+  if (window.showToast) {
+    window.showToast(`🎭 Tema cambiado a: ${themeName}`);
   }
 }
 
@@ -321,10 +336,14 @@ export function changeBarColor(hexColor) {
   renderConfigEditor();
 
   if (state.currentUser) {
-    const field = isLight ? "barColorLight" : "barColorDark";
-    db.collection("users").doc(state.currentUser.docId).set({
-      [field]: hexColor
-    }, { merge: true }).catch(err => console.error("Error guardando color:", err));
+    const updateObj = isLight 
+      ? { lightColor: hexColor, barColorLight: hexColor }
+      : { darkColor: hexColor, barColorDark: hexColor };
+    db.collection("users").doc(state.currentUser.docId).set(updateObj, { merge: true })
+      .catch(err => console.error("Error guardando color en Firestore:", err));
+  }
+  if (window.showToast) {
+    window.showToast(`🎨 Color actualizado: ${hexColor}`);
   }
 }
 
@@ -335,18 +354,26 @@ export function changeRefreshRate(hz) {
   if (state.currentUser) {
     db.collection("users").doc(state.currentUser.docId).set({
       refreshRate: hz
-    }, { merge: true }).catch(err => console.error("Error guardando hz:", err));
+    }, { merge: true }).catch(err => console.error("Error guardando hz en Firestore:", err));
+  }
+  if (window.showToast) {
+    window.showToast(`⚡ Frecuencia de refresco configurada a: ${hz}Hz`);
   }
 }
 
 export function toggleCustomBgPreference() {
   state.userUseCustomBg = !state.userUseCustomBg;
   localStorage.setItem("userUseCustomBg", String(state.userUseCustomBg));
+  applyTheme(state.userTheme, state.userLightColor, state.userDarkColor, state.userUseCustomBg);
   renderConfigEditor();
   if (state.currentUser) {
     db.collection("users").doc(state.currentUser.docId).set({
+      useCustomBg: state.userUseCustomBg,
       useCustomBackground: state.userUseCustomBg
-    }, { merge: true }).catch(err => console.error("Error guardando bg pref:", err));
+    }, { merge: true }).catch(err => console.error("Error guardando preferencia de fondo:", err));
+  }
+  if (window.showToast) {
+    window.showToast(`✨ Fondo adaptativo ${state.userUseCustomBg ? 'Activado' : 'Desactivado'}`);
   }
 }
 
@@ -368,10 +395,10 @@ export function changeFont(fontName) {
   if (window.showToast) {
     window.showToast(`🔤 Tipografía cambiada a: ${fontName === 'modern' ? 'Moderna (Inter/Outfit)' : 'Pixel-Art (VT323)'}`);
   }
-  if (state.currentUser && window.db) {
-    window.db.collection("users").doc(state.currentUser.docId).set({
+  if (state.currentUser) {
+    db.collection("users").doc(state.currentUser.docId).set({
       fontPreference: fontName
-    }, { merge: true }).catch(err => console.error("Error guardando fuente:", err));
+    }, { merge: true }).catch(err => console.error("Error guardando fuente en Firestore:", err));
   }
 }
 
@@ -383,8 +410,10 @@ window.renderConfigView = renderConfigView;
 window.changeTheme = changeTheme;
 window.changeFont = changeFont;
 window.applyUserFont = applyUserFont;
+window.applyTheme = applyTheme;
 window.changeBarColor = changeBarColor;
 window.changeRefreshRate = changeRefreshRate;
 window.toggleCustomBgPreference = toggleCustomBgPreference;
+window.toggleTechnicalSettings = toggleTechnicalSettings;
 
 

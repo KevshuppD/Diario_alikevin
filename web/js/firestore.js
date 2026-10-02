@@ -287,37 +287,57 @@ export function listenFirestore(onDataUpdated) {
       state.radarZonesData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       if (onDataUpdated && state.currentMode === "radar") onDataUpdated();
     }, err => console.warn("Aviso radar zones:", err));
+
+  // Escuchar configuración del usuario activo en Firestore
+  listenUserTheme(onDataUpdated);
 }
 
 export function listenUserTheme(onThemeChanged) {
   if (!state.currentUser) return;
-  const username = state.currentUser.username;
   if (userThemeUnsubscribe) userThemeUnsubscribe();
 
   userThemeUnsubscribe = db.collection("users").doc(state.currentUser.docId)
     .onSnapshot(doc => {
       if (doc.exists) {
         const d = doc.data();
-        if (d.appTheme) {
-          state.userTheme = d.appTheme;
-          localStorage.setItem("userTheme", d.appTheme);
+        const theme = d.theme || d.appTheme;
+        if (theme) {
+          state.userTheme = theme;
+          localStorage.setItem("userTheme", theme);
         }
-        if (d.barColorLight) {
-          state.userLightColor = d.barColorLight;
-          localStorage.setItem("userLightColor", d.barColorLight);
+        const lightColor = d.lightColor || d.barColorLight;
+        if (lightColor) {
+          state.userLightColor = lightColor;
+          localStorage.setItem("userLightColor", lightColor);
         }
-        if (d.barColorDark) {
-          state.userDarkColor = d.barColorDark;
-          localStorage.setItem("userDarkColor", d.barColorDark);
+        const darkColor = d.darkColor || d.barColorDark;
+        if (darkColor) {
+          state.userDarkColor = darkColor;
+          localStorage.setItem("userDarkColor", darkColor);
         }
-        if (d.useCustomBackground !== undefined) {
-          state.userUseCustomBg = !!d.useCustomBackground;
-          localStorage.setItem("userUseCustomBg", String(d.useCustomBackground));
+        const customBg = d.useCustomBg !== undefined ? d.useCustomBg : d.useCustomBackground;
+        if (customBg !== undefined) {
+          state.userUseCustomBg = !!customBg;
+          localStorage.setItem("userUseCustomBg", String(state.userUseCustomBg));
         }
-        if (d.refreshRate !== undefined) {
-          state.userRefreshRate = d.refreshRate;
-          localStorage.setItem("userRefreshRate", String(d.refreshRate));
+        const refreshRate = d.refreshRate;
+        if (refreshRate !== undefined) {
+          state.userRefreshRate = refreshRate;
+          localStorage.setItem("userRefreshRate", String(refreshRate));
         }
+        const font = d.fontPreference;
+        if (font) {
+          state.userFont = font;
+          localStorage.setItem("userFont", font);
+          if (typeof window.applyUserFont === 'function') {
+            window.applyUserFont(font);
+          }
+        }
+
+        if (typeof window.applyTheme === 'function') {
+          window.applyTheme(state.userTheme, state.userLightColor, state.userDarkColor, state.userUseCustomBg);
+        }
+
         if (onThemeChanged) onThemeChanged();
       }
     }, err => console.error("Error escuchando tema de usuario:", err));
@@ -325,4 +345,5 @@ export function listenUserTheme(onThemeChanged) {
 
 export const saveChanges = triggerAutoSave;
 export const initFirestore = listenFirestore;
+window.listenUserTheme = listenUserTheme;
 

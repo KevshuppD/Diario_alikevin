@@ -8,9 +8,7 @@ import { initFirestore } from './firestore.js';
 import { initRouter, switchModeSPA, switchSeason } from './router.js';
 import { renderWorkspace, updateStats, toggleSpiritOwned, toggleSpiritMastery, setFilter, onSearchInput, clearSearch } from './normal-view.js';
 import { renderGallery, toggleGalleryDrawer, moveSpiritToCategory, removeSpiritFromCategory, permanentlyDeleteSpirit, deleteAllUncategorizedSpirits, deleteCategory, openAssignModal, closeAssignModal, openNewSpiritModal, closeNewSpiritModal, openEditImageModal, closeEditImageModal } from './edit-view.js';
-import { renderCategoriesManager } from './categories-view.js';
-import { renderConfigView, applyUserFont, changeFont } from './config-view.js';
-import { initRadarView, sendRemoteMagicPing } from './radar-view.js';
+import { renderConfigView, applyUserFont, applyTheme, changeFont } from './config-view.js';
 
 // Custom Dialog & Toast System
 function _showDialog(icon, msg, inputVisible, inputPlaceholder, buttons) {
@@ -232,8 +230,7 @@ window.logoutSession = logoutSession;
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 Iniciando Gestor de Diario de Ali y Kevin...');
   
-  const savedTheme = getStoredTheme();
-  document.body.className = `theme-${savedTheme}`;
+  applyTheme(state.userTheme, state.userLightColor, state.userDarkColor, state.userUseCustomBg);
   applyUserFont(state.userFont);
   updateUserBadge();
 
