@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor de diario de ali y kevin</title>
+  <!-- Google Fonts: Inter, Outfit, VT323 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Prefetch HTML Modes for instant transitions -->
+  <link rel="prefetch" href="/normal" as="document">
+  <link rel="prefetch" href="/edit" as="document">
+  <link rel="prefetch" href="/categorias" as="document">
+  <link rel="prefetch" href="/configuracion" as="document">
+  <link rel="prefetch" href="/radar" as="document">
+  
+  <!-- Firebase Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+</head>
+<body class="theme-pixel-oscuro">
+  <div class="neon-bg"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-container">
+      <span style="font-size: 28px;">🎮</span>
+      <div>
+        <h1>Gestor de diario de ali y kevin</h1>
+        <p style="font-size: 11px; color: var(--text-muted); font-weight: 500;">Diario Kevin y Ali — Colección, Álbum & Radar</p>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <!-- Season Switcher Pill -->
+      <div class="mode-switch" id="season-switch" style="background: rgba(156, 39, 176, 0.2); border-color: var(--accent-color);">
+        <button type="button" id="btn-season-2" class="mode-btn active season-btn" data-season="2" onclick="window.switchSeason(2)" style="font-weight: 700;">🌟 Temporada 2</button>
+        <button type="button" id="btn-season-1" class="mode-btn season-btn" data-season="1" onclick="window.switchSeason(1)" style="font-weight: 700;">🕰️ Temporada 1</button>
+      </div>
+
+      <!-- Mode Navigation Pill -->
+      <div class="mode-switch" id="mode-switch-bar">
+        <button type="button" id="btn-mode-normal" class="mode-btn nav-tab active" data-mode="normal" onclick="window.switchModeSPA('normal')">📖 Álbum</button>
+        <button type="button" id="btn-mode-edit" class="mode-btn nav-tab" data-mode="edit" onclick="window.switchModeSPA('edit')">✏️ Modo Edición</button>
+        <button type="button" id="btn-mode-categories" class="mode-btn nav-tab" data-mode="categories" onclick="window.switchModeSPA('categories')">🏷️ Tipos y Categorías</button>
+        <button type="button" id="btn-mode-radar" class="mode-btn nav-tab" data-mode="radar" onclick="window.switchModeSPA('radar')">📡 Dispositivos & Radar</button>
+        <button type="button" id="btn-mode-config" class="mode-btn nav-tab" data-mode="config" onclick="window.switchModeSPA('config')">⚙️ Configuración</button>
+      </div>
+
+      <!-- Logged User Badge & Logout Button -->
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div id="user-badge" class="user-badge kevin" onclick="window.openUserModal()" style="cursor: pointer;" title="Haz clic para cambiar de usuario">
+          <span id="user-icon">🔵</span>
+          <span id="user-name">Kevin</span>
+        </div>
+        <button type="button" id="btn-logout" class="btn btn-secondary" onclick="window.logoutSession()" style="padding: 6px 10px; font-size: 12px; font-weight: 600; border-radius: 10px; display: flex; align-items: center; gap: 4px; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" title="Cerrar sesión">
+          <span>🚪</span>
+          <span class="logout-text">Salir</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="main-container" id="main-container">
+    
+    <!-- Left Sidebar: Gallery of raw spirit images (Edit Mode only) -->
+    <div class="sidebar hidden" id="sidebar">
+      <div class="sidebar-header">
+        <h2 id="sidebar-title">Galería de Espíritus</h2>
+        <p id="sidebar-subtext">Arrastra imágenes a las categorías para asignarlas o haz clic para moverlas.</p>
+      </div>
+      <div class="gallery-grid" id="gallery-container">
+        <!-- Rendered dynamically by edit-view.js -->
+      </div>
+    </div>
+
+    <!-- Central Content Area -->
+    <div class="content-area">
+      
+      <!-- Normal Mode Toolbar: Stats HUD -->
+      <div class="normal-toolbar" id="normal-toolbar">
+        <div class="stats-container">
+          <div class="stat-pill kevin">
+            <div class="stat-pill-header">
+              <span class="stat-label">🔵 Kevin</span>
+              <span class="stat-val" id="stat-kevin">0 / 0</span>
+            </div>
+            <div class="stat-progress-bar">
+              <div class="stat-progress-fill kevin-fill" id="stat-kevin-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+          <div class="stat-pill ali">
+            <div class="stat-pill-header">
+              <span class="stat-label">🔴 Ali</span>
+              <span class="stat-val" id="stat-ali">0 / 0</span>
+            </div>
+            <div class="stat-progress-bar">
+              <div class="stat-progress-fill ali-fill" id="stat-ali-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+          <div class="stat-pill both">
+            <div class="stat-pill-header">
+              <span class="stat-label">💜 Ambos</span>
+              <span class="stat-val" id="stat-both">0 / 0</span>
+            </div>
+            <div class="stat-progress-bar">
+              <div class="stat-progress-fill both-fill" id="stat-both-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search Input Bar (Modo Álbum y Modo Edición) -->
+      <div class="search-bar-container" id="shared-search-bar-container">
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="spirit-search-input" placeholder="Buscar por nombre, # ID o variante..." oninput="window.onSearchInput(this.value)">
+          <span class="search-kbd-hint">/</span>
+          <span id="search-count-badge" class="search-count-badge"></span>
+          <button class="clear-search-btn" id="clear-search-btn" onclick="window.clearSearch()" style="display:none;" title="Limpiar búsqueda">✕ Limpiar</button>
+        </div>
+      </div>
+
+      <!-- Filter Bar (Modo Álbum) -->
+      <div class="normal-toolbar" id="normal-filters-toolbar">
+        <div class="filter-bar">
+          <span class="filter-title-label">Filtros:</span>
+          <button class="filter-btn active" onclick="window.setNormalFilter('todos', this)">🌟 Todos</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('no_obtenidos', this)">❌ Faltantes</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_ambos', this)">💜 Ambos</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_yo_no_otro', this)">🔵 Solo Yo</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_otro_no_yo', this)">🔴 Solo Pareja</button>
+          <div class="filter-divider"></div>
+          <button class="filter-btn mastery-filter" onclick="window.setNormalFilter('sin_maestria', this)">☆ Sin Maestría</button>
+          <button class="filter-btn mastery-filter" onclick="window.setNormalFilter('obtenidos_sin_maestria', this)">⭐ Obtenidos s/Maestría</button>
+          <button class="filter-btn mastery-filter" onclick="window.setNormalFilter('maestria_yo_no_otro', this)">👑 Mi Maestría</button>
+          <button class="filter-btn mastery-filter" onclick="window.setNormalFilter('maestria_otro_no_yo', this)">👑 Pareja Maestría</button>
+        </div>
+      </div>
+
+      <!-- Action buttons bar for Edition Mode -->
+      <div class="actions-bar" id="edit-actions-bar" style="display: none;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn btn-secondary" id="btn-toggle-gallery" onclick="window.toggleGalleryDrawer()" style="border-color: var(--accent-color); color: #e040fb;">
+            <span>🖼️</span> <span id="btn-gallery-label">Mostrar Galería</span>
+          </button>
+          <h2 style="font-family: 'VT323', monospace; font-size: 26px;">Estructura de Categorías en Firestore</h2>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn btn-secondary" id="btn-add-category" onclick="window.openNewSpiritModal()">➕ Nuevo Espíritu</button>
+        </div>
+      </div>
+
+      <!-- Categories Container for Normal & Edit Modes -->
+      <div class="categories-list" id="categories-container">
+        <!-- Rendered dynamically by normal-view.js -->
+      </div>
+
+      <!-- Categories & Types Manager Container (/categorias) -->
+      <div class="db-inspector-area" id="categoriesManagerContainer" style="display: none;">
+        <!-- Rendered dynamically by categories-view.js -->
+      </div>
+
+      <!-- Radar & Devices Manager Container (/radar) -->
+      <div class="db-inspector-area" id="radar-container" style="display: none;">
+        <!-- Rendered dynamically by radar-view.js -->
+      </div>
+
+      <!-- Configuration Dashboard Container (/configuracion) -->
+      <div class="db-inspector-area" id="config-container" style="display: none;">
+        <!-- Rendered dynamically by config-view.js -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal for Mobile Assignment in Edit Mode -->
+  <div class="modal-overlay" id="assign-modal">
+    <div class="modal-content">
+      <h3 id="assign-modal-title">Asignar Espíritu</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Selecciona la categoría a la que deseas mover este espíritu:</p>
+      <select id="assign-category-select" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px; background-color: #12131a; color: #fff; border: 1px solid var(--card-border);">
+      </select>
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px;">
+        <button class="btn btn-secondary" onclick="window.closeAssignModal()">Cancelar</button>
+        <button class="btn" onclick="const s = document.getElementById('assign-category-select'); if (s && window.activeModalSpiritId) window.moveSpiritToCategory(window.activeModalSpiritId, s.value); window.closeAssignModal();">Asignar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Editing Spirit Image -->
+  <div class="modal-overlay" id="edit-image-modal">
+    <div class="modal-content" style="max-width: 440px;">
+      <h3 id="edit-image-modal-title">🖼️ Cambiar Imagen del Espíritu</h3>
+      <div style="text-align: center; margin: 14px 0;">
+        <div style="display: inline-block; padding: 12px; border-radius: 12px; border: 2px solid var(--card-border); background: repeating-conic-gradient(#1f2233 0% 25%, #131520 0% 50%) 50% / 16px 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);">
+          <img id="edit-image-preview" src="" alt="Vista previa" style="width: 100px; height: 100px; object-fit: contain; image-rendering: pixelated; display: block;">
+        </div>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label style="display: block; font-size: 12px; font-weight: bold; margin-bottom: 6px; color: var(--text-color);">Subir Sprite / Archivo de Imagen:</label>
+        <input type="file" id="edit-image-file-input" accept="image/*" style="width: 100%; font-size: 12px; color: #fff; background: #12131a; padding: 8px; border-radius: 8px; border: 1px solid var(--card-border);">
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px;">
+        <button type="button" class="btn btn-secondary" onclick="window.closeEditImageModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Dialog Modal Overlay -->
+  <div class="modal-overlay" id="custom-dialog-overlay">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <div id="custom-dialog-icon" style="font-size: 36px; margin-bottom: 8px;">ℹ️</div>
+      <p id="custom-dialog-msg" style="font-size: 14px; margin-bottom: 14px; line-height: 1.5;"></p>
+      <input type="text" id="custom-dialog-input" style="display:none; width: 100%; padding: 8px; margin-bottom: 14px; border-radius: 8px; background: #12131a; color: #fff; border: 1px solid var(--card-border);">
+      <div id="custom-dialog-btns" style="display: flex; gap: 10px; justify-content: center;"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="global-toast" class="global-toast"></div>
+
+  <!-- App Main Module Entrypoint -->
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
