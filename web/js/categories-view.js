@@ -10,20 +10,29 @@ import { getSpiritCurrentType, renderWorkspace } from './normal-view.js';
 let draggedCategoryIndex = null;
 let draggedTypeIndex = null;
 
-export function renderCategoriesConfigEditor() {
+export function renderCategoriesConfigEditor(options = {}) {
   const container = document.getElementById("categories-config-container") || document.getElementById("categoriesManagerContainer");
   if (!container) return;
+
+  const { scrollToNewCat = false, scrollToNewType = false, highlightCatIdx = null, highlightTypeIdx = null } = options;
+
+  // Capture current scroll positions before re-render
+  const prevCatBox = document.getElementById("config-categories-list-box");
+  const prevTypeBox = document.getElementById("config-types-list-box");
+  const prevCatScroll = prevCatBox ? prevCatBox.scrollTop : null;
+  const prevTypeScroll = prevTypeBox ? prevTypeBox.scrollTop : null;
 
   let categoriesHtml = "";
   state.categories.forEach((cat, index) => {
     const catDisplayName = state.customCategories[cat.name] || cat.name;
+    const isHighlighted = highlightCatIdx === index;
     categoriesHtml += `
-      <div class="draggable-config-row" draggable="true" data-cat-drag-idx="${index}">
+      <div class="draggable-config-row ${isHighlighted ? 'row-highlight-pulse' : ''}" draggable="true" data-cat-drag-idx="${index}">
         <span style="color: var(--text-muted); cursor: grab; font-size: 14px; user-select: none; margin-right: 4px;">⋮⋮</span>
         <span style="font-family: monospace; color: var(--text-muted); font-size: 13px; margin-right: 4px;">#${String(index + 1).padStart(2, '0')}</span>
-        <input type="text" value="${catDisplayName}" data-cat-index="${index}" onchange="window.updateConfigCategoryName(${index}, this.value)" style="flex: 1; padding: 6px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px; cursor: text;">
-        <span class="badge" style="background: rgba(255, 255, 255, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">${cat.spiritIds ? cat.spiritIds.length : 0} esp.</span>
-        <button class="remove-btn" onclick="window.deleteConfigCategory(${index})" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;">🗑</button>
+        <input type="text" value="${catDisplayName}" data-cat-index="${index}" onchange="window.updateConfigCategoryName(${index}, this.value)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: text;">
+        <span class="badge" style="padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">${cat.spiritIds ? cat.spiritIds.length : 0} esp.</span>
+        <button class="remove-btn" onclick="window.deleteConfigCategory(${index})" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" title="Eliminar categoría">🗑</button>
       </div>
     `;
   });
@@ -31,12 +40,13 @@ export function renderCategoriesConfigEditor() {
   let typesHtml = "";
   state.spiritTypes.forEach((t, index) => {
     const isNormal = t.name === "Normal";
+    const isHighlighted = highlightTypeIdx === index;
     typesHtml += `
-      <div class="draggable-config-row ${isNormal ? 'unmovable' : ''}" draggable="${!isNormal}" data-type-drag-idx="${index}">
+      <div class="draggable-config-row ${isNormal ? 'unmovable' : ''} ${isHighlighted ? 'row-highlight-pulse' : ''}" draggable="${!isNormal}" data-type-drag-idx="${index}">
         <span style="color: var(--text-muted); cursor: ${isNormal ? 'default' : 'grab'}; font-size: 14px; user-select: none; margin-right: 4px; opacity: ${isNormal ? 0.2 : 1};">⋮⋮</span>
-        <input type="text" value="${t.name}" data-type-index="${index}" data-type-field="name" onchange="window.updateConfigTypeName(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Nombre (Ej: Dorado)" style="flex: 1; padding: 6px; border-radius: 6px; background: ${isNormal ? '#1b1d24' : '#12131a'}; color: ${isNormal ? '#888' : '#fff'}; border: 1px solid var(--card-border); font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
-        <input type="text" value="${t.suffix}" data-type-index="${index}" data-type-field="suffix" onchange="window.updateConfigTypeSuffix(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Sufijo (Ej:  Dorado)" style="flex: 1; padding: 6px; border-radius: 6px; background: ${isNormal ? '#1b1d24' : '#12131a'}; color: ${isNormal ? '#888' : '#fff'}; border: 1px solid var(--card-border); font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
-        <button class="remove-btn" onclick="window.deleteConfigType(${index})" ${isNormal ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : 'style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;"'}>🗑</button>
+        <input type="text" value="${t.name}" data-type-index="${index}" data-type-field="name" onchange="window.updateConfigTypeName(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Nombre (Ej: Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+        <input type="text" value="${t.suffix}" data-type-index="${index}" data-type-field="suffix" onchange="window.updateConfigTypeSuffix(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Sufijo (Ej:  Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+        <button class="remove-btn" onclick="window.deleteConfigType(${index})" ${isNormal ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : 'style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;"'} title="Eliminar tipo">🗑</button>
       </div>
     `;
   });
@@ -71,30 +81,36 @@ export function renderCategoriesConfigEditor() {
           
           <!-- Column 1: Categories -->
           <div style="display: flex; flex-direction: column;">
-            <h3 style="font-family: 'VT323', monospace; font-size: 22px; margin-bottom: 8px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
-              <span>📁</span> Categorías de Espíritus
-            </h3>
-            <p style="font-size: 15px; color: var(--text-muted); margin-bottom: 14px;">Arrastra para reordenar, edita los nombres o agrega nuevas categorías.</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <h3 style="font-family: 'VT323', monospace; font-size: 22px; margin: 0; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+                <span>📁</span> Categorías de Espíritus
+              </h3>
+              <span class="badge" style="font-size: 12px; font-weight: 700;">${state.categories.length} total</span>
+            </div>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">Arrastra para reordenar, edita los nombres o agrega nuevas categorías.</p>
             
-            <div style="max-height: 440px; overflow-y: auto; padding-right: 8px; margin-bottom: 14px;" id="config-categories-list-box">
+            <div style="max-height: 440px; overflow-y: auto; padding-right: 8px; margin-bottom: 14px; scroll-behavior: smooth;" id="config-categories-list-box">
               ${categoriesHtml}
             </div>
 
             <!-- Add Category Form -->
-            <div style="display: flex; gap: 10px; margin-top: auto; padding: 12px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
-              <input type="text" id="config-add-category-input" placeholder="Nueva Categoría (Ej: Espíritu de Viento)" style="flex: 1; padding: 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 16px;">
-              <button class="btn" onclick="window.addConfigCategory()" style="padding: 8px 16px; font-size: 16px;">Agregar</button>
+            <div class="config-add-box" style="display: flex; gap: 10px; margin-top: auto; padding: 12px; border-radius: 8px;">
+              <input type="text" id="config-add-category-input" onkeydown="if(event.key==='Enter') window.addConfigCategory()" placeholder="Nueva Categoría (Ej: Espíritu de Viento)" style="flex: 1; padding: 8px 12px; border-radius: 6px; font-size: 15px;">
+              <button class="btn" onclick="window.addConfigCategory()" style="padding: 8px 16px; font-size: 15px; font-weight: 700;">+ Agregar</button>
             </div>
           </div>
 
           <!-- Column 2: Types -->
           <div style="display: flex; flex-direction: column;">
-            <h3 style="font-family: 'VT323', monospace; font-size: 22px; margin-bottom: 8px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
-              <span>✨</span> Tipos / Variantes de Espíritus
-            </h3>
-            <p style="font-size: 15px; color: var(--text-muted); margin-bottom: 14px;">Configura variantes (ej. Dorado, Gomita). El sufijo se autocompleta.</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <h3 style="font-family: 'VT323', monospace; font-size: 22px; margin: 0; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+                <span>✨</span> Tipos / Variantes de Espíritus
+              </h3>
+              <span class="badge" style="font-size: 12px; font-weight: 700;">${state.spiritTypes.length} total</span>
+            </div>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">Configura variantes (ej. Dorado, Gomita). El sufijo se autocompleta.</p>
             
-            <div style="max-height: 440px; overflow-y: auto; padding-right: 8px; margin-bottom: 14px;" id="config-types-list-box">
+            <div style="max-height: 440px; overflow-y: auto; padding-right: 8px; margin-bottom: 14px; scroll-behavior: smooth;" id="config-types-list-box">
               <div style="display: flex; gap: 10px; padding: 4px 8px; margin-bottom: 8px; font-size: 11px; color: var(--text-muted); font-weight: 600;">
                 <div style="flex: 1;">Nombre del Tipo</div>
                 <div style="flex: 1;">Sufijo (Ej: " Dorado")</div>
@@ -104,12 +120,12 @@ export function renderCategoriesConfigEditor() {
             </div>
 
             <!-- Add Type Form -->
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding: 12px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
+            <div class="config-add-box" style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding: 12px; border-radius: 8px;">
               <div style="display: flex; gap: 10px;">
-                <input type="text" id="config-add-type-name" placeholder="Nombre (Ej: Quack)" style="flex: 1; padding: 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 13px;">
-                <input type="text" id="config-add-type-suffix" placeholder="Sufijo (Ej:  Quack)" style="flex: 1; padding: 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 13px;">
+                <input type="text" id="config-add-type-name" onkeydown="if(event.key==='Enter') window.addConfigType()" placeholder="Nombre (Ej: Quack)" style="flex: 1; padding: 8px 10px; border-radius: 6px; font-size: 14px;">
+                <input type="text" id="config-add-type-suffix" onkeydown="if(event.key==='Enter') window.addConfigType()" placeholder="Sufijo (Ej:  Quack)" style="flex: 1; padding: 8px 10px; border-radius: 6px; font-size: 14px;">
               </div>
-              <button class="btn" onclick="window.addConfigType()" style="width: 100%; padding: 8px; font-size: 12px;">Agregar Nuevo Tipo</button>
+              <button class="btn" onclick="window.addConfigType()" style="width: 100%; padding: 8px; font-size: 14px; font-weight: 700;">+ Agregar Nuevo Tipo</button>
             </div>
           </div>
 
@@ -120,6 +136,30 @@ export function renderCategoriesConfigEditor() {
   `;
 
   attachDragListeners();
+
+  // Restore or advance scroll positions
+  const newCatBox = document.getElementById("config-categories-list-box");
+  const newTypeBox = document.getElementById("config-types-list-box");
+
+  if (scrollToNewCat && newCatBox) {
+    setTimeout(() => {
+      newCatBox.scrollTop = newCatBox.scrollHeight;
+      const targetRow = newCatBox.querySelector(`[data-cat-drag-idx="${highlightCatIdx}"]`);
+      if (targetRow) targetRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 20);
+  } else if (prevCatScroll !== null && newCatBox) {
+    newCatBox.scrollTop = prevCatScroll;
+  }
+
+  if (scrollToNewType && newTypeBox) {
+    setTimeout(() => {
+      newTypeBox.scrollTop = newTypeBox.scrollHeight;
+      const targetRow = newTypeBox.querySelector(`[data-type-drag-idx="${highlightTypeIdx}"]`);
+      if (targetRow) targetRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 20);
+  } else if (prevTypeScroll !== null && newTypeBox) {
+    newTypeBox.scrollTop = prevTypeScroll;
+  }
 }
 
 function attachDragListeners() {
@@ -252,9 +292,10 @@ export function addConfigCategory() {
     return;
   }
 
+  const newIndex = state.categories.length;
   state.categories.push({ name: name, spiritIds: [] });
   input.value = "";
-  renderCategoriesConfigEditor();
+  renderCategoriesConfigEditor({ scrollToNewCat: true, highlightCatIdx: newIndex });
   triggerAutoSave(50);
   if (window.showToast) window.showToast(`Categoría "${name}" agregada con éxito.`, false);
 }
@@ -327,10 +368,11 @@ export function addConfigType() {
     return;
   }
 
+  const newIndex = state.spiritTypes.length;
   state.spiritTypes.push({ name: name, suffix: suffix });
   nameInput.value = "";
   suffixInput.value = "";
-  renderCategoriesConfigEditor();
+  renderCategoriesConfigEditor({ scrollToNewType: true, highlightTypeIdx: newIndex });
   triggerAutoSave(50);
   if (window.showToast) window.showToast(`Tipo "${name}" agregado con éxito.`, false);
 }

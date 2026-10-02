@@ -325,38 +325,38 @@ export function openNewSpiritModal() {
       <div style="display: flex; gap: 10px;">
         <div style="width: 100px;">
           <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">ID Ranura:</label>
-          <input type="text" id="new-spirit-id" value="${nextId}" style="width: 100%; padding: 8px; border-radius: 8px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 15px; font-weight: 700; text-align: center;">
+          <input type="text" id="new-spirit-id" value="${nextId}" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 15px; font-weight: 700; text-align: center;">
         </div>
         <div style="flex: 1;">
           <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">Nombre del Espíritu:</label>
-          <input type="text" id="new-spirit-name" placeholder="Ej: Espíritu Dragón" style="width: 100%; padding: 8px; border-radius: 8px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 15px;">
+          <input type="text" id="new-spirit-name" placeholder="Ej: Espíritu Dragón" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 15px;">
         </div>
       </div>
 
       <div style="display: flex; gap: 10px;">
         <div style="flex: 1;">
           <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">Categoría:</label>
-          <select id="new-spirit-category" style="width: 100%; padding: 8px; border-radius: 8px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px;">
+          <select id="new-spirit-category" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px;">
             ${catOptionsHtml}
           </select>
         </div>
         <div style="flex: 1;">
           <label style="display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">Variante / Tipo:</label>
-          <select id="new-spirit-type" style="width: 100%; padding: 8px; border-radius: 8px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 14px;">
+          <select id="new-spirit-type" style="width: 100%; padding: 8px; border-radius: 8px; font-size: 14px;">
             ${typeOptionsHtml}
           </select>
         </div>
       </div>
 
-      <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px;">
+      <div style="background: rgba(0,0,0,0.05); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px;">
         <label style="display: block; font-size: 13px; color: var(--text-color); margin-bottom: 8px; font-weight: 700;">🖼️ Imagen / Sprite:</label>
         <div style="display: flex; gap: 12px; align-items: center;">
-          <div style="width: 64px; height: 64px; border-radius: 8px; border: 1px solid var(--card-border); background: repeating-conic-gradient(#1f2233 0% 25%, #131520 0% 50%) 50% / 12px 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
+          <div class="img-preview-box" style="width: 64px; height: 64px; border-radius: 8px; border: 1px solid var(--card-border); background: repeating-conic-gradient(#1f2233 0% 25%, #131520 0% 50%) 50% / 12px 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
             <img id="new-spirit-preview" src="${getSpiritImgUrl(nextId)}" alt="Vista previa" style="width: 52px; height: 52px; object-fit: contain; image-rendering: pixelated;">
           </div>
           <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
             <input type="file" id="new-spirit-file-input" accept="image/*" style="font-size: 12px; color: var(--text-muted);">
-            <input type="text" id="new-spirit-url-input" placeholder="O ingresa URL directa de imagen..." style="width: 100%; padding: 6px 8px; border-radius: 6px; background: #12131a; color: #fff; border: 1px solid var(--card-border); font-size: 13px;">
+            <input type="text" id="new-spirit-url-input" placeholder="O ingresa URL directa de imagen..." style="width: 100%; padding: 6px 8px; border-radius: 6px; font-size: 13px;">
           </div>
         </div>
       </div>
@@ -513,15 +513,15 @@ export function openEditImageModal(id) {
       </p>
 
       <div style="text-align: center; margin: 8px 0;">
-        <div style="display: inline-block; padding: 12px; border-radius: 12px; border: 2px solid var(--card-border); background: repeating-conic-gradient(#1f2233 0% 25%, #131520 0% 50%) 50% / 16px 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);">
+        <div class="img-preview-box" style="display: inline-block; padding: 12px; border-radius: 12px; border: 2px solid var(--card-border); background: repeating-conic-gradient(#1f2233 0% 25%, #131520 0% 50%) 50% / 16px 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);">
           <img id="edit-image-preview" src="${currentImgUrl}" alt="Vista previa" style="width: 100px; height: 100px; object-fit: contain; image-rendering: pixelated; display: block;">
         </div>
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <label style="display: block; font-size: 13px; font-weight: bold; color: var(--text-color);">Subir Archivo de Sprite (PNG / WEBP):</label>
-        <input type="file" id="edit-image-file-input" accept="image/*" style="width: 100%; font-size: 13px; color: #fff; background: #12131a; padding: 8px; border-radius: 8px; border: 1px solid var(--card-border);">
-        <input type="text" id="edit-image-url-input" placeholder="O pega enlace directo de imagen..." style="width: 100%; font-size: 13px; color: #fff; background: #12131a; padding: 8px; border-radius: 8px; border: 1px solid var(--card-border);">
+        <input type="file" id="edit-image-file-input" accept="image/*" style="width: 100%; font-size: 13px; padding: 8px; border-radius: 8px;">
+        <input type="text" id="edit-image-url-input" placeholder="O pega enlace directo de imagen..." style="width: 100%; font-size: 13px; padding: 8px; border-radius: 8px;">
       </div>
 
       <div style="display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 10px;">
