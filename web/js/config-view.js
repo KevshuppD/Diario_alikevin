@@ -160,7 +160,11 @@ export function renderConfigEditor() {
         <!-- Refresh Rate & Background Preferences -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;" class="config-grid-layout">
           <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px;">
-            <div style="font-size: 13px; font-weight: 700; color: var(--text-color); margin-bottom: 10px;">⚡ Tasa de Refresco (App Android)</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <div style="font-size: 13px; font-weight: 700; color: var(--text-color);">📱 Refresco en Teléfono (Android)</div>
+              <span style="font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px;">Web: Monitor Nativo</span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Frecuencia física de la pantalla en la app móvil:</div>
             <div style="display: flex; gap: 8px;">
               ${[60, 90, 100, 120].map(hz => `
                 <button type="button" onclick="window.changeRefreshRate(${hz})" class="btn ${state.userRefreshRate === hz ? '' : 'btn-secondary'}" style="flex: 1; padding: 6px 4px; font-size: 13px; font-weight: 700; justify-content: center;">
@@ -289,7 +293,7 @@ function hexToRgba(hex, alpha) {
 
 export function applyTheme(themeName, lightColor, darkColor, useCustomBg) {
   const theme = themeName || state.userTheme || "Pixel Oscuro";
-  document.body.classList.remove('theme-pixel-claro', 'theme-pixel-oscuro', 'theme-pixel-monocromatico');
+  document.body.classList.remove('theme-pixel-claro', 'theme-pixel-oscuro', 'theme-pixel-monocromatico', 'theme-neon-arcade', 'theme-pixel-mono');
   if (theme === "Pixel Claro") {
     document.body.classList.add('theme-pixel-claro');
   } else if (theme === "Pixel Monocromático") {
@@ -299,10 +303,13 @@ export function applyTheme(themeName, lightColor, darkColor, useCustomBg) {
   }
 
   const isLight = theme === "Pixel Claro";
-  const activeColor = isLight ? (lightColor || state.userLightColor || "#D1C4E9") : (darkColor || state.userDarkColor || "#4A148C");
+  const isMono = theme === "Pixel Monocromático";
+  const activeColor = isMono ? "#FFFFFF" : (isLight ? (lightColor || state.userLightColor || "#D1C4E9") : (darkColor || state.userDarkColor || "#4A148C"));
   if (activeColor) {
-    document.documentElement.style.setProperty('--accent-color', activeColor);
-    document.documentElement.style.setProperty('--accent-glow', hexToRgba(activeColor, 0.35));
+    document.body.style.setProperty('--accent-color', activeColor, 'important');
+    document.body.style.setProperty('--accent-glow', hexToRgba(activeColor, 0.35), 'important');
+    document.documentElement.style.setProperty('--accent-color', activeColor, 'important');
+    document.documentElement.style.setProperty('--accent-glow', hexToRgba(activeColor, 0.35), 'important');
   }
 }
 

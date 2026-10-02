@@ -589,6 +589,20 @@ graph TD
     - **Aceleración de Flujo I/O y MD5:** Incremento del buffer de hashing MD5 a 64KB (`ByteArray(65536)`) y reporte de progreso por bloques (cada 64KB) en `ProgressInputStream` y `ProgressOutputStream`, reduciendo llamadas al sistema y consumo de CPU.
     - **Ahorro Masivo de Cuota Firestore (1 Lectura Agregada):** Reemplazo del snapshot listener de todos los documentos en `SettingsFragment.kt` por una consulta agregada `count().get(AggregateSource.SERVER)`, reduciendo miles de lecturas diarias a 1 sola lectura por consulta.
     - **Batching Seguro al Vaciar la Nube:** Fragmentación en lotes de 450 elementos (`chunked(450)`) en `onResetDrive`, previniendo errores por el límite de 500 operaciones de Firestore.
+30. **Gestión Web de Espíritus, Paridad de Temas y Optimización Zero-Flicker (Web & Vercel):**
+    - **Paridad 100% de Temas y Paletas con la App Android:**
+      - Sincronización exacta de temas (`Pixel Claro`, `Pixel Oscuro`, `Pixel Monocromático`) y familias de colores (`LIGHT_COLOR_FAMILIES`, `DARK_COLOR_FAMILIES`, `MONO_COLOR_FAMILIES`) con los valores hex y nombres definidos en `ProfileSettingsCompose.kt`.
+      - Modificación bidireccional en Firestore (`users/<userId>`) con los campos `theme`, `lightColor`, `darkColor`, `useCustomBg`, `refreshRate`, etc., aplicando las variables CSS `--accent-color` y `--accent-glow` dinámicamente con máxima especificidad (`!important`) en el DOM.
+    - **Eliminación Total de Parpadeos (Zero-Flicker DOM Updates):**
+      - Se sustituyó la reconstrucción completa del espacio de trabajo (`container.innerHTML = ""`) por actualizaciones quirúrgicas en memoria (`updateSingleSpiritDOM` y `syncAllSpiritSlotsDOM`) tanto al interactuar con las tarjetas como al recibir eventos de snapshot de Firestore y WebSockets.
+      - Supresión de filtros de rasterizado GPU (`filter: grayscale`, `brightness`) y saltos `translateY`/`scale` al hacer hover, logrando tarjetas estables con transiciones CSS suaves.
+    - **Enrutamiento SPA y Prevención de Error 404 en Vercel:**
+      - Configuración de reescrituras exhaustivas en `web/vercel.json` y `vercel.json` para soportar todas las rutas limpias (`/configuracion`, `/categorias`, `/edicion`, `/album`, `/coleccion`, `/radar`, `/normal`, `/edit`, `/db`), evitando errores 404 al recargar el navegador en Vercel.
+    - **Ergonomía de Interfaz (Álbum, Búsqueda y HUD):**
+      - Renombrado de la vista a **"📖 Álbum"**.
+      - Rediseño de la barra de búsqueda (48px de altura, 15px de tipografía, atajos de teclado globales `/` y `Ctrl+K`, insignias de coincidencias en vivo y botón de limpieza).
+      - Tarjetas HUD de estadísticas para Kevin, Ali y Ambos con barras de progreso animadas que reflejan el porcentaje de completitud.
+      - Segmentación ergonómica de filtros principales y filtros de maestría con pulsaciones táctiles.
 
 ---
 

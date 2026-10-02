@@ -23,7 +23,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
-<body class="theme-neon-arcade">
+<body class="theme-pixel-oscuro">
   <div class="neon-bg"></div>
 
   <!-- Header -->
@@ -45,7 +45,7 @@
 
       <!-- Mode Navigation Pill -->
       <div class="mode-switch" id="mode-switch-bar">
-        <button type="button" id="btn-mode-normal" class="mode-btn nav-tab active" data-mode="normal" onclick="window.switchModeSPA('normal')">👁️ Modo Normal</button>
+        <button type="button" id="btn-mode-normal" class="mode-btn nav-tab active" data-mode="normal" onclick="window.switchModeSPA('normal')">📖 Álbum</button>
         <button type="button" id="btn-mode-edit" class="mode-btn nav-tab" data-mode="edit" onclick="window.switchModeSPA('edit')">✏️ Modo Edición</button>
         <button type="button" id="btn-mode-categories" class="mode-btn nav-tab" data-mode="categories" onclick="window.switchModeSPA('categories')">🏷️ Tipos y Categorías</button>
         <button type="button" id="btn-mode-radar" class="mode-btn nav-tab" data-mode="radar" onclick="window.switchModeSPA('radar')">📡 Dispositivos & Radar</button>
@@ -83,46 +83,64 @@
     <!-- Central Content Area -->
     <div class="content-area">
       
-      <!-- Normal Mode Toolbar: Stats -->
+      <!-- Normal Mode Toolbar: Stats HUD -->
       <div class="normal-toolbar" id="normal-toolbar">
         <div class="stats-container">
           <div class="stat-pill kevin">
-            <span class="stat-label">🔵 Kevin:</span>
-            <span class="stat-val" id="stat-kevin">0 / 0</span>
+            <div class="stat-pill-header">
+              <span class="stat-label">🔵 Kevin</span>
+              <span class="stat-val" id="stat-kevin">0 / 0</span>
+            </div>
+            <div class="stat-progress-bar">
+              <div class="stat-progress-fill kevin-fill" id="stat-kevin-bar" style="width: 0%;"></div>
+            </div>
           </div>
           <div class="stat-pill ali">
-            <span class="stat-label">🔴 Ali:</span>
-            <span class="stat-val" id="stat-ali">0 / 0</span>
+            <div class="stat-pill-header">
+              <span class="stat-label">🔴 Ali</span>
+              <span class="stat-val" id="stat-ali">0 / 0</span>
+            </div>
+            <div class="stat-progress-bar">
+              <div class="stat-progress-fill ali-fill" id="stat-ali-bar" style="width: 0%;"></div>
+            </div>
           </div>
           <div class="stat-pill both">
-            <span class="stat-label">💜 Ambos:</span>
-            <span class="stat-val" id="stat-both">0 / 0</span>
+            <div class="stat-pill-header">
+              <span class="stat-label">💜 Ambos</span>
+              <span class="stat-val" id="stat-both">0 / 0</span>
+            </div>
+            <div class="stat-progress-bar">
+              <div class="stat-progress-fill both-fill" id="stat-both-bar" style="width: 0%;"></div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Search Input Bar (Modo Normal y Modo Edición) -->
+      <!-- Search Input Bar (Modo Álbum y Modo Edición) -->
       <div class="search-bar-container" id="shared-search-bar-container">
         <div class="search-input-wrapper">
           <span class="search-icon">🔍</span>
-          <input type="text" id="spirit-search-input" placeholder="Buscar espíritu por nombre, # ID o variante..." oninput="window.onSearchInput(this.value)">
+          <input type="text" id="spirit-search-input" placeholder="Buscar por nombre, # ID o variante..." oninput="window.onSearchInput(this.value)">
+          <span class="search-kbd-hint">/</span>
+          <span id="search-count-badge" class="search-count-badge"></span>
           <button class="clear-search-btn" id="clear-search-btn" onclick="window.clearSearch()" style="display:none;" title="Limpiar búsqueda">✕ Limpiar</button>
         </div>
       </div>
 
-      <!-- Filter Bar (Modo Normal) -->
+      <!-- Filter Bar (Modo Álbum) -->
       <div class="normal-toolbar" id="normal-filters-toolbar">
         <div class="filter-bar">
-          <span style="font-size: 13px; color: var(--text-muted); font-weight: 600; margin-right: 4px;">Filtrar:</span>
-          <button class="filter-btn active" onclick="window.setNormalFilter('ALL', this)">Todos</button>
-          <button class="filter-btn" onclick="window.setNormalFilter('no_obtenidos', this)">❌ Faltantes para mí</button>
-          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_otro_no_yo', this)">🔁 Tiene mi pareja (no yo)</button>
-          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_yo_no_otro', this)">⭐ Solo yo</button>
+          <span class="filter-title-label">Filtros:</span>
+          <button class="filter-btn active" onclick="window.setNormalFilter('todos', this)">🌟 Todos</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('no_obtenidos', this)">❌ Faltantes</button>
           <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_ambos', this)">💜 Ambos</button>
-          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_sin_maestria', this)">👑 Obtenidos sin Maestría</button>
-          <button class="filter-btn" onclick="window.setNormalFilter('sin_maestria', this)">☆ Sin Maestría</button>
-          <button class="filter-btn" onclick="window.setNormalFilter('maestria_otro_no_yo', this)">👑 Pareja Maestría (yo no)</button>
-          <button class="filter-btn" onclick="window.setNormalFilter('maestria_yo_no_otro', this)">👑 Mi Maestría (pareja no)</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_yo_no_otro', this)">🔵 Solo Yo</button>
+          <button class="filter-btn" onclick="window.setNormalFilter('obtenidos_otro_no_yo', this)">🔴 Solo Pareja</button>
+          <div class="filter-divider"></div>
+          <button class="filter-btn mastery-filter" onclick="window.setNormalFilter('sin_maestria', this)">☆ Sin Maestría</button>
+          <button class="filter-btn mastery-filter" onclick="window.setNormalFilter('obtenidos_sin_maestria', this)">⭐ Obtenidos s/Maestría</button>
+          <button class="filter-btn mastery-filter" onclick="window.setNormalFilter('maestria_yo_no_otro', this)">👑 Mi Maestría</button>
+          <button class="filter-btn mastery-filter" onclick="window.setNormalFilter('maestria_otro_no_yo', this)">👑 Pareja Maestría</button>
         </div>
       </div>
 

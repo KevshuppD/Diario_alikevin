@@ -258,7 +258,13 @@ export function listenFirestore(onDataUpdated) {
         }));
       } catch(e) {}
 
-      if (onDataUpdated) onDataUpdated();
+      if (isInitialLoad) {
+        if (onDataUpdated) onDataUpdated();
+      } else if (state.currentMode === "normal" && window.syncAllSpiritSlotsDOM) {
+        window.syncAllSpiritSlotsDOM();
+      } else {
+        if (onDataUpdated) onDataUpdated();
+      }
     }, err => {
       console.error("Error al escuchar Firestore:", err);
       updateDbStatusBadge(false, false);
@@ -336,6 +342,10 @@ export function listenUserTheme(onThemeChanged) {
 
         if (typeof window.applyTheme === 'function') {
           window.applyTheme(state.userTheme, state.userLightColor, state.userDarkColor, state.userUseCustomBg);
+        }
+
+        if (typeof window.renderConfigEditor === 'function' && state.currentMode === 'config') {
+          window.renderConfigEditor();
         }
 
         if (onThemeChanged) onThemeChanged();

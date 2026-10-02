@@ -25,7 +25,7 @@ function normalizeCoupleId(id) {
 }
 
 const savedUserKey = localStorage.getItem("logged_user");
-const initialUser = (savedUserKey && USERS[savedUserKey]) ? USERS[savedUserKey] : null;
+const initialUser = (savedUserKey && USERS[savedUserKey]) ? USERS[savedUserKey] : USERS.kevin;
 
 export const state = {
   coupleId: normalizeCoupleId(localStorage.getItem("coupleId")),
@@ -124,7 +124,7 @@ try {
 export function getStoredTheme() {
   const theme = localStorage.getItem("userTheme") || "Pixel Oscuro";
   if (theme === "Pixel Claro") return "pixel-claro";
-  if (theme === "Pixel Monocromático") return "pixel-mono";
+  if (theme === "Pixel Monocromático") return "pixel-monocromatico";
   return "pixel-oscuro";
 }
 
@@ -166,6 +166,14 @@ export function switchUserProfile(username) {
   state.currentUser = newUser;
   localStorage.setItem("logged_user", newUser.username);
   updateUserBadge();
+
+  if (typeof window.listenUserTheme === 'function') {
+    window.listenUserTheme(() => {
+      if (typeof window.renderConfigEditor === 'function' && state.currentMode === 'config') {
+        window.renderConfigEditor();
+      }
+    });
+  }
 
   if (typeof window.showToast === 'function') {
     window.showToast(`👤 Usuario cambiado a: ${newUser.name}`);

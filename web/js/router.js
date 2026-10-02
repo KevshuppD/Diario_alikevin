@@ -12,8 +12,8 @@ import { listenFirestore } from './firestore.js';
 
 export function getRouteFromPath(pathname) {
   const cleanPath = pathname.toLowerCase().replace(/^\/web\/?/, '/').replace(/\/$/, '') || '/';
-  if (cleanPath === '/' || cleanPath === '/normal') return 'normal';
-  if (cleanPath === '/edit') return 'edit';
+  if (cleanPath === '/' || cleanPath === '/normal' || cleanPath === '/album' || cleanPath === '/coleccion') return 'normal';
+  if (cleanPath === '/edit' || cleanPath === '/edicion') return 'edit';
   if (cleanPath === '/categorias' || cleanPath === '/categories') return 'categories';
   if (cleanPath === '/configuracion' || cleanPath === '/config') return 'config';
   if (cleanPath === '/radar') return 'radar';

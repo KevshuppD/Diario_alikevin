@@ -1,0 +1,18 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/configuracion", "destination": "/web/config.html" },
+    { "source": "/config", "destination": "/web/config.html" },
+    { "source": "/categorias", "destination": "/web/categories.html" },
+    { "source": "/categories", "destination": "/web/categories.html" },
+    { "source": "/edicion", "destination": "/web/edit.html" },
+    { "source": "/edit", "destination": "/web/edit.html" },
+    { "source": "/album", "destination": "/web/normal.html" },
+    { "source": "/coleccion", "destination": "/web/normal.html" },
+    { "source": "/normal", "destination": "/web/normal.html" },
+    { "source": "/radar", "destination": "/web/radar.html" },
+    { "source": "/db", "destination": "/web/db.html" },
+    { "source": "/migrate", "destination": "/web/migrate.html" },
+    { "source": "/", "destination": "/web/normal.html" }
+  ]
+}

@@ -176,6 +176,219 @@ export function updateStats() {
   if (statKevin) statKevin.innerHTML = `${totalKevin} / ${totalRegistered} <span class="mastery-count-tag" title="Maestría (Estrellas) de Kevin">⭐ ${kevinMasteryCount}</span>`;
   if (statAli) statAli.innerHTML = `${totalAli} / ${totalRegistered} <span class="mastery-count-tag" title="Maestría (Estrellas) de Ali">⭐ ${aliMasteryCount}</span>`;
   if (statBoth) statBoth.textContent = `${bothCount} / ${totalRegistered}`;
+
+  const kevinPct = totalRegistered > 0 ? Math.round((totalKevin / totalRegistered) * 100) : 0;
+  const aliPct = totalRegistered > 0 ? Math.round((totalAli / totalRegistered) * 100) : 0;
+  const bothPct = totalRegistered > 0 ? Math.round((bothCount / totalRegistered) * 100) : 0;
+
+  const barKevin = document.getElementById("stat-kevin-bar");
+  const barAli = document.getElementById("stat-ali-bar");
+  const barBoth = document.getElementById("stat-both-bar");
+
+  if (barKevin) barKevin.style.width = `${kevinPct}%`;
+  if (barAli) barAli.style.width = `${aliPct}%`;
+  if (barBoth) barBoth.style.width = `${bothPct}%`;
+}
+
+export function updateSearchCountBadge() {
+  const badge = document.getElementById("search-count-badge");
+  if (!badge) return;
+  if (!state.searchQuery) {
+    badge.style.display = "none";
+    return;
+  }
+  const defaultList = state.currentSeason === 1 ? defaultSpiritsListT1 : defaultSpiritsListT2;
+  const activeSpirits = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : defaultList;
+  const matches = activeSpirits.filter(id => matchesFilter(id)).length;
+  badge.textContent = `${matches} ${matches === 1 ? 'resultado' : 'resultados'}`;
+  badge.style.display = "inline-flex";
+}
+
+export function onSearchInput(val) {
+  state.searchQuery = val.trim().toLowerCase();
+  const clearBtn = document.getElementById("clear-search-btn");
+  if (clearBtn) {
+    clearBtn.style.display = state.searchQuery.length > 0 ? "inline-flex" : "none";
+  }
+  renderWorkspace();
+  updateSearchCountBadge();
+}
+
+export function clearSearch() {
+  state.searchQuery = "";
+  const input = document.getElementById("spirit-search-input");
+  if (input) input.value = "";
+  const clearBtn = document.getElementById("clear-search-btn");
+  if (clearBtn) clearBtn.style.display = "none";
+  renderWorkspace();
+  updateSearchCountBadge();
+}
+
+export function setFilter(filterName, btnEl) {
+  let normalized = (filterName || "todos").toLowerCase();
+  if (normalized === "all") normalized = "todos";
+  state.currentFilter = normalized;
+  document.querySelectorAll(".filter-bar .filter-btn").forEach(b => b.classList.remove("active"));
+  if (btnEl) btnEl.classList.add("active");
+  renderWorkspace();
+  updateSearchCountBadge();
+}
+
+export function updateSingleSpiritDOM(id) {
+  const isKevinUser = state.currentUser ? state.currentUser.username === "kevin" : true;
+  const isKevinOwned = state.kevinList.includes(id);
+  const isAliOwned = state.aliList.includes(id);
+  const isKevinMastered = state.kevinMastery.includes(id);
+  const isAliMastered = state.aliMastery.includes(id);
+  const isCurrentMastered = isKevinUser ? isKevinMastered : isAliMastered;
+
+  // If a specific filter is active and the spirit no longer matches, re-render workspace cleanly
+  const isFiltered = state.currentFilter && state.currentFilter !== "todos" && state.currentFilter !== "all";
+  if (isFiltered && !matchesFilter(id)) {
+    renderWorkspace();
+    return;
+  }
+
+  const slotElements = document.querySelectorAll(`.spirit-slot[data-id="${id}"]`);
+  if (slotElements.length === 0) {
+    renderWorkspace();
+    return;
+  }
+
+  slotElements.forEach(slot => {
+    if (slot.classList.contains("normal-mode") || slot.classList.contains("normal-view")) {
+      // Direct class replacement without re-creating DOM
+      slot.classList.remove(
+        "not-owned", "owned-none",
+        "owned-by-me", "owned-kevin",
+        "owned-by-ali-user", "owned-ali",
+        "owned-by-both", "owned-both"
+      );
+
+      if (isKevinOwned && isAliOwned) {
+        slot.classList.add("owned-by-both", "owned-both");
+      } else if (isKevinOwned) {
+        slot.classList.add("owned-by-me", "owned-kevin");
+      } else if (isAliOwned) {
+        slot.classList.add("owned-by-ali-user", "owned-ali");
+      } else {
+        slot.classList.add("not-owned", "owned-none");
+      }
+
+      // Update Kevin Badge
+      const kevinBadge = slot.querySelector(".kevin-badge");
+      if (kevinBadge) {
+        kevinBadge.classList.toggle("active", isKevinOwned);
+        kevinBadge.title = isKevinOwned ? "Obtenido por Kevin" : "Faltante para Kevin";
+        kevinBadge.innerHTML = `<span>🔵</span> <span>K</span> ${isKevinMastered ? '<span style="color:#fbbf24; font-size:10px;">⭐</span>' : ''}`;
+      }
+
+      // Update Ali Badge
+      const aliBadge = slot.querySelector(".ali-badge");
+      if (aliBadge) {
+        aliBadge.classList.toggle("active", isAliOwned);
+        aliBadge.title = isAliOwned ? "Obtenido por Ali" : "Faltante para Ali";
+        aliBadge.innerHTML = `<span>🔴</span> <span>A</span> ${isAliMastered ? '<span style="color:#fbbf24; font-size:10px;">⭐</span>' : ''}`;
+      }
+
+      // Update Mastery Star
+      const masteryStar = slot.querySelector(".mastery-star");
+      if (masteryStar) {
+        masteryStar.classList.toggle("active", isCurrentMastered);
+      }
+
+      // Update category card badge counts if rendered
+      const catCard = slot.closest(".category-card");
+      if (catCard) {
+        const slotsGrid = catCard.querySelector(".spirit-slots-grid");
+        const catName = slotsGrid ? slotsGrid.dataset.categoryName : null;
+        if (catName) {
+          const cat = state.categories.find(c => c.name === catName);
+          if (cat) {
+            const catKevinCount = (cat.spiritIds || []).filter(sid => state.kevinList.includes(sid)).length;
+            const catAliCount = (cat.spiritIds || []).filter(sid => state.aliList.includes(sid)).length;
+            const catKevinMastery = (cat.spiritIds || []).filter(sid => state.kevinMastery.includes(sid)).length;
+            const catAliMastery = (cat.spiritIds || []).filter(sid => state.aliMastery.includes(sid)).length;
+
+            const kb = catCard.querySelector(".cat-stat-badge.kevin");
+            if (kb) kb.innerHTML = `🔵 ${catKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${catKevinMastery}</span>`;
+            const ab = catCard.querySelector(".cat-stat-badge.ali");
+            if (ab) ab.innerHTML = `🔴 ${catAliCount} <span style="color:#fbbf24; font-weight:700;">⭐${catAliMastery}</span>`;
+          }
+        }
+      }
+    }
+  });
+}
+
+export function syncAllSpiritSlotsDOM() {
+  updateStats();
+  const slots = document.querySelectorAll(".spirit-slot");
+  if (slots.length === 0) {
+    renderWorkspace();
+    return;
+  }
+  const isKevinUser = state.currentUser ? state.currentUser.username === "kevin" : true;
+  slots.forEach(slot => {
+    const id = slot.dataset.id;
+    if (!id) return;
+    const isKevinOwned = state.kevinList.includes(id);
+    const isAliOwned = state.aliList.includes(id);
+    const isKevinMastered = state.kevinMastery.includes(id);
+    const isAliMastered = state.aliMastery.includes(id);
+    const isCurrentMastered = isKevinUser ? isKevinMastered : isAliMastered;
+
+    slot.classList.remove(
+      "not-owned", "owned-none",
+      "owned-by-me", "owned-kevin",
+      "owned-by-ali-user", "owned-ali",
+      "owned-by-both", "owned-both"
+    );
+
+    if (isKevinOwned && isAliOwned) {
+      slot.classList.add("owned-by-both", "owned-both");
+    } else if (isKevinOwned) {
+      slot.classList.add("owned-by-me", "owned-kevin");
+    } else if (isAliOwned) {
+      slot.classList.add("owned-by-ali-user", "owned-ali");
+    } else {
+      slot.classList.add("not-owned", "owned-none");
+    }
+
+    const kb = slot.querySelector(".kevin-badge");
+    if (kb) {
+      kb.classList.toggle("active", isKevinOwned);
+      kb.innerHTML = `<span>🔵</span> <span>K</span> ${isKevinMastered ? '<span style="color:#fbbf24; font-size:10px;">⭐</span>' : ''}`;
+    }
+    const ab = slot.querySelector(".ali-badge");
+    if (ab) {
+      ab.classList.toggle("active", isAliOwned);
+      ab.innerHTML = `<span>🔴</span> <span>A</span> ${isAliMastered ? '<span style="color:#fbbf24; font-size:10px;">⭐</span>' : ''}`;
+    }
+    const ms = slot.querySelector(".mastery-star");
+    if (ms) {
+      ms.classList.toggle("active", isCurrentMastered);
+    }
+  });
+
+  document.querySelectorAll(".category-card").forEach(catCard => {
+    const slotsGrid = catCard.querySelector(".spirit-slots-grid");
+    const catName = slotsGrid ? slotsGrid.dataset.categoryName : null;
+    if (catName && catName !== "__uncategorized__") {
+      const cat = state.categories.find(c => c.name === catName);
+      if (cat) {
+        const catKevinCount = (cat.spiritIds || []).filter(sid => state.kevinList.includes(sid)).length;
+        const catAliCount = (cat.spiritIds || []).filter(sid => state.aliList.includes(sid)).length;
+        const catKevinMastery = (cat.spiritIds || []).filter(sid => state.kevinMastery.includes(sid)).length;
+        const catAliMastery = (cat.spiritIds || []).filter(sid => state.aliMastery.includes(sid)).length;
+
+        const kb = catCard.querySelector(".cat-stat-badge.kevin");
+        if (kb) kb.innerHTML = `🔵 ${catKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${catKevinMastery}</span>`;
+        const ab = catCard.querySelector(".cat-stat-badge.ali");
+        if (ab) ab.innerHTML = `🔴 ${catAliCount} <span style="color:#fbbf24; font-weight:700;">⭐${catAliMastery}</span>`;
+      }
+    }
+  });
 }
 
 export function toggleSpiritOwned(id) {
@@ -204,7 +417,7 @@ export function toggleSpiritOwned(id) {
 
   updates[userKey] = newOwnedList;
   updateStats();
-  renderWorkspace();
+  updateSingleSpiritDOM(id);
 
   triggerAutoSave(150);
   sendWsMessage({
@@ -246,7 +459,7 @@ export function toggleSpiritMastery(id, event) {
   }
 
   updateStats();
-  renderWorkspace();
+  updateSingleSpiritDOM(id);
   triggerAutoSave(150);
   sendWsMessage({
     type: 'SPIRIT_TOGGLE',
@@ -260,30 +473,6 @@ export function toggleSpiritMastery(id, event) {
   });
 }
 
-export function onSearchInput(val) {
-  state.searchQuery = val.trim().toLowerCase();
-  const clearBtn = document.getElementById("clear-search-btn");
-  if (clearBtn) {
-    clearBtn.style.display = state.searchQuery.length > 0 ? "inline-block" : "none";
-  }
-  renderWorkspace();
-}
-
-export function clearSearch() {
-  state.searchQuery = "";
-  const input = document.getElementById("spirit-search-input");
-  if (input) input.value = "";
-  const clearBtn = document.getElementById("clear-search-btn");
-  if (clearBtn) clearBtn.style.display = "none";
-  renderWorkspace();
-}
-
-export function setFilter(filterName, btnEl) {
-  state.currentFilter = filterName;
-  document.querySelectorAll(".filter-bar .filter-btn").forEach(b => b.classList.remove("active"));
-  if (btnEl) btnEl.classList.add("active");
-  renderWorkspace();
-}
 
 export function createSpiritSlot(id, categoryName) {
   const slot = document.createElement("div");
@@ -633,3 +822,19 @@ window.clearSearch = clearSearch;
 window.setNormalFilter = setFilter;
 window.setFilter = setFilter;
 window.handleSpiritImgError = handleSpiritImgError;
+window.updateSingleSpiritDOM = updateSingleSpiritDOM;
+window.syncAllSpiritSlotsDOM = syncAllSpiritSlotsDOM;
+
+if (typeof window !== "undefined" && !window.__spiritSearchShortcutBound) {
+  window.__spiritSearchShortcutBound = true;
+  window.addEventListener("keydown", (e) => {
+    if ((e.key === "/" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) {
+      e.preventDefault();
+      const input = document.getElementById("spirit-search-input");
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }
+  });
+}

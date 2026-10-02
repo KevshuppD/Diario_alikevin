@@ -146,7 +146,11 @@ function handleWsMessage(msg, onSyncCallback, onToggleCallback, onImageCallback)
       if (msg.aliList) state.aliList = msg.aliList;
       if (msg.kevinMastery) state.kevinMastery = msg.kevinMastery;
       if (msg.aliMastery) state.aliMastery = msg.aliMastery;
-      if (onToggleCallback) onToggleCallback();
+      if (state.currentMode === "normal" && typeof window.syncAllSpiritSlotsDOM === "function") {
+        window.syncAllSpiritSlotsDOM();
+      } else if (onToggleCallback) {
+        onToggleCallback();
+      }
     }
   } else if (msg.type === 'IMAGE_UPLOADED') {
     if (msg.spiritId && msg.url) {

@@ -130,17 +130,21 @@ export const defaultSpiritTypesT2 = [
 ];
 
 export const LIGHT_COLOR_FAMILIES = [
-  { title: "Pasteles Clásicos", colors: ["#D1C4E9", "#F8BBD0", "#BBDEFB", "#C8E6C9", "#FFF9C4", "#FFE0B2", "#E1BEE7"] },
-  { title: "Tonos Vintage & Cálidos", colors: ["#D7CCC8", "#CFD8DC", "#FFCCBC", "#DCEDC8", "#B2DFDB", "#B3E5FC", "#D1D5DB"] },
-  { title: "Brillantes Suaves", colors: ["#80DEEA", "#A5D6A7", "#FFE082", "#FFAB91", "#CE93D8", "#90CAF9", "#F48FB1"] }
+  { title: "🌸 ROSAS Y CORALES", colors: ["#F8BBD0", "#FFCDD2", "#FCE4EC", "#F3E5F5"] },
+  { title: "💜 PÚRPURAS Y LILAS", colors: ["#D1C4E9", "#E1BEE7", "#C5CAE9", "#CE93D8"] },
+  { title: "🩵 AZULES Y AQUA", colors: ["#E1F5FE", "#B3E5FC", "#B2EBF2", "#80DEEA"] },
+  { title: "🍃 VERDES Y MATCHA", colors: ["#C8E6C9", "#DCEDC8", "#DCE775", "#A5D6A7"] },
+  { title: "☀️ CÁLIDOS Y LATTE", colors: ["#FFF59D", "#FFE57F", "#FFE0B2", "#D7CCC8"] }
 ];
 
 export const DARK_COLOR_FAMILIES = [
-  { title: "Neón & Arcade", colors: ["#9C27B0", "#E040FB", "#00E5FF", "#00E676", "#FFD600", "#FF1744", "#651FFF"] },
-  { title: "Gemas & Profundos", colors: ["#4A148C", "#880E4F", "#0D47A1", "#1B5E20", "#F57F17", "#BF360C", "#311B92"] },
-  { title: "Ciberpunk & Futuristas", colors: ["#EC4899", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#06B6D4", "#EF4444"] }
+  { title: "❤️ ROJOS Y VINOS", colors: ["#B71C1C", "#C2185B", "#880E4F", "#BF360C"] },
+  { title: "💜 PÚRPURAS Y VIOLETAS", colors: ["#4A148C", "#6A1B9A", "#4A0E4E", "#9C27B0"] },
+  { title: "💙 AZULES E ÍNDIGOS", colors: ["#0D47A1", "#1A237E", "#37474F", "#00E5FF"] },
+  { title: "🌲 VERDES Y TEALS", colors: ["#006064", "#004D40", "#1B5E20", "#33691E"] },
+  { title: "🔥 CÁLIDOS Y NEUTROS", colors: ["#E65100", "#3E2723", "#263238", "#FFD600"] }
 ];
 
 export const MONO_COLOR_FAMILIES = [
-  { title: "Monocromático Puro", colors: ["#FFFFFF", "#E0E0E0", "#9E9E9E", "#616161", "#212121", "#BDBDBD", "#757575"] }
+  { title: "🏁 ESCALA DE GRISES RETRO", colors: ["#FFFFFF", "#E0E0E0", "#BDBDBD", "#9E9E9E", "#616161", "#212121"] }
 ];
