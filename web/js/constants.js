@@ -3,7 +3,7 @@
 // ==========================================
 
 export const defaultSpiritsListT1 = Array.from({ length: 141 }, (_, i) => String(i + 1).padStart(2, '0'));
-export const defaultSpiritsListT2 = Array.from({ length: 105 }, (_, i) => String(i + 1).padStart(2, '0'));
+export const defaultSpiritsListT2 = Array.from({ length: 131 }, (_, i) => String(i + 1).padStart(2, '0'));
 export const defaultSpiritsList = defaultSpiritsListT1;
 
 export const defaultCategoriesT1 = [
@@ -45,7 +45,7 @@ export const defaultCategoriesT2 = [
   { name: "Espíritu de Shadow", spiritIds: ["28", "29", "30", "58", "80"] },
   { name: "Espíritu de Tails", spiritIds: ["31", "32", "33", "59", "81"] },
   { name: "Espíritu de Sonic", spiritIds: ["34", "35", "36", "57", "82"] },
-  { name: "Espíritu Caballero", spiritIds: ["37", "38", "39", "40"] },
+  { name: "Espíritu Caballero", spiritIds: ["37", "38", "39", "40", "130", "131"] },
   { name: "Espíritu Onigiri", spiritIds: ["41", "42", "43", "44", "83"] },
   { name: "Espíritu Científico", spiritIds: ["45", "46", "47", "48", "84"] },
   { name: "Espíritu Especial/Invitado", spiritIds: ["49"] },
@@ -54,7 +54,11 @@ export const defaultCategoriesT2 = [
   { name: "Espíritu de Morgana", spiritIds: ["86", "87", "88", "89", "90"] },
   { name: "Espíritu de Sobreescudo", spiritIds: ["91", "92", "93", "94", "95"] },
   { name: "Espíritu del Estanque", spiritIds: ["96", "97", "98", "99", "100"] },
-  { name: "Espíritu de Cumpleaños", spiritIds: ["101", "102", "103", "104", "105"] }
+  { name: "Espíritu de Cumpleaños", spiritIds: ["101", "102", "103", "104", "105"] },
+  { name: "Espíritu de Mapache", spiritIds: ["106", "107", "108", "109", "110", "111"] },
+  { name: "Espíritu de Vampiro", spiritIds: ["112", "113", "114", "115", "116", "117"] },
+  { name: "Espíritu de Calabaza", spiritIds: ["118", "119", "120", "121", "122", "123"] },
+  { name: "Espíritu de Ciervo", spiritIds: ["124", "125", "126", "127", "128", "129"] }
 ];
 
 export const defaultNames = [
@@ -125,6 +129,7 @@ export const defaultSpiritTypesT2 = [
   { name: "Cazarrecompensas", suffix: " Cazarrecompensas" },
   { name: "Matrix", suffix: " Matrix" },
   { name: "Galaxia", suffix: " Galaxia" },
+  { name: "Truco o Trato", suffix: " Truco o Trato" },
   { name: "Cazarrecompensas Especial", suffix: " Cazarrecompensas Especial" },
   { name: "Especial", suffix: " Especial" }
 ];

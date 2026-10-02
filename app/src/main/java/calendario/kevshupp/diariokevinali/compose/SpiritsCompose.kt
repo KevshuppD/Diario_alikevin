@@ -627,7 +627,7 @@ fun SpiritsChecklistView(
             SpiritCategory("Espíritu de Shadow", listOf("28", "29", "30", "58", "80")),
             SpiritCategory("Espíritu de Tails", listOf("31", "32", "33", "59", "81")),
             SpiritCategory("Espíritu de Sonic", listOf("34", "35", "36", "57", "82")),
-            SpiritCategory("Espíritu Caballero", listOf("37", "38", "39", "40")),
+            SpiritCategory("Espíritu Caballero", listOf("37", "38", "39", "40", "130", "131")),
             SpiritCategory("Espíritu Onigiri", listOf("41", "42", "43", "44", "83")),
             SpiritCategory("Espíritu Científico", listOf("45", "46", "47", "48", "84")),
             SpiritCategory("Espíritu Especial/Invitado", listOf("49")),
@@ -636,11 +636,15 @@ fun SpiritsChecklistView(
             SpiritCategory("Espíritu de Morgana", listOf("86", "87", "88", "89", "90")),
             SpiritCategory("Espíritu de Sobreescudo", listOf("91", "92", "93", "94", "95")),
             SpiritCategory("Espíritu del Estanque", listOf("96", "97", "98", "99", "100")),
-            SpiritCategory("Espíritu de Cumpleaños", listOf("101", "102", "103", "104", "105"))
+            SpiritCategory("Espíritu de Cumpleaños", listOf("101", "102", "103", "104", "105")),
+            SpiritCategory("Espíritu de Mapache", listOf("106", "107", "108", "109", "110", "111")),
+            SpiritCategory("Espíritu de Vampiro", listOf("112", "113", "114", "115", "116", "117")),
+            SpiritCategory("Espíritu de Calabaza", listOf("118", "119", "120", "121", "122", "123")),
+            SpiritCategory("Espíritu de Ciervo", listOf("124", "125", "126", "127", "128", "129"))
         )
     }
     val defaultSpiritsListT2 = remember {
-        (1..105).map { String.format("%02d", it) }
+        (1..131).map { if (it < 100) String.format("%02d", it) else it.toString() }
     }
     val spiritNames = remember {
         listOf(
@@ -826,6 +830,8 @@ fun SpiritsChecklistView(
         " Galaxia Oscura",
         " Hacker de botin",
         " Cazarrecompensas",
+        " Cazarrecompensas Especial",
+        " Truco o Trato",
         " Hacker Dorado",
         " Arcoíris",
         " Holofoil",

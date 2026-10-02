@@ -118,6 +118,32 @@ Este documento es la **Guía Maestra y Referencia Oficial** de todos los espíri
 | `103` | **Espíritu de Cumpleaños** | Espíritu Cumpleaños Hacker | Cheat Master Birthday Sprite | `7041` | [Cheat Master Birthday Sprite](https://fnggcdn.com/assets/5JlFN0.png) |
 | `104` | **Espíritu de Cumpleaños** | Espíritu Cumpleaños Hacker de botin | Loot Hacker Birthday Sprite | `7042` | [Loot Hacker Birthday Sprite](https://fnggcdn.com/assets/vYM0zk.png) |
 | `105` | **Espíritu de Cumpleaños** | Espíritu Cumpleaños Cazarrecompensas | Bounty Hunter Birthday Sprite | `7012` | [Bounty Hunter Birthday Sprite](https://fnggcdn.com/assets/WY5DzX.png) |
+| `106` | **Espíritu de Mapache** | Espíritu de Mapache | Raccoon Sprite | `-` | Raccoon Sprite |
+| `107` | **Espíritu de Mapache** | Espíritu de Mapache Dorado | Gold Raccoon Sprite | `-` | Gold Raccoon Sprite |
+| `108` | **Espíritu de Mapache** | Espíritu de Mapache Hacker | Cheat Master Raccoon Sprite | `-` | Cheat Master Raccoon Sprite |
+| `109` | **Espíritu de Mapache** | Espíritu de Mapache Cazarrecompensas | Bounty Hunter Raccoon Sprite | `-` | Bounty Hunter Raccoon Sprite |
+| `110` | **Espíritu de Mapache** | Espíritu de Mapache Hacker de botin | Loot Hacker Raccoon Sprite | `-` | Loot Hacker Raccoon Sprite |
+| `111` | **Espíritu de Mapache** | Espíritu de Mapache Truco o Trato | Trick or Treat Raccoon Sprite | `-` | Trick or Treat Raccoon Sprite |
+| `112` | **Espíritu de Vampiro** | Espíritu de Vampiro | Vampire Sprite | `-` | Vampire Sprite |
+| `113` | **Espíritu de Vampiro** | Espíritu de Vampiro Dorado | Gold Vampire Sprite | `-` | Gold Vampire Sprite |
+| `114` | **Espíritu de Vampiro** | Espíritu de Vampiro Hacker | Cheat Master Vampire Sprite | `-` | Cheat Master Vampire Sprite |
+| `115` | **Espíritu de Vampiro** | Espíritu de Vampiro Hacker de botin | Loot Hacker Vampire Sprite | `-` | Loot Hacker Vampire Sprite |
+| `116` | **Espíritu de Vampiro** | Espíritu de Vampiro Cazarrecompensas | Bounty Hunter Vampire Sprite | `-` | Bounty Hunter Vampire Sprite |
+| `117` | **Espíritu de Vampiro** | Espíritu de Vampiro Truco o Trato | Trick or Treat Vampire Sprite | `-` | Trick or Treat Vampire Sprite |
+| `118` | **Espíritu de Calabaza** | Espíritu de Calabaza | Pumpkin Sprite | `-` | Pumpkin Sprite |
+| `119` | **Espíritu de Calabaza** | Espíritu de Calabaza Dorado | Gold Pumpkin Sprite | `-` | Gold Pumpkin Sprite |
+| `120` | **Espíritu de Calabaza** | Espíritu de Calabaza Hacker | Cheat Master Pumpkin Sprite | `-` | Cheat Master Pumpkin Sprite |
+| `121` | **Espíritu de Calabaza** | Espíritu de Calabaza Hacker de botin | Loot Hacker Pumpkin Sprite | `-` | Loot Hacker Pumpkin Sprite |
+| `122` | **Espíritu de Calabaza** | Espíritu de Calabaza Cazarrecompensas | Bounty Hunter Pumpkin Sprite | `-` | Bounty Hunter Pumpkin Sprite |
+| `123` | **Espíritu de Calabaza** | Espíritu de Calabaza Truco o Trato | Trick or Treat Pumpkin Sprite | `-` | Trick or Treat Pumpkin Sprite |
+| `124` | **Espíritu de Ciervo** | Espíritu de Ciervo | Deer Sprite | `-` | Deer Sprite |
+| `125` | **Espíritu de Ciervo** | Espíritu de Ciervo Dorado | Gold Deer Sprite | `-` | Gold Deer Sprite |
+| `126` | **Espíritu de Ciervo** | Espíritu de Ciervo Hacker | Cheat Master Deer Sprite | `-` | Cheat Master Deer Sprite |
+| `127` | **Espíritu de Ciervo** | Espíritu de Ciervo Hacker de botin | Loot Hacker Deer Sprite | `-` | Loot Hacker Deer Sprite |
+| `128` | **Espíritu de Ciervo** | Espíritu de Ciervo Cazarrecompensas | Bounty Hunter Deer Sprite | `-` | Bounty Hunter Deer Sprite |
+| `129` | **Espíritu de Ciervo** | Espíritu de Ciervo Truco o Trato | Trick or Treat Deer Sprite | `-` | Trick or Treat Deer Sprite |
+| `130` | **Espíritu Caballero** | Espíritu Protector Cazarrecompensas | Bounty Hunter Protector Knight Sprite | `-` | Bounty Hunter Protector Knight Sprite |
+| `131` | **Espíritu Caballero** | Espíritu Protector Truco o Trato | Trick or Treat Protector Knight Sprite | `-` | Trick or Treat Protector Knight Sprite |
 
 ---
 
