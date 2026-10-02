@@ -52,6 +52,7 @@ export function setMode(mode) {
   // Mostrar / Ocultar componentes según el modo activo
   const searchBar = document.getElementById("shared-search-bar-container");
   const normalToolbar = document.getElementById("normal-toolbar");
+  const normalFiltersToolbar = document.getElementById("normal-filters-toolbar");
   const editActionsBar = document.getElementById("edit-actions-bar");
   const categoriesContainer = document.getElementById("categories-container");
   const categoriesManagerContainer = document.getElementById("categoriesManagerContainer");
@@ -60,7 +61,8 @@ export function setMode(mode) {
   const sidebar = document.getElementById("sidebar");
 
   if (searchBar) searchBar.style.display = (mode === "normal" || mode === "edit") ? "block" : "none";
-  if (normalToolbar) normalToolbar.style.display = mode === "normal" ? "flex" : "none";
+  if (normalToolbar) normalToolbar.style.display = (mode === "normal" || mode === "edit") ? "flex" : "none";
+  if (normalFiltersToolbar) normalFiltersToolbar.style.display = mode === "normal" ? "flex" : "none";
   if (editActionsBar) editActionsBar.style.display = mode === "edit" ? "flex" : "none";
   if (categoriesContainer) categoriesContainer.style.display = (mode === "normal" || mode === "edit") ? "flex" : "none";
   if (categoriesManagerContainer) categoriesManagerContainer.style.display = mode === "categories" ? "block" : "none";
