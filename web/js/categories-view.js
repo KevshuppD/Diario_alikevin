@@ -30,7 +30,7 @@ export function renderCategoriesConfigEditor(options = {}) {
       <div class="draggable-config-row ${isHighlighted ? 'row-highlight-pulse' : ''}" draggable="true" data-cat-drag-idx="${index}">
         <span style="color: var(--text-muted); cursor: grab; font-size: 14px; user-select: none; margin-right: 4px;">⋮⋮</span>
         <span style="font-family: monospace; color: var(--text-muted); font-size: 13px; margin-right: 4px;">#${String(index + 1).padStart(2, '0')}</span>
-        <input type="text" value="${catDisplayName}" data-cat-index="${index}" onchange="window.updateConfigCategoryName(${index}, this.value)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: text;">
+        <input type="text" value="${catDisplayName}" data-cat-index="${index}" oninput="window.updateConfigCategoryName(${index}, this.value)" onchange="window.updateConfigCategoryName(${index}, this.value)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: text;">
         <span class="badge" style="padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">${cat.spiritIds ? cat.spiritIds.length : 0} esp.</span>
         <button class="remove-btn" onclick="window.deleteConfigCategory(${index})" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" title="Eliminar categoría">🗑</button>
       </div>
@@ -44,8 +44,8 @@ export function renderCategoriesConfigEditor(options = {}) {
     typesHtml += `
       <div class="draggable-config-row ${isNormal ? 'unmovable' : ''} ${isHighlighted ? 'row-highlight-pulse' : ''}" draggable="${!isNormal}" data-type-drag-idx="${index}">
         <span style="color: var(--text-muted); cursor: ${isNormal ? 'default' : 'grab'}; font-size: 14px; user-select: none; margin-right: 4px; opacity: ${isNormal ? 0.2 : 1};">⋮⋮</span>
-        <input type="text" value="${t.name}" data-type-index="${index}" data-type-field="name" onchange="window.updateConfigTypeName(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Nombre (Ej: Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
-        <input type="text" value="${t.suffix}" data-type-index="${index}" data-type-field="suffix" onchange="window.updateConfigTypeSuffix(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Sufijo (Ej:  Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+        <input type="text" value="${t.name}" data-type-index="${index}" data-type-field="name" oninput="window.updateConfigTypeName(${index}, this.value)" onchange="window.updateConfigTypeName(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Nombre (Ej: Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+        <input type="text" value="${t.suffix}" data-type-index="${index}" data-type-field="suffix" oninput="window.updateConfigTypeSuffix(${index}, this.value)" onchange="window.updateConfigTypeSuffix(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Sufijo (Ej:  Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
         <button class="remove-btn" onclick="window.deleteConfigType(${index})" ${isNormal ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : 'style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;"'} title="Eliminar tipo">🗑</button>
       </div>
     `;
@@ -162,52 +162,254 @@ export function renderCategoriesConfigEditor(options = {}) {
   }
 }
 
+let autoScrollAnimId = null;
+let autoScrollContainer = null;
+let autoScrollSpeed = 0;
+
+function startAutoScroll(container, speed) {
+  autoScrollContainer = container;
+  autoScrollSpeed = speed;
+  if (!autoScrollAnimId) {
+    const loop = () => {
+      if (autoScrollContainer && autoScrollSpeed !== 0) {
+        autoScrollContainer.scrollTop += autoScrollSpeed;
+        autoScrollAnimId = requestAnimationFrame(loop);
+      } else {
+        autoScrollAnimId = null;
+      }
+    };
+    autoScrollAnimId = requestAnimationFrame(loop);
+  }
+}
+
+function stopAutoScroll() {
+  autoScrollSpeed = 0;
+  autoScrollContainer = null;
+  if (autoScrollAnimId) {
+    cancelAnimationFrame(autoScrollAnimId);
+    autoScrollAnimId = null;
+  }
+}
+
+function handleEdgeAutoScroll(e, container) {
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  const threshold = 65;
+  const maxSpeed = 16;
+
+  if (e.clientY < rect.top + threshold && e.clientY >= rect.top - 30) {
+    const intensity = Math.max(0.15, (threshold - Math.max(0, e.clientY - rect.top)) / threshold);
+    startAutoScroll(container, -Math.round(intensity * maxSpeed));
+  } else if (e.clientY > rect.bottom - threshold && e.clientY <= rect.bottom + 30) {
+    const intensity = Math.max(0.15, (threshold - Math.max(0, rect.bottom - e.clientY)) / threshold);
+    startAutoScroll(container, Math.round(intensity * maxSpeed));
+  } else {
+    stopAutoScroll();
+  }
+}
+
+function clearAllDragClasses() {
+  stopAutoScroll();
+  document.querySelectorAll(".draggable-config-row").forEach(row => {
+    row.classList.remove("dragging", "drag-over-top", "drag-over-bottom");
+  });
+}
+
 function attachDragListeners() {
+  const catListBox = document.getElementById("config-categories-list-box");
+  const typeListBox = document.getElementById("config-types-list-box");
+
+  if (catListBox) {
+    catListBox.ondragover = (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      handleEdgeAutoScroll(e, catListBox);
+    };
+    catListBox.ondragleave = (e) => {
+      if (!catListBox.contains(e.relatedTarget)) {
+        stopAutoScroll();
+      }
+    };
+    catListBox.ondrop = (e) => {
+      e.preventDefault();
+      stopAutoScroll();
+      if (draggedCategoryIndex === null) return;
+      // Si se suelta en el contenedor pero fuera de una fila específica
+      if (e.target === catListBox) {
+        const rect = catListBox.getBoundingClientRect();
+        const isTop = (e.clientY - rect.top) < (rect.height / 2);
+        const targetIdx = isTop ? 0 : state.categories.length - 1;
+        if (draggedCategoryIndex !== targetIdx) {
+          const item = state.categories.splice(draggedCategoryIndex, 1)[0];
+          state.categories.splice(targetIdx, 0, item);
+          renderCategoriesConfigEditor({ highlightCatIdx: targetIdx });
+          triggerAutoSave(50);
+        }
+        draggedCategoryIndex = null;
+        clearAllDragClasses();
+      }
+    };
+  }
+
+  if (typeListBox) {
+    typeListBox.ondragover = (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      handleEdgeAutoScroll(e, typeListBox);
+    };
+    typeListBox.ondragleave = (e) => {
+      if (!typeListBox.contains(e.relatedTarget)) {
+        stopAutoScroll();
+      }
+    };
+  }
+
   document.querySelectorAll("[data-cat-drag-idx]").forEach(row => {
     const idx = parseInt(row.dataset.catDragIdx, 10);
+    
     row.ondragstart = (e) => {
       draggedCategoryIndex = idx;
       e.dataTransfer.effectAllowed = "move";
-      row.style.opacity = "0.5";
+      e.dataTransfer.setData("text/plain", String(idx));
+      row.classList.add("dragging");
     };
+
     row.ondragover = (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
+      if (catListBox) handleEdgeAutoScroll(e, catListBox);
+
+      if (draggedCategoryIndex === null || draggedCategoryIndex === idx) {
+        row.classList.remove("drag-over-top", "drag-over-bottom");
+        return;
+      }
+
+      const rect = row.getBoundingClientRect();
+      const isAbove = (e.clientY - rect.top) < (rect.height / 2);
+      if (isAbove) {
+        row.classList.add("drag-over-top");
+        row.classList.remove("drag-over-bottom");
+      } else {
+        row.classList.add("drag-over-bottom");
+        row.classList.remove("drag-over-top");
+      }
     };
+
+    row.ondragleave = () => {
+      row.classList.remove("drag-over-top", "drag-over-bottom");
+    };
+
     row.ondrop = (e) => {
       e.preventDefault();
-      if (draggedCategoryIndex === null || draggedCategoryIndex === idx) return;
-      const item = state.categories.splice(draggedCategoryIndex, 1)[0];
-      state.categories.splice(idx, 0, item);
-      draggedCategoryIndex = null;
-      renderCategoriesConfigEditor();
-      triggerAutoSave(50);
+      e.stopPropagation();
+      stopAutoScroll();
+
+      if (draggedCategoryIndex === null || draggedCategoryIndex === idx) {
+        clearAllDragClasses();
+        draggedCategoryIndex = null;
+        return;
+      }
+
+      const rect = row.getBoundingClientRect();
+      const isAbove = (e.clientY - rect.top) < (rect.height / 2);
+      let targetIdx = isAbove ? idx : idx + 1;
+      
+      if (draggedCategoryIndex < targetIdx) {
+        targetIdx--;
+      }
+
+      if (draggedCategoryIndex !== targetIdx) {
+        const item = state.categories.splice(draggedCategoryIndex, 1)[0];
+        state.categories.splice(targetIdx, 0, item);
+        draggedCategoryIndex = null;
+        clearAllDragClasses();
+        renderCategoriesConfigEditor({ highlightCatIdx: targetIdx });
+        triggerAutoSave(50);
+      } else {
+        clearAllDragClasses();
+        draggedCategoryIndex = null;
+      }
     };
-    row.ondragend = () => { row.style.opacity = "1"; };
+
+    row.ondragend = () => {
+      clearAllDragClasses();
+      draggedCategoryIndex = null;
+    };
   });
 
   document.querySelectorAll("[data-type-drag-idx]").forEach(row => {
     const idx = parseInt(row.dataset.typeDragIdx, 10);
-    if (idx === 0) return;
+    if (idx === 0) return; // 'Normal' es inmutable en posición 0
+
     row.ondragstart = (e) => {
       draggedTypeIndex = idx;
       e.dataTransfer.effectAllowed = "move";
-      row.style.opacity = "0.5";
+      e.dataTransfer.setData("text/plain", String(idx));
+      row.classList.add("dragging");
     };
+
     row.ondragover = (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
+      if (typeListBox) handleEdgeAutoScroll(e, typeListBox);
+
+      if (draggedTypeIndex === null || draggedTypeIndex === idx) {
+        row.classList.remove("drag-over-top", "drag-over-bottom");
+        return;
+      }
+
+      const rect = row.getBoundingClientRect();
+      const isAbove = (e.clientY - rect.top) < (rect.height / 2);
+      if (isAbove) {
+        row.classList.add("drag-over-top");
+        row.classList.remove("drag-over-bottom");
+      } else {
+        row.classList.add("drag-over-bottom");
+        row.classList.remove("drag-over-top");
+      }
     };
+
+    row.ondragleave = () => {
+      row.classList.remove("drag-over-top", "drag-over-bottom");
+    };
+
     row.ondrop = (e) => {
       e.preventDefault();
-      if (idx === 0 || draggedTypeIndex === null || draggedTypeIndex === idx) return;
-      const item = state.spiritTypes.splice(draggedTypeIndex, 1)[0];
-      state.spiritTypes.splice(idx, 0, item);
-      draggedTypeIndex = null;
-      renderCategoriesConfigEditor();
-      triggerAutoSave(50);
+      e.stopPropagation();
+      stopAutoScroll();
+
+      if (draggedTypeIndex === null || draggedTypeIndex === idx) {
+        clearAllDragClasses();
+        draggedTypeIndex = null;
+        return;
+      }
+
+      const rect = row.getBoundingClientRect();
+      const isAbove = (e.clientY - rect.top) < (rect.height / 2);
+      let targetIdx = isAbove ? idx : idx + 1;
+      if (targetIdx === 0) targetIdx = 1; // Nunca desplazar a posición 0
+
+      if (draggedTypeIndex < targetIdx) {
+        targetIdx--;
+      }
+
+      if (draggedTypeIndex !== targetIdx && targetIdx > 0) {
+        const item = state.spiritTypes.splice(draggedTypeIndex, 1)[0];
+        state.spiritTypes.splice(targetIdx, 0, item);
+        draggedTypeIndex = null;
+        clearAllDragClasses();
+        renderCategoriesConfigEditor({ highlightTypeIdx: targetIdx });
+        triggerAutoSave(50);
+      } else {
+        clearAllDragClasses();
+        draggedTypeIndex = null;
+      }
     };
-    row.ondragend = () => { row.style.opacity = "1"; };
+
+    row.ondragend = () => {
+      clearAllDragClasses();
+      draggedTypeIndex = null;
+    };
   });
 }
 
@@ -315,6 +517,13 @@ export function updateConfigTypeName(index, newValue) {
   
   const newSuffix = state.spiritTypes[index].suffix;
   
+  if (!oldSuffix || oldSuffix.trim() === oldName) {
+    const suffixInput = document.querySelector(`input[data-type-index="${index}"][data-type-field="suffix"]`);
+    if (suffixInput) {
+      suffixInput.value = newSuffix;
+    }
+  }
+  
   if (oldName !== "Normal" && oldName !== cleanVal) {
     Object.keys(state.customNames).forEach(id => {
       let currentName = state.customNames[id];
@@ -326,7 +535,6 @@ export function updateConfigTypeName(index, newValue) {
     });
   }
   
-  renderCategoriesConfigEditor();
   triggerAutoSave(400);
 }
 

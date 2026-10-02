@@ -1769,11 +1769,34 @@
       border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.05);
       cursor: grab;
-      transition: background 0.2s, border-color 0.2s;
+      transition: background 0.2s, border-color 0.2s, transform 0.15s ease;
+      position: relative;
     }
     .draggable-config-row:hover:not(.unmovable) {
       background: rgba(255, 255, 255, 0.05);
       border-color: rgba(255, 255, 255, 0.15);
+    }
+    .draggable-config-row.dragging {
+      opacity: 0.45;
+      background: rgba(156, 39, 176, 0.15);
+      border: 1px dashed var(--accent-color);
+      cursor: grabbing;
+    }
+    .draggable-config-row.drag-over-top {
+      border-top: 3px solid #00e5ff !important;
+      box-shadow: 0 -4px 12px rgba(0, 229, 255, 0.4);
+    }
+    .draggable-config-row.drag-over-bottom {
+      border-bottom: 3px solid #00e5ff !important;
+      box-shadow: 0 4px 12px rgba(0, 229, 255, 0.4);
+    }
+    .row-highlight-pulse {
+      animation: highlightPulse 2s ease;
+    }
+    @keyframes highlightPulse {
+      0% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.7); border-color: #00e5ff; }
+      70% { box-shadow: 0 0 0 8px rgba(0, 229, 255, 0); border-color: #00e5ff; }
+      100% { box-shadow: none; }
     }
     /* Radar & Device Management Styles */
     /* Radar & Device Management Styles */

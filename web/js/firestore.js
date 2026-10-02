@@ -59,6 +59,7 @@ export function updateDbStatusBadge(isOnline, isFromCache) {
 }
 
 export function collectInputsFromDOM() {
+  // Inputs de título de categoría en Modo Edición (normal-view.js)
   document.querySelectorAll(".category-title-edit input[data-original]").forEach(input => {
     const orig = input.dataset.original;
     const val = input.value.trim();
@@ -69,6 +70,36 @@ export function collectInputsFromDOM() {
     }
   });
 
+  // Inputs de categoría en Tipos y Categorías (categories-view.js)
+  document.querySelectorAll("input[data-cat-index]").forEach(input => {
+    const idx = parseInt(input.dataset.catIndex, 10);
+    const cat = state.categories[idx];
+    if (cat) {
+      const orig = cat.name;
+      const val = input.value.trim();
+      if (val === "" || val === orig) {
+        delete state.customCategories[orig];
+      } else {
+        state.customCategories[orig] = val;
+      }
+    }
+  });
+
+  // Inputs de tipos de espíritus en Tipos y Categorías (categories-view.js)
+  document.querySelectorAll("input[data-type-index]").forEach(input => {
+    const idx = parseInt(input.dataset.typeIndex, 10);
+    const field = input.dataset.typeField;
+    if (state.spiritTypes[idx] && field) {
+      const val = input.value;
+      if (field === "name" && val.trim() !== "") {
+        state.spiritTypes[idx].name = val.trim();
+      } else if (field === "suffix") {
+        state.spiritTypes[idx].suffix = val;
+      }
+    }
+  });
+
+  // Inputs de nombres individuales de espíritus
   document.querySelectorAll(".spirit-slot input[data-id]").forEach(input => {
     const sid = input.dataset.id;
     const val = input.value.trim();
@@ -86,6 +117,7 @@ export function triggerAutoSave(delay = 400, onSavedCallback) {
   if (autoSaveTimer) clearTimeout(autoSaveTimer);
 
   autoSaveTimer = setTimeout(async () => {
+    autoSaveTimer = null;
     try {
       isAutoSaving = true;
       collectInputsFromDOM();
@@ -192,8 +224,9 @@ export function listenFirestore(onDataUpdated) {
 
         const activeEl = document.activeElement;
         const isActivelyTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+        const isAutoSavePending = autoSaveTimer !== null || isAutoSaving;
 
-        if ((!isActivelyTyping && !snapshot.metadata.hasPendingWrites) || isInitialLoad) {
+        if ((!isActivelyTyping && !isAutoSavePending && !snapshot.metadata.hasPendingWrites) || isInitialLoad) {
           state.customNames = data.custom_names || {};
           state.customCategories = data.custom_categories || {};
           state.customImages = data.custom_images || {};

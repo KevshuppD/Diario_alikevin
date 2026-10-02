@@ -96,7 +96,9 @@ export function computeSpiritName(id, targetCategoryName, newTypeName) {
   return baseCatName + suffix;
 }
 
-export function matchesFilter(id) {
+let searchDebounceTimer = null;
+
+export function matchesFilter(id, precomputedSets = null) {
   if (state.searchQuery !== "") {
     const name = getSpiritName(id).toLowerCase();
     const type = getSpiritCurrentType(id).toLowerCase();
@@ -113,10 +115,10 @@ export function matchesFilter(id) {
     if (!matchesQuery) return false;
   }
 
-  const isKevinOwned = state.kevinList.includes(id);
-  const isAliOwned = state.aliList.includes(id);
-  const isKevinMastered = state.kevinMastery.includes(id);
-  const isAliMastered = state.aliMastery.includes(id);
+  const isKevinOwned = precomputedSets ? precomputedSets.kevinOwnedSet.has(id) : state.kevinList.includes(id);
+  const isAliOwned = precomputedSets ? precomputedSets.aliOwnedSet.has(id) : state.aliList.includes(id);
+  const isKevinMastered = precomputedSets ? precomputedSets.kevinMasterySet.has(id) : state.kevinMastery.includes(id);
+  const isAliMastered = precomputedSets ? precomputedSets.aliMasterySet.has(id) : state.aliMastery.includes(id);
 
   const isKevinUser = state.currentUser ? state.currentUser.username === "kevin" : true;
   const isOwnedByCurrent = isKevinUser ? isKevinOwned : isAliOwned;
@@ -160,14 +162,17 @@ export function updateStats() {
     });
   });
 
+  const activeSpiritsSet = new Set(activeSpirits);
   const totalRegistered = assignedIds.size > 0 ? assignedIds.size : activeSpirits.length;
   
-  const totalKevin = state.kevinList.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
-  const totalAli = state.aliList.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
-  const bothCount = activeSpirits.filter(id => state.kevinList.includes(id) && state.aliList.includes(id)).length;
+  const totalKevin = state.kevinList.filter(id => assignedIds.has(id) || activeSpiritsSet.has(id)).length;
+  const totalAli = state.aliList.filter(id => assignedIds.has(id) || activeSpiritsSet.has(id)).length;
+  
+  const aliSet = new Set(state.aliList);
+  const bothCount = state.kevinList.filter(id => activeSpiritsSet.has(id) && aliSet.has(id)).length;
 
-  const kevinMasteryCount = state.kevinMastery.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
-  const aliMasteryCount = state.aliMastery.filter(id => assignedIds.has(id) || activeSpirits.includes(id)).length;
+  const kevinMasteryCount = state.kevinMastery.filter(id => assignedIds.has(id) || activeSpiritsSet.has(id)).length;
+  const aliMasteryCount = state.aliMastery.filter(id => assignedIds.has(id) || activeSpiritsSet.has(id)).length;
 
   const statKevin = document.getElementById("stat-kevin");
   const statAli = document.getElementById("stat-ali");
@@ -199,7 +204,13 @@ export function updateSearchCountBadge() {
   }
   const defaultList = state.currentSeason === 1 ? defaultSpiritsListT1 : defaultSpiritsListT2;
   const activeSpirits = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : defaultList;
-  const matches = activeSpirits.filter(id => matchesFilter(id)).length;
+  const precomputedSets = {
+    kevinOwnedSet: new Set(state.kevinList),
+    aliOwnedSet: new Set(state.aliList),
+    kevinMasterySet: new Set(state.kevinMastery),
+    aliMasterySet: new Set(state.aliMastery)
+  };
+  const matches = activeSpirits.filter(id => matchesFilter(id, precomputedSets)).length;
   badge.textContent = `${matches} ${matches === 1 ? 'resultado' : 'resultados'}`;
   badge.style.display = "inline-flex";
 }
@@ -210,11 +221,21 @@ export function onSearchInput(val) {
   if (clearBtn) {
     clearBtn.style.display = state.searchQuery.length > 0 ? "inline-flex" : "none";
   }
-  renderWorkspace();
-  updateSearchCountBadge();
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer);
+  }
+  searchDebounceTimer = setTimeout(() => {
+    searchDebounceTimer = null;
+    renderWorkspace();
+    updateSearchCountBadge();
+  }, 60);
 }
 
 export function clearSearch() {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = null;
+  }
   state.searchQuery = "";
   const input = document.getElementById("spirit-search-input");
   if (input) input.value = "";
@@ -644,6 +665,14 @@ export function renderWorkspace() {
 
   container.innerHTML = "";
 
+  const precomputedSets = {
+    kevinOwnedSet: new Set(state.kevinList),
+    aliOwnedSet: new Set(state.aliList),
+    kevinMasterySet: new Set(state.kevinMastery),
+    aliMasterySet: new Set(state.aliMastery)
+  };
+
+  const activeSpiritsSet = new Set(activeSpirits);
   const assignedIds = new Set();
   state.categories.forEach(cat => {
     (cat.spiritIds || []).forEach(id => assignedIds.add(id));
@@ -653,7 +682,7 @@ export function renderWorkspace() {
 
   // Render Categories
   state.categories.forEach((cat, catIdx) => {
-    const matchingSpirits = (cat.spiritIds || []).filter(id => activeSpirits.includes(id) && matchesFilter(id));
+    const matchingSpirits = (cat.spiritIds || []).filter(id => activeSpiritsSet.has(id) && matchesFilter(id, precomputedSets));
     
     if (state.currentMode === "normal" && matchingSpirits.length === 0) return;
 
@@ -707,10 +736,10 @@ export function renderWorkspace() {
       titleInput.addEventListener("input", handleCatTitleChange);
       titleInput.addEventListener("change", handleCatTitleChange);
     } else {
-      const catKevinCount = (cat.spiritIds || []).filter(id => state.kevinList.includes(id)).length;
-      const catAliCount = (cat.spiritIds || []).filter(id => state.aliList.includes(id)).length;
-      const catKevinMastery = (cat.spiritIds || []).filter(id => state.kevinMastery.includes(id)).length;
-      const catAliMastery = (cat.spiritIds || []).filter(id => state.aliMastery.includes(id)).length;
+      const catKevinCount = (cat.spiritIds || []).filter(id => precomputedSets.kevinOwnedSet.has(id)).length;
+      const catAliCount = (cat.spiritIds || []).filter(id => precomputedSets.aliOwnedSet.has(id)).length;
+      const catKevinMastery = (cat.spiritIds || []).filter(id => precomputedSets.kevinMasterySet.has(id)).length;
+      const catAliMastery = (cat.spiritIds || []).filter(id => precomputedSets.aliMasterySet.has(id)).length;
 
       header.innerHTML = `
         <div class="category-title-edit" style="flex-wrap: wrap; gap: 8px 12px;">
@@ -762,15 +791,15 @@ export function renderWorkspace() {
   });
 
   // Render Uncategorized / Loose Spirits
-  const uncategorizedIds = activeSpirits.filter(id => !assignedIds.has(id) && matchesFilter(id));
+  const uncategorizedIds = activeSpirits.filter(id => !assignedIds.has(id) && matchesFilter(id, precomputedSets));
   
   if (state.currentMode === "edit" || uncategorizedIds.length > 0) {
     const looseCard = document.createElement("div");
     looseCard.className = "category-card uncategorized-bin";
-    const uncatKevinCount = uncategorizedIds.filter(id => state.kevinList.includes(id)).length;
-    const uncatAliCount = uncategorizedIds.filter(id => state.aliList.includes(id)).length;
-    const uncatKevinMastery = uncategorizedIds.filter(id => state.kevinMastery.includes(id)).length;
-    const uncatAliMastery = uncategorizedIds.filter(id => state.aliMastery.includes(id)).length;
+    const uncatKevinCount = uncategorizedIds.filter(id => precomputedSets.kevinOwnedSet.has(id)).length;
+    const uncatAliCount = uncategorizedIds.filter(id => precomputedSets.aliOwnedSet.has(id)).length;
+    const uncatKevinMastery = uncategorizedIds.filter(id => precomputedSets.kevinMasterySet.has(id)).length;
+    const uncatAliMastery = uncategorizedIds.filter(id => precomputedSets.aliMasterySet.has(id)).length;
 
     const deleteMassBtn = (state.currentMode === "edit" && uncategorizedIds.length > 0)
       ? `<button class="btn btn-danger" style="padding: 4px 10px; font-size: 14px; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" onclick="window.deleteAllUncategorizedSpirits()" title="Eliminar espíritus sueltos">🗑️ Eliminar Sueltos (${uncategorizedIds.length})</button>`

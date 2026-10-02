@@ -8,7 +8,7 @@ import { renderGallery, isGalleryOpen } from './edit-view.js';
 import { renderCategoriesManager } from './categories-view.js';
 import { renderConfigView } from './config-view.js';
 import { renderRadarManager } from './radar-view.js';
-import { listenFirestore } from './firestore.js';
+import { listenFirestore, collectInputsFromDOM, triggerAutoSave } from './firestore.js';
 
 export function getRouteFromPath(pathname) {
   const cleanPath = pathname.toLowerCase().replace(/^\/web\/?/, '/').replace(/\/$/, '') || '/';
@@ -94,6 +94,9 @@ export function setMode(mode) {
 
 export function switchModeSPA(mode, updateUrl = true) {
   if (mode === "db") mode = "normal";
+  if (typeof collectInputsFromDOM === 'function') {
+    collectInputsFromDOM();
+  }
   setMode(mode);
 
   if (updateUrl) {
@@ -108,6 +111,11 @@ export function switchSeason(season) {
   const sNum = parseInt(season, 10);
   if (sNum !== 1 && sNum !== 2) return;
   if (state.currentSeason === sNum) return;
+
+  if (typeof collectInputsFromDOM === 'function') {
+    collectInputsFromDOM();
+    triggerAutoSave(0);
+  }
 
   state.currentSeason = sNum;
   try { localStorage.setItem("current_season", String(sNum)); } catch(e) {}

@@ -47,11 +47,18 @@ export function renderGallery() {
     (cat.spiritIds || []).forEach(id => assignedIds.add(id));
   });
 
+  const precomputedSets = {
+    kevinOwnedSet: new Set(state.kevinList),
+    aliOwnedSet: new Set(state.aliList),
+    kevinMasterySet: new Set(state.kevinMastery),
+    aliMasterySet: new Set(state.aliMastery)
+  };
+
   let unassignedCount = 0;
   const galleryFragment = document.createDocumentFragment();
 
   listToRender.forEach((id, index) => {
-    if (state.searchQuery !== "" && !matchesFilter(id)) return;
+    if (state.searchQuery !== "" && !matchesFilter(id, precomputedSets)) return;
 
     const isUnassigned = !assignedIds.has(id);
     if (isUnassigned) unassignedCount++;

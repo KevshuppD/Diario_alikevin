@@ -110,8 +110,12 @@ app.get('/configuracion', (req, res) => res.sendFile(path.join(distDir, 'config.
 app.get('/radar', (req, res) => res.sendFile(path.join(distDir, 'radar.html')));
 app.get('/migrate', (req, res) => res.sendFile(path.join(distDir, 'migrate.html')));
 
-// Sirve los archivos estáticos
-app.use(express.static(distDir));
+// Sirve los archivos estáticos con caching y ETags optimizados
+app.use(express.static(distDir, {
+  maxAge: isProduction ? '1d' : '10m',
+  etag: true,
+  lastModified: true
+}));
 
 // API: Subir imagen de espíritu a Cloudinary
 app.post('/api/upload-spirit-image', async (req, res) => {
