@@ -116,11 +116,6 @@ export function switchSeason(season) {
   if (sNum !== 1 && sNum !== 2) return;
   if (state.currentSeason === sNum) return;
 
-  if (typeof collectInputsFromDOM === 'function') {
-    collectInputsFromDOM();
-    triggerAutoSave(0);
-  }
-
   state.currentSeason = sNum;
   try { localStorage.setItem("current_season", String(sNum)); } catch(e) {}
 

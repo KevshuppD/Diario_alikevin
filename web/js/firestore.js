@@ -203,9 +203,15 @@ export async function saveChangesToFirestoreAsync() {
   await docRef.set(dataToSave, { merge: true });
 }
 
+let lastListenedSeason = null;
+
 export function listenFirestore(onDataUpdated) {
   if (firestoreUnsubscribe) firestoreUnsubscribe();
   updateDbStatusBadge(true, true);
+
+  const currentSeasonForListener = state.currentSeason;
+  const isSeasonChange = lastListenedSeason !== currentSeasonForListener;
+  lastListenedSeason = currentSeasonForListener;
 
   firestoreUnsubscribe = db.collection(getFirestoreCollection()).doc(state.coupleId)
     .onSnapshot({ includeMetadataChanges: true }, snapshot => {
@@ -219,12 +225,12 @@ export function listenFirestore(onDataUpdated) {
         state.kevinMastery = data.kevin_mastery || [];
         state.aliMastery = data.ali_mastery || [];
 
-        const isInitialLoad = !state.hasLoadedFirestoreOnce;
+        const isInitialLoad = !state.hasLoadedFirestoreOnce || isSeasonChange;
         state.hasLoadedFirestoreOnce = true;
 
         const activeEl = document.activeElement;
         const isActivelyTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
-        const isAutoSavePending = autoSaveTimer !== null || isAutoSaving;
+        const isAutoSavePending = !isSeasonChange && (autoSaveTimer !== null || isAutoSaving);
 
         if ((!isActivelyTyping && !isAutoSavePending && !snapshot.metadata.hasPendingWrites) || isInitialLoad) {
           state.customNames = data.custom_names || {};
@@ -266,7 +272,7 @@ export function listenFirestore(onDataUpdated) {
         state.aliList = [];
         state.kevinMastery = [];
         state.aliMastery = [];
-        if (state.currentMode !== "edit") {
+        if (state.currentMode !== "edit" || isSeasonChange) {
           state.spiritsList = state.currentSeason === 1 ? [...defaultSpiritsListT1] : [...defaultSpiritsListT2];
           state.categories = state.currentSeason === 1 
             ? JSON.parse(JSON.stringify(defaultCategoriesT1)) 
@@ -291,7 +297,7 @@ export function listenFirestore(onDataUpdated) {
         }));
       } catch(e) {}
 
-      if (isInitialLoad) {
+      if (isInitialLoad || isSeasonChange) {
         if (onDataUpdated) onDataUpdated();
       } else if (state.currentMode === "normal" && window.syncAllSpiritSlotsDOM) {
         window.syncAllSpiritSlotsDOM();
