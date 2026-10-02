@@ -6,18 +6,18 @@
     }
   },
   "rewrites": [
-    { "source": "/configuracion", "destination": "/config.html" },
-    { "source": "/config", "destination": "/config.html" },
-    { "source": "/categorias", "destination": "/categories.html" },
-    { "source": "/categories", "destination": "/categories.html" },
-    { "source": "/edicion", "destination": "/edit.html" },
-    { "source": "/edit", "destination": "/edit.html" },
-    { "source": "/album", "destination": "/normal.html" },
-    { "source": "/coleccion", "destination": "/normal.html" },
-    { "source": "/normal", "destination": "/normal.html" },
-    { "source": "/radar", "destination": "/radar.html" },
-    { "source": "/db", "destination": "/db.html" },
+    { "source": "/configuracion", "destination": "/index.html" },
+    { "source": "/config", "destination": "/index.html" },
+    { "source": "/categorias", "destination": "/index.html" },
+    { "source": "/categories", "destination": "/index.html" },
+    { "source": "/edicion", "destination": "/index.html" },
+    { "source": "/edit", "destination": "/index.html" },
+    { "source": "/album", "destination": "/index.html" },
+    { "source": "/coleccion", "destination": "/index.html" },
+    { "source": "/normal", "destination": "/index.html" },
+    { "source": "/radar", "destination": "/index.html" },
+    { "source": "/db", "destination": "/index.html" },
     { "source": "/migrate", "destination": "/migrate.html" },
-    { "source": "/", "destination": "/normal.html" }
+    { "source": "/((?!api/|.*\\..*).*)", "destination": "/index.html" }
   ]
 }

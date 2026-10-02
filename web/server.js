@@ -98,16 +98,20 @@ app.get('/web/index.html', (req, res) => res.redirect('/'));
 app.get('/web/:page', (req, res) => res.redirect('/' + req.params.page));
 app.get('/index.html', (req, res) => res.redirect('/'));
 
-// Rutas limpias sin extensión .html
-app.get('/', (req, res) => res.sendFile(path.join(distDir, 'index.html')));
-app.get('/normal', (req, res) => res.sendFile(path.join(distDir, 'normal.html')));
-app.get('/edit', (req, res) => res.sendFile(path.join(distDir, 'edit.html')));
-app.get('/categorias', (req, res) => res.sendFile(path.join(distDir, 'categories.html')));
-app.get('/categories', (req, res) => res.sendFile(path.join(distDir, 'categories.html')));
-app.get('/db', (req, res) => res.redirect('/'));
-app.get('/config', (req, res) => res.sendFile(path.join(distDir, 'config.html')));
-app.get('/configuracion', (req, res) => res.sendFile(path.join(distDir, 'config.html')));
-app.get('/radar', (req, res) => res.sendFile(path.join(distDir, 'radar.html')));
+// Rutas limpias SPA
+const sendSpaIndex = (req, res) => res.sendFile(path.join(distDir, 'index.html'));
+app.get('/', sendSpaIndex);
+app.get('/normal', sendSpaIndex);
+app.get('/album', sendSpaIndex);
+app.get('/coleccion', sendSpaIndex);
+app.get('/edit', sendSpaIndex);
+app.get('/edicion', sendSpaIndex);
+app.get('/categorias', sendSpaIndex);
+app.get('/categories', sendSpaIndex);
+app.get('/db', sendSpaIndex);
+app.get('/config', sendSpaIndex);
+app.get('/configuracion', sendSpaIndex);
+app.get('/radar', sendSpaIndex);
 app.get('/migrate', (req, res) => res.sendFile(path.join(distDir, 'migrate.html')));
 
 // Sirve los archivos estáticos con caching y ETags optimizados
