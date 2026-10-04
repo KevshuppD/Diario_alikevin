@@ -380,6 +380,15 @@ export function listenUserTheme(onThemeChanged) {
           }
         }
 
+        const mapTheme = d.googleMapTheme || d.radarMapTheme || d.mapTileTheme;
+        if (mapTheme) {
+          state.googleMapTheme = mapTheme;
+          localStorage.setItem("google_map_theme_" + state.currentUser.username, mapTheme);
+          if (typeof window.changeRadarTileLayer === 'function') {
+            window.changeRadarTileLayer(mapTheme, false);
+          }
+        }
+
         if (typeof window.applyTheme === 'function') {
           window.applyTheme(state.userTheme, state.userLightColor, state.userDarkColor, state.userUseCustomBg);
         }

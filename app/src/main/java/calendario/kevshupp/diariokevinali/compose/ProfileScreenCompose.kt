@@ -219,10 +219,10 @@ fun ProfileScreen(
                 Text(
                     text = "❤️",
                     fontSize = 36.sp,
-                    modifier = Modifier.graphicsLayer(
-                        scaleX = scale,
+                    modifier = Modifier.graphicsLayer {
+                        scaleX = scale
                         scaleY = scale
-                    )
+                    }
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(

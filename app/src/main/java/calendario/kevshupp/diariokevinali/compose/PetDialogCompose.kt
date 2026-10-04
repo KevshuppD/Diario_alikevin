@@ -524,7 +524,7 @@ fun PetMenuDialog(
                                                 x = (cukyWalkX.value + (18f * cukyFacingDirection)).dp,
                                                 y = (cukyWalkY.value + 16f).dp
                                             )
-                                            .graphicsLayer(alpha = seedAlpha.value)
+                                            .graphicsLayer { alpha = seedAlpha.value }
                                     )
                                 }
 
@@ -552,10 +552,11 @@ fun PetMenuDialog(
                                         text = "Zzz...",
                                         fontFamily = Vt323,
                                         fontSize = 20.sp,
-                                        color = Color.White.copy(alpha = zzzAlpha),
+                                        color = Color.White,
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
                                             .offset(y = zzzOffset.dp, x = 10.dp)
+                                            .graphicsLayer { alpha = zzzAlpha }
                                     )
                                 }
                             }
@@ -580,7 +581,7 @@ fun PetMenuDialog(
                                     modifier = Modifier
                                         .align(Alignment.BottomCenter)
                                         .offset(y = heartY.value.dp)
-                                        .graphicsLayer(alpha = heartAlpha.value)
+                                        .graphicsLayer { alpha = heartAlpha.value }
                                 )
                             }
 
@@ -592,7 +593,7 @@ fun PetMenuDialog(
                                     modifier = Modifier
                                         .size(35.dp)
                                         .offset(x = ballX.value.dp, y = ballY.value.dp)
-                                        .graphicsLayer(rotationZ = ballRotation.value)
+                                        .graphicsLayer { rotationZ = ballRotation.value }
                                 )
                             }
 
@@ -632,7 +633,7 @@ fun PetMenuDialog(
                                     modifier = Modifier
                                         .align(Alignment.TopCenter)
                                         .offset(y = foodY.value.dp)
-                                        .graphicsLayer(alpha = foodAlpha.value)
+                                        .graphicsLayer { alpha = foodAlpha.value }
                                 )
                             }
                         }

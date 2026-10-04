@@ -10,13 +10,19 @@ const server = http.createServer(app);
 
 app.use(express.json({ limit: '20mb' }));
 
-const isProduction = process.env.NODE_ENV === 'production';
-const distDir = isProduction && require('fs').existsSync(path.join(__dirname, 'dist'))
+const distDir = require('fs').existsSync(path.join(__dirname, 'dist'))
   ? path.join(__dirname, 'dist')
   : __dirname;
 
-console.log(`📌 Modo de ejecución: ${isProduction ? 'PRODUCTION (Build / Release)' : 'DEVELOPMENT (Dev / Debug)'}`);
 console.log(`📁 Sirviendo archivos desde: ${distDir}`);
+
+// Middleware Anti-Cache para asegurar que el navegador cargue siempre los cambios frescos
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
 
 // Configura Cloudinary
 cloudinary.config({
@@ -114,10 +120,10 @@ app.get('/configuracion', sendSpaIndex);
 app.get('/radar', sendSpaIndex);
 app.get('/migrate', (req, res) => res.sendFile(path.join(distDir, 'migrate.html')));
 
-// Sirve los archivos estáticos con caching y ETags optimizados
+// Sirve los archivos estáticos con caching desactivado para desarrollo/cambios en vivo
 app.use(express.static(distDir, {
-  maxAge: isProduction ? '1d' : '10m',
-  etag: true,
+  maxAge: 0,
+  etag: false,
   lastModified: true
 }));
 
@@ -157,30 +163,37 @@ app.post('/api/upload-spirit-image', async (req, res) => {
 
 // API: Eliminar imágenes no utilizadas de Cloudinary
 app.post('/api/clean-unused-cloudinary', async (req, res) => {
-  const { activeUrls } = req.body;
+  const { activeUrls, season } = req.body;
 
   if (!Array.isArray(activeUrls)) {
     return res.status(400).json({ success: false, error: 'activeUrls debe ser un arreglo' });
   }
 
   try {
-    const resourcesResult = await cloudinary.api.resources({
-      type: 'upload',
-      prefix: 'spirits/',
-      max_results: 500
-    });
-
+    const prefixes = season === 1 ? ['spirits/'] : (season === 2 ? ['spirits_s2/'] : ['spirits/', 'spirits_s2/']);
     const activeSet = new Set(activeUrls);
     const toDelete = [];
 
-    resourcesResult.resources.forEach(resItem => {
-      const isUsedUrl = activeSet.has(resItem.secure_url) || activeSet.has(resItem.url);
-      const isUsedPublicId = activeSet.has(resItem.public_id);
-      
-      if (!isUsedUrl && !isUsedPublicId) {
-        toDelete.push(resItem.public_id);
+    for (const prefix of prefixes) {
+      try {
+        const resourcesResult = await cloudinary.api.resources({
+          type: 'upload',
+          prefix: prefix,
+          max_results: 500
+        });
+
+        resourcesResult.resources.forEach(resItem => {
+          const isUsedUrl = activeSet.has(resItem.secure_url) || activeSet.has(resItem.url);
+          const isUsedPublicId = activeSet.has(resItem.public_id);
+          
+          if (!isUsedUrl && !isUsedPublicId) {
+            toDelete.push(resItem.public_id);
+          }
+        });
+      } catch (err) {
+        console.warn(`Aviso leyendo recursos de ${prefix}:`, err.message);
       }
-    });
+    }
 
     if (toDelete.length === 0) {
       return res.json({ success: true, deletedCount: 0, message: 'No hay imágenes huérfanas o sin usar en Cloudinary.' });

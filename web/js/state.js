@@ -194,6 +194,9 @@ export function switchUserProfile(username) {
   if (typeof window.renderConfigEditor === 'function') {
     window.renderConfigEditor();
   }
+  if (typeof window.renderRadarManager === 'function' && state.currentMode === 'radar') {
+    window.renderRadarManager();
+  }
 }
 
 export function logoutSession() {
