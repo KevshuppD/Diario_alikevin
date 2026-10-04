@@ -94,32 +94,42 @@ export function mergeSpiritTypes(existingTypes, defaultTypes) {
   return result;
 }
 
-// Load cached data on boot
-try {
-  const cachedData = JSON.parse(localStorage.getItem(`spirits_cache_${state.coupleId}_s${state.currentSeason}`));
-  if (cachedData && cachedData.spirits_list && cachedData.spirits_list.length > 0) {
-    state.spiritsList = cachedData.spirits_list;
-    state.categories = (cachedData.categories && cachedData.categories.length > 0) 
-      ? cachedData.categories 
-      : (state.currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategoriesT1)) : JSON.parse(JSON.stringify(defaultCategoriesT2)));
-    state.customNames = cachedData.custom_names || {};
-    state.customCategories = cachedData.custom_categories || {};
-    state.customImages = cachedData.custom_images || {};
-    state.spiritTypes = mergeSpiritTypes(cachedData.spirit_types, state.currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
-    state.kevinList = cachedData.kevin_list || [];
-    state.aliList = cachedData.ali_list || [];
-    state.kevinMastery = cachedData.kevin_mastery || [];
-    state.aliMastery = cachedData.ali_mastery || [];
-  } else {
-    state.spiritsList = state.currentSeason === 1 ? [...defaultSpiritsListT1] : [...defaultSpiritsListT2];
-    state.categories = state.currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategoriesT1)) : JSON.parse(JSON.stringify(defaultCategoriesT2));
-    state.spiritTypes = state.currentSeason === 1 ? [...defaultSpiritTypesT1] : [...defaultSpiritTypesT2];
-  }
-} catch(e) {
-  state.spiritsList = state.currentSeason === 1 ? [...defaultSpiritsListT1] : [...defaultSpiritsListT2];
-  state.categories = state.currentSeason === 1 ? JSON.parse(JSON.stringify(defaultCategoriesT1)) : JSON.parse(JSON.stringify(defaultCategoriesT2));
-  state.spiritTypes = state.currentSeason === 1 ? [...defaultSpiritTypesT1] : [...defaultSpiritTypesT2];
+export function loadSeasonState(season) {
+  const sNum = parseInt(season, 10) || 2;
+  state.currentSeason = sNum;
+  try {
+    const cachedData = JSON.parse(localStorage.getItem(`spirits_cache_${state.coupleId}_s${sNum}`));
+    if (cachedData && cachedData.spirits_list && cachedData.spirits_list.length > 0) {
+      state.spiritsList = cachedData.spirits_list;
+      state.categories = (cachedData.categories && cachedData.categories.length > 0) 
+        ? cachedData.categories 
+        : (sNum === 1 ? JSON.parse(JSON.stringify(defaultCategoriesT1)) : JSON.parse(JSON.stringify(defaultCategoriesT2)));
+      state.customNames = cachedData.custom_names || {};
+      state.customCategories = cachedData.custom_categories || {};
+      state.customImages = cachedData.custom_images || {};
+      state.spiritTypes = mergeSpiritTypes(cachedData.spirit_types, sNum === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
+      state.kevinList = cachedData.kevin_list || [];
+      state.aliList = cachedData.ali_list || [];
+      state.kevinMastery = cachedData.kevin_mastery || [];
+      state.aliMastery = cachedData.ali_mastery || [];
+      return;
+    }
+  } catch(e) {}
+
+  state.spiritsList = sNum === 1 ? [...defaultSpiritsListT1] : [...defaultSpiritsListT2];
+  state.categories = sNum === 1 ? JSON.parse(JSON.stringify(defaultCategoriesT1)) : JSON.parse(JSON.stringify(defaultCategoriesT2));
+  state.spiritTypes = sNum === 1 ? [...defaultSpiritTypesT1] : [...defaultSpiritTypesT2];
+  state.customNames = {};
+  state.customCategories = {};
+  state.customImages = {};
+  state.kevinList = [];
+  state.aliList = [];
+  state.kevinMastery = [];
+  state.aliMastery = [];
 }
+
+// Load cached data on boot
+loadSeasonState(state.currentSeason);
 
 export function getStoredTheme() {
   const theme = localStorage.getItem("userTheme") || "Pixel Oscuro";

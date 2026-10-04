@@ -2,7 +2,7 @@
  * router.js - Enrutador SPA de Vistas, Modos y Gestión de Temporadas
  */
 
-import { state } from './state.js';
+import { state, loadSeasonState } from './state.js';
 import { renderWorkspace, updateStats } from './normal-view.js';
 import { renderGallery, isGalleryOpen } from './edit-view.js';
 import { renderCategoriesManager } from './categories-view.js';
@@ -124,7 +124,11 @@ export function switchSeason(season) {
   if (btnS1) btnS1.classList.toggle("active", sNum === 1);
   if (btnS2) btnS2.classList.toggle("active", sNum === 2);
 
-  // Re-escuchar Firestore para la nueva temporada y renderizar vista activa
+  // Cargar estado de la temporada seleccionada de inmediato
+  loadSeasonState(sNum);
+  setMode(state.currentMode);
+
+  // Re-escuchar Firestore para la nueva temporada y sincronizar
   listenFirestore(() => {
     setMode(state.currentMode);
   });
