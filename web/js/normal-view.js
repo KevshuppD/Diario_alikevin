@@ -10,7 +10,9 @@ import {
   defaultSpiritsListT1, 
   defaultSpiritsListT2, 
   defaultCategoriesT1, 
-  defaultCategoriesT2 
+  defaultCategoriesT2,
+  defaultSpiritTypesT1,
+  defaultSpiritTypesT2 
 } from './constants.js';
 import { triggerAutoSave } from './firestore.js';
 import { sendWsMessage } from './websocket.js';
@@ -35,10 +37,41 @@ export function handleSpiritImgError(imgEl, id) {
   imgEl.src = 'https://placehold.co/100x100/1e293b/a855f7?text=?';
 }
 
+export function getDefaultSpiritName(id, season = state.currentSeason) {
+  const sNum = parseInt(season, 10) || 2;
+  const formattedId = String(id).padStart(2, '0');
+  const plainId = String(parseInt(id, 10));
+
+  if (sNum === 2) {
+    const cat = state.categories?.find(c => 
+      c.spiritIds && (c.spiritIds.includes(id) || c.spiritIds.includes(formattedId) || c.spiritIds.includes(plainId))
+    ) || defaultCategoriesT2.find(c => 
+      c.spiritIds && (c.spiritIds.includes(id) || c.spiritIds.includes(formattedId) || c.spiritIds.includes(plainId))
+    );
+
+    if (cat) {
+      const catName = state.customCategories?.[cat.name] || cat.name;
+      const idxInCat = cat.spiritIds.findIndex(sid => sid === id || sid === formattedId || sid === plainId);
+      const types = state.spiritTypes || defaultSpiritTypesT2;
+      const typeSuffix = (idxInCat >= 0 && types[idxInCat]?.suffix) ? types[idxInCat].suffix : "";
+      return catName + typeSuffix;
+    }
+    return `Espíritu #${formattedId}`;
+  } else {
+    const idx = parseInt(id, 10) - 1;
+    return defaultNames[idx] || `Espíritu #${formattedId}`;
+  }
+}
+
 export function getSpiritName(id) {
-  if (state.customNames && state.customNames[id]) return state.customNames[id];
-  const idx = parseInt(id, 10) - 1;
-  return defaultNames[idx] || `Espíritu #${id}`;
+  const formattedId = String(id).padStart(2, '0');
+  const plainId = String(parseInt(id, 10));
+  if (state.customNames) {
+    if (state.customNames[id]) return state.customNames[id];
+    if (state.customNames[formattedId]) return state.customNames[formattedId];
+    if (state.customNames[plainId]) return state.customNames[plainId];
+  }
+  return getDefaultSpiritName(id, state.currentSeason);
 }
 
 export function getSpiritBaseName(id) {
@@ -579,7 +612,7 @@ export function createSpiritSlot(id, categoryName) {
     const handleNameUpdate = (e) => {
       const newVal = e.target.value.trim();
       const sid = e.target.dataset.id;
-      const defName = defaultNames[parseInt(sid, 10) - 1] || "";
+      const defName = getDefaultSpiritName(sid, state.currentSeason);
       if (newVal === "" || newVal === defName) {
         delete state.customNames[sid];
       } else {
@@ -609,7 +642,7 @@ export function createSpiritSlot(id, categoryName) {
               const sibTypeObj = state.spiritTypes.find(t => t.name === sibType);
               const sibSuffix = sibTypeObj ? sibTypeObj.suffix : "";
               const sibFullName = newBaseName + sibSuffix;
-              const sibDefName = defaultNames[parseInt(sibId, 10) - 1] || "";
+              const sibDefName = getDefaultSpiritName(sibId, state.currentSeason);
               if (sibFullName === sibDefName) {
                 delete state.customNames[sibId];
               } else {
@@ -718,7 +751,7 @@ export function renderWorkspace() {
         (cat.spiritIds || []).forEach(sid => {
           const currentType = getSpiritCurrentType(sid);
           const newFullName = computeSpiritName(sid, cat.name, currentType);
-          const defName = defaultNames[parseInt(sid, 10) - 1] || "";
+          const defName = getDefaultSpiritName(sid, state.currentSeason);
           if (newFullName === defName) {
             delete state.customNames[sid];
           } else {

@@ -5,7 +5,7 @@
 import { state } from './state.js';
 import { defaultNames, defaultSpiritsList, defaultCategories, defaultSpiritsListT1, defaultSpiritsListT2 } from './constants.js';
 import { triggerAutoSave } from './firestore.js';
-import { getSpiritImgUrl, getSpiritName, getSpiritCurrentType, computeSpiritName, handleSpiritImgError, renderWorkspace, updateStats, matchesFilter } from './normal-view.js';
+import { getSpiritImgUrl, getSpiritName, getSpiritCurrentType, computeSpiritName, handleSpiritImgError, renderWorkspace, updateStats, matchesFilter, getDefaultSpiritName } from './normal-view.js';
 import { processSpiritImage, optimizeCloudinaryUrl } from './image-utils.js';
 
 export let isGalleryOpen = false;
@@ -128,7 +128,7 @@ export function moveSpiritToCategory(spiritId, targetCatName) {
 
     const currentType = getSpiritCurrentType(formattedId);
     const newFullName = computeSpiritName(formattedId, targetCatName, currentType);
-    const defName = defaultNames[parseInt(formattedId, 10) - 1] || "";
+    const defName = getDefaultSpiritName(formattedId, state.currentSeason);
     if (newFullName && newFullName !== defName) {
       state.customNames[formattedId] = newFullName;
     }
@@ -249,7 +249,7 @@ export function changeSpiritType(id, newTypeName) {
   const foundCat = state.categories.find(c => (c.spiritIds || []).includes(id));
   const catName = foundCat ? foundCat.name : "__uncategorized__";
   const newFullName = computeSpiritName(id, catName, newTypeName);
-  const defName = defaultNames[parseInt(id, 10) - 1] || "";
+  const defName = getDefaultSpiritName(id, state.currentSeason);
 
   if (newFullName === defName) {
     delete state.customNames[id];

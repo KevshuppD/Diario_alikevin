@@ -5,7 +5,7 @@
 import { state } from './state.js';
 import { defaultNames } from './constants.js';
 import { triggerAutoSave } from './firestore.js';
-import { getSpiritCurrentType, renderWorkspace } from './normal-view.js';
+import { getSpiritCurrentType, renderWorkspace, getDefaultSpiritName } from './normal-view.js';
 
 let draggedCategoryIndex = null;
 let draggedTypeIndex = null;
@@ -422,8 +422,7 @@ export function computeSpiritName(id, targetCategoryName, newTypeName) {
     }
   }
   if (!baseCatName) {
-    const defIdx = parseInt(id, 10) - 1;
-    baseCatName = defaultNames[defIdx] || `Espíritu #${id}`;
+    baseCatName = getDefaultSpiritName(id, state.currentSeason);
   }
 
   const typeObj = state.spiritTypes.find(t => t.name === newTypeName);
@@ -450,7 +449,7 @@ export function updateConfigCategoryName(index, newValue) {
   (cat.spiritIds || []).forEach(sid => {
     const currentType = getSpiritCurrentType(sid);
     const newFullName = computeSpiritName(sid, cat.name, currentType);
-    const defName = defaultNames[parseInt(sid, 10) - 1] || "";
+    const defName = getDefaultSpiritName(sid, state.currentSeason);
     if (newFullName === defName) {
       delete state.customNames[sid];
     } else {
@@ -605,7 +604,7 @@ export function normalizeAllSpiritNames() {
             targetFullName = catBaseTitle + suffix;
           }
 
-          const defName = defaultNames[parseInt(sid, 10) - 1] || "";
+          const defName = getDefaultSpiritName(sid, state.currentSeason);
           if (targetFullName === defName) {
             if (state.customNames[sid]) {
               delete state.customNames[sid];
@@ -627,7 +626,7 @@ export function normalizeAllSpiritNames() {
         if (!assignedIds.has(sid)) {
           const currentName = state.customNames[sid];
           if (currentName) {
-            const defName = defaultNames[parseInt(sid, 10) - 1] || "";
+            const defName = getDefaultSpiritName(sid, state.currentSeason);
             if (currentName.trim() === "" || currentName === defName) {
               delete state.customNames[sid];
               updatedCount++;

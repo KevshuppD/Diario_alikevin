@@ -758,7 +758,11 @@ private fun AlbumGridItem(
             } else {
                 val optimizedDisplayUrl = remember(displayUrl) { displayUrl.optimizeCloudinary(400) }
                 AsyncImage(
-                    model = optimizedDisplayUrl,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(optimizedDisplayUrl)
+                        .size(400)
+                        .crossfade(true)
+                        .build(),
                     contentDescription = "Foto del album",
                     modifier = Modifier
                         .fillMaxWidth()

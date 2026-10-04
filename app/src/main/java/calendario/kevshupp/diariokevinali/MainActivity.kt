@@ -111,59 +111,57 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         @Volatile
         private var cachedGoogleCredentials: GoogleCredentials? = null
 
-        @Synchronized
         fun getGoogleCredentials(context: Context): GoogleCredentials {
-            var creds = cachedGoogleCredentials
-            if (creds == null) {
-                context.assets.open("service-account.json").use { `is` ->
-                    creds = GoogleCredentials.fromStream(`is`)
-                        .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"))
-                    cachedGoogleCredentials = creds
+            // Fast-path sin bloqueo: Si el token en memoria sigue vigente (le quedan al menos 2 minutos), retornar inmediatamente
+            val fastCreds = cachedGoogleCredentials
+            if (fastCreds != null) {
+                val token = fastCreds.accessToken
+                val expTime = token?.expirationTime?.time ?: 0L
+                if (token != null && !token.tokenValue.isNullOrBlank() && expTime > (System.currentTimeMillis() + 120_000L)) {
+                    return fastCreds
                 }
             }
-            // Intentar hasta 3 veces: refreshIfExpired → force refresh → force refresh desde cero
-            var lastException: Exception? = null
-            for (attempt in 0..2) {
-                try {
-                    val token = creds!!.accessToken
-                    if (token == null || token.tokenValue.isNullOrBlank()) {
-                        // Sin token previo: obtener uno nuevo siempre
-                        creds!!.refresh()
-                    } else {
-                        // Token existente: solo renovar si está por vencer
-                        creds!!.refreshIfExpired()
+
+            synchronized(this) {
+                var creds = cachedGoogleCredentials
+                if (creds == null) {
+                    try {
+                        context.assets.open("service-account.json").use { `is` ->
+                            creds = GoogleCredentials.fromStream(`is`)
+                                .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"))
+                            cachedGoogleCredentials = creds
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("MainActivity", "Error abriendo service-account.json", e)
                     }
-                    // Verificar que el token resultante sea válido
-                    val finalToken = creds!!.accessToken
-                    if (finalToken != null && !finalToken.tokenValue.isNullOrBlank()) {
-                        return creds!!
-                    }
-                    // Token inválido tras refresh → forzar de nuevo
-                    creds!!.refresh()
-                } catch (e: Exception) {
-                    lastException = e
-                    android.util.Log.w("MainActivity", "getGoogleCredentials intento ${attempt + 1} fallido: ${e.message}")
-                    if (attempt == 1) {
-                        // En el 2º fallo, reinicializar credenciales desde cero por si el objeto se corrompió
+                }
+
+                if (creds != null) {
+                    try {
+                        val token = creds!!.accessToken
+                        if (token == null || token.tokenValue.isNullOrBlank()) {
+                            creds!!.refresh()
+                        } else {
+                            creds!!.refreshIfExpired()
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("MainActivity", "Fallo refrescando credenciales FCM: ${e.message}")
+                        // Reintentar recargar desde stream si hubo error de refresco
                         try {
                             context.assets.open("service-account.json").use { `is` ->
                                 creds = GoogleCredentials.fromStream(`is`)
                                     .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"))
+                                creds!!.refresh()
                                 cachedGoogleCredentials = creds
                             }
                         } catch (reloadEx: Exception) {
                             android.util.Log.e("MainActivity", "Error recargando service-account.json", reloadEx)
                         }
                     }
-                    if (attempt < 2) {
-                        try { Thread.sleep(600L * (attempt + 1)) } catch (_: InterruptedException) {}
-                    }
                 }
+
+                return creds ?: throw IllegalStateException("No se pudieron cargar las credenciales de Google FCM")
             }
-            // Si después de 3 intentos sigue fallando, devolver las credenciales aunque sean imperfectas
-            // (el llamador decidirá si el token es válido al hacer la llamada HTTP)
-            android.util.Log.e("MainActivity", "getGoogleCredentials: no se pudo refrescar tras 3 intentos", lastException)
-            return creds!!
         }
 
         /** Fuerza que el próximo llamado a getGoogleCredentials obtenga un token completamente nuevo. */

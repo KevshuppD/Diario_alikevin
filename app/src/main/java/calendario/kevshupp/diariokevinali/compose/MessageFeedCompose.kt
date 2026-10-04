@@ -45,6 +45,7 @@ import calendario.kevshupp.diariokevinali.Pet
 import calendario.kevshupp.diariokevinali.MainActivity
 import calendario.kevshupp.diariokevinali.R
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import java.text.SimpleDateFormat
 import java.util.*
 import android.content.Context
@@ -512,7 +513,11 @@ fun MessageCard(
                     ) { url ->
                         val optimizedUrl = remember(url) { url.optimizeCloudinary(400) }
                         AsyncImage(
-                            model = optimizedUrl,
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(optimizedUrl)
+                                .size(400)
+                                .crossfade(true)
+                                .build(),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(150.dp)
@@ -526,7 +531,11 @@ fun MessageCard(
                 val firstUrl = message.imageUrls!![0]
                 val optimizedUrl = remember(firstUrl) { firstUrl.optimizeCloudinary(800) }
                 AsyncImage(
-                    model = optimizedUrl,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(optimizedUrl)
+                        .size(800)
+                        .crossfade(true)
+                        .build(),
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()

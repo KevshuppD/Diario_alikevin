@@ -58,6 +58,7 @@ private fun mergeCategories(
     return result
 }
 
+@Immutable
 data class SpiritCategory(
     val name: String,
     val spiritIds: List<String>

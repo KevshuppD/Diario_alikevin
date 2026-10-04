@@ -61,7 +61,7 @@ export const defaultCategoriesT2 = [
   { name: "Espíritu de Ciervo", spiritIds: ["124", "125", "126", "127", "128", "129"] }
 ];
 
-export const defaultNames = [
+export const defaultNamesT1 = [
   "Espíritu de Agua", "Espíritu de Agua Dorado", "Espíritu de Agua Gomita", "Espíritu de Agua Galaxia",
   "Espíritu Dormilón", "Espíritu Dormilón Dorado", "Espíritu Dormilón Gomita", "Espíritu Dormilón Galaxia",
   "Espíritu de Tierra", "Espíritu de Tierra Dorado", "Espíritu de Tierra Gomita", "Espíritu de Tierra Galaxia",
@@ -106,6 +106,7 @@ export const defaultNames = [
   "Espíritu de Tierra Quack", "Espíritu de Fuego Quack", "Espíritu de Agua Quack", "Espíritu de Punto Cero Quack",
   "Espíritu de John Wick", "Espíritu de Ironmouse"
 ];
+export const defaultNames = defaultNamesT1;
 
 export const defaultSpiritTypesT1 = [
   { name: "Normal", suffix: "" },

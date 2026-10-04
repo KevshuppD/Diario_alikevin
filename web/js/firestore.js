@@ -16,6 +16,7 @@ import {
   defaultNames 
 } from './constants.js';
 import { sendWsMessage } from './websocket.js';
+import { getDefaultSpiritName } from './normal-view.js';
 
 let firestoreUnsubscribe = null;
 let radarUnsubscribe = null;
@@ -103,7 +104,7 @@ export function collectInputsFromDOM() {
   document.querySelectorAll(".spirit-slot input[data-id]").forEach(input => {
     const sid = input.dataset.id;
     const val = input.value.trim();
-    const defName = defaultNames[parseInt(sid, 10) - 1] || "";
+    const defName = getDefaultSpiritName(sid, state.currentSeason);
     if (val === "" || val === defName) {
       delete state.customNames[sid];
     } else {

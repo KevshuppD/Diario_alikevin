@@ -1109,7 +1109,13 @@ private fun createAvatarMarkerBitmap(
     return bitmap
 }
 
+private val textMarkerBitmapCache = java.util.concurrent.ConcurrentHashMap<Pair<String, Int>, Bitmap>()
+
 private fun createTextMarkerBitmap(text: String, sizeDp: Int): Bitmap {
+    val key = text to sizeDp
+    val cached = textMarkerBitmapCache[key]
+    if (cached != null && !cached.isRecycled) return cached
+
     val size = (sizeDp * 2).coerceAtLeast(40)
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
@@ -1121,5 +1127,6 @@ private fun createTextMarkerBitmap(text: String, sizeDp: Int): Bitmap {
     val baseline = (size / 2f) - ((paint.descent() + paint.ascent()) / 2)
     canvas.drawText(text, size / 2f, baseline, paint)
 
+    textMarkerBitmapCache[key] = bitmap
     return bitmap
 }

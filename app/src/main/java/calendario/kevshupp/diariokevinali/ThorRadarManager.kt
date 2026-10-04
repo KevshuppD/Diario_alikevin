@@ -38,6 +38,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import androidx.compose.runtime.Stable
+import com.google.firebase.firestore.IgnoreExtraProperties
 import java.net.URLEncoder
 import java.util.Locale
 import kotlin.math.*
@@ -49,6 +51,8 @@ data class RadarSearchResult(
     val longitude: Double
 )
 
+@IgnoreExtraProperties
+@Stable
 data class RadarLocationData(
     val userId: String = "",
     val userName: String = "",
@@ -128,6 +132,8 @@ data class RadarLocationData(
     }
 }
 
+@IgnoreExtraProperties
+@Stable
 data class RadarPlaceZone(
     val id: String = "",
     val name: String = "",
@@ -649,7 +655,10 @@ object ThorRadarManager {
 
     fun publishBatteryUpdate(context: Context, batteryLevel: Int, isCharging: Boolean) {
         if (batteryLevel !in 0..100) return
-        if (batteryLevel == lastUploadedBatteryPct && isCharging == lastUploadedChargingState) {
+        val chargingChanged = (isCharging != lastUploadedChargingState)
+        val pctDiff = Math.abs(batteryLevel - lastUploadedBatteryPct)
+        // Filtro de batería: omitir micro-cambios (< 2%) si el estado del cargador no cambió y no es nivel crítico
+        if (!chargingChanged && lastUploadedBatteryPct != -1 && pctDiff < 2 && batteryLevel !in listOf(0, 5, 10, 15, 20, 100)) {
             return
         }
         lastUploadedBatteryPct = batteryLevel
@@ -827,7 +836,8 @@ object ThorRadarManager {
                 Float.MAX_VALUE
             }
             val timeSinceLastGeocode = System.currentTimeMillis() - lastGeocodedTime
-            val needsGeocoding = cachedAddress.isEmpty() || distFromLastGeocode >= 40.0f || timeSinceLastGeocode >= 5 * 60 * 1000L
+            val isGpsJitter = distFromLastGeocode < 15.0f || (accuracy > 80f && cachedAddress.isNotEmpty())
+            val needsGeocoding = (cachedAddress.isEmpty() || distFromLastGeocode >= 45.0f || timeSinceLastGeocode >= 8 * 60 * 1000L) && !isGpsJitter
 
             if (needsGeocoding) {
                 try {
