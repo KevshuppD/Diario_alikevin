@@ -4,6 +4,7 @@
     { "source": "/normal", "destination": "/album", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/web/api/$1" },
     { "source": "/configuracion", "destination": "/web/configuracion.html" },
     { "source": "/config", "destination": "/web/config.html" },
     { "source": "/categorias", "destination": "/web/categorias.html" },

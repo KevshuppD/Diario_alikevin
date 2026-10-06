@@ -33,8 +33,10 @@ import com.google.firebase.firestore.SetOptions
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.runtime.Stable
 import calendario.kevshupp.diariokevinali.MedicationItem
 
+@Stable
 data class MedicalData(
     val bloodType: String = "",
     val allergies: String = "",

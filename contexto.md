@@ -604,9 +604,17 @@ graph TD
       - Tarjetas HUD de estadísticas para Kevin, Ali y Ambos con barras de progreso animadas que reflejan el porcentaje de completitud.
       - Segmentación ergonómica de filtros principales y filtros de maestría con pulsaciones táctiles.
 
+31. **Optimizaciones de Rendimiento, Cuotas Firestore y Estabilidad (v1.7.79):**
+    - **Ahorro Masivo de Lecturas en Filtro de Fechas (`MainActivity.kt`):** Carga instantánea de fechas disponibles desde la memoria y la caché local de SQLite (`Source.CACHE`), suprimiendo el escaneo completo de la colección de mensajes en el servidor remoto.
+    - **Unificación de Listeners de Mensajes:** Delegación total del ciclo de escucha y filtrado de mensajes hacia `MainViewModel.kt`, eliminando listeners duplicados en `MainActivity.kt` y garantizando una única fuente de verdad.
+    - **Estabilidad de Modelos en Jetpack Compose:** Anotación de `@Stable` e `@Immutable` en `MedicalData`, `ClassSubject`, `TimeSlot`, `AnimeItem` y `AppUpdateInfo` para permitir skipping inteligente de recomposiciones en listas Lazy y componentes de UI.
+    - **Limpieza Automática de Archivos Temporales de Imagen (`DiarioApp.kt`):** Purga asíncrona en el hilo `Dispatchers.IO` al arrancar la app para eliminar archivos temporales residuales de recorte (`crop_*`) y compresión (`upload_opt_*`) con más de 24 horas de antigüedad.
+    - **Endpoint Serverless de Despacho FCM en Vercel (`web/api/send-push.js` & `vercel.json`):** Módulo de emisión push FCM v1 en Vercel Serverless para desacoplar el envío de notificaciones del cliente Android.
+
 ---
 
 ## 15. Tareas Pendientes / Backlog
+
 
 
 

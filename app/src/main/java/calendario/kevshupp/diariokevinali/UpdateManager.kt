@@ -19,7 +19,11 @@ import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 
+@Stable
+@Immutable
 data class AppUpdateInfo(
     val versionName: String,
     val currentVersion: String = BuildConfig.VERSION_NAME,

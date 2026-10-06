@@ -22,12 +22,14 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 
+@Stable
 data class ClassSubject(
     val id: String = "",
     val name: String = "",
@@ -88,6 +90,7 @@ fun Modifier.continuousBlockBorder(
 }
 
 // Definición de bloques lectivos estándar
+@Stable
 data class TimeSlot(
     val label: String,
     val startMinutes: Int,

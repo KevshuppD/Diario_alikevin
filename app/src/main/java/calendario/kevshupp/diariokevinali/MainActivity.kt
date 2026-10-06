@@ -240,10 +240,6 @@ class MainActivity : AppCompatActivity(), AppNavigation {
 
     private var fragment: androidx.fragment.app.Fragment? = null
     private lateinit var db: FirebaseFirestore
-    private var firestoreListener: ListenerRegistration? = null
-    private var calendarListener: ListenerRegistration? = null
-    private var userListener: ListenerRegistration? = null
-    private var petListener: ListenerRegistration? = null
     private var selectedFilterDate: Calendar? = null
 
     private val dayFormat = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -752,40 +748,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     }
 
     private fun listenMessagesFromFirestore() {
-        firestoreListener?.remove()
-        var query: Query = db.collection("messages").whereEqualTo("partnerId", currentCoupleId).orderBy("timestamp", Query.Direction.DESCENDING)
-        if (selectedFilterDate == null) {
-            query = query.limit(100)
-        } else {
-            val s = selectedFilterDate!!.clone() as Calendar
-            s.set(Calendar.HOUR_OF_DAY, 0)
-            s.set(Calendar.MINUTE, 0)
-            s.set(Calendar.SECOND, 0)
-            val e = selectedFilterDate!!.clone() as Calendar
-            e.set(Calendar.HOUR_OF_DAY, 23)
-            e.set(Calendar.MINUTE, 59)
-            e.set(Calendar.SECOND, 59)
-            query = query.whereGreaterThanOrEqualTo("timestamp", s.timeInMillis).whereLessThanOrEqualTo("timestamp", e.timeInMillis)
-        }
-        firestoreListener = query.addSnapshotListener { value, error ->
-            if (error != null) {
-                Log.e("Firestore", "Error en el listener de mensajes", error)
-                return@addSnapshotListener
-            }
-            if (value != null) {
-                val newMessages: MutableList<Message> = ArrayList()
-                for (doc in value) {
-                    val m = doc.toObject(Message::class.java)
-                    m.messageId = doc.id
-                    android.util.Log.d("DIARIO_DEBUG", "SnapshotListener: cargado msgId: ${m.messageId}, liked: ${m.liked}, isLiked: ${m.isLiked}")
-                    if (m.content == null || !m.content!!.startsWith("[ALBUM]")) {
-                        newMessages.add(m)
-                    }
-                }
-                messagesState.value = newMessages
-                updateWidget()
-            }
-        }
+        viewModel.setSelectedFilterDate(selectedFilterDate)
     }
 
     override fun onPause() {
@@ -1443,29 +1406,75 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         val adp = DateFilterAdapter(tsList, object : DateFilterAdapter.OnDateSelectedListener {
             override fun onDateSelected(timestamp: Long) {
                 selectedFilterDate = Calendar.getInstance().apply { timeInMillis = timestamp }
-                listenMessagesFromFirestore()
+                viewModel.setSelectedFilterDate(selectedFilterDate)
             }
         })
         rv.layoutManager = LinearLayoutManager(this)
         rv.adapter = adp
         
-        db.collection("messages").whereEqualTo("partnerId", currentCoupleId).get().addOnSuccessListener { shots ->
-            val seen = HashSet<Long>()
-            tsList.clear()
-            for (d in shots) {
-                val ts = d.getLong("timestamp")
-                if (ts != null) {
-                    val n = normalizeDate(ts)
-                    if (seen.add(n)) tsList.add(n)
+        // 1. Cargar primero las fechas de los mensajes ya presentes en memoria (0 lecturas Firestore)
+        val seen = HashSet<Long>()
+        tsList.clear()
+        val currentMsgs = viewModel.messagesState.value ?: messagesState.value
+        for (m in currentMsgs) {
+            val ts = m.timestamp
+            if (ts > 0) {
+                val n = normalizeDate(ts)
+                if (seen.add(n)) tsList.add(n)
+            }
+        }
+        tsList.sortWith { t1, t2 -> t2.compareTo(t1) }
+        adp.notifyDataSetChanged()
+
+        // 2. Cargar más fechas desde la caché local de Firestore (0 lecturas remotas)
+        db.collection("messages").whereEqualTo("partnerId", currentCoupleId)
+            .get(com.google.firebase.firestore.Source.CACHE)
+            .addOnSuccessListener { shots ->
+                var added = false
+                for (d in shots) {
+                    val ts = d.getLong("timestamp")
+                    if (ts != null && ts > 0) {
+                        val n = normalizeDate(ts)
+                        if (seen.add(n)) {
+                            tsList.add(n)
+                            added = true
+                        }
+                    }
+                }
+                if (added) {
+                    tsList.sortWith { t1, t2 -> t2.compareTo(t1) }
+                    adp.notifyDataSetChanged()
                 }
             }
-            tsList.sortWith { t1, t2 -> t2.compareTo(t1) }
-            adp.notifyDataSetChanged()
-        }
+            .addOnFailureListener {
+                // Fallback seguro limitado si no hay caché
+                db.collection("messages").whereEqualTo("partnerId", currentCoupleId)
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .limit(100)
+                    .get()
+                    .addOnSuccessListener { shots ->
+                        var added = false
+                        for (d in shots) {
+                            val ts = d.getLong("timestamp")
+                            if (ts != null && ts > 0) {
+                                val n = normalizeDate(ts)
+                                if (seen.add(n)) {
+                                    tsList.add(n)
+                                    added = true
+                                }
+                            }
+                        }
+                        if (added) {
+                            tsList.sortWith { t1, t2 -> t2.compareTo(t1) }
+                            adp.notifyDataSetChanged()
+                        }
+                    }
+            }
+
         val dialog = builder.create()
         view.findViewById<View>(R.id.btnClearFilter).setOnClickListener {
             selectedFilterDate = null
-            listenMessagesFromFirestore()
+            viewModel.setSelectedFilterDate(null)
             dialog.dismiss()
         }
         view.findViewById<View>(R.id.btnCancelFilter).setOnClickListener { dialog.dismiss() }

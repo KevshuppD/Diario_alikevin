@@ -1010,6 +1010,7 @@ fun getAiringDayInSpanish(airingAt: Long?): String? {
     }
 }
 
+@Stable
 data class AnimeItem(
     val id: String = "",
     val title: String = "",

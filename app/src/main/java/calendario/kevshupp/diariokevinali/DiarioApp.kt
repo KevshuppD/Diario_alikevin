@@ -124,11 +124,27 @@ class DiarioApp : Application(), ImageLoaderFactory {
                 .getLong("updateInterval", 720L) // 12h por defecto
             rescheduleUpdateCheck(this@DiarioApp, interval, ExistingPeriodicWorkPolicy.KEEP)
             schedulePetCareCheck(this@DiarioApp)
+            cleanOldCacheFiles()
             try {
                 com.google.firebase.messaging.FirebaseMessaging.getInstance().subscribeToTopic("diario_app_updates")
             } catch (e: Exception) {
                 Log.w("DiarioApp", "Error subscribing to updates topic: ${e.message}")
             }
+        }
+    }
+
+    private fun cleanOldCacheFiles() {
+        try {
+            val threshold = System.currentTimeMillis() - 24 * 3600 * 1000L // Archivos temporales mayores a 24h
+            cacheDir.listFiles()?.forEach { file ->
+                if (file.isFile && (file.name.startsWith("crop_") || file.name.startsWith("upload_opt_") || file.name.startsWith("temp_") || file.name.startsWith("compress_"))) {
+                    if (file.lastModified() < threshold) {
+                        file.delete()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("DiarioApp", "Aviso al limpiar archivos temporales de caché: ${e.message}")
         }
     }
 
