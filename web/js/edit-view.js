@@ -72,7 +72,7 @@ export function renderGallery() {
     item.innerHTML = `
       ${isUnassigned ? '<span class="unassigned-tag">SUELTO</span>' : ''}
       <button class="gallery-delete-btn" onclick="window.deleteFromGallery(event, '${id}')" title="Eliminar espíritu">🗑</button>
-      <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" draggable="false" onerror="window.handleSpiritImgError(this, '${id}')">
+      <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" width="44" height="44" loading="lazy" decoding="async" draggable="false" onerror="window.handleSpiritImgError(this, '${id}')">
       <span class="badge">#${displayNumber}</span>
     `;
     

@@ -293,23 +293,24 @@ function hexToRgba(hex, alpha) {
 
 export function applyTheme(themeName, lightColor, darkColor, useCustomBg) {
   const theme = themeName || state.userTheme || "Pixel Oscuro";
-  document.body.classList.remove('theme-pixel-claro', 'theme-pixel-oscuro', 'theme-pixel-monocromatico', 'theme-neon-arcade', 'theme-pixel-mono');
-  if (theme === "Pixel Claro") {
-    document.body.classList.add('theme-pixel-claro');
-  } else if (theme === "Pixel Monocromático") {
-    document.body.classList.add('theme-pixel-monocromatico');
-  } else {
-    document.body.classList.add('theme-pixel-oscuro');
-  }
+  const isLight = theme === "Pixel Claro" || theme === "pixel-claro";
+  const isMono = theme === "Pixel Monocromático" || theme === "pixel-monocromatico";
+  const themeClass = isLight ? 'theme-pixel-claro' : (isMono ? 'theme-pixel-monocromatico' : 'theme-pixel-oscuro');
 
-  const isLight = theme === "Pixel Claro";
-  const isMono = theme === "Pixel Monocromático";
+  const targets = [document.documentElement, document.body].filter(Boolean);
+  targets.forEach(el => {
+    el.classList.remove('theme-pixel-claro', 'theme-pixel-oscuro', 'theme-pixel-monocromatico');
+    el.classList.add(themeClass);
+  });
+
   const activeColor = isMono ? "#FFFFFF" : (isLight ? (lightColor || state.userLightColor || "#D1C4E9") : (darkColor || state.userDarkColor || "#4A148C"));
   if (activeColor) {
-    document.body.style.setProperty('--accent-color', activeColor, 'important');
-    document.body.style.setProperty('--accent-glow', hexToRgba(activeColor, 0.35), 'important');
     document.documentElement.style.setProperty('--accent-color', activeColor, 'important');
     document.documentElement.style.setProperty('--accent-glow', hexToRgba(activeColor, 0.35), 'important');
+    if (document.body) {
+      document.body.style.setProperty('--accent-color', activeColor, 'important');
+      document.body.style.setProperty('--accent-glow', hexToRgba(activeColor, 0.35), 'important');
+    }
   }
 }
 
@@ -331,7 +332,7 @@ export function changeTheme(themeName) {
 }
 
 export function changeBarColor(hexColor) {
-  const isLight = state.userTheme === "Pixel Claro";
+  const isLight = state.userTheme === "Pixel Claro" || state.userTheme === "pixel-claro";
   if (isLight) {
     state.userLightColor = hexColor;
     localStorage.setItem("userLightColor", hexColor);
@@ -386,11 +387,14 @@ export function toggleCustomBgPreference() {
 
 export function applyUserFont(fontName) {
   const font = fontName || state.userFont || "pixel";
-  document.body.classList.remove('font-pixel', 'font-modern');
-  if (font === 'modern') {
-    document.body.classList.add('font-modern');
-  } else {
-    document.body.classList.add('font-pixel');
+  const isModern = font === 'modern';
+  
+  document.documentElement.classList.toggle('font-modern', isModern);
+  document.documentElement.classList.toggle('font-pixel', !isModern);
+  
+  if (document.body) {
+    document.body.classList.toggle('font-modern', isModern);
+    document.body.classList.toggle('font-pixel', !isModern);
   }
 }
 

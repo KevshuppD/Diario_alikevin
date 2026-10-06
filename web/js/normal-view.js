@@ -19,6 +19,39 @@ import { sendWsMessage } from './websocket.js';
 import { optimizeCloudinaryUrl } from './image-utils.js';
 import { openAssignModal, openEditImageModal, deleteFromGallery, removeSpiritFromCategory, deleteCategory, deleteAllUncategorizedSpirits, permanentlyDeleteSpirit, changeSpiritType } from './edit-view.js';
 
+export function isIdInList(list, id) {
+  if (!list || !Array.isArray(list) || id === undefined || id === null) return false;
+  const strId = String(id).trim();
+  const num = parseInt(strId, 10);
+  if (isNaN(num)) return list.includes(strId);
+  const plainId = String(num);
+  const formattedId = plainId.padStart(2, '0');
+  for (let i = 0; i < list.length; i++) {
+    const item = String(list[i]).trim();
+    if (item === strId || item === plainId || item === formattedId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function buildNormalizedIdSet(list) {
+  const set = new Set();
+  if (!list || !Array.isArray(list)) return set;
+  list.forEach(item => {
+    if (item !== undefined && item !== null) {
+      const str = String(item).trim();
+      set.add(str);
+      const num = parseInt(str, 10);
+      if (!isNaN(num)) {
+        set.add(String(num));
+        set.add(String(num).padStart(2, '0'));
+      }
+    }
+  });
+  return set;
+}
+
 export function getSpiritImgUrl(id) {
   if (state.customImages && state.customImages[id]) {
     const bust = state.imageCacheBusters?.[id] ? `?v=${state.imageCacheBusters[id]}` : '';
@@ -110,7 +143,7 @@ export function getSpiritCurrentType(id) {
 export function computeSpiritName(id, targetCategoryName, newTypeName) {
   let baseCatName = getSpiritBaseCategoryName(targetCategoryName);
   if (!baseCatName) {
-    const foundCat = state.categories.find(c => (c.spiritIds || []).includes(id));
+    const foundCat = state.categories.find(c => isIdInList(c.spiritIds, id));
     if (foundCat) {
       baseCatName = getSpiritBaseCategoryName(foundCat.name);
     }
@@ -135,9 +168,10 @@ export function matchesFilter(id, precomputedSets = null) {
   if (state.searchQuery !== "") {
     const name = getSpiritName(id).toLowerCase();
     const type = getSpiritCurrentType(id).toLowerCase();
-    const numStr = String(id).padStart(2, '0');
+    const num = parseInt(id, 10);
+    const numStr = isNaN(num) ? String(id) : String(num).padStart(2, '0');
     const hashNum = `#${numStr}`;
-    const plainId = String(parseInt(id, 10));
+    const plainId = isNaN(num) ? String(id) : String(num);
 
     const matchesQuery = name.includes(state.searchQuery) ||
                          type.includes(state.searchQuery) ||
@@ -148,10 +182,18 @@ export function matchesFilter(id, precomputedSets = null) {
     if (!matchesQuery) return false;
   }
 
-  const isKevinOwned = precomputedSets ? precomputedSets.kevinOwnedSet.has(id) : state.kevinList.includes(id);
-  const isAliOwned = precomputedSets ? precomputedSets.aliOwnedSet.has(id) : state.aliList.includes(id);
-  const isKevinMastered = precomputedSets ? precomputedSets.kevinMasterySet.has(id) : state.kevinMastery.includes(id);
-  const isAliMastered = precomputedSets ? precomputedSets.aliMasterySet.has(id) : state.aliMastery.includes(id);
+  const isKevinOwned = precomputedSets 
+    ? (precomputedSets.kevinOwnedSet.has(String(id)) || precomputedSets.kevinOwnedSet.has(String(parseInt(id, 10))))
+    : isIdInList(state.kevinList, id);
+  const isAliOwned = precomputedSets 
+    ? (precomputedSets.aliOwnedSet.has(String(id)) || precomputedSets.aliOwnedSet.has(String(parseInt(id, 10))))
+    : isIdInList(state.aliList, id);
+  const isKevinMastered = precomputedSets 
+    ? (precomputedSets.kevinMasterySet.has(String(id)) || precomputedSets.kevinMasterySet.has(String(parseInt(id, 10))))
+    : isIdInList(state.kevinMastery, id);
+  const isAliMastered = precomputedSets 
+    ? (precomputedSets.aliMasterySet.has(String(id)) || precomputedSets.aliMasterySet.has(String(parseInt(id, 10))))
+    : isIdInList(state.aliMastery, id);
 
   const isKevinUser = state.currentUser ? state.currentUser.username === "kevin" : true;
   const isOwnedByCurrent = isKevinUser ? isKevinOwned : isAliOwned;
@@ -191,23 +233,30 @@ export function updateStats() {
   const assignedIds = new Set();
   state.categories.forEach(cat => {
     (cat.spiritIds || []).forEach(id => {
-      if (activeSpirits.includes(id)) assignedIds.add(id);
+      assignedIds.add(String(id));
+      const n = parseInt(id, 10);
+      if (!isNaN(n)) {
+        assignedIds.add(String(n));
+        assignedIds.add(String(n).padStart(2, '0'));
+      }
     });
   });
 
-  const activeSpiritsSet = new Set(activeSpirits);
-  const totalRegistered = assignedIds.size > 0 ? assignedIds.size : activeSpirits.length;
-  
-  const totalKevin = state.kevinList.filter(id => assignedIds.has(id) || activeSpiritsSet.has(id)).length;
-  const totalAli = state.aliList.filter(id => assignedIds.has(id) || activeSpiritsSet.has(id)).length;
-  
-  const aliSet = new Set(state.aliList);
-  const bothCount = state.kevinList.filter(id => activeSpiritsSet.has(id) && aliSet.has(id)).length;
+  const totalRegistered = (state.categories.reduce((acc, cat) => acc + (cat.spiritIds || []).length, 0)) || activeSpirits.length;
 
-  const kevinMasteryCount = state.kevinMastery.filter(id => assignedIds.has(id) || activeSpiritsSet.has(id)).length;
-  const aliMasteryCount = state.aliMastery.filter(id => assignedIds.has(id) || activeSpiritsSet.has(id)).length;
-  const aliMasterySet = new Set(state.aliMastery);
-  const bothMasteryCount = state.kevinMastery.filter(id => aliMasterySet.has(id) && (assignedIds.has(id) || activeSpiritsSet.has(id))).length;
+  const kevinSet = buildNormalizedIdSet(state.kevinList);
+  const aliSet = buildNormalizedIdSet(state.aliList);
+  const kevinMasterySet = buildNormalizedIdSet(state.kevinMastery);
+  const aliMasterySet = buildNormalizedIdSet(state.aliMastery);
+
+  const evalList = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : activeSpirits;
+  const totalKevin = evalList.filter(id => kevinSet.has(String(id))).length;
+  const totalAli = evalList.filter(id => aliSet.has(String(id))).length;
+  const bothCount = evalList.filter(id => kevinSet.has(String(id)) && aliSet.has(String(id))).length;
+
+  const kevinMasteryCount = evalList.filter(id => kevinMasterySet.has(String(id))).length;
+  const aliMasteryCount = evalList.filter(id => aliMasterySet.has(String(id))).length;
+  const bothMasteryCount = evalList.filter(id => kevinMasterySet.has(String(id)) && aliMasterySet.has(String(id))).length;
 
   const statKevin = document.getElementById("stat-kevin");
   const statAli = document.getElementById("stat-ali");
@@ -315,10 +364,10 @@ export function setFilter(filterName, btnEl) {
 
 export function updateSingleSpiritDOM(id) {
   const isKevinUser = state.currentUser ? state.currentUser.username === "kevin" : true;
-  const isKevinOwned = state.kevinList.includes(id);
-  const isAliOwned = state.aliList.includes(id);
-  const isKevinMastered = state.kevinMastery.includes(id);
-  const isAliMastered = state.aliMastery.includes(id);
+  const isKevinOwned = isIdInList(state.kevinList, id);
+  const isAliOwned = isIdInList(state.aliList, id);
+  const isKevinMastered = isIdInList(state.kevinMastery, id);
+  const isAliMastered = isIdInList(state.aliMastery, id);
   const isCurrentMastered = isKevinUser ? isKevinMastered : isAliMastered;
 
   const slotElements = document.querySelectorAll(`.spirit-slot[data-id="${id}"]`);
@@ -342,10 +391,10 @@ export function updateSingleSpiritDOM(id) {
           if (catName) {
             const cat = state.categories.find(c => c.name === catName);
             if (cat) {
-              const catKevinCount = (cat.spiritIds || []).filter(sid => state.kevinList.includes(sid)).length;
-              const catAliCount = (cat.spiritIds || []).filter(sid => state.aliList.includes(sid)).length;
-              const catKevinMastery = (cat.spiritIds || []).filter(sid => state.kevinMastery.includes(sid)).length;
-              const catAliMastery = (cat.spiritIds || []).filter(sid => state.aliMastery.includes(sid)).length;
+              const catKevinCount = (cat.spiritIds || []).filter(sid => isIdInList(state.kevinList, sid)).length;
+              const catAliCount = (cat.spiritIds || []).filter(sid => isIdInList(state.aliList, sid)).length;
+              const catKevinMastery = (cat.spiritIds || []).filter(sid => isIdInList(state.kevinMastery, sid)).length;
+              const catAliMastery = (cat.spiritIds || []).filter(sid => isIdInList(state.aliMastery, sid)).length;
 
               const kb = catCard.querySelector(".cat-stat-badge.kevin");
               if (kb) kb.innerHTML = `🔵 ${catKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${catKevinMastery}</span>`;
@@ -410,10 +459,10 @@ export function updateSingleSpiritDOM(id) {
         if (catName) {
           const cat = state.categories.find(c => c.name === catName);
           if (cat) {
-            const catKevinCount = (cat.spiritIds || []).filter(sid => state.kevinList.includes(sid)).length;
-            const catAliCount = (cat.spiritIds || []).filter(sid => state.aliList.includes(sid)).length;
-            const catKevinMastery = (cat.spiritIds || []).filter(sid => state.kevinMastery.includes(sid)).length;
-            const catAliMastery = (cat.spiritIds || []).filter(sid => state.aliMastery.includes(sid)).length;
+            const catKevinCount = (cat.spiritIds || []).filter(sid => isIdInList(state.kevinList, sid)).length;
+            const catAliCount = (cat.spiritIds || []).filter(sid => isIdInList(state.aliList, sid)).length;
+            const catKevinMastery = (cat.spiritIds || []).filter(sid => isIdInList(state.kevinMastery, sid)).length;
+            const catAliMastery = (cat.spiritIds || []).filter(sid => isIdInList(state.aliMastery, sid)).length;
 
             const kb = catCard.querySelector(".cat-stat-badge.kevin");
             if (kb) kb.innerHTML = `🔵 ${catKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${catKevinMastery}</span>`;
@@ -437,10 +486,10 @@ export function syncAllSpiritSlotsDOM() {
   slots.forEach(slot => {
     const id = slot.dataset.id;
     if (!id) return;
-    const isKevinOwned = state.kevinList.includes(id);
-    const isAliOwned = state.aliList.includes(id);
-    const isKevinMastered = state.kevinMastery.includes(id);
-    const isAliMastered = state.aliMastery.includes(id);
+    const isKevinOwned = isIdInList(state.kevinList, id);
+    const isAliOwned = isIdInList(state.aliList, id);
+    const isKevinMastered = isIdInList(state.kevinMastery, id);
+    const isAliMastered = isIdInList(state.aliMastery, id);
     const isCurrentMastered = isKevinUser ? isKevinMastered : isAliMastered;
 
     slot.classList.remove(
@@ -482,10 +531,10 @@ export function syncAllSpiritSlotsDOM() {
     if (catName && catName !== "__uncategorized__") {
       const cat = state.categories.find(c => c.name === catName);
       if (cat) {
-        const catKevinCount = (cat.spiritIds || []).filter(sid => state.kevinList.includes(sid)).length;
-        const catAliCount = (cat.spiritIds || []).filter(sid => state.aliList.includes(sid)).length;
-        const catKevinMastery = (cat.spiritIds || []).filter(sid => state.kevinMastery.includes(sid)).length;
-        const catAliMastery = (cat.spiritIds || []).filter(sid => state.aliMastery.includes(sid)).length;
+        const catKevinCount = (cat.spiritIds || []).filter(sid => isIdInList(state.kevinList, sid)).length;
+        const catAliCount = (cat.spiritIds || []).filter(sid => isIdInList(state.aliList, sid)).length;
+        const catKevinMastery = (cat.spiritIds || []).filter(sid => isIdInList(state.kevinMastery, sid)).length;
+        const catAliMastery = (cat.spiritIds || []).filter(sid => isIdInList(state.aliMastery, sid)).length;
 
         const kb = catCard.querySelector(".cat-stat-badge.kevin");
         if (kb) kb.innerHTML = `🔵 ${catKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${catKevinMastery}</span>`;
@@ -503,20 +552,30 @@ export function toggleSpiritOwned(id) {
   const masteryList = isKevin ? state.kevinMastery : state.aliMastery;
   const masteryKey = isKevin ? "kevin_mastery" : "ali_mastery";
 
+  const plainId = String(parseInt(id, 10));
+  const formattedId = plainId.padStart(2, '0');
+  const targetId = String(id);
+
   let newOwnedList;
   let updates = {};
 
-  if (userList.includes(id)) {
-    newOwnedList = userList.filter(item => item !== id);
+  if (isIdInList(userList, id)) {
+    newOwnedList = userList.filter(item => {
+      const itemStr = String(item).trim();
+      return itemStr !== targetId && itemStr !== plainId && itemStr !== formattedId;
+    });
     if (isKevin) state.kevinList = newOwnedList; else state.aliList = newOwnedList;
 
-    if (masteryList.includes(id)) {
-      const newMastery = masteryList.filter(item => item !== id);
+    if (isIdInList(masteryList, id)) {
+      const newMastery = masteryList.filter(item => {
+        const itemStr = String(item).trim();
+        return itemStr !== targetId && itemStr !== plainId && itemStr !== formattedId;
+      });
       if (isKevin) state.kevinMastery = newMastery; else state.aliMastery = newMastery;
       updates[masteryKey] = newMastery;
     }
   } else {
-    newOwnedList = [...userList, id];
+    newOwnedList = [...userList, targetId];
     if (isKevin) state.kevinList = newOwnedList; else state.aliList = newOwnedList;
   }
 
@@ -548,19 +607,26 @@ export function toggleSpiritMastery(id, event) {
   const userList = isKevin ? state.kevinList : state.aliList;
   const userKey = isKevin ? "kevin_list" : "ali_list";
 
+  const plainId = String(parseInt(id, 10));
+  const formattedId = plainId.padStart(2, '0');
+  const targetId = String(id);
+
   let updates = {};
 
-  if (masteryList.includes(id)) {
-    const newMastery = masteryList.filter(item => item !== id);
+  if (isIdInList(masteryList, id)) {
+    const newMastery = masteryList.filter(item => {
+      const itemStr = String(item).trim();
+      return itemStr !== targetId && itemStr !== plainId && itemStr !== formattedId;
+    });
     if (isKevin) state.kevinMastery = newMastery; else state.aliMastery = newMastery;
     updates[masteryKey] = newMastery;
   } else {
-    const newMastery = [...masteryList, id];
+    const newMastery = [...masteryList, targetId];
     if (isKevin) state.kevinMastery = newMastery; else state.aliMastery = newMastery;
     updates[masteryKey] = newMastery;
 
-    if (!userList.includes(id)) {
-      const newOwned = [...userList, id];
+    if (!isIdInList(userList, id)) {
+      const newOwned = [...userList, targetId];
       if (isKevin) state.kevinList = newOwned; else state.aliList = newOwned;
       updates[userKey] = newOwned;
     }
@@ -587,10 +653,10 @@ export function createSpiritSlot(id, categoryName) {
   const displayNumber = String(id).padStart(2, '0');
 
   if (state.currentMode === "normal") {
-    const isKevinOwned = state.kevinList.includes(id);
-    const isAliOwned = state.aliList.includes(id);
-    const isKevinMastered = state.kevinMastery.includes(id);
-    const isAliMastered = state.aliMastery.includes(id);
+    const isKevinOwned = isIdInList(state.kevinList, id);
+    const isAliOwned = isIdInList(state.aliList, id);
+    const isKevinMastered = isIdInList(state.kevinMastery, id);
+    const isAliMastered = isIdInList(state.aliMastery, id);
 
     let ownedStatusClass = "not-owned owned-none";
     if (isKevinOwned && isAliOwned) ownedStatusClass = "owned-by-both owned-both";
@@ -611,7 +677,7 @@ export function createSpiritSlot(id, categoryName) {
 
     slot.innerHTML = `
       <span class="spirit-id-badge">#${displayNumber}</span>
-      <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" onerror="window.handleSpiritImgError(this, '${id}')">
+      <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" width="88" height="88" loading="lazy" decoding="async" onerror="window.handleSpiritImgError(this, '${id}')">
       <div class="spirit-name-label" title="${getSpiritName(id)}">${getSpiritName(id)}</div>
       <div class="checks-row">
         <div class="user-check-badge kevin-badge ${isKevinOwned ? 'active' : ''}" title="${isKevinOwned ? 'Obtenido por Kevin' : 'Faltante para Kevin'}">
@@ -656,7 +722,7 @@ export function createSpiritSlot(id, categoryName) {
     slot.innerHTML = `
       ${deleteBtnHtml}
       <span class="spirit-id-badge">#${displayNumber}</span>
-      <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" loading="lazy" decoding="async" draggable="false" style="cursor: pointer;" onclick="window.openEditImageModal('${id}')" title="Haz clic para cambiar la imagen" onerror="window.handleSpiritImgError(this, '${id}')">
+      <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" width="88" height="88" loading="lazy" decoding="async" draggable="false" style="cursor: pointer;" onclick="window.openEditImageModal('${id}')" title="Haz clic para cambiar la imagen" onerror="window.handleSpiritImgError(this, '${id}')">
       <button type="button" class="btn btn-secondary" style="padding: 3px 6px; font-size: 11px; margin-bottom: 4px; width: 100%; justify-content: center; font-weight: 600;" onclick="window.openEditImageModal('${id}')">🖼️ Cambiar Imagen</button>
       <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}" style="margin-bottom: 4px;">
       <select class="type-select" data-id="${id}" style="width: 100%; font-size: 10px; border-radius: 4px; padding: 2px; margin-bottom: 4px;">
@@ -679,7 +745,7 @@ export function createSpiritSlot(id, categoryName) {
       }
 
       // Auto-propagate to category siblings if base/normal spirit is renamed
-      const foundCat = state.categories.find(c => (c.spiritIds || []).includes(sid));
+      const foundCat = state.categories.find(c => isIdInList(c.spiritIds, sid));
       if (foundCat && categoryName !== "__uncategorized__" && newVal !== "") {
         const currentType = getSpiritCurrentType(sid);
         const isBaseSpirit = (currentType === "Normal" || (foundCat.spiritIds && foundCat.spiritIds[0] === sid));
@@ -760,23 +826,30 @@ export function renderWorkspace() {
   const activeSpirits = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : defaultList;
 
   const precomputedSets = {
-    kevinOwnedSet: new Set(state.kevinList),
-    aliOwnedSet: new Set(state.aliList),
-    kevinMasterySet: new Set(state.kevinMastery),
-    aliMasterySet: new Set(state.aliMastery)
+    kevinOwnedSet: buildNormalizedIdSet(state.kevinList),
+    aliOwnedSet: buildNormalizedIdSet(state.aliList),
+    kevinMasterySet: buildNormalizedIdSet(state.kevinMastery),
+    aliMasterySet: buildNormalizedIdSet(state.aliMastery)
   };
 
-  const activeSpiritsSet = new Set(activeSpirits);
+  const activeSpiritsSet = buildNormalizedIdSet(activeSpirits);
   const assignedIds = new Set();
   state.categories.forEach(cat => {
-    (cat.spiritIds || []).forEach(id => assignedIds.add(id));
+    (cat.spiritIds || []).forEach(id => {
+      assignedIds.add(String(id));
+      const n = parseInt(id, 10);
+      if (!isNaN(n)) {
+        assignedIds.add(String(n));
+        assignedIds.add(String(n).padStart(2, '0'));
+      }
+    });
   });
 
   const workspaceFragment = document.createDocumentFragment();
 
   // Render Categories
   state.categories.forEach((cat, catIdx) => {
-    const matchingSpirits = (cat.spiritIds || []).filter(id => activeSpiritsSet.has(id) && matchesFilter(id, precomputedSets));
+    const matchingSpirits = (cat.spiritIds || []).filter(id => matchesFilter(id, precomputedSets));
     
     if (state.currentMode === "normal" && matchingSpirits.length === 0) return;
 
@@ -830,10 +903,10 @@ export function renderWorkspace() {
       titleInput.addEventListener("input", handleCatTitleChange);
       titleInput.addEventListener("change", handleCatTitleChange);
     } else {
-      const catKevinCount = (cat.spiritIds || []).filter(id => precomputedSets.kevinOwnedSet.has(id)).length;
-      const catAliCount = (cat.spiritIds || []).filter(id => precomputedSets.aliOwnedSet.has(id)).length;
-      const catKevinMastery = (cat.spiritIds || []).filter(id => precomputedSets.kevinMasterySet.has(id)).length;
-      const catAliMastery = (cat.spiritIds || []).filter(id => precomputedSets.aliMasterySet.has(id)).length;
+      const catKevinCount = (cat.spiritIds || []).filter(id => precomputedSets.kevinOwnedSet.has(String(id))).length;
+      const catAliCount = (cat.spiritIds || []).filter(id => precomputedSets.aliOwnedSet.has(String(id))).length;
+      const catKevinMastery = (cat.spiritIds || []).filter(id => precomputedSets.kevinMasterySet.has(String(id))).length;
+      const catAliMastery = (cat.spiritIds || []).filter(id => precomputedSets.aliMasterySet.has(String(id))).length;
 
       header.innerHTML = `
         <div class="category-title-edit" style="flex-wrap: wrap; gap: 8px 12px;">
@@ -885,15 +958,15 @@ export function renderWorkspace() {
   });
 
   // Render Uncategorized / Loose Spirits
-  const uncategorizedIds = activeSpirits.filter(id => !assignedIds.has(id) && matchesFilter(id, precomputedSets));
+  const uncategorizedIds = activeSpirits.filter(id => !assignedIds.has(String(id)) && matchesFilter(id, precomputedSets));
   
   if (state.currentMode === "edit" || uncategorizedIds.length > 0) {
     const looseCard = document.createElement("div");
     looseCard.className = "category-card uncategorized-bin";
-    const uncatKevinCount = uncategorizedIds.filter(id => precomputedSets.kevinOwnedSet.has(id)).length;
-    const uncatAliCount = uncategorizedIds.filter(id => precomputedSets.aliOwnedSet.has(id)).length;
-    const uncatKevinMastery = uncategorizedIds.filter(id => precomputedSets.kevinMasterySet.has(id)).length;
-    const uncatAliMastery = uncategorizedIds.filter(id => precomputedSets.aliMasterySet.has(id)).length;
+    const uncatKevinCount = uncategorizedIds.filter(id => precomputedSets.kevinOwnedSet.has(String(id))).length;
+    const uncatAliCount = uncategorizedIds.filter(id => precomputedSets.aliOwnedSet.has(String(id))).length;
+    const uncatKevinMastery = uncategorizedIds.filter(id => precomputedSets.kevinMasterySet.has(String(id))).length;
+    const uncatAliMastery = uncategorizedIds.filter(id => precomputedSets.aliMasterySet.has(String(id))).length;
 
     const deleteMassBtn = (state.currentMode === "edit" && uncategorizedIds.length > 0)
       ? `<button class="btn btn-danger" style="padding: 4px 10px; font-size: 14px; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" onclick="window.deleteAllUncategorizedSpirits()" title="Eliminar espíritus sueltos">🗑️ Eliminar Sueltos (${uncategorizedIds.length})</button>`

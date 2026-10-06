@@ -611,6 +611,15 @@ graph TD
     - **Limpieza Automática de Archivos Temporales de Imagen (`DiarioApp.kt`):** Purga asíncrona en el hilo `Dispatchers.IO` al arrancar la app para eliminar archivos temporales residuales de recorte (`crop_*`) y compresión (`upload_opt_*`) con más de 24 horas de antigüedad.
     - **Endpoint Serverless de Despacho FCM en Vercel (`web/api/send-push.js` & `vercel.json`):** Módulo de emisión push FCM v1 en Vercel Serverless para desacoplar el envío de notificaciones del cliente Android.
 
+32. **Optimizaciones de Fluidez, Prevención de Saltos de Scroll, Colores de Espíritus y Renderizado en Web Álbum (Web & Vercel):**
+    - **Resolución Definitiva del Salto de Scroll:** Corrección del reseteo a la parte superior (`scrollTop = 0`) al marcar espíritus obtenidos o con maestría. En vistas filtradas (`updateSingleSpiritDOM`), la tarjeta se remueve de forma individual del DOM sin destruir el contenedor general.
+    - **Preservación y Restauración Atómica de Scroll (`renderWorkspace`):** Captura previa de `scrollTop` y `window.scrollY` antes de mutar el DOM y restauración inmediata tras `container.replaceChildren()`.
+    - **Importación y Optimización de Imágenes Cloudinary (`optimizeCloudinaryUrl`):** Importación explícita en [`normal-view.js`](file:///home/kevin/Escritorio/Proyectos/Diario_alikevin/web/js/normal-view.js) para evitar caídas en tiempo de ejecución (`ReferenceError`) durante la construcción de las ranuras de espíritus.
+    - **Normalización Exhaustiva de IDs y Colores de Estado (`isIdInList` & `buildNormalizedIdSet`):** Soporte bidireccional transparente para IDs con o sin cero a la izquierda (`"1"` vs `"01"`). Garantiza que las ranuras de espíritus reflejen fielmente el color azul (Kevin), rojo/rosa (Ali) o morado (Ambos) junto con las estrellas de maestría tanto desde Firestore como desde la caché local.
+    - **Eliminación del Salto Visual y Parpadeo de Fuentes al Recargar:** Inyección de script anti-FOUC en `<head>` de todos los documentos HTML con lectura instantánea de `userTheme` y `userFont`, directiva `display=swap` en Google Fonts y reserva fija de barra de desplazamiento (`overflow-y: scroll`), erradicando cualquier salto de escala o tamaño de letra en recargas.
+    - **Cero Cumulative Layout Shift (Zero CLS):** Declaración explícita de `width="88"` y `height="88"` junto con `aspect-ratio: 1/1` en todas las etiquetas `<img>` de espíritus y galería, garantizando cuadrículas fijas sin saltos de carga.
+    - **HUD de Progreso Persistente en Header:** Contadores globales de espíritus y maestrías visibles en todo momento durante el desplazamiento dentro de la barra superior.
+
 ---
 
 ## 15. Tareas Pendientes / Backlog

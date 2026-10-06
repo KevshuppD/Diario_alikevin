@@ -4,6 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gestor de diario de ali y kevin</title>
+  <!-- Anti-FOUC Instant Theme & Font Initialization (Zero Layout Shift) -->
+  <script>
+    (function() {
+      try {
+        var theme = localStorage.getItem('userTheme') || 'pixel-oscuro';
+        var isLight = theme === 'Pixel Claro' || theme === 'pixel-claro';
+        var isMono = theme === 'Pixel Monocromático' || theme === 'pixel-monocromatico';
+        var themeClass = isLight ? 'theme-pixel-claro' : (isMono ? 'theme-pixel-monocromatico' : 'theme-pixel-oscuro');
+        var font = localStorage.getItem('userFont') || 'pixel';
+        var fontClass = font === 'modern' ? 'font-modern' : 'font-pixel';
+        document.documentElement.className = themeClass + ' ' + fontClass;
+      } catch(e) {}
+    })();
+  </script>
   <!-- Google Fonts: Inter, Outfit, VT323 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,7 +40,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
-<body class="theme-pixel-oscuro">
+<body class="theme-pixel-oscuro font-pixel">
   <div class="neon-bg"></div>
 
   <!-- Header -->
