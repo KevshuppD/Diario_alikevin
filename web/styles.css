@@ -359,7 +359,6 @@
     }
 
     html {
-      scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
     }
 
@@ -466,8 +465,82 @@
     .header-controls {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       flex-wrap: wrap;
+    }
+
+    /* Live Header Stats HUD */
+    .header-album-stats {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 4px 10px;
+    }
+
+    body.theme-pixel-claro .header-album-stats {
+      background: #e2d2bd;
+      border-color: #cbb9a3;
+    }
+
+    body.theme-pixel-monocromatico .header-album-stats {
+      background: #181818;
+      border-color: #383838;
+    }
+
+    .header-stat-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 8px;
+      user-select: none;
+    }
+
+    .header-stat-chip .header-stat-val {
+      font-family: 'VT323', monospace;
+      font-size: 19px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .header-stat-chip.kevin .header-stat-val {
+      color: #60a5fa;
+      text-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+    }
+
+    .header-stat-chip.ali .header-stat-val {
+      color: #f472b6;
+      text-shadow: 0 0 8px rgba(236, 72, 153, 0.4);
+    }
+
+    .header-stat-chip.both .header-stat-val {
+      color: #c084fc;
+      text-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+    }
+
+    .header-mastery-tag {
+      font-family: 'VT323', monospace;
+      font-size: 15px;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      padding: 1px 5px;
+      border-radius: 5px;
+      text-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .header-mastery-tag.mastery-both {
+      color: #e9d5ff;
+      background: rgba(168, 85, 247, 0.22);
+      border-color: rgba(168, 85, 247, 0.45);
+      text-shadow: 0 0 6px rgba(168, 85, 247, 0.5);
     }
 
     /* Mode Switcher Pill */
@@ -866,12 +939,10 @@
       display: flex;
       flex-direction: column;
       gap: 20px;
-      scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
-      transform: translateZ(0);
     }
 
-    /* Stats & Filter Bar for Normal Mode */
+    /* Stats & Filter Bar for Normal Mode - Sticky HUD */
     .normal-toolbar {
       display: flex;
       flex-direction: column;
@@ -881,6 +952,32 @@
       border-radius: 16px;
       padding: 18px 24px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    #normal-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 80;
+      background: rgba(16, 18, 30, 0.95);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 14px 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+      transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    body.theme-pixel-claro #normal-toolbar {
+      background: rgba(255, 248, 237, 0.94);
+      border-color: #d4c5b3;
+      box-shadow: 0 8px 32px rgba(61, 35, 20, 0.14);
+    }
+
+    body.theme-pixel-monocromatico #normal-toolbar {
+      background: rgba(16, 16, 16, 0.94);
+      border-color: #383838;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
     }
 
     .stats-container {
@@ -933,11 +1030,41 @@
       gap: 6px;
     }
 
+    .stat-pct-badge {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .stat-pct-badge.kevin-badge {
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+
+    .stat-pct-badge.ali-badge {
+      background: rgba(236, 72, 153, 0.2);
+      color: #f9a8d4;
+      border: 1px solid rgba(236, 72, 153, 0.4);
+    }
+
+    .stat-pct-badge.both-badge {
+      background: rgba(168, 85, 247, 0.2);
+      color: #d8b4fe;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+    }
+
     .stat-pill .stat-val {
       font-family: 'VT323', monospace;
       font-size: 26px;
       font-weight: 700;
       line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
     .stat-pill.kevin { border-left: 4px solid #3b82f6; }
@@ -981,17 +1108,27 @@
     .mastery-count-tag {
       display: inline-flex;
       align-items: center;
-      gap: 3px;
+      gap: 4px;
       margin-left: 6px;
-      padding: 2px 6px;
+      padding: 2px 7px;
       border-radius: 6px;
       font-size: 15px;
-      background: rgba(251, 191, 36, 0.15);
-      border: 1px solid rgba(251, 191, 36, 0.4);
+      background: rgba(245, 158, 11, 0.18);
+      border: 1px solid rgba(245, 158, 11, 0.45);
       color: #fbbf24;
       font-family: 'VT323', monospace;
       font-weight: 700;
-      text-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
+      text-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+      vertical-align: middle;
+    }
+
+    .mastery-count-tag.mastery-both {
+      background: rgba(168, 85, 247, 0.2);
+      border-color: rgba(168, 85, 247, 0.45);
+      color: #e9d5ff;
+      text-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
+      box-shadow: 0 2px 8px rgba(168, 85, 247, 0.15);
     }
 
     /* Filter and Search Bar Row */
@@ -2176,6 +2313,24 @@
       }
       .content-area {
         padding: 12px;
+      }
+      #normal-toolbar {
+        top: -12px;
+        padding: 10px 12px;
+      }
+      .stats-container {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .stat-pill {
+        padding: 8px 12px;
+      }
+      .stat-pill .stat-val {
+        font-size: 22px;
+      }
+      .mastery-count-tag {
+        font-size: 14px;
+        padding: 1px 6px;
       }
       .spirit-slots-grid {
         grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));

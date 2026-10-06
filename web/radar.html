@@ -55,6 +55,25 @@
         <button type="button" id="btn-mode-config" class="mode-btn nav-tab" data-mode="config" onclick="window.switchModeSPA('config')">⚙️ Configuración</button>
       </div>
 
+      <!-- Live Album Header Stats (Always Visible on Scroll) -->
+      <div id="header-album-stats" class="header-album-stats" title="Progreso global de espíritus y maestrías">
+        <div class="header-stat-chip kevin" title="Espíritus y Maestrías de Kevin">
+          <span class="header-stat-icon">🔵</span>
+          <span class="header-stat-val" id="header-stat-kevin">0/0</span>
+          <span class="header-mastery-tag" id="header-mastery-kevin">⭐0</span>
+        </div>
+        <div class="header-stat-chip ali" title="Espíritus y Maestrías de Ali">
+          <span class="header-stat-icon">🔴</span>
+          <span class="header-stat-val" id="header-stat-ali">0/0</span>
+          <span class="header-mastery-tag" id="header-mastery-ali">⭐0</span>
+        </div>
+        <div class="header-stat-chip both" title="Espíritus y Maestrías de Ambos">
+          <span class="header-stat-icon">💜</span>
+          <span class="header-stat-val" id="header-stat-both">0/0</span>
+          <span class="header-mastery-tag mastery-both" id="header-mastery-both">⭐0</span>
+        </div>
+      </div>
+
       <!-- Logged User Badge & Logout Button -->
       <div style="display: flex; align-items: center; gap: 8px;">
         <div id="user-badge" class="user-badge kevin" onclick="window.openUserModal()" style="cursor: pointer;" title="Haz clic para cambiar de usuario">
@@ -86,14 +105,15 @@
     <!-- Central Content Area -->
     <div class="content-area">
       
-      <!-- Normal Mode Toolbar: Stats HUD -->
+      <!-- Normal Mode Toolbar: Stats HUD (Sticky) -->
       <div class="normal-toolbar" id="normal-toolbar">
         <div class="stats-container">
           <div class="stat-pill kevin">
             <div class="stat-pill-header">
               <span class="stat-label">🔵 Kevin</span>
-              <span class="stat-val" id="stat-kevin">0 / 0</span>
+              <span class="stat-pct-badge kevin-badge" id="stat-kevin-pct">0%</span>
             </div>
+            <div class="stat-val" id="stat-kevin">0 / 0 <span class="mastery-count-tag">⭐ 0</span></div>
             <div class="stat-progress-bar">
               <div class="stat-progress-fill kevin-fill" id="stat-kevin-bar" style="width: 0%;"></div>
             </div>
@@ -101,8 +121,9 @@
           <div class="stat-pill ali">
             <div class="stat-pill-header">
               <span class="stat-label">🔴 Ali</span>
-              <span class="stat-val" id="stat-ali">0 / 0</span>
+              <span class="stat-pct-badge ali-badge" id="stat-ali-pct">0%</span>
             </div>
+            <div class="stat-val" id="stat-ali">0 / 0 <span class="mastery-count-tag">⭐ 0</span></div>
             <div class="stat-progress-bar">
               <div class="stat-progress-fill ali-fill" id="stat-ali-bar" style="width: 0%;"></div>
             </div>
@@ -110,8 +131,9 @@
           <div class="stat-pill both">
             <div class="stat-pill-header">
               <span class="stat-label">💜 Ambos</span>
-              <span class="stat-val" id="stat-both">0 / 0</span>
+              <span class="stat-pct-badge both-badge" id="stat-both-pct">0%</span>
             </div>
+            <div class="stat-val" id="stat-both">0 / 0 <span class="mastery-count-tag mastery-both">⭐ 0</span></div>
             <div class="stat-progress-bar">
               <div class="stat-progress-fill both-fill" id="stat-both-bar" style="width: 0%;"></div>
             </div>

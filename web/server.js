@@ -10,7 +10,7 @@ const server = http.createServer(app);
 
 app.use(express.json({ limit: '20mb' }));
 
-const distDir = require('fs').existsSync(path.join(__dirname, 'dist'))
+const distDir = (process.env.NODE_ENV === 'production' && require('fs').existsSync(path.join(__dirname, 'dist')))
   ? path.join(__dirname, 'dist')
   : __dirname;
 
