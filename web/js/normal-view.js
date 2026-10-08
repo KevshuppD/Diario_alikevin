@@ -929,10 +929,10 @@ export function renderWorkspace() {
       const catAliMastery = (cat.spiritIds || []).filter(id => precomputedSets.aliMasterySet.has(String(id))).length;
 
       header.innerHTML = `
-        <div class="category-title-edit" style="flex-wrap: wrap; gap: 8px 12px;">
-          <span style="font-size: 20px;">📂</span>
-          <h3 style="font-family: 'VT323', monospace; font-size: 24px; font-weight: 700; color: var(--text-color);">${customTitle}</h3>
-          <span style="font-size: 16px; color: var(--text-muted);">(${matchingSpirits.length}/${(cat.spiritIds || []).length})</span>
+        <div class="category-title-edit" style="flex-wrap: wrap; gap: 6px 10px; align-items: center;">
+          <span style="font-size: 18px;">📂</span>
+          <h3 style="font-family: 'VT323', monospace; font-size: 21px; font-weight: 700; color: var(--text-color); margin: 0; line-height: 1;">${customTitle}</h3>
+          <span style="font-size: 15px; color: var(--text-muted); line-height: 1;">(${matchingSpirits.length}/${(cat.spiritIds || []).length})</span>
           <div style="display: inline-flex; gap: 6px; align-items: center;">
             <span class="cat-stat-badge kevin" title="Obtenidos / Maestría de Kevin">🔵 ${catKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${catKevinMastery}</span></span>
             <span class="cat-stat-badge ali" title="Obtenidos / Maestría de Ali">🔴 ${catAliCount} <span style="color:#fbbf24; font-weight:700;">⭐${catAliMastery}</span></span>

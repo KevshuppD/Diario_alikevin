@@ -12,7 +12,7 @@
     }
     :root {
       --bg-color: #0d0e15;
-      --card-bg: rgba(22, 24, 37, 0.75);
+      --card-bg: #151826;
       --card-border: rgba(255, 255, 255, 0.08);
       --accent-color: #9c27b0;
       --accent-glow: rgba(156, 39, 176, 0.4);
@@ -364,19 +364,21 @@
       -webkit-text-size-adjust: 100%;
     }
 
-    * {
-      box-sizing: border-box;
+    html, body {
+      height: 100%;
       margin: 0;
       padding: 0;
+      overflow: hidden;
     }
 
     body {
       background-color: var(--bg-color);
       color: var(--text-color);
-      min-height: 100vh;
       display: flex;
       flex-direction: column;
-      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeSpeed;
     }
 
     /* Font Preferences: Pixel-Art (Default) vs Modern */
@@ -393,56 +395,14 @@
       font-size: 14px;
       letter-spacing: 0px;
     }
-    html.font-modern h1,
-    html.font-modern h2,
-    html.font-modern h3,
-    html.font-modern h4,
-    html.font-modern .logo-container h1,
-    html.font-modern .db-inspector-title,
-    html.font-modern .season-badge-pill,
-    html.font-modern .modal-content h3,
-    html.font-modern .stat-pill .stat-val,
-    body.font-modern h1,
-    body.font-modern h2,
-    body.font-modern h3,
-    body.font-modern h4,
-    body.font-modern .logo-container h1,
-    body.font-modern .db-inspector-title,
-    body.font-modern .season-badge-pill,
-    body.font-modern .modal-content h3,
-    body.font-modern .stat-pill .stat-val {
+    html.font-modern h1, html.font-modern h2, html.font-modern h3, html.font-modern h4,
+    body.font-modern h1, body.font-modern h2, body.font-modern h3, body.font-modern h4 {
       font-family: 'Outfit', sans-serif !important;
-    }
-    html.font-modern .stat-pill .stat-val,
-    body.font-modern .stat-pill .stat-val {
-      font-size: 20px;
-    }
-    html.font-modern .stat-pill .stat-label,
-    body.font-modern .stat-pill .stat-label {
-      font-size: 12px;
-    }
-    html.font-modern .mode-btn,
-    body.font-modern .mode-btn {
-      font-size: 13px;
-    }
-    html.font-modern .btn,
-    body.font-modern .btn {
-      font-size: 13px;
     }
 
     /* Background Neon Effects */
     .neon-bg {
-      position: fixed;
-      top: -10%;
-      left: -10%;
-      width: 120%;
-      height: 120%;
-      z-index: -1;
-      background: 
-        radial-gradient(circle at 10% 20%, rgba(156, 39, 176, 0.15) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(33, 150, 243, 0.15) 0%, transparent 40%);
-      pointer-events: none;
-      transform: translateZ(0);
+      display: none;
     }
 
     header {
@@ -783,7 +743,8 @@
     .main-container {
       display: flex;
       flex: 1;
-      height: calc(100vh - 73px);
+      min-height: 0;
+      overflow: hidden;
       position: relative;
     }
 
@@ -947,48 +908,42 @@
     /* Central Content Area */
     .content-area {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       scrollbar-gutter: stable;
-      padding: 24px 32px;
+      padding: 14px 20px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 12px;
       -webkit-overflow-scrolling: touch;
-      overscroll-behavior-y: contain;
-      scroll-behavior: smooth;
+      contain: layout;
+      will-change: scroll-position;
     }
 
-    /* Stats & Filter Bar for Normal Mode - Sticky HUD */
-    .normal-toolbar {
+    /* Stats & Filter Bar for Normal Mode */
+    .normal-toolbar,
+    #normal-toolbar {
       display: flex;
       flex-direction: column;
       gap: 16px;
       background: rgba(22, 24, 37, 0.9);
       border: 1px solid var(--card-border);
       border-radius: 16px;
-      padding: 18px 24px;
+      padding: 16px 20px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-    }
-
-    #normal-toolbar {
-      position: sticky;
-      top: 0;
-      z-index: 80;
-      background: rgba(16, 18, 30, 0.98);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 14px 20px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
       transition: background-color 0.2s ease, border-color 0.2s ease;
+      margin-bottom: 4px;
     }
 
-    body.theme-pixel-claro #normal-toolbar {
+    body.theme-pixel-claro #normal-toolbar,
+    body.theme-pixel-claro .normal-toolbar {
       background: rgba(255, 248, 237, 0.98);
       border-color: #d4c5b3;
       box-shadow: 0 4px 20px rgba(61, 35, 20, 0.1);
     }
 
-    body.theme-pixel-monocromatico #normal-toolbar {
+    body.theme-pixel-monocromatico #normal-toolbar,
+    body.theme-pixel-monocromatico .normal-toolbar {
       background: rgba(16, 16, 16, 0.94);
       border-color: #383838;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
@@ -1324,25 +1279,28 @@
     .categories-list {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 12px;
+      contain: layout;
     }
 
     /* Normal & Edit Mode Category Card */
     .category-card {
-      background: var(--card-bg);
+      background: #151826;
       border: 2px solid var(--card-border);
-      border-radius: 16px;
-      padding: 18px 20px;
+      border-radius: 12px;
+      padding: 10px 14px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
-      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+      gap: 8px;
+      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+      content-visibility: auto;
+      contain-intrinsic-size: auto 200px;
+      contain: layout paint;
+      transform: translateZ(0);
     }
 
     .category-card:hover {
       border-color: rgba(255, 255, 255, 0.2);
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
     }
 
     .category-header {
@@ -1350,42 +1308,42 @@
       justify-content: space-between;
       align-items: center;
       border-bottom: 2px solid var(--card-border);
-      padding-bottom: 12px;
+      padding-bottom: 6px;
     }
 
     .category-title-edit {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .category-title-edit input {
-      background: rgba(0, 0, 0, 0.2);
+      background: #0d0f17;
       border: 1px solid var(--card-border);
       color: var(--text-color);
       font-family: 'VT323', monospace;
-      font-size: 24px;
+      font-size: 21px;
       font-weight: 700;
       outline: none;
-      padding: 4px 10px;
-      border-radius: 8px;
+      padding: 2px 8px;
+      border-radius: 6px;
       transition: background-color 0.2s, border-color 0.2s;
     }
 
     .category-title-edit input:focus {
-      background: rgba(0, 0, 0, 0.3);
+      background: #151826;
       border-color: var(--accent-color);
     }
 
     .spirit-slots-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 12px;
-      min-height: 80px;
+      grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+      gap: 8px;
+      min-height: 50px;
       border: 2px dashed rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 12px;
-      background: rgba(0, 0, 0, 0.12);
+      border-radius: 10px;
+      padding: 8px;
+      background: #0e1019;
       transition: background-color 0.2s, border-color 0.2s;
     }
 
@@ -1396,21 +1354,23 @@
 
     /* Spirit Item Slot Card */
     .spirit-slot {
-      background: rgba(255, 255, 255, 0.03);
+      background: #141724;
       border: 2px solid var(--card-border);
-      border-radius: 12px;
-      padding: 10px 8px;
+      border-radius: 10px;
+      padding: 6px 6px 8px;
       display: flex;
       flex-direction: column;
       align-items: center;
       position: relative;
-      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      transition: transform 0.14s ease-out, border-color 0.14s ease, background-color 0.14s ease;
       user-select: none;
       box-sizing: border-box;
       width: 100%;
       max-width: 100%;
       min-width: 0;
       overflow: hidden;
+      contain: layout style paint;
+      transform: translateZ(0);
     }
 
     .spirit-slot input[type="text"],
@@ -1419,15 +1379,15 @@
       max-width: 100% !important;
       min-width: 0 !important;
       box-sizing: border-box !important;
-      background: rgba(0, 0, 0, 0.4) !important;
+      background: #0b0d14 !important;
       border: 1px solid var(--card-border) !important;
       color: var(--text-color) !important;
-      font-size: 12px !important;
+      font-size: 11px !important;
       text-align: center !important;
       outline: none !important;
-      padding: 4px 6px !important;
-      border-radius: 6px !important;
-      margin-bottom: 4px !important;
+      padding: 2px 4px !important;
+      border-radius: 5px !important;
+      margin-bottom: 3px !important;
       text-overflow: ellipsis !important;
       white-space: nowrap !important;
     }
@@ -1439,15 +1399,15 @@
       max-width: 100% !important;
       min-width: 0 !important;
       box-sizing: border-box !important;
-      background: rgba(0, 0, 0, 0.4) !important;
+      background: #0b0d14 !important;
       border: 1px solid var(--card-border) !important;
       color: var(--text-color) !important;
-      font-size: 11px !important;
-      border-radius: 6px !important;
-      padding: 4px 6px !important;
+      font-size: 10px !important;
+      border-radius: 5px !important;
+      padding: 2px 4px !important;
       outline: none !important;
       cursor: pointer !important;
-      margin-bottom: 4px !important;
+      margin-bottom: 3px !important;
       text-overflow: ellipsis !important;
       white-space: nowrap !important;
     }
@@ -1455,18 +1415,17 @@
     /* Normal Mode / Album Spirit Card Styles */
     .spirit-slot.normal-mode {
       cursor: pointer;
-      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      transition: transform 0.14s ease-out, border-color 0.14s ease, background-color 0.14s ease;
     }
 
     .spirit-slot.normal-mode:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
       border-color: rgba(255, 255, 255, 0.35);
     }
 
     .spirit-slot.normal-mode:active {
-      transform: scale(0.93) translateY(0) !important;
-      transition: transform 0.06s ease-out !important;
+      transform: scale(0.94) translateY(0) !important;
+      transition: transform 0.05s ease-out !important;
     }
 
     @keyframes spirit-pop {
@@ -1491,32 +1450,34 @@
 
     .spirit-slot.owned-by-me,
     .spirit-slot.owned-kevin {
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.22), rgba(37, 99, 235, 0.08)) !important;
+      background: #132238 !important;
       border-color: #3b82f6 !important;
-      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3) !important;
+      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3) !important;
       opacity: 1 !important;
     }
 
     .spirit-slot.owned-by-ali-user,
     .spirit-slot.owned-ali {
-      background: linear-gradient(135deg, rgba(236, 72, 153, 0.22), rgba(219, 39, 119, 0.08)) !important;
+      background: #2b1328 !important;
       border-color: #ec4899 !important;
-      box-shadow: 0 4px 16px rgba(236, 72, 153, 0.3) !important;
+      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3) !important;
       opacity: 1 !important;
     }
 
     .spirit-slot.owned-by-both,
     .spirit-slot.owned-both {
-      background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(147, 51, 234, 0.12)) !important;
+      background: #221336 !important;
       border-color: #a855f7 !important;
-      box-shadow: 0 0 20px rgba(168, 85, 247, 0.4) !important;
+      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3) !important;
       opacity: 1 !important;
     }
 
     .spirit-slot.not-owned,
     .spirit-slot.owned-none {
+      background: #10121c !important;
       opacity: 0.55 !important;
       border-color: rgba(255, 255, 255, 0.06) !important;
+      box-shadow: none !important;
     }
     .spirit-slot.not-owned:hover,
     .spirit-slot.owned-none:hover {
@@ -1525,40 +1486,42 @@
     }
 
     .spirit-slot img {
-      width: 88px;
-      height: 88px;
+      width: 68px;
+      height: 68px;
       aspect-ratio: 1 / 1;
       object-fit: contain;
+      image-rendering: -moz-crisp-edges;
       image-rendering: pixelated;
-      margin-bottom: 6px;
+      pointer-events: none;
+      margin-bottom: 4px;
     }
 
     .spirit-slot .spirit-id-badge {
       position: absolute;
-      top: 6px;
-      left: 6px;
-      font-size: 11px;
+      top: 4px;
+      left: 4px;
+      font-size: 10px;
       font-weight: 700;
       font-family: monospace;
       color: var(--text-muted);
       background: rgba(0, 0, 0, 0.6);
-      padding: 2px 6px;
-      border-radius: 6px;
+      padding: 1px 4px;
+      border-radius: 4px;
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .spirit-slot .spirit-name-label {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       text-align: center;
-      margin-bottom: 6px;
-      line-height: 1.25;
+      margin-bottom: 3px;
+      line-height: 1.15;
       color: var(--text-color);
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
-      min-height: 32px;
+      min-height: 26px;
     }
 
     /* Badges Row for Spirit Slot */
@@ -1566,19 +1529,19 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 4px;
       width: 100%;
-      margin-top: 4px;
+      margin-top: 2px;
     }
 
     .user-check-badge {
       display: flex;
       align-items: center;
-      gap: 4px;
-      font-size: 11px;
+      gap: 3px;
+      font-size: 10px;
       font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 6px;
+      padding: 2px 5px;
+      border-radius: 5px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
       cursor: pointer;
@@ -1599,7 +1562,7 @@
 
     .mastery-star {
       cursor: pointer;
-      font-size: 15px;
+      font-size: 13px;
       opacity: 0.3;
       transition: transform 0.2s ease, opacity 0.2s ease;
     }
