@@ -19,7 +19,17 @@ if (!firebase.apps.length) {
 export const db = firebase.firestore();
 export const rtdb = firebase.database();
 
-// Habilitar caché offline de Firestore para carga instantánea
-db.enablePersistence({ synchronizeTabs: true }).catch(err => {
-  console.log("Persistence notice:", err.code);
-});
+// Habilitar persistencia multi-pestaña para carga instantánea y sincronización en tiempo real
+if (typeof db.enableMultiTabIndexedDbPersistence === 'function') {
+  db.enableMultiTabIndexedDbPersistence().catch(err => {
+    if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
+      console.warn("Firestore persistence notice:", err.code);
+    }
+  });
+} else if (typeof db.enablePersistence === 'function') {
+  db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+    if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
+      console.warn("Firestore persistence notice:", err.code);
+    }
+  });
+}

@@ -298,12 +298,13 @@ export function listenFirestore(onDataUpdated) {
         }));
       } catch(e) {}
 
-      if (isInitialLoad || isSeasonChange) {
-        if (onDataUpdated) onDataUpdated();
-      } else if (state.currentMode === "normal" && window.syncAllSpiritSlotsDOM) {
+      // Notificar reactivamente a la interfaz de usuario en cualquier cambio
+      if (typeof onDataUpdated === 'function') {
+        onDataUpdated();
+      } else if (state.currentMode === "normal" && typeof window.renderWorkspace === 'function') {
+        window.renderWorkspace();
+      } else if (state.currentMode === "normal" && typeof window.syncAllSpiritSlotsDOM === 'function') {
         window.syncAllSpiritSlotsDOM();
-      } else {
-        if (onDataUpdated) onDataUpdated();
       }
     }, err => {
       console.error("Error al escuchar Firestore:", err);

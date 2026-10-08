@@ -477,6 +477,10 @@ export function updateSingleSpiritDOM(id) {
 
 export function syncAllSpiritSlotsDOM() {
   updateStats();
+  if (state.currentFilter !== "todos" || (state.searchQuery && state.searchQuery.length > 0)) {
+    renderWorkspace();
+    return;
+  }
   const slots = document.querySelectorAll(".spirit-slot");
   if (slots.length === 0) {
     renderWorkspace();
