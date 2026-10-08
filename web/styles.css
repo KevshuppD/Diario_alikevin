@@ -535,7 +535,7 @@
       font-weight: 600;
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -557,7 +557,7 @@
       border-radius: 10px;
       font-size: 13px;
       font-weight: 600;
-      transition: all 0.2s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
       cursor: pointer;
       user-select: none;
     }
@@ -581,7 +581,7 @@
     }
 
     #btn-logout {
-      transition: all 0.2s ease;
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
       cursor: pointer;
     }
 
@@ -601,7 +601,7 @@
       border-radius: 10px;
       font-size: 12px;
       font-weight: 600;
-      transition: all 0.3s ease;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
     }
 
     .status-dot {
@@ -645,7 +645,7 @@
       border-radius: 8px;
       font-size: 12px;
       font-weight: 600;
-      transition: all 0.3s ease;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
       user-select: none;
     }
     .autosave-status-pill.saving {
@@ -675,7 +675,7 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      transition: all 0.2s;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
       box-shadow: 0 4px 12px var(--accent-glow);
     }
 
@@ -694,6 +694,7 @@
       border: 1px solid var(--card-border);
       box-shadow: none;
       color: var(--text-color);
+      transition: background-color 0.15s ease, border-color 0.15s ease;
     }
 
     .btn-secondary:hover {
@@ -820,7 +821,10 @@
       width: 44px;
       height: 44px;
       object-fit: contain;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: -moz-crisp-edges;
       image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
 
     .gallery-item .badge {
@@ -911,6 +915,8 @@
       min-height: 0;
       overflow-y: auto;
       scrollbar-gutter: stable;
+      overscroll-behavior-y: contain;
+      touch-action: pan-y;
       padding: 14px 20px;
       display: flex;
       flex-direction: column;
@@ -1490,8 +1496,10 @@
       height: 68px;
       aspect-ratio: 1 / 1;
       object-fit: contain;
+      image-rendering: -webkit-optimize-contrast;
       image-rendering: -moz-crisp-edges;
       image-rendering: pixelated;
+      image-rendering: crisp-edges;
       pointer-events: none;
       margin-bottom: 4px;
     }
@@ -1545,7 +1553,7 @@
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
       cursor: pointer;
-      transition: all 0.15s;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
 
     .user-check-badge.kevin-badge.active {
@@ -1589,7 +1597,7 @@
       align-items: center;
       justify-content: center;
       opacity: 0.8;
-      transition: all 0.2s;
+      transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
     }
 
     .spirit-slot .remove-btn:hover {

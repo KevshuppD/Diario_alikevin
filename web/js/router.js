@@ -3,7 +3,7 @@
  */
 
 import { state, loadSeasonState } from './state.js';
-import { renderWorkspace, updateStats } from './normal-view.js';
+import { renderWorkspace, updateStats, clearSpiritCache } from './normal-view.js';
 import { renderGallery, isGalleryOpen } from './edit-view.js';
 import { renderCategoriesManager } from './categories-view.js';
 import { renderConfigView } from './config-view.js';
@@ -133,6 +133,7 @@ export function switchSeason(season) {
   if (btnS2) btnS2.classList.toggle("active", sNum === 2);
 
   const applySeasonChange = () => {
+    clearSpiritCache();
     loadSeasonState(sNum);
     setMode(state.currentMode);
   };

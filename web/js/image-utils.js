@@ -120,7 +120,7 @@ export function compressImage(file, maxWidth = 512) {
   return processSpiritImage(file, maxWidth).then(res => res.dataUrl);
 }
 
-export function optimizeCloudinaryUrl(url, width = 180) {
+export function optimizeCloudinaryUrl(url, width = 140) {
   if (!url || typeof url !== 'string') return url;
   if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
     if (!url.includes('/f_auto,q_auto')) {
@@ -130,7 +130,7 @@ export function optimizeCloudinaryUrl(url, width = 180) {
   return url;
 }
 
-export function getOptimizedCloudinaryUrl(url, width = 180) {
+export function getOptimizedCloudinaryUrl(url, width = 140) {
   return optimizeCloudinaryUrl(url, width);
 }
 

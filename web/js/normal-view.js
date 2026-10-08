@@ -52,17 +52,34 @@ export function buildNormalizedIdSet(list) {
   return set;
 }
 
+const spiritNameCache = new Map();
+const spiritImgUrlCache = new Map();
+
+export function clearSpiritCache() {
+  spiritNameCache.clear();
+  spiritImgUrlCache.clear();
+}
+
 export function getSpiritImgUrl(id) {
+  const cacheKey = `${state.currentSeason}_${id}_${state.imageCacheBusters?.[id] || ''}`;
+  if (spiritImgUrlCache.has(cacheKey)) {
+    return spiritImgUrlCache.get(cacheKey);
+  }
+
+  let result;
   if (state.customImages && state.customImages[id]) {
     const bust = state.imageCacheBusters?.[id] ? `?v=${state.imageCacheBusters[id]}` : '';
-    return optimizeCloudinaryUrl(state.customImages[id]) + bust;
+    result = optimizeCloudinaryUrl(state.customImages[id], 140) + bust;
+  } else {
+    const formattedId = String(id).padStart(2, '0');
+    const base = state.currentSeason === 2
+      ? `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits_s2/ic_spirit_s2_${formattedId}.png`
+      : `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+    const bust = state.imageCacheBusters?.[id] ? `?v=${state.imageCacheBusters[id]}` : '';
+    result = optimizeCloudinaryUrl(base, 140) + bust;
   }
-  const formattedId = String(id).padStart(2, '0');
-  const base = state.currentSeason === 2
-    ? `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits_s2/ic_spirit_s2_${formattedId}.png`
-    : `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
-  const bust = state.imageCacheBusters?.[id] ? `?v=${state.imageCacheBusters[id]}` : '';
-  return optimizeCloudinaryUrl(base) + bust;
+  spiritImgUrlCache.set(cacheKey, result);
+  return result;
 }
 
 export function handleSpiritImgError(imgEl, id) {
@@ -97,14 +114,24 @@ export function getDefaultSpiritName(id, season = state.currentSeason) {
 }
 
 export function getSpiritName(id) {
+  const cacheKey = `${state.currentSeason}_${id}`;
+  if (spiritNameCache.has(cacheKey)) {
+    return spiritNameCache.get(cacheKey);
+  }
+
   const formattedId = String(id).padStart(2, '0');
   const plainId = String(parseInt(id, 10));
+  let result;
   if (state.customNames) {
-    if (state.customNames[id]) return state.customNames[id];
-    if (state.customNames[formattedId]) return state.customNames[formattedId];
-    if (state.customNames[plainId]) return state.customNames[plainId];
+    if (state.customNames[id]) result = state.customNames[id];
+    else if (state.customNames[formattedId]) result = state.customNames[formattedId];
+    else if (state.customNames[plainId]) result = state.customNames[plainId];
   }
-  return getDefaultSpiritName(id, state.currentSeason);
+  if (!result) {
+    result = getDefaultSpiritName(id, state.currentSeason);
+  }
+  spiritNameCache.set(cacheKey, result);
+  return result;
 }
 
 export function getSpiritBaseName(id) {
@@ -437,10 +464,11 @@ export function updateSingleSpiritDOM(id) {
         slot.classList.add("not-owned", "owned-none");
       }
 
-      // Trigger tactile pop bounce
+      // Trigger tactile pop bounce via requestAnimationFrame
       slot.classList.remove("pop-anim");
-      void slot.offsetWidth;
-      slot.classList.add("pop-anim");
+      requestAnimationFrame(() => {
+        slot.classList.add("pop-anim");
+      });
 
       // Update Kevin Badge
       const kevinBadge = slot.querySelector(".kevin-badge");
@@ -463,8 +491,9 @@ export function updateSingleSpiritDOM(id) {
       if (masteryStar) {
         masteryStar.classList.toggle("active", isCurrentMastered);
         masteryStar.classList.remove("star-pop");
-        void masteryStar.offsetWidth;
-        masteryStar.classList.add("star-pop");
+        requestAnimationFrame(() => {
+          masteryStar.classList.add("star-pop");
+        });
       }
 
       // Update category card badge counts if rendered
@@ -685,19 +714,13 @@ export function createSpiritSlot(id, categoryName) {
 
     slot.className = `spirit-slot normal-mode normal-view ${ownedStatusClass}`;
     slot.dataset.id = id;
-    slot.onclick = (e) => {
-      if (e) {
-        e.preventDefault();
-      }
-      toggleSpiritOwned(id);
-    };
 
     const isKevinUser = state.currentUser ? state.currentUser.username === "kevin" : true;
     const isCurrentMastered = isKevinUser ? isKevinMastered : isAliMastered;
 
     slot.innerHTML = `
       <span class="spirit-id-badge">#${displayNumber}</span>
-      <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" width="88" height="88" loading="lazy" decoding="async" onerror="window.handleSpiritImgError(this, '${id}')">
+      <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" width="68" height="68" loading="lazy" decoding="async" onerror="window.handleSpiritImgError(this, '${id}')">
       <div class="spirit-name-label" title="${getSpiritName(id)}">${getSpiritName(id)}</div>
       <div class="checks-row">
         <div class="user-check-badge kevin-badge ${isKevinOwned ? 'active' : ''}" title="${isKevinOwned ? 'Obtenido por Kevin' : 'Faltante para Kevin'}">
@@ -706,7 +729,7 @@ export function createSpiritSlot(id, categoryName) {
         <div class="user-check-badge ali-badge ${isAliOwned ? 'active' : ''}" title="${isAliOwned ? 'Obtenido por Ali' : 'Faltante para Ali'}">
           <span>🔴</span> <span>A</span> ${isAliMastered ? '<span style="color:#fbbf24; font-size:10px;">⭐</span>' : ''}
         </div>
-        <span class="mastery-star ${isCurrentMastered ? 'active' : ''}" onclick="window.toggleSpiritMastery('${id}', event)" title="Alternar Maestría ⭐">
+        <span class="mastery-star ${isCurrentMastered ? 'active' : ''}" data-action="toggle-mastery" title="Alternar Maestría ⭐">
           ⭐
         </span>
       </div>
@@ -834,9 +857,39 @@ export function createSpiritSlot(id, categoryName) {
   return slot;
 }
 
+let isDelegatedListenerBound = false;
+function ensureDelegatedListener() {
+  if (isDelegatedListenerBound) return;
+  const container = document.getElementById("categories-container");
+  if (!container) return;
+  isDelegatedListenerBound = true;
+
+  container.addEventListener("click", (e) => {
+    if (state.currentMode !== "normal") return;
+
+    const starEl = e.target.closest(".mastery-star");
+    if (starEl) {
+      e.preventDefault();
+      e.stopPropagation();
+      const slot = starEl.closest(".spirit-slot");
+      if (slot && slot.dataset.id) {
+        toggleSpiritMastery(slot.dataset.id, e);
+      }
+      return;
+    }
+
+    const slotEl = e.target.closest(".spirit-slot.normal-mode");
+    if (slotEl && slotEl.dataset.id) {
+      e.preventDefault();
+      toggleSpiritOwned(slotEl.dataset.id);
+    }
+  });
+}
+
 export function renderWorkspace() {
   const container = document.getElementById("categories-container");
   if (!container) return;
+  ensureDelegatedListener();
 
   const scrollArea = document.querySelector(".content-area");
   const savedScrollTop = scrollArea ? scrollArea.scrollTop : 0;

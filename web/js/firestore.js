@@ -16,7 +16,7 @@ import {
   defaultNames 
 } from './constants.js';
 import { sendWsMessage } from './websocket.js';
-import { getDefaultSpiritName } from './normal-view.js';
+import { getDefaultSpiritName, clearSpiritCache } from './normal-view.js';
 
 let firestoreUnsubscribe = null;
 let radarUnsubscribe = null;
@@ -234,6 +234,7 @@ export function listenFirestore(onDataUpdated) {
         const isAutoSavePending = !isSeasonChange && (autoSaveTimer !== null || isAutoSaving);
 
         if ((!isActivelyTyping && !isAutoSavePending && !snapshot.metadata.hasPendingWrites) || isInitialLoad) {
+          clearSpiritCache();
           state.customNames = data.custom_names || {};
           state.customCategories = data.custom_categories || {};
           state.customImages = data.custom_images || {};
