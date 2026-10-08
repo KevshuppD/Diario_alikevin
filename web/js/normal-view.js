@@ -18,7 +18,6 @@ import { triggerAutoSave } from './firestore.js';
 import { sendWsMessage } from './websocket.js';
 import { optimizeCloudinaryUrl } from './image-utils.js';
 import { openAssignModal, openEditImageModal, deleteFromGallery, removeSpiritFromCategory, deleteCategory, deleteAllUncategorizedSpirits, permanentlyDeleteSpirit, changeSpiritType } from './edit-view.js';
-import autoAnimate from '@formkit/auto-animate';
 
 export function isIdInList(list, id) {
   if (!list || !Array.isArray(list) || id === undefined || id === null) return false;
@@ -945,7 +944,6 @@ export function renderWorkspace() {
     const slotsGrid = document.createElement("div");
     slotsGrid.className = "spirit-slots-grid";
     slotsGrid.dataset.categoryName = cat.name;
-    try { autoAnimate(slotsGrid, { duration: 160, easing: 'ease-out' }); } catch(e) {}
 
     const slotsFragment = document.createDocumentFragment();
     matchingSpirits.forEach(id => {
@@ -1014,7 +1012,6 @@ export function renderWorkspace() {
     const looseGrid = document.createElement("div");
     looseGrid.className = "spirit-slots-grid";
     looseGrid.dataset.categoryName = "__uncategorized__";
-    try { autoAnimate(looseGrid, { duration: 160, easing: 'ease-out' }); } catch(e) {}
 
     const looseSlotsFragment = document.createDocumentFragment();
     uncategorizedIds.forEach(id => {
