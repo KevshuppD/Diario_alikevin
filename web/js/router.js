@@ -101,13 +101,21 @@ export function switchModeSPA(mode, updateUrl = true) {
   if (typeof collectInputsFromDOM === 'function') {
     collectInputsFromDOM();
   }
-  setMode(mode);
 
-  if (updateUrl) {
-    const targetUrl = getPathFromRoute(mode);
-    if (window.location.pathname !== targetUrl) {
-      window.history.pushState({ mode }, '', targetUrl);
+  const applyModeChange = () => {
+    setMode(mode);
+    if (updateUrl) {
+      const targetUrl = getPathFromRoute(mode);
+      if (window.location.pathname !== targetUrl) {
+        window.history.pushState({ mode }, '', targetUrl);
+      }
     }
+  };
+
+  if (document.startViewTransition && typeof document.startViewTransition === 'function') {
+    document.startViewTransition(applyModeChange);
+  } else {
+    applyModeChange();
   }
 }
 
@@ -124,9 +132,16 @@ export function switchSeason(season) {
   if (btnS1) btnS1.classList.toggle("active", sNum === 1);
   if (btnS2) btnS2.classList.toggle("active", sNum === 2);
 
-  // Cargar estado de la temporada seleccionada de inmediato
-  loadSeasonState(sNum);
-  setMode(state.currentMode);
+  const applySeasonChange = () => {
+    loadSeasonState(sNum);
+    setMode(state.currentMode);
+  };
+
+  if (document.startViewTransition && typeof document.startViewTransition === 'function') {
+    document.startViewTransition(applySeasonChange);
+  } else {
+    applySeasonChange();
+  }
 
   // Re-escuchar Firestore para la nueva temporada y sincronizar
   listenFirestore(() => {

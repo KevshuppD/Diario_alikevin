@@ -18,6 +18,7 @@ import { triggerAutoSave } from './firestore.js';
 import { sendWsMessage } from './websocket.js';
 import { optimizeCloudinaryUrl } from './image-utils.js';
 import { openAssignModal, openEditImageModal, deleteFromGallery, removeSpiritFromCategory, deleteCategory, deleteAllUncategorizedSpirits, permanentlyDeleteSpirit, changeSpiritType } from './edit-view.js';
+import autoAnimate from '@formkit/auto-animate';
 
 export function isIdInList(list, id) {
   if (!list || !Array.isArray(list) || id === undefined || id === null) return false;
@@ -358,8 +359,16 @@ export function setFilter(filterName, btnEl) {
   state.currentFilter = normalized;
   document.querySelectorAll(".filter-bar .filter-btn").forEach(b => b.classList.remove("active"));
   if (btnEl) btnEl.classList.add("active");
-  renderWorkspace();
-  updateSearchCountBadge();
+  
+  if (document.startViewTransition && typeof document.startViewTransition === 'function') {
+    document.startViewTransition(() => {
+      renderWorkspace();
+      updateSearchCountBadge();
+    });
+  } else {
+    renderWorkspace();
+    updateSearchCountBadge();
+  }
 }
 
 export function updateSingleSpiritDOM(id) {
@@ -429,6 +438,11 @@ export function updateSingleSpiritDOM(id) {
         slot.classList.add("not-owned", "owned-none");
       }
 
+      // Trigger tactile pop bounce
+      slot.classList.remove("pop-anim");
+      void slot.offsetWidth;
+      slot.classList.add("pop-anim");
+
       // Update Kevin Badge
       const kevinBadge = slot.querySelector(".kevin-badge");
       if (kevinBadge) {
@@ -445,10 +459,13 @@ export function updateSingleSpiritDOM(id) {
         aliBadge.innerHTML = `<span>🔴</span> <span>A</span> ${isAliMastered ? '<span style="color:#fbbf24; font-size:10px;">⭐</span>' : ''}`;
       }
 
-      // Update Mastery Star
+      // Update Mastery Star with star burst animation
       const masteryStar = slot.querySelector(".mastery-star");
       if (masteryStar) {
         masteryStar.classList.toggle("active", isCurrentMastered);
+        masteryStar.classList.remove("star-pop");
+        void masteryStar.offsetWidth;
+        masteryStar.classList.add("star-pop");
       }
 
       // Update category card badge counts if rendered
@@ -928,6 +945,7 @@ export function renderWorkspace() {
     const slotsGrid = document.createElement("div");
     slotsGrid.className = "spirit-slots-grid";
     slotsGrid.dataset.categoryName = cat.name;
+    try { autoAnimate(slotsGrid, { duration: 160, easing: 'ease-out' }); } catch(e) {}
 
     const slotsFragment = document.createDocumentFragment();
     matchingSpirits.forEach(id => {
@@ -996,6 +1014,7 @@ export function renderWorkspace() {
     const looseGrid = document.createElement("div");
     looseGrid.className = "spirit-slots-grid";
     looseGrid.dataset.categoryName = "__uncategorized__";
+    try { autoAnimate(looseGrid, { duration: 160, easing: 'ease-out' }); } catch(e) {}
 
     const looseSlotsFragment = document.createDocumentFragment();
     uncategorizedIds.forEach(id => {
