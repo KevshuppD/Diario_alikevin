@@ -212,6 +212,86 @@ export function closeUserModal() {
   if (modal) modal.classList.remove("show");
 }
 
+// Persistent Storage System
+export function openPersistentStorageModal() {
+  let modal = document.getElementById("persistent-storage-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "persistent-storage-modal";
+    modal.className = "modal-overlay";
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 480px; border-color: rgba(16, 185, 129, 0.4); text-align: left;">
+      <h3 style="display: flex; align-items: center; gap: 8px; font-family: 'VT323', monospace; font-size: 26px; color: #10b981; margin: 0 0 10px 0;">
+        💾 Activar Almacenamiento Persistente
+      </h3>
+      <p style="font-size: 14px; color: var(--text-color); margin: 10px 0; line-height: 1.5;">
+        Para garantizar la máxima fluidez a 100 Hz y evitar que el navegador elimine la caché local de tu colección de espíritus y tu sesión, activa el <strong>Almacenamiento Persistente</strong>.
+      </p>
+
+      <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 12px 14px; border-radius: 10px; margin-bottom: 16px;">
+        <ul style="font-size: 13px; color: #9ca3af; padding-left: 18px; margin: 0; line-height: 1.6;">
+          <li>⚡ Carga instantánea de imágenes y datos de Firestore en 0ms.</li>
+          <li>🛡️ Protección anti-borrado automático de la caché si el disco se llena.</li>
+          <li>🔑 Tu sesión y preferencias se mantendrán siempre guardadas.</li>
+        </ul>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="window.closePersistentStorageModal()" style="font-size: 13px;">Omitir por ahora</button>
+        <button type="button" class="btn" onclick="window.requestPersistentStoragePermission()" style="font-size: 13px; background: rgba(16, 185, 129, 0.25); border-color: #10b981; color: #34d399; font-weight: 700;">
+          <span>✅</span> Activar Almacenamiento Protegido
+        </button>
+      </div>
+    </div>
+  `;
+
+  modal.classList.add("show");
+  modal.onclick = (e) => {
+    if (e.target === modal) closePersistentStorageModal();
+  };
+}
+
+export function openPersistentStorageModalManual() {
+  openPersistentStorageModal();
+}
+
+export function closePersistentStorageModal() {
+  localStorage.setItem("persistent_storage_dismissed", "true");
+  const modal = document.getElementById("persistent-storage-modal");
+  if (modal) modal.classList.remove("show");
+}
+
+export function requestPersistentStoragePermission() {
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().then(granted => {
+      closePersistentStorageModal();
+      if (granted) {
+        showToast("¡Almacenamiento Persistente Protegido activado! 💾⚡", false);
+      } else {
+        showToast("El navegador no otorgó el permiso persistente en este momento.", true);
+      }
+    });
+  } else {
+    closePersistentStorageModal();
+    showToast("Tu navegador no soporta el API de Almacenamiento Persistente.", true);
+  }
+}
+
+export function checkPersistentStorageStatus() {
+  if (navigator.storage && navigator.storage.persisted) {
+    navigator.storage.persisted().then(isPersisted => {
+      if (!isPersisted && localStorage.getItem("persistent_storage_dismissed") !== "true") {
+        setTimeout(() => {
+          openPersistentStorageModal();
+        }, 1200);
+      }
+    });
+  }
+}
+
 // Window global assignments
 window.customAlert = customAlert;
 window.customConfirm = customConfirm;
@@ -225,6 +305,11 @@ window.openUserModal = openUserModal;
 window.closeUserModal = closeUserModal;
 window.switchUserProfile = switchUserProfile;
 window.logoutSession = logoutSession;
+window.openPersistentStorageModal = openPersistentStorageModal;
+window.openPersistentStorageModalManual = openPersistentStorageModalManual;
+window.closePersistentStorageModal = closePersistentStorageModal;
+window.requestPersistentStoragePermission = requestPersistentStoragePermission;
+window.checkPersistentStorageStatus = checkPersistentStorageStatus;
 
 // Inicialización general al cargar el DOM
 document.addEventListener('DOMContentLoaded', () => {
@@ -254,5 +339,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initFirestore(renderCurrent);
   initWebSocket(renderCurrent);
   initRouter();
+  checkPersistentStorageStatus();
 });
 
