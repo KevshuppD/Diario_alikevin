@@ -7,11 +7,14 @@ import { renderWorkspace, updateStats, clearSpiritCache } from './normal-view.js
 import { renderGallery, isGalleryOpen } from './edit-view.js';
 import { renderCategoriesManager } from './categories-view.js';
 import { renderConfigView } from './config-view.js';
-import { renderRadarManager } from './radar-view.js';
-import { listenFirestore, collectInputsFromDOM, triggerAutoSave } from './firestore.js';
+import { listenFirestore, collectInputsFromDOM } from './firestore.js';
 
 export function getRouteFromPath(pathname) {
-  const cleanPath = pathname.toLowerCase().replace(/^\/web\/?/, '/').replace(/\/$/, '') || '/';
+  const cleanPath = (pathname || window.location.pathname || '')
+    .toLowerCase()
+    .replace(/^\/web\/?/, '/')
+    .replace(/\.html$/, '')
+    .replace(/\/$/, '') || '/';
   if (cleanPath === '/' || cleanPath === '/album' || cleanPath === '/normal' || cleanPath === '/coleccion') return 'normal';
   if (cleanPath === '/edit' || cleanPath === '/edicion') return 'edit';
   if (cleanPath === '/categorias' || cleanPath === '/categories') return 'categories';
@@ -84,7 +87,10 @@ export function setMode(mode) {
   if (mode === "categories") {
     renderCategoriesManager();
   } else if (mode === "radar") {
-    renderRadarManager();
+    // El módulo del radar se descarga solo la primera vez que se abre la vista
+    import('./radar-view.js')
+      .then(radar => { if (state.currentMode === "radar") radar.renderRadarManager(); })
+      .catch(err => console.error("Error cargando el radar:", err));
   } else if (mode === "config") {
     renderConfigView();
   } else {

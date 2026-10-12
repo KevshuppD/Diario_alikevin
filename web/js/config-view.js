@@ -4,7 +4,7 @@
 
 import { state } from './state.js';
 import { LIGHT_COLOR_FAMILIES, DARK_COLOR_FAMILIES, MONO_COLOR_FAMILIES } from './constants.js';
-import { db } from './firebase-config.js';
+import { db, doc, setDoc } from './firebase-config.js';
 
 let showTechnicalSettings = false;
 
@@ -321,7 +321,7 @@ export function changeTheme(themeName) {
   renderConfigEditor();
 
   if (state.currentUser) {
-    db.collection("users").doc(state.currentUser.docId).set({
+    setDoc(doc(db, "users", state.currentUser.docId), {
       theme: themeName,
       appTheme: themeName
     }, { merge: true }).catch(err => console.error("Error guardando tema en Firestore:", err));
@@ -347,7 +347,7 @@ export function changeBarColor(hexColor) {
     const updateObj = isLight 
       ? { lightColor: hexColor, barColorLight: hexColor }
       : { darkColor: hexColor, barColorDark: hexColor };
-    db.collection("users").doc(state.currentUser.docId).set(updateObj, { merge: true })
+    setDoc(doc(db, "users", state.currentUser.docId), updateObj, { merge: true })
       .catch(err => console.error("Error guardando color en Firestore:", err));
   }
   if (window.showToast) {
@@ -360,7 +360,7 @@ export function changeRefreshRate(hz) {
   localStorage.setItem("userRefreshRate", String(hz));
   renderConfigEditor();
   if (state.currentUser) {
-    db.collection("users").doc(state.currentUser.docId).set({
+    setDoc(doc(db, "users", state.currentUser.docId), {
       refreshRate: hz
     }, { merge: true }).catch(err => console.error("Error guardando hz en Firestore:", err));
   }
@@ -375,7 +375,7 @@ export function toggleCustomBgPreference() {
   applyTheme(state.userTheme, state.userLightColor, state.userDarkColor, state.userUseCustomBg);
   renderConfigEditor();
   if (state.currentUser) {
-    db.collection("users").doc(state.currentUser.docId).set({
+    setDoc(doc(db, "users", state.currentUser.docId), {
       useCustomBg: state.userUseCustomBg,
       useCustomBackground: state.userUseCustomBg
     }, { merge: true }).catch(err => console.error("Error guardando preferencia de fondo:", err));
@@ -407,7 +407,7 @@ export function changeFont(fontName) {
     window.showToast(`🔤 Tipografía cambiada a: ${fontName === 'modern' ? 'Moderna (Inter/Outfit)' : 'Pixel-Art (VT323)'}`);
   }
   if (state.currentUser) {
-    db.collection("users").doc(state.currentUser.docId).set({
+    setDoc(doc(db, "users", state.currentUser.docId), {
       fontPreference: fontName
     }, { merge: true }).catch(err => console.error("Error guardando fuente en Firestore:", err));
   }

@@ -24,6 +24,12 @@ export default defineConfig({
         coleccion: resolve(__dirname, 'coleccion.html'),
         migrate: resolve(__dirname, 'migrate.html'),
       },
+      output: {
+        // Firebase en su propio archivo: su hash no cambia entre despliegues y el navegador lo conserva en caché
+        manualChunks(id) {
+          if (id.includes('node_modules/firebase') || id.includes('node_modules/@firebase')) return 'firebase';
+        },
+      },
     },
   },
   server: {

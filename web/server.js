@@ -3,11 +3,13 @@ const http = require('http');
 const { WebSocketServer, WebSocket } = require('ws');
 const cloudinary = require('cloudinary').v2;
 const path = require('path');
+const compression = require('compression');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 
+app.use(compression());
 app.use(express.json({ limit: '20mb' }));
 
 const distDir = (process.env.NODE_ENV === 'production' && require('fs').existsSync(path.join(__dirname, 'dist')))
@@ -17,7 +19,13 @@ const distDir = (process.env.NODE_ENV === 'production' && require('fs').existsSy
 console.log(`📁 Sirviendo archivos desde: ${distDir}`);
 
 // Middleware Anti-Cache para asegurar que el navegador cargue siempre los cambios frescos
+// Excepción: los archivos con hash de Vite (/assets) y las fuentes (/fonts) son inmutables y se cachean un año
+const isProductionBuild = distDir !== __dirname;
 app.use((req, res, next) => {
+  if (isProductionBuild && /^\/(assets|fonts)\//.test(req.path)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return next();
+  }
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -121,11 +129,12 @@ app.get('/radar', sendSpaIndex);
 app.get('/migrate', (req, res) => res.sendFile(path.join(distDir, 'migrate.html')));
 
 // Sirve los archivos estáticos con caching desactivado para desarrollo/cambios en vivo
-app.use(express.static(distDir, {
-  maxAge: 0,
-  etag: false,
-  lastModified: true
-}));
+const staticOptions = { maxAge: 0, etag: false, lastModified: true, cacheControl: false };
+app.use(express.static(distDir, staticOptions));
+// Sin build, las fuentes y el service worker viven en public/ (Vite los copia a la raíz de dist)
+if (!isProductionBuild) {
+  app.use(express.static(path.join(__dirname, 'public'), staticOptions));
+}
 
 // API: Subir imagen de espíritu a Cloudinary
 app.post('/api/upload-spirit-image', async (req, res) => {

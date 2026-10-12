@@ -262,6 +262,17 @@ graph TD
   - Sistema de autoguardado automático debounced (`triggerAutoSave`) activo en toda la web.
   - Al editar nombres de categorías, renombrar espíritus, reordenar por Drag & Drop, crear o eliminar categorías y tipos, los cambios se persisten inmediatamente en Firestore y se transmiten vía WebSockets con indicador de estado en tiempo real (`✓ Autoguardado` / `🔄 Guardando...`), eliminando la necesidad de botones manuales de guardar.
 - **Vercel Serverless Function:** `web/api/upload-spirit-image.js` (Firmado y subida directa de Base64 comprimido a Cloudinary).
+- **Almacenamiento Persistente (`requestPersistentStoragePermission` en `web/js/app.js`):** En Chromium (Edge, Brave, Chrome) `navigator.storage.persist()` no muestra aviso y se decide por heurísticas (permiso de notificaciones, marcador, uso frecuente). Si la primera solicitud es rechazada, se pide el permiso de notificaciones y se reintenta `persist()`.
+- **Carga y Caché de la Web (octubre 2026):**
+  - **Firebase modular 10.8.0 (`web/js/firebase-config.js`):** Se reemplazó el SDK compat por el modular (`firebase/app`, `firebase/firestore`, `firebase/database`). Vite lo empaqueta en un chunk propio `assets/firebase-*.js`; el `<script type="importmap">` de los HTML solo actúa al servir el código fuente sin build (`npm run dev`) y apunta a la misma versión en gstatic. Los demás módulos importan `doc`, `setDoc`, `onSnapshot`, `rtdbRef`, etc. desde `firebase-config.js`. La versión de `package.json` y la del import map deben coincidir.
+  - **Leaflet bajo demanda:** `ensureLeaflet()` en `web/js/radar-view.js` inyecta el JS y CSS de Leaflet solo al abrir `/radar`.
+  - **Service worker (`web/public/sw.js`):** Red primero para HTML y archivos sin hash (con copia de respaldo sin conexión), caché primero para `/assets`, `/fonts` y librerías de CDN. No intercepta `/api`, `/ws` ni Firestore/RTDB.
+  - **Fuentes autoalojadas (`web/public/fonts/`):** Inter y Outfit variables y VT323, subconjunto latin, declaradas con `@font-face` al inicio de `styles.css`. Ya no se usa Google Fonts.
+  - **Cabeceras de caché:** `/assets` y `/fonts` se sirven con `immutable` a un año en `web/vercel.json` y en `server.js` (solo modo producción).
+  - **Radar como módulo diferido:** `router.js` carga `radar-view.js` con `import()` al entrar al modo radar (chunk `assets/radar-view-*.js`). Las funciones `window.*` del radar no existen hasta ese momento; el resto del código ya las invoca con `typeof ... === 'function'`.
+  - **Sin `prefetch` de documentos ni `backdrop-filter`:** Los overlays usan fondos más opacos en lugar de desenfoque.
+  - **Compresión en `server.js`:** middleware `compression` para el servidor local.
+  - **Snapshots sin redibujado duplicado (`listenFirestore`):** Se compara una firma del estado; si no cambió se omite el render, y si solo cambiaron checks/maestrías en modo álbum se llama a `syncAllSpiritSlotsDOM()` en vez de reconstruir la colección.
 - **Sincronización de Tema:** Modificar `theme` en la web actualiza el documento Firestore `users/<userId>` y adapta al instante los colores en la App Android.
 
 ---
@@ -618,11 +629,28 @@ graph TD
     - **Normalización Exhaustiva de IDs y Colores de Estado (`isIdInList` & `buildNormalizedIdSet`):** Soporte bidireccional transparente para IDs con o sin cero a la izquierda (`"1"` vs `"01"`). Garantiza que las ranuras de espíritus reflejen fielmente el color azul (Kevin), rojo/rosa (Ali) o morado (Ambos) junto con las estrellas de maestría tanto desde Firestore como desde la caché local.
     - **Eliminación del Salto Visual y Parpadeo de Fuentes al Recargar:** Inyección de script anti-FOUC en `<head>` de todos los documentos HTML con lectura instantánea de `userTheme` y `userFont`, directiva `display=swap` en Google Fonts y reserva fija de barra de desplazamiento (`overflow-y: scroll`), erradicando cualquier salto de escala o tamaño de letra en recargas.
     - **Cero Cumulative Layout Shift (Zero CLS):** Declaración explícita de `width="88"` y `height="88"` junto con `aspect-ratio: 1/1` en todas las etiquetas `<img>` de espíritus y galería, garantizando cuadrículas fijas sin saltos de carga.
-    - **HUD de Progreso Persistente en Header:** Contadores globales de espíritus y maestrías visibles en todo momento durante el desplazamiento dentro de la barra superior.
+33. **Sincronización Total de Espíritus Temporada 2 (157 Espíritus), Restauración de Categorías y Optimización de Scroll/Layout (Web & App):**
+    - **Catálogo Completo Temporada 2 (157 Espíritus en 27 Categorías):**
+      - Integración de todas las variantes oficiales desde Fortnite.GG (IDs `132` a `157`), incluyendo las 19 variantes *Trick or Treat (Truco o Trato)* para las familias existentes y las 6 variantes completas de la nueva familia **Espíritu Basurero (Dumpster Dive)**.
+      - Descarga local con headers de navegador y subida automatizada a Cloudinary en alta resolución (`spirits_s2/ic_spirit_s2_<id>.png`).
+      - Actualización del documento maestro [espiritus.md](file:///home/kevshupp/Escritorio/Proyectos/Diario_alikevin/espiritus.md) y de las constantes en la app Android ([SpiritsCompose.kt](file:///home/kevshupp/Escritorio/Proyectos/Diario_alikevin/app/src/main/java/calendario/kevshupp/diariokevinali/compose/SpiritsCompose.kt)) y Web ([web/js/constants.js](file:///home/kevshupp/Escritorio/Proyectos/Diario_alikevin/web/js/constants.js)).
+    - **Salvaguarda Estricta y Preservación de Datos de Usuario (Regla 7):**
+      - Generación previa de copia de seguridad en `scripts/backups/`.
+      - Actualización no destructiva vía REST API con updateMask en Firestore (`fortnite_spirits_s2/vínculo_único_123`), preservando intactos el 100% de los datos de usuario (`kevin_list` con 96, `ali_list` con 102, `kevin_mastery` con 43, `ali_mastery` con 42).
+    - **Corrección y Alineación de Títulos y Nombres Personalizados:**
+      - Restauración del orden de las 27 categorías según la organización del usuario (Mapache, Rex/Klombo, Agente/Jonesy, Pícaro/Aventurero, Erizo/Arbustín, Sonic, Tails, Shadow, Game Boy/8-Bits, Conejo, Rey/Victorioso, Táctico/Killswitch, Megaman, Caballero/Protector, Estanque, Científico/Rayos X, Onigiri, Oni/Exploratormentas, Blinky, Cumpleaños, Cash Bandicoot, Morgana, Sobreescudo, Calabaza/Impulso Aterrador, Ciervo, Vampiro, Basurero).
+      - Mapeo limpio de `custom_categories` y `custom_names` en español para las nuevas variantes, eliminando sufijos erróneos o cruces de categorías.
+    - **Resolución Definitiva de Fluidez en Scroll:**
+      - Eliminación de `content-visibility: auto` y `contain-intrinsic-size: auto 200px` en `.category-card`, erradicando el recálculo dinámico de altura al desplazarse hacia arriba (*scroll jank*).
+      - Supresión de capas artificiales de composición GPU (`will-change: scroll-position`, `contain: layout paint`, `transform: translateZ(0)` en ranuras) y ajuste de scroll nativo suave (`overscroll-behavior-y: auto`).
+    - **Diseño Adaptativo con Grilla Auto-Fit:**
+      - Transición a `grid-template-columns: repeat(auto-fit, minmax(136px, 1fr))` en `.spirit-slots-grid`, asegurando que las 6 tarjetas de cada categoría se expandan simétricamente ocupando el 100% del ancho del recuadro sin dejar espacios vacíos a la derecha en resoluciones amplias o medianas.
+      - Ampliación de la tipografía de nombres a 13.5px / 31px de altura mínima con mejor contraste y saltos de línea ordenados.
 
 ---
 
 ## 15. Tareas Pendientes / Backlog
+
 
 
 

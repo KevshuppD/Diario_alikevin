@@ -99,7 +99,6 @@ export function sendWsMessage(data) {
   }
 }
 
-export const sendWebSocketBroadcast = sendWsMessage;
 
 export function updateWsStatus(connected, text, tooltip) {
   state.latestWsStatus = {

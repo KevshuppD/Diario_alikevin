@@ -2,13 +2,13 @@
  * app.js - Punto de Entrada Principal y Orquestador de la Aplicación Web
  */
 
-import { state, getStoredTheme, updateUserBadge, switchUserProfile, logoutSession, USERS } from './state.js';
+import { state, updateUserBadge, switchUserProfile, logoutSession, USERS } from './state.js';
 import { initWebSocket } from './websocket.js';
 import { initFirestore } from './firestore.js';
-import { initRouter, switchModeSPA, switchSeason } from './router.js';
-import { renderWorkspace, updateStats, toggleSpiritOwned, toggleSpiritMastery, setFilter, onSearchInput, clearSearch } from './normal-view.js';
-import { renderGallery, toggleGalleryDrawer, moveSpiritToCategory, removeSpiritFromCategory, permanentlyDeleteSpirit, deleteAllUncategorizedSpirits, deleteCategory, openAssignModal, closeAssignModal, openNewSpiritModal, closeNewSpiritModal, openEditImageModal, closeEditImageModal } from './edit-view.js';
-import { renderConfigView, applyUserFont, applyTheme, changeFont } from './config-view.js';
+import { initRouter } from './router.js';
+import './normal-view.js';
+import './edit-view.js';
+import { applyUserFont, applyTheme } from './config-view.js';
 
 // Custom Dialog & Toast System
 function _showDialog(icon, msg, inputVisible, inputPlaceholder, buttons) {
@@ -264,19 +264,39 @@ export function closePersistentStorageModal() {
   if (modal) modal.classList.remove("show");
 }
 
-export function requestPersistentStoragePermission() {
-  if (navigator.storage && navigator.storage.persist) {
-    navigator.storage.persist().then(granted => {
-      closePersistentStorageModal();
-      if (granted) {
-        showToast("¡Almacenamiento Persistente Protegido activado! 💾⚡", false);
-      } else {
-        showToast("El navegador no otorgó el permiso persistente en este momento.", true);
-      }
-    });
-  } else {
+export async function requestPersistentStoragePermission() {
+  if (!(navigator.storage && navigator.storage.persist)) {
     closePersistentStorageModal();
     showToast("Tu navegador no soporta el API de Almacenamiento Persistente.", true);
+    return;
+  }
+
+  try {
+    let granted = await navigator.storage.persisted() || await navigator.storage.persist();
+
+    // Chromium (Edge, Brave, Chrome) no muestra ningún aviso: decide solo según heurísticas
+    // (permiso de notificaciones, marcador o uso frecuente del sitio). Pedir el permiso de
+    // notificaciones es la única vía que sí abre un aviso y desbloquea la persistencia.
+    if (!granted && typeof Notification !== "undefined" && Notification.permission === "default") {
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        granted = await navigator.storage.persist();
+      }
+    }
+
+    closePersistentStorageModal();
+    if (granted) {
+      showToast("¡Almacenamiento Persistente Protegido activado! 💾⚡", false);
+    } else if (location.hostname === "localhost") {
+      // Chromium solo concede la persistencia a hosts con dominio registrable o IP; "localhost" no califica
+      showToast("Chromium no concede persistencia en 'localhost'. Abre la web desde http://127.0.0.1:" + location.port + " o desde el dominio de Vercel.", true);
+    } else {
+      showToast("El navegador lo rechazó. Permite las notificaciones del sitio o guárdalo en marcadores (Ctrl+D) y vuelve a intentarlo.", true);
+    }
+  } catch (err) {
+    console.warn("Persistent storage request failed:", err);
+    closePersistentStorageModal();
+    showToast("No se pudo solicitar el Almacenamiento Persistente.", true);
   }
 }
 
@@ -290,6 +310,12 @@ export function checkPersistentStorageStatus() {
       }
     });
   }
+}
+
+// Caché de HTML, JS, CSS y fuentes para visitas repetidas y apertura sin conexión
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("/sw.js").catch(err => console.warn("Service worker no registrado:", err));
 }
 
 // Window global assignments
@@ -311,8 +337,8 @@ window.closePersistentStorageModal = closePersistentStorageModal;
 window.requestPersistentStoragePermission = requestPersistentStoragePermission;
 window.checkPersistentStorageStatus = checkPersistentStorageStatus;
 
-// Inicialización general al cargar el DOM
-document.addEventListener('DOMContentLoaded', () => {
+// Inicialización general robusta al cargar el DOM o si ya está listo
+function initApp() {
   console.log('🚀 Iniciando Gestor de Diario de Ali y Kevin...');
   
   applyTheme(state.userTheme, state.userLightColor, state.userDarkColor, state.userUseCustomBg);
@@ -340,5 +366,14 @@ document.addEventListener('DOMContentLoaded', () => {
   initWebSocket(renderCurrent);
   initRouter();
   checkPersistentStorageStatus();
-});
+  registerServiceWorker();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  // El documento ya está interactivo o completo (navegación SPA, prefetch, módulos diferidos o caché)
+  initApp();
+}
+
 

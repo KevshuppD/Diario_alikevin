@@ -3,7 +3,6 @@
 // ==========================================
 
 import { state } from './state.js';
-import { defaultNames } from './constants.js';
 import { triggerAutoSave } from './firestore.js';
 import { getSpiritCurrentType, renderWorkspace, getDefaultSpiritName } from './normal-view.js';
 
@@ -37,6 +36,13 @@ export function renderCategoriesConfigEditor(options = {}) {
     `;
   });
 
+  // Cantidad de espíritus que usa actualmente cada tipo
+  const spiritsPerType = {};
+  (state.spiritsList || []).forEach(id => {
+    const typeName = getSpiritCurrentType(id);
+    spiritsPerType[typeName] = (spiritsPerType[typeName] || 0) + 1;
+  });
+
   let typesHtml = "";
   state.spiritTypes.forEach((t, index) => {
     const isNormal = t.name === "Normal";
@@ -46,6 +52,7 @@ export function renderCategoriesConfigEditor(options = {}) {
         <span style="color: var(--text-muted); cursor: ${isNormal ? 'default' : 'grab'}; font-size: 14px; user-select: none; margin-right: 4px; opacity: ${isNormal ? 0.2 : 1};">⋮⋮</span>
         <input type="text" value="${t.name}" data-type-index="${index}" data-type-field="name" oninput="window.updateConfigTypeName(${index}, this.value)" onchange="window.updateConfigTypeName(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Nombre (Ej: Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
         <input type="text" value="${t.suffix}" data-type-index="${index}" data-type-field="suffix" oninput="window.updateConfigTypeSuffix(${index}, this.value)" onchange="window.updateConfigTypeSuffix(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Sufijo (Ej:  Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+        <span class="badge" style="width: 56px; text-align: center; padding: 4px 0; border-radius: 4px; font-size: 11px; white-space: nowrap; flex-shrink: 0;" title="Espíritus con este tipo">${spiritsPerType[t.name] || 0} esp.</span>
         <button class="remove-btn" onclick="window.deleteConfigType(${index})" ${isNormal ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : 'style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;"'} title="Eliminar tipo">🗑</button>
       </div>
     `;
@@ -77,7 +84,7 @@ export function renderCategoriesConfigEditor(options = {}) {
 
       <!-- SECTION: SPIRIT CATEGORIES & TYPES MANAGER -->
       <div class="db-inspector-card" style="margin-bottom: 24px;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;" class="config-grid-layout">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 30px;" class="config-grid-layout">
           
           <!-- Column 1: Categories -->
           <div style="display: flex; flex-direction: column;">
@@ -114,6 +121,7 @@ export function renderCategoriesConfigEditor(options = {}) {
               <div style="display: flex; gap: 10px; padding: 4px 8px; margin-bottom: 8px; font-size: 11px; color: var(--text-muted); font-weight: 600;">
                 <div style="flex: 1;">Nombre del Tipo</div>
                 <div style="flex: 1;">Sufijo (Ej: " Dorado")</div>
+                <div style="width: 56px; text-align: center;">Cantidad</div>
                 <div style="width: 32px;"></div>
               </div>
               ${typesHtml}
@@ -141,6 +149,8 @@ export function renderCategoriesConfigEditor(options = {}) {
   const newCatBox = document.getElementById("config-categories-list-box");
   const newTypeBox = document.getElementById("config-types-list-box");
 
+  // Las listas usan scroll-behavior: smooth; al restaurar la posición tras un re-render debe ser instantáneo
+  // para que la tabla no se deslice desde arriba en cada cambio
   if (scrollToNewCat && newCatBox) {
     setTimeout(() => {
       newCatBox.scrollTop = newCatBox.scrollHeight;
@@ -148,7 +158,7 @@ export function renderCategoriesConfigEditor(options = {}) {
       if (targetRow) targetRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 20);
   } else if (prevCatScroll !== null && newCatBox) {
-    newCatBox.scrollTop = prevCatScroll;
+    newCatBox.scrollTo({ top: prevCatScroll, behavior: 'instant' });
   }
 
   if (scrollToNewType && newTypeBox) {
@@ -158,7 +168,7 @@ export function renderCategoriesConfigEditor(options = {}) {
       if (targetRow) targetRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 20);
   } else if (prevTypeScroll !== null && newTypeBox) {
-    newTypeBox.scrollTop = prevTypeScroll;
+    newTypeBox.scrollTo({ top: prevTypeScroll, behavior: 'instant' });
   }
 }
 
@@ -547,14 +557,11 @@ export function updateConfigTypeSuffix(index, newValue) {
 
 export function deleteConfigType(index) {
   const t = state.spiritTypes[index];
-  if (window.customConfirm) {
-    window.customConfirm(`¿Eliminar el tipo "${t.name}"?`, "🗑️", () => {
-      state.spiritTypes.splice(index, 1);
-      renderCategoriesConfigEditor();
-      triggerAutoSave(50);
-      if (window.showToast) window.showToast(`Tipo "${t.name}" eliminado.`, false);
-    });
-  }
+  if (!t) return;
+  state.spiritTypes.splice(index, 1);
+  renderCategoriesConfigEditor();
+  triggerAutoSave(50);
+  if (window.showToast) window.showToast(`Tipo "${t.name}" eliminado.`, false);
 }
 
 export function addConfigType() {

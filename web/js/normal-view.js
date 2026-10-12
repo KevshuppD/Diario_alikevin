@@ -3,21 +3,11 @@
  */
 
 import { state } from './state.js';
-import { 
-  defaultNames, 
-  defaultSpiritsList, 
-  defaultCategories, 
-  defaultSpiritsListT1, 
-  defaultSpiritsListT2, 
-  defaultCategoriesT1, 
-  defaultCategoriesT2,
-  defaultSpiritTypesT1,
-  defaultSpiritTypesT2 
-} from './constants.js';
+import { defaultNames, defaultSpiritsListT1, defaultSpiritsListT2, defaultCategoriesT2, defaultSpiritTypesT2 } from './constants.js';
 import { triggerAutoSave } from './firestore.js';
 import { sendWsMessage } from './websocket.js';
 import { optimizeCloudinaryUrl } from './image-utils.js';
-import { openAssignModal, openEditImageModal, deleteFromGallery, removeSpiritFromCategory, deleteCategory, deleteAllUncategorizedSpirits, permanentlyDeleteSpirit, changeSpiritType } from './edit-view.js';
+import { changeSpiritType } from './edit-view.js';
 
 export function isIdInList(list, id) {
   if (!list || !Array.isArray(list) || id === undefined || id === null) return false;
@@ -134,12 +124,19 @@ export function getSpiritName(id) {
   return result;
 }
 
+// Un espíritu pertenece a un tipo solo si su nombre termina en el sufijo como palabra completa.
+// Sin exigir el espacio previo, un sufijo como "s" capturaría "Espíritu de Tails" o "Espíritu 8 Bits".
+function nameHasTypeSuffix(name, suffix) {
+  const cleanSuffix = (suffix || "").trim();
+  return cleanSuffix !== "" && name.endsWith(" " + cleanSuffix);
+}
+
 export function getSpiritBaseName(id) {
   const currentName = getSpiritName(id);
   const sortedTypes = getSortedTypesWithSuffix();
   for (const t of sortedTypes) {
-    if (t.suffix && t.suffix.trim() && currentName.endsWith(t.suffix.trim())) {
-      return currentName.slice(0, -t.suffix.length).trim();
+    if (nameHasTypeSuffix(currentName, t.suffix)) {
+      return currentName.slice(0, -t.suffix.trim().length).trim();
     }
   }
   return currentName;
@@ -158,9 +155,9 @@ export function getSortedTypesWithSuffix() {
 
 export function getSpiritCurrentType(id) {
   const currentName = getSpiritName(id);
-  for (let i = state.spiritTypes.length - 1; i >= 0; i--) {
-    const t = state.spiritTypes[i];
-    if (t.suffix && t.suffix.trim() && currentName.endsWith(t.suffix.trim())) {
+  // El sufijo más largo gana ("Cazarrecompensas Especial" antes que "Especial")
+  for (const t of getSortedTypesWithSuffix()) {
+    if (nameHasTypeSuffix(currentName, t.suffix)) {
       return t.name;
     }
   }

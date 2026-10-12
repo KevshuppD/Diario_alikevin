@@ -116,10 +116,6 @@ export function processSpiritImage(fileOrBlob, maxWidth = 512) {
   });
 }
 
-export function compressImage(file, maxWidth = 512) {
-  return processSpiritImage(file, maxWidth).then(res => res.dataUrl);
-}
-
 export function optimizeCloudinaryUrl(url, width = 140) {
   if (!url || typeof url !== 'string') return url;
   if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
@@ -128,46 +124,5 @@ export function optimizeCloudinaryUrl(url, width = 140) {
     }
   }
   return url;
-}
-
-export function getOptimizedCloudinaryUrl(url, width = 140) {
-  return optimizeCloudinaryUrl(url, width);
-}
-
-export function trimCanvasTransparency(canvas) {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  const w = canvas.width;
-  const h = canvas.height;
-  const imgData = ctx.getImageData(0, 0, w, h);
-  const data = imgData.data;
-
-  let minX = w, minY = h, maxX = -1, maxY = -1;
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const alpha = data[(y * w + x) * 4 + 3];
-      if (alpha > 10) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-    }
-  }
-
-  if (maxX < minX || maxY < minY) {
-    return canvas;
-  }
-
-  const trimW = maxX - minX + 1;
-  const trimH = maxY - minY + 1;
-
-  const trimmedCanvas = document.createElement('canvas');
-  trimmedCanvas.width = trimW;
-  trimmedCanvas.height = trimH;
-  const trimmedCtx = trimmedCanvas.getContext('2d');
-  trimmedCtx.drawImage(canvas, minX, minY, trimW, trimH, 0, 0, trimW, trimH);
-
-  return trimmedCanvas;
 }
 

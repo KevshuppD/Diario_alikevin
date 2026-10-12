@@ -2,19 +2,9 @@
 // FIRESTORE ENGINE & REALTIME LISTENERS
 // ==========================================
 
-import { db, rtdb } from './firebase-config.js';
+import { db, rtdb, doc, collection, setDoc, onSnapshot, serverTimestamp, rtdbRef, rtdbOnValue } from './firebase-config.js';
 import { state, getFirestoreCollection, mergeSpiritTypes } from './state.js';
-import { 
-  defaultSpiritsList, 
-  defaultCategories, 
-  defaultSpiritsListT1, 
-  defaultSpiritsListT2, 
-  defaultCategoriesT1, 
-  defaultCategoriesT2, 
-  defaultSpiritTypesT1, 
-  defaultSpiritTypesT2, 
-  defaultNames 
-} from './constants.js';
+import { defaultCategoriesT1, defaultCategoriesT2, defaultSpiritTypesT1, defaultSpiritTypesT2 } from './constants.js';
 import { sendWsMessage } from './websocket.js';
 import { getDefaultSpiritName, clearSpiritCache } from './normal-view.js';
 
@@ -159,7 +149,7 @@ export function triggerAutoSave(delay = 400, onSavedCallback) {
 
 export async function saveChangesToFirestoreAsync() {
   const collectionName = getFirestoreCollection();
-  const docRef = db.collection(collectionName).doc(state.coupleId);
+  const docRef = doc(db, collectionName, state.coupleId);
 
   const cleanCategories = state.categories.map(c => ({
     name: c.name,
@@ -198,13 +188,15 @@ export async function saveChangesToFirestoreAsync() {
     ali_list: state.aliList,
     kevin_mastery: state.kevinMastery,
     ali_mastery: state.aliMastery,
-    last_updated: firebase.firestore.FieldValue.serverTimestamp()
+    last_updated: serverTimestamp()
   };
 
-  await docRef.set(dataToSave, { merge: true });
+  await setDoc(docRef, dataToSave, { merge: true });
 }
 
 let lastListenedSeason = null;
+let lastSyncedStructureSig = null;
+let lastSyncedListsSig = null;
 
 export function listenFirestore(onDataUpdated) {
   if (firestoreUnsubscribe) firestoreUnsubscribe();
@@ -214,12 +206,16 @@ export function listenFirestore(onDataUpdated) {
   const isSeasonChange = lastListenedSeason !== currentSeasonForListener;
   lastListenedSeason = currentSeasonForListener;
 
-  firestoreUnsubscribe = db.collection(getFirestoreCollection()).doc(state.coupleId)
-    .onSnapshot({ includeMetadataChanges: true }, snapshot => {
+  lastSyncedStructureSig = null;
+  lastSyncedListsSig = null;
+
+  firestoreUnsubscribe = onSnapshot(doc(db, getFirestoreCollection(), state.coupleId),
+    { includeMetadataChanges: true }, snapshot => {
       const isFromCache = snapshot.metadata.hasPendingWrites || snapshot.metadata.fromCache;
+      const dbStatusChanged = state.latestDbStatus.isFromCache !== isFromCache || !state.latestDbStatus.isOnline;
       updateDbStatusBadge(true, isFromCache);
 
-      if (snapshot.exists) {
+      if (snapshot.exists()) {
         const data = snapshot.data();
         state.kevinList = data.kevin_list || [];
         state.aliList = data.ali_list || [];
@@ -284,6 +280,24 @@ export function listenFirestore(onDataUpdated) {
         }
       }
 
+      // includeMetadataChanges emite varios snapshots por cada escritura (pendiente, confirmado, caché -> servidor).
+      // Si el estado resultante es idéntico al ya pintado, se omite el guardado en caché y el redibujado.
+      const structureSig = JSON.stringify([
+        state.spiritsList, state.categories, state.customNames,
+        state.customCategories, state.customImages, state.spiritTypes
+      ]);
+      const listsSig = JSON.stringify([state.kevinList, state.aliList, state.kevinMastery, state.aliMastery]);
+      const structureChanged = structureSig !== lastSyncedStructureSig;
+      const listsChanged = listsSig !== lastSyncedListsSig;
+      lastSyncedStructureSig = structureSig;
+      lastSyncedListsSig = listsSig;
+
+      if (!structureChanged && !listsChanged) {
+        // El panel de configuración muestra el estado de conexión, que sí pudo cambiar
+        if (dbStatusChanged && state.currentMode === "config" && typeof onDataUpdated === 'function') onDataUpdated();
+        return;
+      }
+
       try {
         localStorage.setItem(`spirits_cache_${state.coupleId}_s${state.currentSeason}`, JSON.stringify({
           spirits_list: state.spiritsList,
@@ -298,6 +312,12 @@ export function listenFirestore(onDataUpdated) {
           ali_mastery: state.aliMastery
         }));
       } catch(e) {}
+
+      // Si solo cambiaron checks/maestrías, se actualizan los slots existentes sin reconstruir la colección
+      if (!structureChanged && state.currentMode === "normal" && typeof window.syncAllSpiritSlotsDOM === 'function') {
+        window.syncAllSpiritSlotsDOM();
+        return;
+      }
 
       // Notificar reactivamente a la interfaz de usuario en cualquier cambio
       if (typeof onDataUpdated === 'function') {
@@ -317,8 +337,7 @@ export function listenFirestore(onDataUpdated) {
     if (typeof radarUnsubscribe === 'function') radarUnsubscribe();
     else if (radarUnsubscribe.off) radarUnsubscribe.off();
   }
-  const usersRef = rtdb.ref(`locations/${state.coupleId}/users`);
-  usersRef.on("value", snapshot => {
+  radarUnsubscribe = rtdbOnValue(rtdbRef(rtdb, `locations/${state.coupleId}/users`), snapshot => {
     const val = snapshot.val() || {};
     ['kevin', 'ali'].forEach(uKey => {
       if (val[uKey]) {
@@ -327,11 +346,10 @@ export function listenFirestore(onDataUpdated) {
     });
     if (onDataUpdated && state.currentMode === "radar") onDataUpdated();
   }, err => console.warn("Aviso RTDB users en firestore.js:", err));
-  radarUnsubscribe = usersRef;
 
   if (radarZonesUnsubscribe) radarZonesUnsubscribe();
-  radarZonesUnsubscribe = db.collection("locations").doc(state.coupleId).collection("zones")
-    .onSnapshot({ includeMetadataChanges: true }, snapshot => {
+  radarZonesUnsubscribe = onSnapshot(collection(db, "locations", state.coupleId, "zones"),
+    { includeMetadataChanges: true }, snapshot => {
       state.radarZonesData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       if (onDataUpdated && state.currentMode === "radar") onDataUpdated();
     }, err => console.warn("Aviso radar zones:", err));
@@ -344,10 +362,9 @@ export function listenUserTheme(onThemeChanged) {
   if (!state.currentUser) return;
   if (userThemeUnsubscribe) userThemeUnsubscribe();
 
-  userThemeUnsubscribe = db.collection("users").doc(state.currentUser.docId)
-    .onSnapshot(doc => {
-      if (doc.exists) {
-        const d = doc.data();
+  userThemeUnsubscribe = onSnapshot(doc(db, "users", state.currentUser.docId), userDoc => {
+      if (userDoc.exists()) {
+        const d = userDoc.data();
         const theme = d.theme || d.appTheme;
         if (theme) {
           state.userTheme = theme;
@@ -404,7 +421,6 @@ export function listenUserTheme(onThemeChanged) {
     }, err => console.error("Error escuchando tema de usuario:", err));
 }
 
-export const saveChanges = triggerAutoSave;
 export const initFirestore = listenFirestore;
 window.listenUserTheme = listenUserTheme;
 

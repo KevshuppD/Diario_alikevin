@@ -18,57 +18,49 @@
       } catch(e) {}
     })();
   </script>
-  <!-- Google Fonts: Inter, Outfit, VT323 -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Fuentes autoalojadas (Inter, Outfit, VT323) declaradas en styles.css -->
+  <link rel="preload" href="/fonts/vt323-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=VT323&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   
-  <!-- Prefetch HTML Modes for instant transitions -->
-  <link rel="prefetch" href="/album" as="document">
-  <link rel="prefetch" href="/edit" as="document">
-  <link rel="prefetch" href="/categorias" as="document">
-  <link rel="prefetch" href="/configuracion" as="document">
-  <link rel="prefetch" href="/radar" as="document">
-  
-  <!-- Leaflet Map CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <!-- Firebase Compat SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <!-- Firebase modular: Vite lo empaqueta desde node_modules. Este import map solo actúa al servir el código fuente sin build (npm run dev) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+        "firebase/database": "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js"
+      }
+    }
+  </script>
 </head>
 <body class="theme-pixel-oscuro font-pixel">
   <div class="neon-bg"></div>
 
-  <!-- Header -->
+    <!-- Header -->
   <header>
-    <div class="logo-container">
-      <span style="font-size: 28px;">🎮</span>
-      <div>
-        <h1>Gestor de diario de ali y kevin</h1>
-        <p style="font-size: 11px; color: var(--text-muted); font-weight: 500;">Diario Kevin y Ali — Colección, Álbum & Radar</p>
+    <div class="header-left">
+      <div class="logo-container">
+        <span class="logo-icon">🎮</span>
+        <h1 class="logo-title">Diario Ali & Kevin</h1>
+      </div>
+      <!-- Season Switcher Pill -->
+      <div class="mode-switch season-switch" id="season-switch">
+        <button type="button" id="btn-season-2" class="mode-btn active season-btn" data-season="2" onclick="window.switchSeason(2)">🌟 Temporada 2</button>
+        <button type="button" id="btn-season-1" class="mode-btn season-btn" data-season="1" onclick="window.switchSeason(1)">🕰️ Temporada 1</button>
       </div>
     </div>
 
-    <div class="header-controls">
-      <!-- Season Switcher Pill -->
-      <div class="mode-switch" id="season-switch" style="background: rgba(156, 39, 176, 0.2); border-color: var(--accent-color);">
-        <button type="button" id="btn-season-2" class="mode-btn active season-btn" data-season="2" onclick="window.switchSeason(2)" style="font-weight: 700;">🌟 Temporada 2</button>
-        <button type="button" id="btn-season-1" class="mode-btn season-btn" data-season="1" onclick="window.switchSeason(1)" style="font-weight: 700;">🕰️ Temporada 1</button>
-      </div>
+    <!-- Mode Navigation Pill -->
+    <div class="mode-switch mode-nav-switch" id="mode-switch-bar">
+      <button type="button" id="btn-mode-normal" class="mode-btn nav-tab active" data-mode="normal" onclick="window.switchModeSPA('normal')">📖 Álbum</button>
+      <button type="button" id="btn-mode-edit" class="mode-btn nav-tab" data-mode="edit" onclick="window.switchModeSPA('edit')">✏️ Modo Edición</button>
+      <button type="button" id="btn-mode-categories" class="mode-btn nav-tab" data-mode="categories" onclick="window.switchModeSPA('categories')">🏷️ Tipos y Categorías</button>
+      <button type="button" id="btn-mode-radar" class="mode-btn nav-tab" data-mode="radar" onclick="window.switchModeSPA('radar')">📡 Dispositivos & Radar</button>
+      <button type="button" id="btn-mode-config" class="mode-btn nav-tab" data-mode="config" onclick="window.switchModeSPA('config')">⚙️ Configuración</button>
+    </div>
 
-      <!-- Mode Navigation Pill -->
-      <div class="mode-switch" id="mode-switch-bar">
-        <button type="button" id="btn-mode-normal" class="mode-btn nav-tab active" data-mode="normal" onclick="window.switchModeSPA('normal')">📖 Álbum</button>
-        <button type="button" id="btn-mode-edit" class="mode-btn nav-tab" data-mode="edit" onclick="window.switchModeSPA('edit')">✏️ Modo Edición</button>
-        <button type="button" id="btn-mode-categories" class="mode-btn nav-tab" data-mode="categories" onclick="window.switchModeSPA('categories')">🏷️ Tipos y Categorías</button>
-        <button type="button" id="btn-mode-radar" class="mode-btn nav-tab" data-mode="radar" onclick="window.switchModeSPA('radar')">📡 Dispositivos & Radar</button>
-        <button type="button" id="btn-mode-config" class="mode-btn nav-tab" data-mode="config" onclick="window.switchModeSPA('config')">⚙️ Configuración</button>
-      </div>
-
+    <div class="header-right">
       <!-- Live Album Header Stats (Always Visible on Scroll) -->
       <div id="header-album-stats" class="header-album-stats" title="Progreso global de espíritus y maestrías">
         <div class="header-stat-chip kevin" title="Espíritus y Maestrías de Kevin">
@@ -89,12 +81,12 @@
       </div>
 
       <!-- Logged User Badge & Logout Button -->
-      <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="user-session-controls">
         <div id="user-badge" class="user-badge kevin" onclick="window.openUserModal()" style="cursor: pointer;" title="Haz clic para cambiar de usuario">
           <span id="user-icon">🔵</span>
           <span id="user-name">Kevin</span>
         </div>
-        <button type="button" id="btn-logout" class="btn btn-secondary" onclick="window.logoutSession()" style="padding: 6px 10px; font-size: 12px; font-weight: 600; border-radius: 10px; display: flex; align-items: center; gap: 4px; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" title="Cerrar sesión">
+        <button type="button" id="btn-logout" class="btn btn-secondary" onclick="window.logoutSession()" title="Cerrar sesión">
           <span>🚪</span>
           <span class="logout-text">Salir</span>
         </button>

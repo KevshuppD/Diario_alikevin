@@ -2,6 +2,15 @@
 // FIREBASE CONFIGURATION & DB INITIALIZATION
 // ==========================================
 
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import {
+  initializeFirestore,
+  getFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from 'firebase/firestore';
+import { getDatabase } from 'firebase/database';
+
 export const firebaseConfig = {
   apiKey: "AIzaSyDH4Pt9gejrD0hh3e-ph_LzTUyxJXGTOYE",
   authDomain: "diario-ali-kevin.firebaseapp.com",
@@ -12,24 +21,21 @@ export const firebaseConfig = {
   appId: "1:767110805470:web:baaa7771e132758a3ced8f"
 };
 
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+// Persistencia multi-pestaña en IndexedDB para carga instantánea y sincronización en tiempo real
+let firestoreInstance;
+try {
+  firestoreInstance = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+} catch (err) {
+  console.warn("Firestore persistence notice:", err.code || err.message);
+  firestoreInstance = getFirestore(app);
 }
 
-export const db = firebase.firestore();
-export const rtdb = firebase.database();
+export const db = firestoreInstance;
+export const rtdb = getDatabase(app);
 
-// Habilitar persistencia multi-pestaña para carga instantánea y sincronización en tiempo real
-if (typeof db.enableMultiTabIndexedDbPersistence === 'function') {
-  db.enableMultiTabIndexedDbPersistence().catch(err => {
-    if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
-      console.warn("Firestore persistence notice:", err.code);
-    }
-  });
-} else if (typeof db.enablePersistence === 'function') {
-  db.enablePersistence({ synchronizeTabs: true }).catch(err => {
-    if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
-      console.warn("Firestore persistence notice:", err.code);
-    }
-  });
-}
+export { doc, collection, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+export { ref as rtdbRef, onValue as rtdbOnValue, set as rtdbSet, update as rtdbUpdate } from 'firebase/database';

@@ -3,7 +3,7 @@
  */
 
 import { state } from './state.js';
-import { db, rtdb } from './firebase-config.js';
+import { db, rtdb, doc, setDoc, rtdbRef, rtdbSet, rtdbUpdate } from './firebase-config.js';
 import { sendWsMessage } from './websocket.js';
 
 let radarMap = null;
@@ -14,8 +14,6 @@ let kevinCircle = null;
 let aliMarker = null;
 let aliCircle = null;
 let zoneLayers = [];
-let radarUnsubscribe = null;
-let radarZonesUnsubscribe = null;
 let hasAutoFitted = false;
 
 export function getUserPreferredMapTheme() {
@@ -71,12 +69,6 @@ function getDeviceStatus(data) {
     return { cls: 'stale', text: `Inactivo (${Math.floor(diffSecs / 60)}m) 🟡`, isOnline: false };
   }
   return { cls: 'offline', text: `Desconectado (${formatTimeAgo(tsMillis)}) ⚪`, isOnline: false };
-}
-
-export function initRadarView() {
-  currentTileTheme = getUserPreferredMapTheme();
-  listenToRadarLocations();
-  renderRadarManager();
 }
 
 export function renderRadarManager() {
@@ -301,9 +293,44 @@ function createMarkerPopupContent(userKey, name, color, data) {
   `;
 }
 
+// Leaflet solo se descarga al abrir el radar; el resto de vistas no lo necesita
+const LEAFLET_JS = { url: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", integrity: "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" };
+const LEAFLET_CSS = { url: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", integrity: "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" };
+let leafletPromise = null;
+
+function ensureLeaflet() {
+  if (window.L) return Promise.resolve();
+  if (leafletPromise) return leafletPromise;
+
+  leafletPromise = new Promise((resolve, reject) => {
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = LEAFLET_CSS.url;
+    css.integrity = LEAFLET_CSS.integrity;
+    css.crossOrigin = "";
+    document.head.appendChild(css);
+
+    const script = document.createElement("script");
+    script.src = LEAFLET_JS.url;
+    script.integrity = LEAFLET_JS.integrity;
+    script.crossOrigin = "";
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("No se pudo cargar Leaflet"));
+    document.head.appendChild(script);
+  }).catch(err => {
+    leafletPromise = null;
+    throw err;
+  });
+  return leafletPromise;
+}
+
 export function initOrUpdateRadarMap() {
   const mapEl = document.getElementById("radar-live-map");
-  if (!mapEl || !window.L) return;
+  if (!mapEl) return;
+  if (!window.L) {
+    ensureLeaflet().then(initOrUpdateRadarMap).catch(err => console.warn("Aviso mapa radar:", err));
+    return;
+  }
 
   const preferredTheme = getUserPreferredMapTheme();
   currentTileTheme = preferredTheme;
@@ -513,7 +540,7 @@ export async function changeRadarTileLayer(theme = 'google_road', saveToDb = tru
     try {
       // 1. Guardar en Firestore colección users/{userId}
       if (state.currentUser.docId) {
-        await db.collection("users").doc(state.currentUser.docId).set({
+        await setDoc(doc(db, "users", state.currentUser.docId), {
           googleMapTheme: theme,
           radarMapTheme: theme,
           updatedAt: Date.now()
@@ -521,7 +548,7 @@ export async function changeRadarTileLayer(theme = 'google_road', saveToDb = tru
       }
 
       // 2. Guardar en Realtime Database locations/{coupleId}/users/{userKey}
-      await rtdb.ref("locations/" + state.coupleId + "/users/" + userKey).update({
+      await rtdbUpdate(rtdbRef(rtdb, "locations/" + state.coupleId + "/users/" + userKey), {
         googleMapTheme: theme
       });
 
@@ -671,44 +698,6 @@ function renderUserCard(userKey, name, color, icon, data) {
   `;
 }
 
-export function listenToRadarLocations() {
-  if (radarUnsubscribe) {
-    if (typeof radarUnsubscribe === 'function') radarUnsubscribe();
-    else if (radarUnsubscribe.off) radarUnsubscribe.off();
-  }
-  if (radarZonesUnsubscribe) radarZonesUnsubscribe();
-
-  try {
-    // Escuchar usuarios en Realtime Database
-    const usersRef = rtdb.ref("locations/" + state.coupleId + "/users");
-    usersRef.on("value", snapshot => {
-      const val = snapshot.val() || {};
-      ['kevin', 'ali'].forEach(uKey => {
-        if (val[uKey]) {
-          state.radarUsersData[uKey] = val[uKey];
-        }
-      });
-      const activeUser = state.currentUser?.username || localStorage.getItem("logged_user") || "kevin";
-      if (val[activeUser]?.googleMapTheme) {
-        state.googleMapTheme = val[activeUser].googleMapTheme;
-        localStorage.setItem("google_map_theme_" + activeUser, val[activeUser].googleMapTheme);
-        changeRadarTileLayer(val[activeUser].googleMapTheme, false);
-      }
-      renderRadarManager();
-    }, err => console.warn("Aviso RTDB users:", err));
-    radarUnsubscribe = usersRef;
-
-    // Escuchar Zonas Seguras en Firestore
-    radarZonesUnsubscribe = db.collection("locations").doc(state.coupleId).collection("zones")
-      .onSnapshot({ includeMetadataChanges: true }, snapshot => {
-        state.radarZonesData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderRadarManager();
-      }, err => console.warn("Aviso radar zones:", err));
-  } catch (err) {
-    console.warn("Error escuchando radar:", err);
-  }
-}
-
 export async function sendRemoteMagicPing(targetUser, silent = true) {
   if (!state.radarPingLoading) state.radarPingLoading = {};
   state.radarPingLoading[targetUser] = true;
@@ -716,7 +705,7 @@ export async function sendRemoteMagicPing(targetUser, silent = true) {
 
   try {
     const now = Date.now();
-    await rtdb.ref("locations/" + state.coupleId + "/pings/" + targetUser).set({
+    await rtdbSet(rtdbRef(rtdb, "locations/" + state.coupleId + "/pings/" + targetUser), {
       targetDoc: targetUser,
       silent: silent,
       requestedAt: now,
@@ -749,7 +738,7 @@ export async function sendRemoteMagicPing(targetUser, silent = true) {
 
 export async function toggleRemoteRadar(targetUser, enable) {
   try {
-    await rtdb.ref("locations/" + state.coupleId + "/users/" + targetUser).update({
+    await rtdbUpdate(rtdbRef(rtdb, "locations/" + state.coupleId + "/users/" + targetUser), {
       isSharing: enable,
       timestamp: Date.now()
     });
@@ -765,7 +754,7 @@ export async function toggleRemoteRadar(targetUser, enable) {
 
 export async function toggleRemoteSos(targetUser, active) {
   try {
-    await rtdb.ref("locations/" + state.coupleId + "/users/" + targetUser).update({
+    await rtdbUpdate(rtdbRef(rtdb, "locations/" + state.coupleId + "/users/" + targetUser), {
       sosActive: active,
       sosTimestamp: active ? Date.now() : 0
     });
@@ -781,7 +770,7 @@ export async function toggleRemoteSos(targetUser, active) {
 
 export async function resetDevicePresence(targetUser) {
   try {
-    await rtdb.ref("locations/" + state.coupleId + "/users/" + targetUser).update({
+    await rtdbUpdate(rtdbRef(rtdb, "locations/" + state.coupleId + "/users/" + targetUser), {
       timestamp: 0,
       isOnline: false
     });
@@ -794,7 +783,6 @@ export async function resetDevicePresence(targetUser) {
 }
 
 // Window bindings
-window.initRadarView = initRadarView;
 window.renderRadarManager = renderRadarManager;
 window.initOrUpdateRadarMap = initOrUpdateRadarMap;
 window.focusRadarUser = focusRadarUser;

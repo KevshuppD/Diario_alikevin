@@ -3,10 +3,10 @@
  */
 
 import { state } from './state.js';
-import { defaultNames, defaultSpiritsList, defaultCategories, defaultSpiritsListT1, defaultSpiritsListT2 } from './constants.js';
+import { defaultSpiritsListT1, defaultSpiritsListT2 } from './constants.js';
 import { triggerAutoSave } from './firestore.js';
-import { getSpiritImgUrl, getSpiritName, getSpiritCurrentType, computeSpiritName, handleSpiritImgError, renderWorkspace, updateStats, matchesFilter, getDefaultSpiritName } from './normal-view.js';
-import { processSpiritImage, optimizeCloudinaryUrl } from './image-utils.js';
+import { getSpiritImgUrl, getSpiritName, getSpiritCurrentType, computeSpiritName, renderWorkspace, updateStats, matchesFilter, getDefaultSpiritName } from './normal-view.js';
+import { processSpiritImage } from './image-utils.js';
 
 export let isGalleryOpen = false;
 window.isGalleryOpen = false;

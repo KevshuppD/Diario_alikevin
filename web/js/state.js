@@ -2,14 +2,7 @@
 // CENTRAL APPLICATION STATE - DIARIO ALI Y KEVIN
 // ==========================================
 
-import { 
-  defaultSpiritTypesT1, 
-  defaultSpiritTypesT2, 
-  defaultSpiritsListT1, 
-  defaultSpiritsListT2, 
-  defaultCategoriesT1, 
-  defaultCategoriesT2 
-} from './constants.js';
+import { defaultSpiritTypesT1, defaultSpiritTypesT2, defaultCategoriesT1, defaultCategoriesT2 } from './constants.js';
 
 export const USERS = {
   kevin: { username: "kevin", name: "Kevin", docId: "user_kevin_01", icon: "🔵", color: "#60a5fa" },
@@ -85,12 +78,12 @@ export function mergeSpiritTypes(existingTypes, defaultTypes) {
   if (!existingTypes || !Array.isArray(existingTypes) || existingTypes.length === 0) {
     return [...defaultTypes];
   }
+  // La lista guardada manda: los tipos por defecto solo se usan si aún no hay ninguna.
+  // Volver a añadir los que falten haría reaparecer cualquier tipo por defecto que el usuario elimine.
   const result = [...existingTypes];
-  defaultTypes.forEach(dt => {
-    if (!result.some(t => t.name.toLowerCase() === dt.name.toLowerCase())) {
-      result.push(dt);
-    }
-  });
+  if (!result.some(t => t && t.name === "Normal")) {
+    result.unshift(defaultTypes.find(dt => dt.name === "Normal") || { name: "Normal", suffix: "" });
+  }
   return result;
 }
 
