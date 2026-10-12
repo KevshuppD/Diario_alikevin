@@ -272,6 +272,7 @@ graph TD
   - **Radar como módulo diferido:** `router.js` carga `radar-view.js` con `import()` al entrar al modo radar (chunk `assets/radar-view-*.js`). Las funciones `window.*` del radar no existen hasta ese momento; el resto del código ya las invoca con `typeof ... === 'function'`.
   - **Sin `prefetch` de documentos ni `backdrop-filter`:** Los overlays usan fondos más opacos en lugar de desenfoque.
   - **Compresión en `server.js`:** middleware `compression` para el servidor local.
+  - **Salvaguarda de escritura de espíritus (`assertSafeSpiritsWrite` en `web/js/firestore.js`):** `saveChangesToFirestoreAsync` es el único punto que escribe en `fortnite_spirits` / `fortnite_spirits_s2` y se bloquea si (a) todavía no llegó el documento de la temporada activa, o (b) se intenta guardar vacío un campo (`kevin_list`, `ali_list`, `kevin_mastery`, `ali_mastery`, `spirits_list`, `categories`) que en Firestore tiene más de un elemento. Un snapshot "no existe" que viene de la caché local se ignora; solo el servidor puede confirmar que el documento no existe.
   - **Snapshots sin redibujado duplicado (`listenFirestore`):** Se compara una firma del estado; si no cambió se omite el render, y si solo cambiaron checks/maestrías en modo álbum se llama a `syncAllSpiritSlotsDOM()` en vez de reconstruir la colección.
 - **Sincronización de Tema:** Modificar `theme` en la web actualiza el documento Firestore `users/<userId>` y adapta al instante los colores en la App Android.
 

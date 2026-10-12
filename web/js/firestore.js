@@ -141,10 +141,37 @@ export function triggerAutoSave(delay = 400, onSavedCallback) {
     } catch (err) {
       console.error("Error en autoguardado:", err);
       updateAutoSaveIndicator('error', 'Error al sincronizar');
+      if (err && typeof err.message === 'string' && err.message.startsWith("Guardado bloqueado") && window.showToast) {
+        window.showToast(`🛡️ ${err.message}`, true);
+      }
     } finally {
       isAutoSaving = false;
     }
   }, delay);
+}
+
+// ------------------------------------------------------------------
+// Salvaguarda de espíritus: nunca escribir sobre un documento que no se llegó a cargar,
+// ni vaciar de golpe una lista que en Firestore tiene datos.
+// ------------------------------------------------------------------
+const PROTECTED_ARRAY_FIELDS = ['kevin_list', 'ali_list', 'kevin_mastery', 'ali_mastery', 'spirits_list', 'categories'];
+let loadedSpiritsDoc = { key: null, sizes: {} };
+
+function getSpiritsDocKey() {
+  return `${getFirestoreCollection()}/${state.coupleId}`;
+}
+
+export function assertSafeSpiritsWrite(dataToSave, loadedDoc, docKey) {
+  if (!loadedDoc || loadedDoc.key !== docKey) {
+    throw new Error("Guardado bloqueado: los datos de Firestore aún no se han cargado.");
+  }
+  for (const field of PROTECTED_ARRAY_FIELDS) {
+    const knownSize = loadedDoc.sizes[field] || 0;
+    const newSize = Array.isArray(dataToSave[field]) ? dataToSave[field].length : 0;
+    if (knownSize > 1 && newSize === 0) {
+      throw new Error(`Guardado bloqueado: "${field}" tiene ${knownSize} elementos en Firestore y se intentó guardar vacío.`);
+    }
+  }
 }
 
 export async function saveChangesToFirestoreAsync() {
@@ -191,6 +218,7 @@ export async function saveChangesToFirestoreAsync() {
     last_updated: serverTimestamp()
   };
 
+  assertSafeSpiritsWrite(dataToSave, loadedSpiritsDoc, getSpiritsDocKey());
   await setDoc(docRef, dataToSave, { merge: true });
 }
 
@@ -208,6 +236,9 @@ export function listenFirestore(onDataUpdated) {
 
   lastSyncedStructureSig = null;
   lastSyncedListsSig = null;
+  // Hasta que llegue el documento de esta temporada no se permite guardar
+  loadedSpiritsDoc = { key: null, sizes: {} };
+  const listenedDocKey = getSpiritsDocKey();
 
   firestoreUnsubscribe = onSnapshot(doc(db, getFirestoreCollection(), state.coupleId),
     { includeMetadataChanges: true }, snapshot => {
@@ -215,8 +246,24 @@ export function listenFirestore(onDataUpdated) {
       const dbStatusChanged = state.latestDbStatus.isFromCache !== isFromCache || !state.latestDbStatus.isOnline;
       updateDbStatusBadge(true, isFromCache);
 
+      if (!snapshot.exists() && snapshot.metadata.fromCache) {
+        // Que la caché local no tenga el documento no prueba que no exista en el servidor:
+        // se conserva el estado actual y se espera la respuesta real de Firestore.
+        return;
+      }
+
       if (snapshot.exists()) {
         const data = snapshot.data();
+        if (!snapshot.metadata.hasPendingWrites) {
+          const sizes = {};
+          PROTECTED_ARRAY_FIELDS.forEach(field => {
+            const value = data[field];
+            sizes[field] = Array.isArray(value) ? value.length : (value && typeof value === 'object' ? Object.keys(value).length : 0);
+          });
+          loadedSpiritsDoc = { key: listenedDocKey, sizes };
+        } else if (loadedSpiritsDoc.key !== listenedDocKey) {
+          loadedSpiritsDoc = { key: listenedDocKey, sizes: {} };
+        }
         state.kevinList = data.kevin_list || [];
         state.aliList = data.ali_list || [];
         state.kevinMastery = data.kevin_mastery || [];
@@ -266,6 +313,8 @@ export function listenFirestore(onDataUpdated) {
           }
         }
       } else {
+        // El servidor confirma que el documento no existe (temporada o pareja nueva): se permite crearlo
+        loadedSpiritsDoc = { key: listenedDocKey, sizes: {} };
         state.kevinList = [];
         state.aliList = [];
         state.kevinMastery = [];
