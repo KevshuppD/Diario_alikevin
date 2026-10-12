@@ -4,7 +4,7 @@
 
 import { db, rtdb, doc, collection, setDoc, onSnapshot, serverTimestamp, rtdbRef, rtdbOnValue } from './firebase-config.js';
 import { state, getFirestoreCollection, mergeSpiritTypes } from './state.js';
-import { defaultCategoriesT1, defaultCategoriesT2, defaultSpiritTypesT1, defaultSpiritTypesT2 } from './constants.js';
+import { defaultSpiritsListT1, defaultSpiritsListT2, defaultCategoriesT1, defaultCategoriesT2, defaultSpiritTypesT1, defaultSpiritTypesT2 } from './constants.js';
 import { sendWsMessage } from './websocket.js';
 import { getDefaultSpiritName, clearSpiritCache } from './normal-view.js';
 

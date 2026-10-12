@@ -2,7 +2,7 @@
 // CENTRAL APPLICATION STATE - DIARIO ALI Y KEVIN
 // ==========================================
 
-import { defaultSpiritTypesT1, defaultSpiritTypesT2, defaultCategoriesT1, defaultCategoriesT2 } from './constants.js';
+import { defaultSpiritsListT1, defaultSpiritsListT2, defaultSpiritTypesT1, defaultSpiritTypesT2, defaultCategoriesT1, defaultCategoriesT2 } from './constants.js';
 
 export const USERS = {
   kevin: { username: "kevin", name: "Kevin", docId: "user_kevin_01", icon: "🔵", color: "#60a5fa" },

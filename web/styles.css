@@ -970,6 +970,9 @@
       flex-direction: column;
       gap: 12px;
       -webkit-overflow-scrolling: touch;
+      /* Mantiene el scroll en el compositor (GPU). Sin esto, al no tener fondo opaco, el navegador
+         repinta toda la colección en el hilo principal en cada frame de scroll. No quitar. */
+      will-change: scroll-position;
     }
 
     /* Stats & Filter Bar for Normal Mode */
