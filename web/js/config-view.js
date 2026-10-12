@@ -116,6 +116,24 @@ export function renderConfigEditor() {
           </div>
         </div>
 
+        <!-- Album Slot Layout Preference -->
+        <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--card-border); border-radius: 10px; padding: 16px; margin-bottom: 16px;">
+          <div style="font-size: 15px; font-weight: 700; color: var(--text-color); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <span>🗂️</span> Tamaño de los Espíritus en el Álbum:
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+            Compacto mantiene cada espíritu en su tamaño y deja libre el resto de la fila. Expandido estira los espíritus de cada categoría hasta ocupar todo el ancho.
+          </p>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button type="button" onclick="window.changeSlotLayout('compact')" class="btn ${state.userSlotLayout !== 'expanded' ? '' : 'btn-secondary'}" style="flex: 1; min-width: 180px; padding: 12px; font-size: 16px; font-weight: 700; border-color: #a855f7; color: ${state.userSlotLayout !== 'expanded' ? '#fff' : '#c084fc'}; background: ${state.userSlotLayout !== 'expanded' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(168, 85, 247, 0.08)'};">
+              ▪️ Compacto ${state.userSlotLayout !== 'expanded' ? '✓' : ''}
+            </button>
+            <button type="button" onclick="window.changeSlotLayout('expanded')" class="btn ${state.userSlotLayout === 'expanded' ? '' : 'btn-secondary'}" style="flex: 1; min-width: 180px; padding: 12px; font-size: 16px; font-weight: 700; border-color: #3b82f6; color: ${state.userSlotLayout === 'expanded' ? '#fff' : '#60a5fa'}; background: ${state.userSlotLayout === 'expanded' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(59, 130, 246, 0.08)'};">
+              ↔️ Expandido (ancho completo) ${state.userSlotLayout === 'expanded' ? '✓' : ''}
+            </button>
+          </div>
+        </div>
+
         <!-- Themes Grid -->
         <div style="font-size: 14px; font-weight: 700; color: var(--text-color); margin-bottom: 10px;">
           <span>🎭</span> Tema de Interfaz:
@@ -398,6 +416,27 @@ export function applyUserFont(fontName) {
   }
 }
 
+export function applySlotLayout(layout) {
+  const isCompact = (layout || state.userSlotLayout) !== 'expanded';
+  document.documentElement.classList.toggle('slots-compact', isCompact);
+}
+
+export function changeSlotLayout(layout) {
+  const value = layout === 'expanded' ? 'expanded' : 'compact';
+  state.userSlotLayout = value;
+  localStorage.setItem("userSlotLayout", value);
+  applySlotLayout(value);
+  renderConfigEditor();
+  if (window.showToast) {
+    window.showToast(`🗂️ Álbum en modo ${value === 'expanded' ? 'Expandido' : 'Compacto'}`);
+  }
+  if (state.currentUser) {
+    setDoc(doc(db, "users", state.currentUser.docId), {
+      webSlotLayout: value
+    }, { merge: true }).catch(err => console.error("Error guardando diseño del álbum en Firestore:", err));
+  }
+}
+
 export function changeFont(fontName) {
   state.userFont = fontName;
   localStorage.setItem("userFont", fontName);
@@ -420,6 +459,8 @@ window.renderConfigEditor = renderConfigEditor;
 window.renderConfigView = renderConfigView;
 window.changeTheme = changeTheme;
 window.changeFont = changeFont;
+window.changeSlotLayout = changeSlotLayout;
+window.applySlotLayout = applySlotLayout;
 window.applyUserFont = applyUserFont;
 window.applyTheme = applyTheme;
 window.changeBarColor = changeBarColor;

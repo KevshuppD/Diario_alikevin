@@ -1390,6 +1390,11 @@
       transition: background-color 0.2s, border-color 0.2s;
     }
 
+    /* Preferencia "Compacto": los espíritus conservan su tamaño y no se estiran a todo el ancho */
+    html.slots-compact .spirit-slots-grid {
+      grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+    }
+
     .spirit-slots-grid.drag-over {
       background: rgba(156, 39, 176, 0.1);
       border-color: var(--accent-color);
@@ -1701,6 +1706,9 @@
       }
       .spirit-slots-grid {
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      }
+      html.slots-compact .spirit-slots-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
       }
     }
 
@@ -2416,5 +2424,8 @@
     @media (min-width: 480px) and (max-width: 768px) {
       .spirit-slots-grid {
         grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important;
+      }
+      html.slots-compact .spirit-slots-grid {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
       }
     }

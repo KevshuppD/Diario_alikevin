@@ -8,7 +8,7 @@ import { initFirestore } from './firestore.js';
 import { initRouter } from './router.js';
 import './normal-view.js';
 import './edit-view.js';
-import { applyUserFont, applyTheme } from './config-view.js';
+import { applyUserFont, applyTheme, applySlotLayout } from './config-view.js';
 
 // Custom Dialog & Toast System
 function _showDialog(icon, msg, inputVisible, inputPlaceholder, buttons) {
@@ -343,6 +343,7 @@ function initApp() {
   
   applyTheme(state.userTheme, state.userLightColor, state.userDarkColor, state.userUseCustomBg);
   applyUserFont(state.userFont);
+  applySlotLayout(state.userSlotLayout);
   updateUserBadge();
 
   if (!state.currentUser) {

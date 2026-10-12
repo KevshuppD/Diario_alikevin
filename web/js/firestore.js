@@ -439,6 +439,14 @@ export function listenUserTheme(onThemeChanged) {
           state.userRefreshRate = refreshRate;
           localStorage.setItem("userRefreshRate", String(refreshRate));
         }
+        const slotLayout = d.webSlotLayout;
+        if (slotLayout === 'compact' || slotLayout === 'expanded') {
+          state.userSlotLayout = slotLayout;
+          localStorage.setItem("userSlotLayout", slotLayout);
+          if (typeof window.applySlotLayout === 'function') {
+            window.applySlotLayout(slotLayout);
+          }
+        }
         const font = d.fontPreference;
         if (font) {
           state.userFont = font;

@@ -14,7 +14,8 @@
         var themeClass = isLight ? 'theme-pixel-claro' : (isMono ? 'theme-pixel-monocromatico' : 'theme-pixel-oscuro');
         var font = localStorage.getItem('userFont') || 'pixel';
         var fontClass = font === 'modern' ? 'font-modern' : 'font-pixel';
-        document.documentElement.className = themeClass + ' ' + fontClass;
+        var slotsClass = localStorage.getItem('userSlotLayout') === 'expanded' ? '' : ' slots-compact';
+        document.documentElement.className = themeClass + ' ' + fontClass + slotsClass;
       } catch(e) {}
     })();
   </script>

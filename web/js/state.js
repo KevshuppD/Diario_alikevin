@@ -57,6 +57,7 @@ export const state = {
   // User styling preferences
   userTheme: localStorage.getItem("userTheme") || "Pixel Oscuro",
   userFont: localStorage.getItem("userFont") || "pixel",
+  userSlotLayout: localStorage.getItem("userSlotLayout") === "expanded" ? "expanded" : "compact",
   userLightColor: localStorage.getItem("userLightColor") || "#D1C4E9",
   userDarkColor: localStorage.getItem("userDarkColor") || "#4A148C",
   userUseCustomBg: localStorage.getItem("userUseCustomBg") === "true",
