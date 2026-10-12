@@ -3,7 +3,7 @@
 // ==========================================
 
 export const defaultSpiritsListT1 = Array.from({ length: 141 }, (_, i) => String(i + 1).padStart(2, '0'));
-export const defaultSpiritsListT2 = Array.from({ length: 131 }, (_, i) => String(i + 1).padStart(2, '0'));
+export const defaultSpiritsListT2 = Array.from({ length: 157 }, (_, i) => String(i + 1).padStart(2, '0'));
 export const defaultSpiritsList = defaultSpiritsListT1;
 
 export const defaultCategoriesT1 = [
@@ -33,32 +33,33 @@ export const defaultCategoriesT1 = [
 export const defaultCategories = defaultCategoriesT1;
 
 export const defaultCategoriesT2 = [
-  { name: "Espíritu de Rex", spiritIds: ["01", "02", "03", "52", "71"] },
-  { name: "Espíritu Táctico", spiritIds: ["04", "05", "06", "51", "72"] },
-  { name: "Espíritu Agente", spiritIds: ["07", "08", "09", "53", "73"] },
-  { name: "Espíritu Game Boy", spiritIds: ["10", "11", "12", "54", "74"] },
-  { name: "Espíritu Conejo", spiritIds: ["13", "14", "15", "55", "75"] },
-  { name: "Espíritu Rey", spiritIds: ["16", "17", "18", "56", "76"] },
-  { name: "Espíritu Pícaro", spiritIds: ["19", "20", "21", "50", "77"] },
-  { name: "Espíritu Erizo", spiritIds: ["22", "23", "24", "61", "78"] },
-  { name: "Espíritu Oni", spiritIds: ["25", "26", "27", "60", "79"] },
-  { name: "Espíritu de Shadow", spiritIds: ["28", "29", "30", "58", "80"] },
-  { name: "Espíritu de Tails", spiritIds: ["31", "32", "33", "59", "81"] },
-  { name: "Espíritu de Sonic", spiritIds: ["34", "35", "36", "57", "82"] },
-  { name: "Espíritu Caballero", spiritIds: ["37", "38", "39", "40", "130", "131"] },
-  { name: "Espíritu Onigiri", spiritIds: ["41", "42", "43", "44", "83"] },
-  { name: "Espíritu Científico", spiritIds: ["45", "46", "47", "48", "84"] },
-  { name: "Espíritu Especial/Invitado", spiritIds: ["49"] },
-  { name: "Espíritu de Blinky", spiritIds: ["62", "63", "64", "65", "66"] },
-  { name: "Espíritu de Cash Bandicoot", spiritIds: ["67", "68", "69", "70", "85"] },
-  { name: "Espíritu de Morgana", spiritIds: ["86", "87", "88", "89", "90"] },
-  { name: "Espíritu de Sobreescudo", spiritIds: ["91", "92", "93", "94", "95"] },
-  { name: "Espíritu del Estanque", spiritIds: ["96", "97", "98", "99", "100"] },
-  { name: "Espíritu de Cumpleaños", spiritIds: ["101", "102", "103", "104", "105"] },
   { name: "Espíritu de Mapache", spiritIds: ["106", "107", "108", "109", "110", "111"] },
-  { name: "Espíritu de Vampiro", spiritIds: ["112", "113", "114", "115", "116", "117"] },
+  { name: "Espíritu de Rex", spiritIds: ["01", "02", "03", "52", "71", "132"] },
+  { name: "Espíritu Agente", spiritIds: ["07", "08", "09", "53", "73", "134"] },
+  { name: "Espíritu Pícaro", spiritIds: ["19", "20", "21", "50", "77", "138"] },
+  { name: "Espíritu Erizo", spiritIds: ["22", "23", "24", "61", "78", "139"] },
+  { name: "Espíritu de Sonic", spiritIds: ["34", "35", "36", "57", "82", "143"] },
+  { name: "Espíritu de Tails", spiritIds: ["31", "32", "33", "59", "81", "142"] },
+  { name: "Espíritu de Shadow", spiritIds: ["28", "29", "30", "58", "80", "141"] },
+  { name: "Espíritu Game Boy", spiritIds: ["10", "11", "12", "54", "74", "135"] },
+  { name: "Espíritu Conejo", spiritIds: ["13", "14", "15", "55", "75", "136"] },
+  { name: "Espíritu Rey", spiritIds: ["16", "17", "18", "56", "76", "137"] },
+  { name: "Espíritu Táctico", spiritIds: ["04", "05", "06", "51", "72", "133"] },
+  { name: "Espíritu Especial/Invitado", spiritIds: ["49"] },
+  { name: "Espíritu Caballero", spiritIds: ["37", "38", "39", "40", "130", "131"] },
+  { name: "Espíritu del Estanque", spiritIds: ["96", "97", "98", "99", "100", "150"] },
+  { name: "Espíritu Científico", spiritIds: ["45", "46", "47", "48", "84", "145"] },
+  { name: "Espíritu Onigiri", spiritIds: ["41", "42", "43", "44", "83", "144"] },
+  { name: "Espíritu Oni", spiritIds: ["25", "26", "27", "60", "79", "140"] },
+  { name: "Espíritu de Blinky", spiritIds: ["62", "63", "64", "65", "66", "146"] },
+  { name: "Espíritu de Cumpleaños", spiritIds: ["101", "102", "103", "104", "105", "151"] },
+  { name: "Espíritu de Cash Bandicoot", spiritIds: ["67", "68", "69", "70", "85", "147"] },
+  { name: "Espíritu de Morgana", spiritIds: ["86", "87", "88", "89", "90", "148"] },
+  { name: "Espíritu de Sobreescudo", spiritIds: ["91", "92", "93", "94", "95", "149"] },
   { name: "Espíritu de Calabaza", spiritIds: ["118", "119", "120", "121", "122", "123"] },
-  { name: "Espíritu de Ciervo", spiritIds: ["124", "125", "126", "127", "128", "129"] }
+  { name: "Espíritu de Ciervo", spiritIds: ["124", "125", "126", "127", "128", "129"] },
+  { name: "Espíritu de Vampiro", spiritIds: ["112", "113", "114", "115", "116", "117"] },
+  { name: "Espíritu Basurero", spiritIds: ["152", "153", "154", "155", "156", "157"] }
 ];
 
 export const defaultNamesT1 = [

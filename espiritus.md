@@ -9,7 +9,7 @@ Este documento es la **Guía Maestra y Referencia Oficial** de todos los espíri
 
 ---
 
-## ⚡ Temporada 2 (Chapter 7 Season 4 "Override" — 105 Espíritus)
+## ⚡ Temporada 2 (Chapter 7 Season 4 "Override" — 157 Espíritus)
 
 | ID | Categoría | Nombre en App / Español | Nombre Oficial Fortnite.GG | ID Fortnite.GG | Enlace Oficial Fortnite.GG |
 |:---|:---|:---|:---|:---|:---|
@@ -144,6 +144,32 @@ Este documento es la **Guía Maestra y Referencia Oficial** de todos los espíri
 | `129` | **Espíritu de Ciervo** | Espíritu de Ciervo Truco o Trato | Trick or Treat Deer Sprite | `-` | Trick or Treat Deer Sprite |
 | `130` | **Espíritu Caballero** | Espíritu Protector Cazarrecompensas | Bounty Hunter Protector Knight Sprite | `-` | Bounty Hunter Protector Knight Sprite |
 | `131` | **Espíritu Caballero** | Espíritu Protector Truco o Trato | Trick or Treat Protector Knight Sprite | `-` | Trick or Treat Protector Knight Sprite |
+| `132` | **Espíritu de Rex** | Espíritu Klombo Truco o Trato | Trick or Treat Klombo Sprite | `7043` | [Trick or Treat Klombo Sprite](https://fnggcdn.com/assets/241.png) |
+| `133` | **Espíritu Táctico** | Espíritu KillSwitch Truco o Trato | Trick or Treat Killswitch Sprite | `7044` | [Trick or Treat Killswitch Sprite](https://fnggcdn.com/assets/240.png) |
+| `134` | **Espíritu Agente** | Espíritu Jonesy Truco o Trato | Trick or Treat Jonesy Sprite | `7045` | [Trick or Treat Jonesy Sprite](https://fnggcdn.com/assets/244.png) |
+| `135` | **Espíritu Game Boy** | Espíritu 8-bits Truco o Trato | Trick or Treat 8-Bit Sprite | `7046` | [Trick or Treat 8-Bit Sprite](https://fnggcdn.com/assets/243.png) |
+| `136` | **Espíritu Conejo** | Espíritu Conejo Truco o Trato | Trick or Treat Jackrabbit Sprite | `7047` | [Trick or Treat Jackrabbit Sprite](https://fnggcdn.com/assets/242.png) |
+| `137` | **Espíritu Rey** | Espíritu Corona Truco o Trato | Trick or Treat Crown Sprite | `7048` | [Trick or Treat Crown Sprite](https://fnggcdn.com/assets/235.png) |
+| `138` | **Espíritu Pícaro** | Espíritu Pícaro Truco o Trato | Trick or Treat Adventure Sprite | `7049` | [Trick or Treat Adventure Sprite](https://fnggcdn.com/assets/246.png) |
+| `139` | **Espíritu Erizo** | Espíritu Arbusto Truco o Trato | Trick or Treat Bush Sprite | `7050` | [Trick or Treat Bush Sprite](https://fnggcdn.com/assets/234.png) |
+| `140` | **Espíritu Oni** | Espíritu Exploratormentas Truco o Trato | Trick or Treat Storm Scout Sprite | `7051` | [Trick or Treat Storm Scout Sprite](https://fnggcdn.com/assets/247.png) |
+| `141` | **Espíritu de Shadow** | Espíritu Shadow Truco o Trato | Trick or Treat Shadow Sprite | `7052` | [Trick or Treat Shadow Sprite](https://fnggcdn.com/assets/239.png) |
+| `142` | **Espíritu de Tails** | Espíritu Tails Truco o Trato | Trick or Treat Tails Sprite | `7053` | [Trick or Treat Tails Sprite](https://fnggcdn.com/assets/238.png) |
+| `143` | **Espíritu de Sonic** | Espíritu Sonic Truco o Trato | Trick or Treat Sonic Sprite | `7054` | [Trick or Treat Sonic Sprite](https://fnggcdn.com/assets/245.png) |
+| `144` | **Espíritu Onigiri** | Espíritu Onigiri Truco o Trato | Trick or Treat Onigiri Sprite (Created by Enorull) | `7055` | [Trick or Treat Onigiri Sprite (Created by Enorull)](https://fnggcdn.com/assets/255.png) |
+| `145` | **Espíritu Científico** | Espíritu Rayos X Truco o Trato | Trick or Treat X-Ray Sprite (Created by Avila215) | `7056` | [Trick or Treat X-Ray Sprite (Created by Avila215)](https://fnggcdn.com/assets/237.png) |
+| `146` | **Espíritu de Blinky** | Espíritu Blinky Truco o Trato | Trick or Treat Blinky Sprite | `7057` | [Trick or Treat Blinky Sprite](https://fnggcdn.com/assets/250.png) |
+| `147` | **Espíritu de Cash Bandicoot** | Espíritu Crash Bandicoot Truco o Trato | Trick or Treat Crash Bandicoot Sprite | `7058` | [Trick or Treat Crash Bandicoot Sprite](https://fnggcdn.com/assets/249.png) |
+| `148` | **Espíritu de Morgana** | Espíritu Morgana Truco o Trato | Trick or Treat Morgana Sprite | `7059` | [Trick or Treat Morgana Sprite](https://fnggcdn.com/assets/251.png) |
+| `149` | **Espíritu de Sobreescudo** | Espíritu Sobreescudo Truco o Trato | Trick or Treat Overshield Sprite | `7060` | [Trick or Treat Overshield Sprite](https://fnggcdn.com/assets/233.png) |
+| `150` | **Espíritu del Estanque** | Espíritu del Estanque Truco o Trato | Trick or Treat Pond Sprite (Created by Pine & Kiri) | `7061` | [Trick or Treat Pond Sprite (Created by Pine & Kiri)](https://fnggcdn.com/assets/236.png) |
+| `151` | **Espíritu de Cumpleaños** | Espíritu Cumpleaños Truco o Trato | Trick or Treat Birthday Sprite | `7062` | [Trick or Treat Birthday Sprite](https://fnggcdn.com/assets/248.png) |
+| `152` | **Espíritu Basurero** | Espíritu Basurero | Dumpster Dive Sprite (Created by WinnerD) | `7063` | [Dumpster Dive Sprite (Created by WinnerD)](https://fnggcdn.com/assets/256.png) |
+| `153` | **Espíritu Basurero** | Espíritu Basurero Dorado | Gold Dumpster Dive Sprite (Created by WinnerD) | `7064` | [Gold Dumpster Dive Sprite (Created by WinnerD)](https://fnggcdn.com/assets/258.png) |
+| `154` | **Espíritu Basurero** | Espíritu Basurero Hacker | Cheat Master Dumpster Dive Sprite (Created by WinnerD) | `7065` | [Cheat Master Dumpster Dive Sprite (Created by WinnerD)](https://fnggcdn.com/assets/257.png) |
+| `155` | **Espíritu Basurero** | Espíritu Basurero Hacker de botin | Loot Hacker Dumpster Dive Sprite (Created by WinnerD) | `7066` | [Loot Hacker Dumpster Dive Sprite (Created by WinnerD)](https://fnggcdn.com/assets/259.png) |
+| `156` | **Espíritu Basurero** | Espíritu Basurero Cazarrecompensas | Bounty Hunter Dumpster Dive Sprite (Created by WinnerD) | `7067` | [Bounty Hunter Dumpster Dive Sprite (Created by WinnerD)](https://fnggcdn.com/assets/260.png) |
+| `157` | **Espíritu Basurero** | Espíritu Basurero Truco o Trato | Trick or Treat Dumpster Dive Sprite (Created by WinnerD) | `7068` | [Trick or Treat Dumpster Dive Sprite (Created by WinnerD)](https://fnggcdn.com/assets/261.png) |
 
 ---
 

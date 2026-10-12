@@ -616,36 +616,37 @@ fun SpiritsChecklistView(
 
     val defaultCategoriesT2 = remember {
         listOf(
-            SpiritCategory("Espíritu de Rex", listOf("01", "02", "03", "52", "71")),
-            SpiritCategory("Espíritu Táctico", listOf("04", "05", "06", "51", "72")),
-            SpiritCategory("Espíritu Agente", listOf("07", "08", "09", "53", "73")),
-            SpiritCategory("Espíritu Game Boy", listOf("10", "11", "12", "54", "74")),
-            SpiritCategory("Espíritu Conejo", listOf("13", "14", "15", "55", "75")),
-            SpiritCategory("Espíritu Rey", listOf("16", "17", "18", "56", "76")),
-            SpiritCategory("Espíritu Pícaro", listOf("19", "20", "21", "50", "77")),
-            SpiritCategory("Espíritu Erizo", listOf("22", "23", "24", "61", "78")),
-            SpiritCategory("Espíritu Oni", listOf("25", "26", "27", "60", "79")),
-            SpiritCategory("Espíritu de Shadow", listOf("28", "29", "30", "58", "80")),
-            SpiritCategory("Espíritu de Tails", listOf("31", "32", "33", "59", "81")),
-            SpiritCategory("Espíritu de Sonic", listOf("34", "35", "36", "57", "82")),
-            SpiritCategory("Espíritu Caballero", listOf("37", "38", "39", "40", "130", "131")),
-            SpiritCategory("Espíritu Onigiri", listOf("41", "42", "43", "44", "83")),
-            SpiritCategory("Espíritu Científico", listOf("45", "46", "47", "48", "84")),
-            SpiritCategory("Espíritu Especial/Invitado", listOf("49")),
-            SpiritCategory("Espíritu de Blinky", listOf("62", "63", "64", "65", "66")),
-            SpiritCategory("Espíritu de Cash Bandicoot", listOf("67", "68", "69", "70", "85")),
-            SpiritCategory("Espíritu de Morgana", listOf("86", "87", "88", "89", "90")),
-            SpiritCategory("Espíritu de Sobreescudo", listOf("91", "92", "93", "94", "95")),
-            SpiritCategory("Espíritu del Estanque", listOf("96", "97", "98", "99", "100")),
-            SpiritCategory("Espíritu de Cumpleaños", listOf("101", "102", "103", "104", "105")),
             SpiritCategory("Espíritu de Mapache", listOf("106", "107", "108", "109", "110", "111")),
-            SpiritCategory("Espíritu de Vampiro", listOf("112", "113", "114", "115", "116", "117")),
+            SpiritCategory("Espíritu de Rex", listOf("01", "02", "03", "52", "71", "132")),
+            SpiritCategory("Espíritu Agente", listOf("07", "08", "09", "53", "73", "134")),
+            SpiritCategory("Espíritu Pícaro", listOf("19", "20", "21", "50", "77", "138")),
+            SpiritCategory("Espíritu Erizo", listOf("22", "23", "24", "61", "78", "139")),
+            SpiritCategory("Espíritu de Sonic", listOf("34", "35", "36", "57", "82", "143")),
+            SpiritCategory("Espíritu de Tails", listOf("31", "32", "33", "59", "81", "142")),
+            SpiritCategory("Espíritu de Shadow", listOf("28", "29", "30", "58", "80", "141")),
+            SpiritCategory("Espíritu Game Boy", listOf("10", "11", "12", "54", "74", "135")),
+            SpiritCategory("Espíritu Conejo", listOf("13", "14", "15", "55", "75", "136")),
+            SpiritCategory("Espíritu Rey", listOf("16", "17", "18", "56", "76", "137")),
+            SpiritCategory("Espíritu Táctico", listOf("04", "05", "06", "51", "72", "133")),
+            SpiritCategory("Espíritu Especial/Invitado", listOf("49")),
+            SpiritCategory("Espíritu Caballero", listOf("37", "38", "39", "40", "130", "131")),
+            SpiritCategory("Espíritu del Estanque", listOf("96", "97", "98", "99", "100", "150")),
+            SpiritCategory("Espíritu Científico", listOf("45", "46", "47", "48", "84", "145")),
+            SpiritCategory("Espíritu Onigiri", listOf("41", "42", "43", "44", "83", "144")),
+            SpiritCategory("Espíritu Oni", listOf("25", "26", "27", "60", "79", "140")),
+            SpiritCategory("Espíritu de Blinky", listOf("62", "63", "64", "65", "66", "146")),
+            SpiritCategory("Espíritu de Cumpleaños", listOf("101", "102", "103", "104", "105", "151")),
+            SpiritCategory("Espíritu de Cash Bandicoot", listOf("67", "68", "69", "70", "85", "147")),
+            SpiritCategory("Espíritu de Morgana", listOf("86", "87", "88", "89", "90", "148")),
+            SpiritCategory("Espíritu de Sobreescudo", listOf("91", "92", "93", "94", "95", "149")),
             SpiritCategory("Espíritu de Calabaza", listOf("118", "119", "120", "121", "122", "123")),
-            SpiritCategory("Espíritu de Ciervo", listOf("124", "125", "126", "127", "128", "129"))
+            SpiritCategory("Espíritu de Ciervo", listOf("124", "125", "126", "127", "128", "129")),
+            SpiritCategory("Espíritu de Vampiro", listOf("112", "113", "114", "115", "116", "117")),
+            SpiritCategory("Espíritu Basurero", listOf("152", "153", "154", "155", "156", "157"))
         )
     }
     val defaultSpiritsListT2 = remember {
-        (1..131).map { if (it < 100) String.format("%02d", it) else it.toString() }
+        (1..157).map { if (it < 100) String.format("%02d", it) else it.toString() }
     }
     val spiritNames = remember {
         listOf(
