@@ -495,7 +495,7 @@ fun MessageCard(
                             textView.tag = html
                             val applyHtml = {
                                 textView.text = android.text.Html.fromHtml(
-                                    html,
+                                    LetterImageGetter.isolateImages(html),
                                     android.text.Html.FROM_HTML_MODE_LEGACY,
                                     LetterImageGetter(textView),
                                     null

@@ -69,6 +69,25 @@ class LetterImageGetter(private val textView: TextView) : Html.ImageGetter {
     }
 
     companion object {
+        private val IMG_TAG = Regex("<img[^>]*>", RegexOption.IGNORE_CASE)
+        private val BREAK_BEFORE = Regex("(<br\\s*/?>|<p[^>]*>)\\s*$", RegexOption.IGNORE_CASE)
+        private val BREAK_AFTER = Regex("^\\s*(<br\\s*/?>|</p>)", RegexOption.IGNORE_CASE)
+
+        /**
+         * Deja cada foto en su propia línea: las cartas guardadas por la web antes de la corrección tenían
+         * las fotos alineadas a la izquierda pegadas al texto y Html.fromHtml las mostraba en medio del párrafo.
+         */
+        fun isolateImages(html: String): String {
+            if (!html.contains("<img", ignoreCase = true)) return html
+            return IMG_TAG.replace(html) { m ->
+                val before = html.substring(0, m.range.first)
+                val after = html.substring(m.range.last + 1)
+                val needsBefore = before.isNotBlank() && !BREAK_BEFORE.containsMatchIn(before)
+                val needsAfter = after.isNotBlank() && !BREAK_AFTER.containsMatchIn(after)
+                (if (needsBefore) "<br>" else "") + m.value + (if (needsAfter) "<br>" else "")
+            }
+        }
+
         private val IMG_SRC = Regex("<img[^>]+src=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
 
         /** URLs (sin #w=) de las fotos insertadas en el texto, para no repetirlas debajo de la carta. */
