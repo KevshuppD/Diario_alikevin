@@ -341,8 +341,8 @@ graph TD
    - **Historial de Deshacer (`↩️ Deshacer`)**: Posibilidad de revertir recortes, borrados de pincel y extracciones de color.
    - **Soporte Táctil y Móvil**: Eventos Pointer (`pointerdown`, `pointermove`, `pointerup`) para edición fluida en PC, tablets y móviles.
    - **Indicador de Dimensiones en Barra de Herramientas**: Medidas `W × H px` ubicadas en la barra de controles para no obstruir la imagen.
-5. **Servidor Local y Enrutamiento SPA Limpio (`web/server.py`):**
-   - Servidor Python backend en puerto 8000 con enrutamiento SPA directo sin redirecciones permanentes 301.
+5. **Servidor Local y Enrutamiento SPA Limpio (`web/server.js`, `npm run dev`):**
+   - Servidor Node (HTTP + WebSockets) en puerto 8000 con enrutamiento SPA directo sin redirecciones permanentes 301. Reemplazó al antiguo `server.py` (eliminado).
    - Normalización de URLs en el cliente (`replaceState`) para mantener rutas limpias (`http://localhost:8000/`, `/edit`, `/config`, `/db`).
 6. **Selector de Tasa de Refresco (Hz) Sincronizado en App & Web:**
    - Opciones dinámicas de **60 Hz (Batería), 90 Hz (Por Defecto / Recomendado), 100 Hz y 120 Hz (Ultra Fluido)**.
