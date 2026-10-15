@@ -81,7 +81,7 @@ class LastMessageWidget : AppWidgetProvider() {
                             val authorId = doc.getString("authorId")
                             val content = doc.getString("content")
                             if (authorId != null && authorId != myId && content != null && !content.startsWith("[ALBUM]")) {
-                                lastContent = Html.fromHtml(content, Html.FROM_HTML_MODE_LEGACY).toString()
+                                lastContent = Html.fromHtml(content, Html.FROM_HTML_MODE_LEGACY).toString().replace("\uFFFC", "").trim()
                                 senderName = doc.getString("authorName") ?: "Pareja"
                                 messageId = doc.id
                                 timestamp = doc.getLong("timestamp")

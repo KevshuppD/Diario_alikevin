@@ -404,6 +404,8 @@ fun AddEditZoneDialog(
 
     // Geocodificación inversa automática al cambiar coordenadas
     LaunchedEffect(selectedLat, selectedLng) {
+        // Espera a que el mapa se detenga: un cambio nuevo cancela este efecto antes de pedir la dirección
+        delay(500)
         val addr = ThorRadarManager.getReverseAddress(context, selectedLat, selectedLng)
         if (addr.isNotEmpty()) {
             addressText = addr
@@ -640,6 +642,7 @@ fun AddEditZoneDialog(
                                 MapView(ctx).apply {
                                     setTileSource(GOOGLE_MAPS_TILES)
                                     setMultiTouchControls(true)
+                                    zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
                                     controller.setZoom(16.5)
                                     controller.setCenter(GeoPoint(selectedLat, selectedLng))
 
@@ -655,22 +658,25 @@ fun AddEditZoneDialog(
 
                                     overlays.add(CenterZoneOverlay(isDark = isDark) { radiusMeters })
 
+                                    // Durante el arrastre osmdroid emite un evento por frame: escribir el estado en cada
+                                    // uno recomponía todo el diálogo. Se publica la posición 150 ms después del último.
+                                    val publishCenter = Runnable {
+                                        val c = mapCenter as? GeoPoint
+                                        if (c != null) {
+                                            selectedLat = c.latitude
+                                            selectedLng = c.longitude
+                                        }
+                                    }
                                     addMapListener(object : org.osmdroid.events.MapListener {
                                         override fun onScroll(event: org.osmdroid.events.ScrollEvent?): Boolean {
-                                            val c = mapCenter as? GeoPoint
-                                            if (c != null) {
-                                                selectedLat = c.latitude
-                                                selectedLng = c.longitude
-                                            }
+                                            removeCallbacks(publishCenter)
+                                            postDelayed(publishCenter, 150)
                                             return false
                                         }
 
                                         override fun onZoom(event: org.osmdroid.events.ZoomEvent?): Boolean {
-                                            val c = mapCenter as? GeoPoint
-                                            if (c != null) {
-                                                selectedLat = c.latitude
-                                                selectedLng = c.longitude
-                                            }
+                                            removeCallbacks(publishCenter)
+                                            postDelayed(publishCenter, 150)
                                             return false
                                         }
                                     })

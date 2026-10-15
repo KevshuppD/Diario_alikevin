@@ -36,6 +36,7 @@ import calendario.kevshupp.diariokevinali.RadarPlaceZone
 import kotlinx.coroutines.delay
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
@@ -573,6 +574,8 @@ fun RadarMapView(
                     MapView(ctx).apply {
                         setTileSource(GOOGLE_MAPS_TILES)
                         setMultiTouchControls(true)
+                        // Los botones +/- propios ya están en la esquina; se ocultan los de osmdroid
+                        zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
                         controller.setZoom(15.0)
 
                         if (isDark) {
@@ -604,6 +607,15 @@ fun RadarMapView(
                     }
                 },
                 update = { mapView ->
+                    // update corre en cada recomposición de la pantalla del radar (batería, SOS, ubicación…).
+                    // Solo se reconstruyen polígonos y marcadores si cambió algo que se dibuja en el mapa.
+                    val overlayKey = listOf(
+                        zones, isDark, myMarkerBitmap, partnerMarkerBitmap,
+                        myLocation.latitude, myLocation.longitude,
+                        partnerLocation.latitude, partnerLocation.longitude
+                    )
+                    if (mapView.tag == overlayKey) return@AndroidView
+                    mapView.tag = overlayKey
                     mapView.overlays.clear()
 
                     // Marcadores de Zonas Seguras con radio visual nítido y de alto contraste

@@ -465,9 +465,10 @@ fun MessageCard(
                     // Volvemos a usar Html.fromHtml para manejar entidades correctamente (como acentos)
                     // pero solo si el contenido realmente tiene HTML o entidades.
                     val spanned = android.text.Html.fromHtml(message.content, android.text.Html.FROM_HTML_MODE_LEGACY)
-                    spanned.toString().trim()
+                    spanned.toString().replace("\uFFFC", "").trim()
                 } else message.content ?: ""
             }
+            val inlineImageUrls = remember(message.content) { LetterImageGetter.inlineImageUrls(message.content) }
 
             if (isAlbum) {
                 Text(
@@ -478,12 +479,6 @@ fun MessageCard(
                     lineHeight = 22.sp
                 )
             } else {
-                val parsedHtml = remember(message.content) {
-                    android.text.Html.fromHtml(
-                        message.content ?: "",
-                        android.text.Html.FROM_HTML_MODE_LEGACY
-                    )
-                }
                 AndroidView(
                     factory = { ctx ->
                         TextView(ctx).apply {
@@ -494,7 +489,21 @@ fun MessageCard(
                     },
                     update = { textView ->
                         textView.setTextColor(contentColor.toArgb())
-                        textView.text = parsedHtml
+                        val html = message.content ?: ""
+                        // El tag evita volver a parsear (y a pedir las fotos) en cada recomposición
+                        if (textView.tag != html) {
+                            textView.tag = html
+                            val applyHtml = {
+                                textView.text = android.text.Html.fromHtml(
+                                    html,
+                                    android.text.Html.FROM_HTML_MODE_LEGACY,
+                                    LetterImageGetter(textView),
+                                    null
+                                )
+                            }
+                            // Las fotos se dimensionan según el ancho del texto: esperar a que esté medido
+                            if (textView.width == 0 && html.contains("<img", ignoreCase = true)) textView.post { applyHtml() } else applyHtml()
+                        }
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -526,7 +535,9 @@ fun MessageCard(
                         )
                     }
                 }
-            } else if (!message.imageUrls.isNullOrEmpty() && message.imageUrls!!.isNotEmpty()) {
+            } else if (!message.imageUrls.isNullOrEmpty() && message.imageUrls!!.isNotEmpty() &&
+                message.imageUrls!![0].substringBefore('#') !in inlineImageUrls) {
+                // Las fotos insertadas dentro del texto (editor web) ya se muestran en su lugar
                 Spacer(modifier = Modifier.height(12.dp))
                 val firstUrl = message.imageUrls!![0]
                 val optimizedUrl = remember(firstUrl) { firstUrl.optimizeCloudinary(800) }
