@@ -163,7 +163,8 @@ function serializeNode(node) {
   }
 
   if (BLOCK_TAGS.has(tag)) {
-    const align = getAlign(node);
+    // Una foto siempre va en su propio párrafo (también alineada a la izquierda) para no quedar pegada al texto
+    const align = getAlign(node) || (node.querySelector && node.querySelector("img") ? "left" : null);
     const content = wrapInlineStyles(node, inner);
     // style para Html.fromHtml (Android 7+), align para las cartas antiguas y los navegadores
     if (align) return `<p align="${align}" style="text-align:${align}">${content || "<br>"}</p>`;

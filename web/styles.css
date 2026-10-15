@@ -2674,7 +2674,10 @@
       border-radius: 8px;
       vertical-align: middle;
     }
-    .letter-content img { cursor: zoom-in; }
+    /* Cartas ya guardadas con la foto en línea: mostrarla en su propia línea */
+    .letter-content img { display: block; margin: 6px 0; cursor: zoom-in; }
+    .letter-content p[align="center"] img { margin-left: auto; margin-right: auto; }
+    .letter-content p[align="right"] img { margin-left: auto; }
     .letter-editor img { cursor: pointer; }
     .letter-editor img.selected { outline: 3px solid #ec4899; outline-offset: 2px; }
     .letter-editor-wrap { position: relative; }
