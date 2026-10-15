@@ -9,7 +9,7 @@ Este documento es la **Guía Maestra y Referencia Oficial** de todos los espíri
 
 ---
 
-## ⚡ Temporada 2 (Chapter 7 Season 4 "Override" — 157 Espíritus)
+## ⚡ Temporada 2 (Chapter 7 Season 4 "Override" — 174 Espíritus)
 
 | ID | Categoría | Nombre en App / Español | Nombre Oficial Fortnite.GG | ID Fortnite.GG | Enlace Oficial Fortnite.GG |
 |:---|:---|:---|:---|:---|:---|
@@ -170,6 +170,23 @@ Este documento es la **Guía Maestra y Referencia Oficial** de todos los espíri
 | `155` | **Espíritu Basurero** | Espíritu Basurero Hacker de botin | Loot Hacker Dumpster Dive Sprite (Created by WinnerD) | `7066` | [Loot Hacker Dumpster Dive Sprite (Created by WinnerD)](https://fnggcdn.com/assets/259.png) |
 | `156` | **Espíritu Basurero** | Espíritu Basurero Cazarrecompensas | Bounty Hunter Dumpster Dive Sprite (Created by WinnerD) | `7067` | [Bounty Hunter Dumpster Dive Sprite (Created by WinnerD)](https://fnggcdn.com/assets/260.png) |
 | `157` | **Espíritu Basurero** | Espíritu Basurero Truco o Trato | Trick or Treat Dumpster Dive Sprite (Created by WinnerD) | `7068` | [Trick or Treat Dumpster Dive Sprite (Created by WinnerD)](https://fnggcdn.com/assets/261.png) |
+| `158` | **Espíritu Honey** | Espíritu Honey | Honey Sprite | `gg/267` | [Honey Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_WinnerE_L.webp) |
+| `159` | **Espíritu Honey** | Espíritu Honey Dorado | Gold Honey Sprite | `gg/269` | [Gold Honey Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_WinnerE_Gold_L.webp) |
+| `160` | **Espíritu Honey** | Espíritu Honey Hacker | Cheat Master Honey Sprite | `gg/268` | [Cheat Master Honey Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_WinnerE_Cheatmaster_L.webp) |
+| `161` | **Espíritu Honey** | Espíritu Honey Hacker de botin | Loot Hacker Honey Sprite | `gg/270` | [Loot Hacker Honey Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_WinnerE_Hacker_L.webp) |
+| `162` | **Espíritu Honey** | Espíritu Honey Cazarrecompensas | Bounty Hunter Honey Sprite | `gg/271` | [Bounty Hunter Honey Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_WinnerE_BountyHunter_L.webp) |
+| `163` | **Espíritu Honey** | Espíritu Honey Dulce o truco | Trick or Treat Honey Sprite | `gg/272` | [Trick or Treat Honey Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_WinnerE_TrickTreat_L.webp) |
+| `164` | **Espíritu One Wish Willow** | Espíritu One Wish Willow | One Wish Willow Sprite | `gg/273` | [One Wish Willow Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_CargoLying_L.webp) |
+| `165` | **Espíritu One Wish Willow** | Espíritu One Wish Willow Dorado | Gold One Wish Willow Sprite | `gg/275` | [Gold One Wish Willow Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_CargoLying_Gold_L.webp) |
+| `166` | **Espíritu One Wish Willow** | Espíritu One Wish Willow Hacker | Cheat Master One Wish Willow Sprite | `gg/274` | [Cheat Master One Wish Willow Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_CargoLying_Cheatmaster_L.webp) |
+| `167` | **Espíritu One Wish Willow** | Espíritu One Wish Willow Hacker de botin | Loot Hacker One Wish Willow Sprite | `gg/276` | [Loot Hacker One Wish Willow Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_CargoLying_Hacker_L.webp) |
+| `168` | **Espíritu One Wish Willow** | Espíritu One Wish Willow Cazarrecompensas | Bounty Hunter One Wish Willow Sprite | `gg/277` | [Bounty Hunter One Wish Willow Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_CargoLying_BountyHunter_L.webp) |
+| `169` | **Espíritu One Wish Willow** | Espíritu One Wish Willow Dulce o truco | Trick or Treat One Wish Willow Sprite | `gg/278` | [Trick or Treat One Wish Willow Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_CargoLying_TrickTreat_L.webp) |
+| `170` | **Espíritu de Rex** | Espíritu de Klombo Quack | Quack Klombo Sprite | `gg/265` | [Quack Klombo Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_Klombo_Quack_L.webp) |
+| `171` | **Espíritu Agente** | Espíritu Jonesy Quack | Quack Jonesy Sprite | `gg/266` | [Quack Jonesy Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_Jonesy_Quack_L.webp) |
+| `172` | **Espíritu Pícaro** | Espíritu Aventurero Quack | Quack Adventure Sprite | `gg/264` | [Quack Adventure Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_Dwarf_Quack_L.webp) |
+| `173` | **Espíritu Erizo** | Espíritu Arbustín Quack | Quack Bush Sprite | `gg/263` | [Quack Bush Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_BushRanger_Quack_L.webp) |
+| `174` | **Espíritu de Calabaza** | Espíritu de Impulso Aterrador Quack | Quack Spooky Dash Sprite | `gg/279` | [Quack Spooky Dash Sprite](https://fortnite.gg/img/x/sprites/icons/T_Icon_BR_Creature_Sprite_PhaseDash_Quack_L.webp) |
 
 ---
 
