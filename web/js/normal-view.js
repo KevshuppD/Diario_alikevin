@@ -373,7 +373,8 @@ export function applyFilterVisibility() {
     const isLoose = card.classList.contains("uncategorized-bin");
     card.hidden = state.currentMode === "normal" && visible === 0;
     const countEl = card.querySelector(".cat-match-count");
-    if (countEl) countEl.textContent = isLoose ? `(${visible})` : `(${visible}/${slots.length})`;
+    // Sin filtro basta el total (6); con filtro se muestran los que coinciden de cuántos (2/6)
+    if (countEl) countEl.textContent = isLoose || !filtering ? `(${visible})` : `(${visible}/${slots.length})`;
     const looseCountEl = card.querySelector(".loose-count");
     if (looseCountEl) looseCountEl.textContent = slots.length;
   });
@@ -994,7 +995,7 @@ export function renderWorkspace() {
         <div class="category-title-edit" style="flex-wrap: wrap; gap: 6px 10px; align-items: center;">
           <span style="font-size: 18px;">📂</span>
           <h3 style="font-family: 'VT323', monospace; font-size: 21px; font-weight: 700; color: var(--text-color); margin: 0; line-height: 1;">${customTitle}</h3>
-          <span class="cat-match-count" style="font-size: 15px; color: var(--text-muted); line-height: 1;">(${matchingSpirits.length}/${(cat.spiritIds || []).length})</span>
+          <span class="cat-match-count" style="font-size: 15px; color: var(--text-muted); line-height: 1;">${hasActiveFilter() ? `(${matchingSpirits.length}/${(cat.spiritIds || []).length})` : `(${(cat.spiritIds || []).length})`}</span>
           <div style="display: inline-flex; gap: 6px; align-items: center;">
             <span class="cat-stat-badge kevin" title="Obtenidos / Maestría de Kevin">🔵 ${catKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${catKevinMastery}</span></span>
             <span class="cat-stat-badge ali" title="Obtenidos / Maestría de Ali">🔴 ${catAliCount} <span style="color:#fbbf24; font-weight:700;">⭐${catAliMastery}</span></span>
