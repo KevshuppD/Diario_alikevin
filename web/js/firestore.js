@@ -338,6 +338,7 @@ export function listenFirestore(onDataUpdated) {
       const listsSig = JSON.stringify([state.kevinList, state.aliList, state.kevinMastery, state.aliMastery]);
       const structureChanged = structureSig !== lastSyncedStructureSig;
       const listsChanged = listsSig !== lastSyncedListsSig;
+      const isInitialLoadRender = lastSyncedStructureSig === null;
       lastSyncedStructureSig = structureSig;
       lastSyncedListsSig = listsSig;
 
@@ -365,6 +366,12 @@ export function listenFirestore(onDataUpdated) {
       // Si solo cambiaron checks/maestrías, se actualizan los slots existentes sin reconstruir la colección
       if (!structureChanged && state.currentMode === "normal" && typeof window.syncAllSpiritSlotsDOM === 'function') {
         window.syncAllSpiritSlotsDOM();
+        return;
+      }
+
+      // Si se está escribiendo en un campo, redibujar quitaría el foco; el estado local ya refleja la edición
+      const focusedEl = document.activeElement;
+      if (!isInitialLoadRender && focusedEl && (focusedEl.tagName === 'INPUT' || focusedEl.tagName === 'TEXTAREA')) {
         return;
       }
 

@@ -5,7 +5,7 @@
 import { state } from './state.js';
 import { defaultSpiritsListT1, defaultSpiritsListT2 } from './constants.js';
 import { triggerAutoSave } from './firestore.js';
-import { getSpiritImgUrl, getSpiritName, getSpiritCurrentType, computeSpiritName, renderWorkspace, updateStats, matchesFilter, getDefaultSpiritName } from './normal-view.js';
+import { getSpiritImgUrl, getSpiritName, getSpiritCurrentType, computeSpiritName, renderWorkspace, updateStats, matchesFilter, getDefaultSpiritName, clearSpiritCache, createSpiritSlot, applyFilterVisibility } from './normal-view.js';
 import { processSpiritImage } from './image-utils.js';
 
 export let isGalleryOpen = false;
@@ -142,7 +142,7 @@ export function moveSpiritToCategory(spiritId, targetCatName) {
   }
   state.spiritsList = Array.from(new Set(state.spiritsList.map(id => String(id).padStart(2, '0')))).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
 
-  renderWorkspace();
+  if (!moveSlotInDOM(spiritId, targetCatName)) renderWorkspace();
   if (isGalleryOpen) renderGallery();
   triggerAutoSave(50);
 }
@@ -154,7 +154,7 @@ export function removeSpiritFromCategory(spiritId, categoryName) {
   if (cat && cat.spiritIds) {
     cat.spiritIds = cat.spiritIds.filter(id => String(id).padStart(2, '0') !== formattedId);
   }
-  renderWorkspace();
+  if (!moveSlotInDOM(spiritId, "__uncategorized__")) renderWorkspace();
   if (isGalleryOpen) renderGallery();
   triggerAutoSave(50);
 }
@@ -256,8 +256,30 @@ export function changeSpiritType(id, newTypeName) {
   } else {
     state.customNames[id] = newFullName;
   }
-  renderWorkspace();
+  clearSpiritCache();
+  // Solo cambia el nombre de esta tarjeta: no hace falta reconstruir la colección
+  document.querySelectorAll(`.spirit-slot.edit-mode-slot[data-id="${id}"] input[data-id]`).forEach(input => {
+    input.value = getSpiritName(id);
+  });
+  if (state.searchQuery) applyFilterVisibility();
   triggerAutoSave(50);
+}
+
+// Mueve la tarjeta ya dibujada a la grilla de destino. Devuelve false si no se pudo (se redibuja todo).
+function moveSlotInDOM(spiritId, targetCatName) {
+  if (state.currentMode !== "edit") return false;
+  const formattedId = String(spiritId).padStart(2, '0');
+  const plainId = String(parseInt(spiritId, 10));
+  const oldSlot = document.querySelector(`.spirit-slot.edit-mode-slot[data-id="${spiritId}"], .spirit-slot.edit-mode-slot[data-id="${formattedId}"], .spirit-slot.edit-mode-slot[data-id="${plainId}"]`);
+  const targetGrid = Array.from(document.querySelectorAll("#categories-container .spirit-slots-grid"))
+    .find(g => g.dataset.categoryName === targetCatName);
+  if (!oldSlot || !targetGrid) return false;
+  clearSpiritCache();
+  const newSlot = createSpiritSlot(oldSlot.dataset.id, targetCatName);
+  oldSlot.remove();
+  targetGrid.appendChild(newSlot);
+  applyFilterVisibility();
+  return true;
 }
 
 export function openAssignModal(id) {

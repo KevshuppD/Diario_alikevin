@@ -86,6 +86,7 @@ export function customPrompt(msg, icon = "✏️", onConfirm) {
   ]);
 }
 
+let toastHideTimer = null;
 export function showToast(msg, isError = false) {
   let toast = document.getElementById('global-toast');
   if (!toast) {
@@ -99,7 +100,9 @@ export function showToast(msg, isError = false) {
   toast.style.borderColor = isError ? '#ef4444' : 'var(--accent-color)';
   toast.classList.add('show');
 
-  setTimeout(() => {
+  // Un aviso nuevo reinicia el tiempo: si no, el temporizador del anterior lo cerraría antes
+  clearTimeout(toastHideTimer);
+  toastHideTimer = setTimeout(() => {
     toast.classList.remove('show');
   }, 3500);
 }

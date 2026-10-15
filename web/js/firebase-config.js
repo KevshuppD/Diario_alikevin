@@ -37,5 +37,5 @@ try {
 export const db = firestoreInstance;
 export const rtdb = getDatabase(app);
 
-export { doc, collection, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+export { doc, collection, setDoc, onSnapshot, serverTimestamp, query, where, orderBy, limit, startAfter, getDocs, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 export { ref as rtdbRef, onValue as rtdbOnValue, set as rtdbSet, update as rtdbUpdate } from 'firebase/database';

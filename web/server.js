@@ -126,6 +126,7 @@ app.get('/db', sendSpaIndex);
 app.get('/config', sendSpaIndex);
 app.get('/configuracion', sendSpaIndex);
 app.get('/radar', sendSpaIndex);
+app.get('/cartas', sendSpaIndex);
 app.get('/migrate', (req, res) => res.sendFile(path.join(distDir, 'migrate.html')));
 
 // Sirve los archivos estáticos con caching desactivado para desarrollo/cambios en vivo
@@ -169,6 +170,10 @@ app.post('/api/upload-spirit-image', async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// API: Fotos de cartas y notificaciones push (mismos handlers que las funciones de Vercel)
+app.post('/api/upload-letter-image', require('./api/upload-letter-image'));
+app.post('/api/send-push', require('./api/send-push'));
 
 // API: Eliminar imágenes no utilizadas de Cloudinary
 app.post('/api/clean-unused-cloudinary', async (req, res) => {

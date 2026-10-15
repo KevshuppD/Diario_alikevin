@@ -29,7 +29,7 @@ export function renderCategoriesConfigEditor(options = {}) {
       <div class="draggable-config-row ${isHighlighted ? 'row-highlight-pulse' : ''}" draggable="true" data-cat-drag-idx="${index}">
         <span style="color: var(--text-muted); cursor: grab; font-size: 14px; user-select: none; margin-right: 4px;">⋮⋮</span>
         <span style="font-family: monospace; color: var(--text-muted); font-size: 13px; margin-right: 4px;">#${String(index + 1).padStart(2, '0')}</span>
-        <input type="text" value="${catDisplayName}" data-cat-index="${index}" oninput="window.updateConfigCategoryName(${index}, this.value)" onchange="window.updateConfigCategoryName(${index}, this.value)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: text;">
+        <input type="text" value="${catDisplayName}" data-cat-index="${index}" oninput="window.updateConfigCategoryName(${index}, this.value, false)" onchange="window.updateConfigCategoryName(${index}, this.value)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: text;">
         <span class="badge" style="padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">${cat.spiritIds ? cat.spiritIds.length : 0} esp.</span>
         <button class="remove-btn" onclick="window.deleteConfigCategory(${index})" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" title="Eliminar categoría">🗑</button>
       </div>
@@ -50,8 +50,8 @@ export function renderCategoriesConfigEditor(options = {}) {
     typesHtml += `
       <div class="draggable-config-row ${isNormal ? 'unmovable' : ''} ${isHighlighted ? 'row-highlight-pulse' : ''}" draggable="${!isNormal}" data-type-drag-idx="${index}">
         <span style="color: var(--text-muted); cursor: ${isNormal ? 'default' : 'grab'}; font-size: 14px; user-select: none; margin-right: 4px; opacity: ${isNormal ? 0.2 : 1};">⋮⋮</span>
-        <input type="text" value="${t.name}" data-type-index="${index}" data-type-field="name" oninput="window.updateConfigTypeName(${index}, this.value)" onchange="window.updateConfigTypeName(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Nombre (Ej: Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
-        <input type="text" value="${t.suffix}" data-type-index="${index}" data-type-field="suffix" oninput="window.updateConfigTypeSuffix(${index}, this.value)" onchange="window.updateConfigTypeSuffix(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Sufijo (Ej:  Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+        <input type="text" value="${t.name}" data-type-index="${index}" data-type-field="name" oninput="window.updateConfigTypeName(${index}, this.value, false)" onchange="window.updateConfigTypeName(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Nombre (Ej: Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
+        <input type="text" value="${t.suffix}" data-type-index="${index}" data-type-field="suffix" oninput="window.updateConfigTypeSuffix(${index}, this.value, false)" onchange="window.updateConfigTypeSuffix(${index}, this.value)" ${isNormal ? 'disabled' : ''} placeholder="Sufijo (Ej:  Dorado)" style="flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: ${isNormal ? 'default' : 'text'};">
         <span class="badge" style="width: 56px; text-align: center; padding: 4px 0; border-radius: 4px; font-size: 11px; white-space: nowrap; flex-shrink: 0;" title="Espíritus con este tipo">${spiritsPerType[t.name] || 0} esp.</span>
         <button class="remove-btn" onclick="window.deleteConfigType(${index})" ${isNormal ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : 'style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;"'} title="Eliminar tipo">🗑</button>
       </div>
@@ -445,7 +445,7 @@ export function computeSpiritName(id, targetCategoryName, newTypeName) {
   return baseCatName + suffix;
 }
 
-export function updateConfigCategoryName(index, newValue) {
+export function updateConfigCategoryName(index, newValue, save = true) {
   if (!state.categories[index]) return;
   const cleanVal = newValue.trim();
   const cat = state.categories[index];
@@ -467,7 +467,7 @@ export function updateConfigCategoryName(index, newValue) {
     }
   });
 
-  triggerAutoSave(400);
+  if (save) triggerAutoSave(400);
 }
 
 export function deleteConfigCategory(index) {
@@ -511,7 +511,7 @@ export function addConfigCategory() {
   if (window.showToast) window.showToast(`Categoría "${name}" agregada con éxito.`, false);
 }
 
-export function updateConfigTypeName(index, newValue) {
+export function updateConfigTypeName(index, newValue, save = true) {
   const cleanVal = newValue.trim();
   if (!cleanVal) return;
   const oldType = state.spiritTypes[index];
@@ -544,15 +544,15 @@ export function updateConfigTypeName(index, newValue) {
     });
   }
   
-  triggerAutoSave(400);
+  if (save) triggerAutoSave(400);
 }
 
-export function updateConfigTypeSuffix(index, newValue) {
+export function updateConfigTypeSuffix(index, newValue, save = true) {
   if (newValue && !newValue.startsWith(" ")) {
     newValue = ` ${newValue.trim()}`;
   }
   state.spiritTypes[index].suffix = newValue;
-  triggerAutoSave(400);
+  if (save) triggerAutoSave(400);
 }
 
 export function deleteConfigType(index) {

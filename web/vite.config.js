@@ -20,6 +20,7 @@ export default defineConfig({
         config: resolve(__dirname, 'config.html'),
         configuracion: resolve(__dirname, 'configuracion.html'),
         radar: resolve(__dirname, 'radar.html'),
+        cartas: resolve(__dirname, 'cartas.html'),
         album: resolve(__dirname, 'album.html'),
         coleccion: resolve(__dirname, 'coleccion.html'),
         migrate: resolve(__dirname, 'migrate.html'),

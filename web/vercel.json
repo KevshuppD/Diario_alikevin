@@ -29,6 +29,7 @@
     { "source": "/album", "destination": "/album.html" },
     { "source": "/coleccion", "destination": "/coleccion.html" },
     { "source": "/radar", "destination": "/radar.html" },
+    { "source": "/cartas", "destination": "/cartas.html" },
     { "source": "/db", "destination": "/db.html" },
     { "source": "/migrate", "destination": "/migrate.html" },
     { "source": "/", "destination": "/album.html" },

@@ -346,6 +346,39 @@ export function updateSearchCountBadge() {
   badge.style.display = "inline-flex";
 }
 
+function hasActiveFilter() {
+  return (state.currentFilter && state.currentFilter !== "todos" && state.currentFilter !== "all") || state.searchQuery !== "";
+}
+
+// La colección se dibuja completa una vez; búsqueda y filtros solo muestran u ocultan tarjetas ya creadas
+export function applyFilterVisibility() {
+  const container = document.getElementById("categories-container");
+  if (!container) return;
+  const filtering = hasActiveFilter();
+  const precomputedSets = filtering ? {
+    kevinOwnedSet: buildNormalizedIdSet(state.kevinList),
+    aliOwnedSet: buildNormalizedIdSet(state.aliList),
+    kevinMasterySet: buildNormalizedIdSet(state.kevinMastery),
+    aliMasterySet: buildNormalizedIdSet(state.aliMastery)
+  } : null;
+
+  container.querySelectorAll(".category-card").forEach(card => {
+    const slots = card.querySelectorAll(".spirit-slot[data-id]");
+    let visible = 0;
+    slots.forEach(slot => {
+      const show = !filtering || matchesFilter(slot.dataset.id, precomputedSets);
+      if (slot.hidden === show) slot.hidden = !show;
+      if (show) visible++;
+    });
+    const isLoose = card.classList.contains("uncategorized-bin");
+    card.hidden = state.currentMode === "normal" && visible === 0;
+    const countEl = card.querySelector(".cat-match-count");
+    if (countEl) countEl.textContent = isLoose ? `(${visible})` : `(${visible}/${slots.length})`;
+    const looseCountEl = card.querySelector(".loose-count");
+    if (looseCountEl) looseCountEl.textContent = slots.length;
+  });
+}
+
 export function onSearchInput(val) {
   state.searchQuery = val.trim().toLowerCase();
   const clearBtn = document.getElementById("clear-search-btn");
@@ -357,7 +390,7 @@ export function onSearchInput(val) {
   }
   searchDebounceTimer = setTimeout(() => {
     searchDebounceTimer = null;
-    renderWorkspace();
+    applyFilterVisibility();
     updateSearchCountBadge();
   }, 60);
 }
@@ -372,7 +405,7 @@ export function clearSearch() {
   if (input) input.value = "";
   const clearBtn = document.getElementById("clear-search-btn");
   if (clearBtn) clearBtn.style.display = "none";
-  renderWorkspace();
+  applyFilterVisibility();
   updateSearchCountBadge();
 }
 
@@ -385,11 +418,11 @@ export function setFilter(filterName, btnEl) {
   
   if (document.startViewTransition && typeof document.startViewTransition === 'function') {
     document.startViewTransition(() => {
-      renderWorkspace();
+      applyFilterVisibility();
       updateSearchCountBadge();
     });
   } else {
-    renderWorkspace();
+    applyFilterVisibility();
     updateSearchCountBadge();
   }
 }
@@ -404,40 +437,6 @@ export function updateSingleSpiritDOM(id) {
 
   const slotElements = document.querySelectorAll(`.spirit-slot[data-id="${id}"]`);
   if (slotElements.length === 0) {
-    return;
-  }
-
-  // If a specific filter is active and the spirit no longer matches, remove the slot gracefully without rebuilding the entire DOM or jumping scroll
-  const isFiltered = state.currentFilter && state.currentFilter !== "todos" && state.currentFilter !== "all";
-  if (isFiltered && !matchesFilter(id)) {
-    slotElements.forEach(slot => {
-      const catCard = slot.closest(".category-card");
-      slot.remove();
-      if (catCard) {
-        const remainingSlots = catCard.querySelectorAll(".spirit-slot");
-        if (remainingSlots.length === 0) {
-          catCard.remove();
-        } else {
-          const slotsGrid = catCard.querySelector(".spirit-slots-grid");
-          const catName = slotsGrid ? slotsGrid.dataset.categoryName : null;
-          if (catName) {
-            const cat = state.categories.find(c => c.name === catName);
-            if (cat) {
-              const catKevinCount = (cat.spiritIds || []).filter(sid => isIdInList(state.kevinList, sid)).length;
-              const catAliCount = (cat.spiritIds || []).filter(sid => isIdInList(state.aliList, sid)).length;
-              const catKevinMastery = (cat.spiritIds || []).filter(sid => isIdInList(state.kevinMastery, sid)).length;
-              const catAliMastery = (cat.spiritIds || []).filter(sid => isIdInList(state.aliMastery, sid)).length;
-
-              const kb = catCard.querySelector(".cat-stat-badge.kevin");
-              if (kb) kb.innerHTML = `🔵 ${catKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${catKevinMastery}</span>`;
-              const ab = catCard.querySelector(".cat-stat-badge.ali");
-              if (ab) ab.innerHTML = `🔴 ${catAliCount} <span style="color:#fbbf24; font-weight:700;">⭐${catAliMastery}</span>`;
-            }
-          }
-        }
-      }
-    });
-    updateSearchCountBadge();
     return;
   }
 
@@ -515,14 +514,14 @@ export function updateSingleSpiritDOM(id) {
       }
     }
   });
+  if (hasActiveFilter()) {
+    applyFilterVisibility();
+    updateSearchCountBadge();
+  }
 }
 
 export function syncAllSpiritSlotsDOM() {
   updateStats();
-  if (state.currentFilter !== "todos" || (state.searchQuery && state.searchQuery.length > 0)) {
-    renderWorkspace();
-    return;
-  }
   const slots = document.querySelectorAll(".spirit-slot");
   if (slots.length === 0) {
     renderWorkspace();
@@ -589,6 +588,10 @@ export function syncAllSpiritSlotsDOM() {
       }
     }
   });
+  if (hasActiveFilter()) {
+    applyFilterVisibility();
+    updateSearchCountBadge();
+  }
 }
 
 export function toggleSpiritOwned(id) {
@@ -736,11 +739,6 @@ export function createSpiritSlot(id, categoryName) {
     slot.className = "spirit-slot edit-mode-slot";
     slot.draggable = true;
     slot.dataset.id = id;
-    slot.addEventListener("dragstart", (e) => {
-      e.dataTransfer.setData("text/plain", id);
-      e.dataTransfer.setData("spirit-id", id);
-      e.dataTransfer.effectAllowed = "move";
-    });
 
     let optionsHtml = `<option value="" disabled selected>Mover a...</option>`;
     state.categories.forEach(c => {
@@ -763,95 +761,83 @@ export function createSpiritSlot(id, categoryName) {
       ${deleteBtnHtml}
       <span class="spirit-id-badge">#${displayNumber}</span>
       <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" width="88" height="88" loading="lazy" decoding="async" draggable="false" style="cursor: pointer;" onclick="window.openEditImageModal('${id}')" title="Haz clic para cambiar la imagen" onerror="window.handleSpiritImgError(this, '${id}')">
-      <button type="button" class="btn btn-secondary" style="padding: 3px 6px; font-size: 11px; margin-bottom: 4px; width: 100%; justify-content: center; font-weight: 600;" onclick="window.openEditImageModal('${id}')">🖼️ Cambiar Imagen</button>
+      <button type="button" class="btn btn-secondary" style="padding: 3px 6px; margin-bottom: 4px; width: 100%; justify-content: center; font-weight: 600;" onclick="window.openEditImageModal('${id}')">🖼️ Cambiar Imagen</button>
       <input type="text" value="${getSpiritName(id)}" placeholder="Nombre de Espíritu" data-id="${id}" style="margin-bottom: 4px;">
-      <select class="type-select" data-id="${id}" style="width: 100%; font-size: 10px; border-radius: 4px; padding: 2px; margin-bottom: 4px;">
+      <select class="type-select" data-id="${id}">
         ${typesHtml}
       </select>
-      <select class="category-select" data-id="${id}" style="width: 100%; font-size: 10px; border-radius: 4px; padding: 2px;">
+      <select class="category-select" data-id="${id}">
         ${optionsHtml}
       </select>
     `;
-
-    const nameInput = slot.querySelector("input");
-    const handleNameUpdate = (e) => {
-      const newVal = e.target.value.trim();
-      const sid = e.target.dataset.id;
-      const defName = getDefaultSpiritName(sid, state.currentSeason);
-      if (newVal === "" || newVal === defName) {
-        delete state.customNames[sid];
-      } else {
-        state.customNames[sid] = newVal;
-      }
-
-      // Auto-propagate to category siblings if base/normal spirit is renamed
-      const foundCat = state.categories.find(c => isIdInList(c.spiritIds, sid));
-      if (foundCat && categoryName !== "__uncategorized__" && newVal !== "") {
-        const currentType = getSpiritCurrentType(sid);
-        const isBaseSpirit = (currentType === "Normal" || (foundCat.spiritIds && foundCat.spiritIds[0] === sid));
-        if (isBaseSpirit) {
-          const sortedTypes = getSortedTypesWithSuffix();
-          let newBaseName = newVal;
-          for (const t of sortedTypes) {
-            if (newBaseName.endsWith(t.suffix)) {
-              newBaseName = newBaseName.slice(0, -t.suffix.length);
-              break;
-            }
-          }
-
-          const catCard = slot.closest(".category-card");
-
-          (foundCat.spiritIds || []).forEach(sibId => {
-            if (sibId !== sid) {
-              const sibType = getSpiritCurrentType(sibId);
-              const sibTypeObj = state.spiritTypes.find(t => t.name === sibType);
-              const sibSuffix = sibTypeObj ? sibTypeObj.suffix : "";
-              const sibFullName = newBaseName + sibSuffix;
-              const sibDefName = getDefaultSpiritName(sibId, state.currentSeason);
-              if (sibFullName === sibDefName) {
-                delete state.customNames[sibId];
-              } else {
-                state.customNames[sibId] = sibFullName;
-              }
-              if (catCard) {
-                const formattedSibId = String(sibId).padStart(2, '0');
-                const sibInput = catCard.querySelector(`input[data-id="${sibId}"], input[data-id="${formattedSibId}"]`);
-                if (sibInput) {
-                  sibInput.value = sibFullName;
-                }
-              }
-            }
-          });
-
-          state.customCategories[foundCat.name] = newBaseName;
-          if (catCard) {
-            const titleInput = catCard.querySelector(".category-title-edit input");
-            if (titleInput) {
-              titleInput.value = newBaseName;
-            }
-          }
-        }
-      }
-
-      triggerAutoSave(400);
-    };
-    nameInput.addEventListener("input", handleNameUpdate);
-    nameInput.addEventListener("change", handleNameUpdate);
-
-    const typeSelectEl = slot.querySelector(".type-select");
-    typeSelectEl.addEventListener("change", (e) => {
-      changeSpiritType(id, e.target.value);
-      triggerAutoSave(50);
-    });
-
-    const selectEl = slot.querySelector(".category-select");
-    selectEl.addEventListener("change", (e) => {
-      window.moveSpiritToCategory(id, e.target.value);
-      triggerAutoSave(50);
-    });
   }
 
   return slot;
+}
+
+// Edición del nombre de un espíritu en /edicion (delegado desde #categories-container)
+function handleSpiritNameInput(e) {
+  const categoryName = e.target.closest(".spirit-slots-grid")?.dataset.categoryName || "__uncategorized__";
+  clearSpiritCache();
+  const newVal = e.target.value.trim();
+  const sid = e.target.dataset.id;
+  const defName = getDefaultSpiritName(sid, state.currentSeason);
+  if (newVal === "" || newVal === defName) {
+    delete state.customNames[sid];
+  } else {
+    state.customNames[sid] = newVal;
+  }
+
+  // Auto-propagate to category siblings if base/normal spirit is renamed
+  const foundCat = state.categories.find(c => isIdInList(c.spiritIds, sid));
+  if (foundCat && categoryName !== "__uncategorized__" && newVal !== "") {
+    const currentType = getSpiritCurrentType(sid);
+    const isBaseSpirit = (currentType === "Normal" || (foundCat.spiritIds && foundCat.spiritIds[0] === sid));
+    if (isBaseSpirit) {
+      const sortedTypes = getSortedTypesWithSuffix();
+      let newBaseName = newVal;
+      for (const t of sortedTypes) {
+        if (newBaseName.endsWith(t.suffix)) {
+          newBaseName = newBaseName.slice(0, -t.suffix.length);
+          break;
+        }
+      }
+
+      const catCard = e.target.closest(".category-card");
+
+      (foundCat.spiritIds || []).forEach(sibId => {
+        if (sibId !== sid) {
+          const sibType = getSpiritCurrentType(sibId);
+          const sibTypeObj = state.spiritTypes.find(t => t.name === sibType);
+          const sibSuffix = sibTypeObj ? sibTypeObj.suffix : "";
+          const sibFullName = newBaseName + sibSuffix;
+          const sibDefName = getDefaultSpiritName(sibId, state.currentSeason);
+          if (sibFullName === sibDefName) {
+            delete state.customNames[sibId];
+          } else {
+            state.customNames[sibId] = sibFullName;
+          }
+          if (catCard) {
+            const formattedSibId = String(sibId).padStart(2, '0');
+            const sibInput = catCard.querySelector(`input[data-id="${sibId}"], input[data-id="${formattedSibId}"]`);
+            if (sibInput) {
+              sibInput.value = sibFullName;
+            }
+          }
+        }
+      });
+
+      state.customCategories[foundCat.name] = newBaseName;
+      if (catCard) {
+        const titleInput = catCard.querySelector(".category-title-edit input");
+        if (titleInput) {
+          titleInput.value = newBaseName;
+        }
+      }
+    }
+  }
+
+  triggerAutoSave(400);
 }
 
 let isDelegatedListenerBound = false;
@@ -860,6 +846,31 @@ function ensureDelegatedListener() {
   const container = document.getElementById("categories-container");
   if (!container) return;
   isDelegatedListenerBound = true;
+
+  // Un solo juego de listeners para todas las tarjetas de /edicion (antes eran 3-4 por tarjeta)
+  container.addEventListener("dragstart", (e) => {
+    const slot = e.target.closest?.(".spirit-slot.edit-mode-slot");
+    if (!slot || !slot.dataset.id) return;
+    e.dataTransfer.setData("text/plain", slot.dataset.id);
+    e.dataTransfer.setData("spirit-id", slot.dataset.id);
+    e.dataTransfer.effectAllowed = "move";
+  });
+  const onEditInput = (e) => {
+    if (state.currentMode !== "edit") return;
+    if (e.target.matches(".spirit-slot input[data-id]")) handleSpiritNameInput(e);
+  };
+  container.addEventListener("input", onEditInput);
+  container.addEventListener("change", (e) => {
+    if (state.currentMode !== "edit") return;
+    const id = e.target.dataset.id;
+    if (e.target.matches(".spirit-slot input[data-id]")) {
+      handleSpiritNameInput(e);
+    } else if (e.target.matches(".type-select")) {
+      changeSpiritType(id, e.target.value);
+    } else if (e.target.matches(".category-select")) {
+      window.moveSpiritToCategory(id, e.target.value);
+    }
+  });
 
   container.addEventListener("click", (e) => {
     if (state.currentMode !== "normal") return;
@@ -886,6 +897,9 @@ function ensureDelegatedListener() {
 export function renderWorkspace() {
   const container = document.getElementById("categories-container");
   if (!container) return;
+  // Las ediciones locales (tipo, categoría, nombre) cambian customNames sin pasar por Firestore:
+  // sin limpiar la caché se pintaría el nombre anterior y el autoguardado lo leería del DOM
+  clearSpiritCache();
   ensureDelegatedListener();
 
   const scrollArea = document.querySelector(".content-area");
@@ -919,9 +933,7 @@ export function renderWorkspace() {
 
   // Render Categories
   state.categories.forEach((cat, catIdx) => {
-    const matchingSpirits = (cat.spiritIds || []).filter(id => matchesFilter(id, precomputedSets));
-    
-    if (state.currentMode === "normal" && matchingSpirits.length === 0) return;
+    const matchingSpirits = cat.spiritIds || [];
 
     const card = document.createElement("div");
     card.className = "category-card";
@@ -937,7 +949,7 @@ export function renderWorkspace() {
           <span style="font-size: 20px;">📂</span>
           <input type="text" value="${customTitle}" placeholder="Nombre de categoría" data-original="${cat.name}">
         </div>
-        <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.deleteCategory(${catIdx})">Eliminar</button>
+        <button class="btn btn-danger" style="padding: 4px 8px; font-size: 15px;" onclick="window.deleteCategory(${catIdx})">Eliminar</button>
       `;
 
       const titleInput = header.querySelector("input");
@@ -982,7 +994,7 @@ export function renderWorkspace() {
         <div class="category-title-edit" style="flex-wrap: wrap; gap: 6px 10px; align-items: center;">
           <span style="font-size: 18px;">📂</span>
           <h3 style="font-family: 'VT323', monospace; font-size: 21px; font-weight: 700; color: var(--text-color); margin: 0; line-height: 1;">${customTitle}</h3>
-          <span style="font-size: 15px; color: var(--text-muted); line-height: 1;">(${matchingSpirits.length}/${(cat.spiritIds || []).length})</span>
+          <span class="cat-match-count" style="font-size: 15px; color: var(--text-muted); line-height: 1;">(${matchingSpirits.length}/${(cat.spiritIds || []).length})</span>
           <div style="display: inline-flex; gap: 6px; align-items: center;">
             <span class="cat-stat-badge kevin" title="Obtenidos / Maestría de Kevin">🔵 ${catKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${catKevinMastery}</span></span>
             <span class="cat-stat-badge ali" title="Obtenidos / Maestría de Ali">🔴 ${catAliCount} <span style="color:#fbbf24; font-weight:700;">⭐${catAliMastery}</span></span>
@@ -1028,7 +1040,7 @@ export function renderWorkspace() {
   });
 
   // Render Uncategorized / Loose Spirits
-  const uncategorizedIds = activeSpirits.filter(id => !assignedIds.has(String(id)) && matchesFilter(id, precomputedSets));
+  const uncategorizedIds = activeSpirits.filter(id => !assignedIds.has(String(id)));
   
   if (state.currentMode === "edit" || uncategorizedIds.length > 0) {
     const looseCard = document.createElement("div");
@@ -1039,7 +1051,7 @@ export function renderWorkspace() {
     const uncatAliMastery = uncategorizedIds.filter(id => precomputedSets.aliMasterySet.has(String(id))).length;
 
     const deleteMassBtn = (state.currentMode === "edit" && uncategorizedIds.length > 0)
-      ? `<button class="btn btn-danger" style="padding: 4px 10px; font-size: 14px; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" onclick="window.deleteAllUncategorizedSpirits()" title="Eliminar espíritus sueltos">🗑️ Eliminar Sueltos (${uncategorizedIds.length})</button>`
+      ? `<button class="btn btn-danger" style="padding: 4px 10px; font-size: 14px; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" onclick="window.deleteAllUncategorizedSpirits()" title="Eliminar espíritus sueltos">🗑️ Eliminar Sueltos (<span class="loose-count">${uncategorizedIds.length}</span>)</button>`
       : '';
 
     looseCard.innerHTML = `
@@ -1047,7 +1059,7 @@ export function renderWorkspace() {
         <div class="category-title-edit" style="flex-wrap: wrap; gap: 8px 12px; width: 100%; align-items: center;">
           <span style="font-size: 20px;">📦</span>
           <span style="font-family: 'VT323', monospace; font-size: 22px; font-weight: 700; color: var(--error-color);">Sin Categoría / Sueltos</span>
-          <span style="font-size: 16px; color: var(--text-muted);">(${uncategorizedIds.length})</span>
+          <span class="cat-match-count" style="font-size: 16px; color: var(--text-muted);">(${uncategorizedIds.length})</span>
           ${state.currentMode === 'normal' ? `
             <div style="display: inline-flex; gap: 6px; align-items: center;">
               <span class="cat-stat-badge kevin" title="Obtenidos / Maestría de Kevin">🔵 ${uncatKevinCount} <span style="color:#fbbf24; font-weight:700;">⭐${uncatKevinMastery}</span></span>
@@ -1075,6 +1087,7 @@ export function renderWorkspace() {
   }
 
   container.replaceChildren(workspaceFragment);
+  applyFilterVisibility();
 
   if (scrollArea && savedScrollTop > 0) {
     scrollArea.scrollTop = savedScrollTop;
@@ -1097,6 +1110,7 @@ window.setFilter = setFilter;
 window.handleSpiritImgError = handleSpiritImgError;
 window.updateSingleSpiritDOM = updateSingleSpiritDOM;
 window.syncAllSpiritSlotsDOM = syncAllSpiritSlotsDOM;
+window.applyFilterVisibility = applyFilterVisibility;
 
 if (typeof window !== "undefined" && !window.__spiritSearchShortcutBound) {
   window.__spiritSearchShortcutBound = true;

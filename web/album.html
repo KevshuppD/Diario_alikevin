@@ -57,6 +57,7 @@
       <button type="button" id="btn-mode-normal" class="mode-btn nav-tab active" data-mode="normal" onclick="window.switchModeSPA('normal')">📖 Álbum</button>
       <button type="button" id="btn-mode-edit" class="mode-btn nav-tab" data-mode="edit" onclick="window.switchModeSPA('edit')">✏️ Modo Edición</button>
       <button type="button" id="btn-mode-categories" class="mode-btn nav-tab" data-mode="categories" onclick="window.switchModeSPA('categories')">🏷️ Tipos y Categorías</button>
+      <button type="button" id="btn-mode-letters" class="mode-btn nav-tab" data-mode="letters" onclick="window.switchModeSPA('letters')">💌 Cartas</button>
       <button type="button" id="btn-mode-radar" class="mode-btn nav-tab" data-mode="radar" onclick="window.switchModeSPA('radar')">📡 Dispositivos & Radar</button>
       <button type="button" id="btn-mode-config" class="mode-btn nav-tab" data-mode="config" onclick="window.switchModeSPA('config')">⚙️ Configuración</button>
     </div>
@@ -202,6 +203,11 @@
       <!-- Radar & Devices Manager Container (/radar) -->
       <div class="db-inspector-area" id="radar-container" style="display: none;">
         <!-- Rendered dynamically by radar-view.js -->
+      </div>
+
+      <!-- Letters Container (/cartas) -->
+      <div class="db-inspector-area" id="letters-container" style="display: none;">
+        <!-- Rendered dynamically by letters-view.js -->
       </div>
 
       <!-- Configuration Dashboard Container (/configuracion) -->

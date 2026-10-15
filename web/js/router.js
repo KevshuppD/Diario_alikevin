@@ -20,6 +20,7 @@ export function getRouteFromPath(pathname) {
   if (cleanPath === '/categorias' || cleanPath === '/categories') return 'categories';
   if (cleanPath === '/configuracion' || cleanPath === '/config') return 'config';
   if (cleanPath === '/radar') return 'radar';
+  if (cleanPath === '/cartas') return 'letters';
   return 'normal';
 }
 
@@ -34,6 +35,7 @@ export function getPathFromRoute(route) {
     case 'config':
     case 'configuracion': return '/configuracion';
     case 'radar': return '/radar';
+    case 'letters': return '/cartas';
     default: return '/album';
   }
 }
@@ -49,12 +51,14 @@ export function setMode(mode) {
   const btnCategories = document.getElementById("btn-mode-categories");
   const btnRadar = document.getElementById("btn-mode-radar");
   const btnConfig = document.getElementById("btn-mode-config");
+  const btnLetters = document.getElementById("btn-mode-letters");
 
   if (btnNormal) btnNormal.classList.toggle("active", mode === "normal");
   if (btnEdit) btnEdit.classList.toggle("active", mode === "edit");
   if (btnCategories) btnCategories.classList.toggle("active", mode === "categories");
   if (btnRadar) btnRadar.classList.toggle("active", mode === "radar");
   if (btnConfig) btnConfig.classList.toggle("active", mode === "config");
+  if (btnLetters) btnLetters.classList.toggle("active", mode === "letters");
 
   // Mostrar / Ocultar componentes según el modo activo
   const searchBar = document.getElementById("shared-search-bar-container");
@@ -65,6 +69,7 @@ export function setMode(mode) {
   const categoriesManagerContainer = document.getElementById("categoriesManagerContainer");
   const radarContainer = document.getElementById("radar-container");
   const configContainer = document.getElementById("config-container");
+  const lettersContainer = document.getElementById("letters-container");
   const sidebar = document.getElementById("sidebar");
 
   if (searchBar) searchBar.style.display = (mode === "normal" || mode === "edit") ? "block" : "none";
@@ -75,6 +80,7 @@ export function setMode(mode) {
   if (categoriesManagerContainer) categoriesManagerContainer.style.display = mode === "categories" ? "block" : "none";
   if (radarContainer) radarContainer.style.display = mode === "radar" ? "block" : "none";
   if (configContainer) configContainer.style.display = mode === "config" ? "block" : "none";
+  if (lettersContainer) lettersContainer.style.display = mode === "letters" ? "block" : "none";
 
   if (sidebar) {
     sidebar.classList.toggle("hidden", !isGalleryOpen || mode !== "edit");
@@ -91,6 +97,11 @@ export function setMode(mode) {
     import('./radar-view.js')
       .then(radar => { if (state.currentMode === "radar") radar.renderRadarManager(); })
       .catch(err => console.error("Error cargando el radar:", err));
+  } else if (mode === "letters") {
+    // Las cartas se descargan solo al abrir la pestaña
+    import('./letters-view.js')
+      .then(letters => { if (state.currentMode === "letters") letters.renderLettersView(); })
+      .catch(err => console.error("Error cargando las cartas:", err));
   } else if (mode === "config") {
     renderConfigView();
   } else {
