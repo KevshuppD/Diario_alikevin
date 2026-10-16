@@ -45,9 +45,14 @@ jobs:
       - name: Extract Release Notes
         id: release_notes
         run: |
-          TAG_MSG=$(git tag -l --format='%(contents)' "${{ github.ref_name }}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-          if [ -z "$TAG_MSG" ]; then
-            TAG_MSG=$(git log -1 --pretty=%B | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+          NOTES_FILE="changelog/${{ github.ref_name }}.md"
+          if [ -f "$NOTES_FILE" ]; then
+            TAG_MSG=$(cat "$NOTES_FILE")
+          else
+            TAG_MSG=$(git tag -l --format='%(contents)' "${{ github.ref_name }}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            if [ -z "$TAG_MSG" ]; then
+              TAG_MSG=$(git log -1 --pretty=%B | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            fi
           fi
           if [ -z "$TAG_MSG" ]; then
             TAG_MSG="Novedades y mejoras en la versión ${{ github.ref_name }}."
@@ -71,6 +76,7 @@ jobs:
         if: success()
         run: |
           pip install google-auth requests
-          python3 .github/scripts/send_update_notification.py "${{ github.ref_name }}" "${{ github.repository }}" "${{ steps.release_notes.outputs.notes }}"
+          python3 .github/scripts/send_update_notification.py "${{ github.ref_name }}" "${{ github.repository }}" "$RELEASE_NOTES"
         env:
           SERVICE_ACCOUNT_PATH: "app/src/main/assets/service-account.json"
+          RELEASE_NOTES: ${{ steps.release_notes.outputs.notes }}

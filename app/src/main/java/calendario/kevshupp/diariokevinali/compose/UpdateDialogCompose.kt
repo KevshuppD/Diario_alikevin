@@ -22,6 +22,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import calendario.kevshupp.diariokevinali.AppUpdateInfo
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 
 @Composable
 fun UpdateDialogCompose(
@@ -243,7 +247,7 @@ fun UpdateDialogCompose(
                     ) {
                         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                             Text(
-                                text = notes,
+                                text = formatChangelog(notes),
                                 fontFamily = Vt323,
                                 fontSize = 16.sp,
                                 color = textColor,
@@ -415,6 +419,38 @@ fun UpdateDialogCompose(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Convierte las notas de la versión (Markdown de GitHub) en texto con formato: viñetas anidadas
+ * por sangría, títulos y **negrita** en negrita, y `código` sin las comillas invertidas.
+ */
+private fun formatChangelog(markdown: String): AnnotatedString {
+    val bold = SpanStyle(fontWeight = FontWeight.Bold)
+    return buildAnnotatedString {
+        fun appendInline(text: String) {
+            // Partes impares entre ** van en negrita
+            text.replace("`", "").split("**").forEachIndexed { i, part ->
+                if (i % 2 == 1) withStyle(bold) { append(part) } else append(part)
+            }
+        }
+        val lines = markdown.replace("\r\n", "\n").lines()
+        lines.forEachIndexed { index, raw ->
+            val indent = raw.length - raw.trimStart().length
+            val line = raw.trim()
+            when {
+                line.startsWith("#") -> withStyle(bold) { append(line.trimStart('#').trim().replace("**", "").replace("`", "")) }
+                line.startsWith("- ") || line.startsWith("* ") -> {
+                    val level = indent / 2
+                    append("    ".repeat(level))
+                    append(if (level == 0) "• " else "◦ ")
+                    appendInline(line.substring(2))
+                }
+                else -> appendInline(line)
+            }
+            if (index < lines.lastIndex) append("\n")
         }
     }
 }
