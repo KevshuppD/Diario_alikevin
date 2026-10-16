@@ -1368,8 +1368,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleLikeMessage(msg: Message) {
         android.util.Log.d("DIARIO_DEBUG", "toggleLikeMessage llamado para msgId: ${msg.messageId}, liked actual: ${msg.liked}")
+        // No mutar msg en sitio: es el mismo objeto de la lista actual y haría que la nueva lista
+        // sea igual (equals) a la anterior, por lo que el MutableState no recompondría.
         val newLiked = !msg.liked
-        msg.liked = newLiked
         val updates = mapOf(
             "liked" to newLiked,
             "isLiked" to newLiked

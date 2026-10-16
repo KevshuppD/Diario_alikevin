@@ -564,8 +564,10 @@ fun MessageCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                // El autor no puede darse like a su propia carta; solo ve si su pareja le dio like
                 IconButton(
                     onClick = onLike,
+                    enabled = message.authorId != currentUserId,
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(

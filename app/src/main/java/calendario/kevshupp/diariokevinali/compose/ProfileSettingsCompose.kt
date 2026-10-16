@@ -352,6 +352,34 @@ fun SettingsScreen(
                             )
                         }
                     }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onShowTopBarChange(!showTopBar) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = showTopBar,
+                            onCheckedChange = { onShowTopBarChange(it) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "MOSTRAR BARRA SUPERIOR ('NUESTRO DIARIO')",
+                                fontFamily = Vt323,
+                                fontSize = 18.sp,
+                                color = textColor
+                            )
+                            Text(
+                                text = "Oculta o muestra el recuadro superior con el título.",
+                                fontFamily = Vt323,
+                                fontSize = 14.sp,
+                                color = textColor.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
                 }
                 "alerts" -> {
                     Text(text = "NOTIFICACIONES", fontFamily = Vt323, fontSize = 18.sp, color = textColor)

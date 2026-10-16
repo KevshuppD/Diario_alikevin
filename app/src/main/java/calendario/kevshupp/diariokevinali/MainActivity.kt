@@ -688,8 +688,10 @@ class MainActivity : AppCompatActivity(), AppNavigation {
             { msg: Message -> viewModel.deleteMessage(msg) },
             { msg: Message ->
                 Log.d("DIARIO_DEBUG", "MainActivity onLikeClick recibido para msgId: ${msg.messageId}, liked actual: ${msg.isLiked}")
-                viewModel.toggleLikeMessage(msg)
-                if (msg.isLiked) {
+                val isOwnLetter = msg.authorId == currentUserId
+                val nowLiked = !msg.isLiked
+                if (!isOwnLetter) viewModel.toggleLikeMessage(msg)
+                if (!isOwnLetter && nowLiked) {
                     var letterTitle = msg.title
                     if (letterTitle == null || letterTitle.trim().isEmpty()) {
                         letterTitle = "una carta"
