@@ -104,6 +104,11 @@ fun AdvancedSettingsCompose(
 
         Spacer(modifier = Modifier.height(28.dp))
 
+        // Premios de la ruleta Juntos (guardados en Firestore)
+        TogetherPrizesEditor(isDark = isDark, textColor = textColor, borderColor = borderColor)
+
+        Spacer(modifier = Modifier.height(28.dp))
+
         // Panel de Administrador Integrado
         AdminSettingsCompose(
             currentTheme = currentTheme,

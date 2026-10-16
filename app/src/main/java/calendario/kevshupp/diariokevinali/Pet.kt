@@ -119,7 +119,9 @@ data class Pet(
     var togetherDateKevin: String? = null,
     var togetherSpinsKevin: Int = 0,
     var togetherDateAli: String? = null,
-    var togetherSpinsAli: Int = 0
+    var togetherSpinsAli: Int = 0,
+    // Premios de la ruleta Juntos (editables en Configuración → Avanzado). Vacío = aún no sembrados: usar DEFAULT_TOGETHER_PRIZES
+    var togetherPrizes: List<RoulettePrize> = listOf()
 ) {
     @get:Exclude
     var isSleepingSetFromNewField: Boolean = false
@@ -266,6 +268,9 @@ data class Pet(
         return if (date == today) (if (isKevin) rouletteSpinsKevin else rouletteSpinsAli) else 0
     }
 
+    fun getActiveTogetherPrizes(): List<RoulettePrize> =
+        if (togetherPrizes.isEmpty()) DEFAULT_TOGETHER_PRIZES else togetherPrizes
+
     fun getTogetherSpinsToday(isKevin: Boolean, today: String): Int {
         val date = if (isKevin) togetherDateKevin else togetherDateAli
         return if (date == today) (if (isKevin) togetherSpinsKevin else togetherSpinsAli) else 0
@@ -362,3 +367,36 @@ data class PetVoucher(
         const val STATUS_DONE = "done"
     }
 }
+
+/**
+ * Premio de la ruleta Juntos guardado en Firestore (pets/<coupleId>.togetherPrizes).
+ * value = "valor" del premio: define qué tan seguido sale (peso 1/value; más alto = más raro).
+ */
+@IgnoreExtraProperties
+data class RoulettePrize(
+    var id: String = "",
+    var emoji: String = "🎁",
+    var title: String = "",
+    var value: Int = 50,
+    var spicy: Boolean = false
+)
+
+// Premios con los que se siembra la ruleta Juntos la primera vez
+val DEFAULT_TOGETHER_PRIZES: List<RoulettePrize> = listOf(
+    RoulettePrize("tp_foto", "📸", "Foto juntos en un lugar bonito", 20),
+    RoulettePrize("tp_bailar", "💃", "Bailar una canción juntos", 25),
+    RoulettePrize("tp_paseo", "🌅", "Paseo de 30 minutos", 35),
+    RoulettePrize("tp_helado", "🍦", "Helado juntos", 40),
+    RoulettePrize("tp_maraton", "🍿", "Maratón de película o anime", 50),
+    RoulettePrize("tp_salida", "🎳", "Salida a elegir", 90),
+    RoulettePrize("tp_cena", "🍝", "Cena especial", 120),
+    RoulettePrize("tp_regalo", "💝", "Regalo sorpresa", 200),
+    RoulettePrize("tp_beso", "💋", "Beso apasionado de 1 minuto", 25, spicy = true),
+    RoulettePrize("tp_besos", "😘", "Besos donde yo elija", 45, spicy = true),
+    RoulettePrize("tp_masaje", "💆", "Masaje con aceite sin apuro", 60, spicy = true),
+    RoulettePrize("tp_ducha", "🛁", "Ducha o baño juntos", 70, spicy = true),
+    RoulettePrize("tp_ropa", "👗", "Tú eliges lo que me pongo esta noche", 80, spicy = true),
+    RoulettePrize("tp_mando", "🎲", "Esta noche mando yo", 100, spicy = true),
+    RoulettePrize("tp_deseo", "🌶️", "Cumplo un deseo picante tuyo", 130, spicy = true),
+    RoulettePrize("tp_noche", "🔥", "Noche especial sin límite de tiempo", 180, spicy = true)
+)

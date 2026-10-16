@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import calendario.kevshupp.diariokevinali.MainActivity
 import calendario.kevshupp.diariokevinali.Pet
 import calendario.kevshupp.diariokevinali.PetVoucher
+import calendario.kevshupp.diariokevinali.RoulettePrize
 import calendario.kevshupp.diariokevinali.TogetherDetector
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -67,38 +68,19 @@ private const val ROULETTE_MAX_REPEATS = 5
 private val ROULETTE_SEGMENTS: List<VoucherOption> =
     VOUCHER_CATALOG.take(3) + ROULETTE_AGAIN + VOUCHER_CATALOG.subList(3, 6) + ROULETTE_NOTHING + VOUCHER_CATALOG.drop(6)
 
-// Premios de la ruleta Juntos.
-// PROVISIONALES: el usuario va a definir las recompensas reales; reemplazar esta lista cuando las entregue.
-private val TOGETHER_CATALOG = listOf(
-    VoucherOption("📸", "Foto juntos en un lugar bonito", 20),
-    VoucherOption("💃", "Bailar una canción juntos", 25),
-    VoucherOption("🌅", "Paseo de 30 minutos", 35),
-    VoucherOption("🍦", "Helado juntos", 40),
-    VoucherOption("🍿", "Maratón de película o anime", 50),
-    VoucherOption("🎳", "Salida a elegir", 90),
-    VoucherOption("🍝", "Cena especial", 120),
-    VoucherOption("💝", "Regalo sorpresa", 200),
-    // Picantes 🌶️ (solo para la ruleta Juntos)
-    VoucherOption("💋", "Beso apasionado de 1 minuto", 25, spicy = true),
-    VoucherOption("😘", "Besos donde yo elija", 45, spicy = true),
-    VoucherOption("💆", "Masaje con aceite sin apuro", 60, spicy = true),
-    VoucherOption("🛁", "Ducha o baño juntos", 70, spicy = true),
-    VoucherOption("👗", "Tú eliges lo que me pongo esta noche", 80, spicy = true),
-    VoucherOption("🎲", "Esta noche mando yo", 100, spicy = true),
-    VoucherOption("🌶️", "Cumplo un deseo picante tuyo", 130, spicy = true),
-    VoucherOption("🔥", "Noche especial sin límite de tiempo", 180, spicy = true)
-)
-// Sin "Nada": la ruleta juntos siempre premia (salvo "Otra vez", que vuelve a girar)
-private val TOGETHER_SEGMENTS: List<VoucherOption> = run {
-    val normal = TOGETHER_CATALOG.filter { !it.spicy }
-    val spicy = TOGETHER_CATALOG.filter { it.spicy }
+// Ruleta Juntos: los premios vienen de Firestore (pet.getActiveTogetherPrizes(), editables en Configuración → Avanzado).
+// Sin "Nada": siempre premia (salvo "Otra vez", que vuelve a girar). Picantes y normales se intercalan.
+private fun buildTogetherSegments(prizes: List<RoulettePrize>): List<VoucherOption> {
+    val normal = prizes.filter { !it.spicy }.map { VoucherOption(it.emoji, it.title, it.value) }
+    val spicy = prizes.filter { it.spicy }.map { VoucherOption(it.emoji, it.title, it.value, spicy = true) }
     val mixed = ArrayList<VoucherOption>()
     for (i in 0 until maxOf(normal.size, spicy.size)) {
         normal.getOrNull(i)?.let { mixed.add(it) }
         spicy.getOrNull(i)?.let { mixed.add(it) }
         if (i == 3) mixed.add(ROULETTE_AGAIN)
     }
-    mixed
+    if (ROULETTE_AGAIN !in mixed) mixed.add(ROULETTE_AGAIN)
+    return mixed
 }
 
 private val ROULETTE_COLORS = listOf(
@@ -147,7 +129,6 @@ private class RouletteWheel(val segments: List<VoucherOption>, val colors: List<
 }
 
 private val NORMAL_WHEEL = RouletteWheel(ROULETTE_SEGMENTS, ROULETTE_COLORS)
-private val TOGETHER_WHEEL = RouletteWheel(TOGETHER_SEGMENTS, TOGETHER_COLORS)
 
 @Composable
 fun PetVouchersContent(
@@ -419,8 +400,11 @@ private fun TogetherRouletteSection(
     val togetherSpins = pet.getTogetherSpinsToday(isKevin, today)
     val noneLeft = togetherSpins >= Pet.TOGETHER_SPINS_PER_DAY
     val cost = Pet.TOGETHER_SPIN_COST
+    // Se recalcula solo cuando cambian los premios en Firestore (no en cada frame)
+    val prizes = pet.getActiveTogetherPrizes()
+    val togetherWheel = remember(prizes) { RouletteWheel(buildTogetherSegments(prizes), TOGETHER_COLORS) }
     VoucherRoulette(
-        wheel = TOGETHER_WHEEL,
+        wheel = togetherWheel,
         title = "💞 RULETA JUNTOS",
         canSpin = !noneLeft && pet.lovePoints >= cost,
         idleText = when {
@@ -481,7 +465,7 @@ private fun VoucherRoulette(
     val enabled = canSpin && !spinning
 
     // Tick cada vez que una línea entre trozos pasa por el puntero (máx. 1 cada 35 ms para que no se sature)
-    LaunchedEffect(soundOn) {
+    LaunchedEffect(soundOn, wheel) {
         var lastSegment = wheel.segmentAt(rotation.value)
         var lastTickAt = 0L
         snapshotFlow { rotation.value }.collect { r ->

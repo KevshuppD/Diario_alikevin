@@ -25,6 +25,7 @@ import java.util.Locale
 import java.util.UUID
 
 private const val MAX_DONE_VOUCHERS = 20
+private const val MAX_TOGETHER_PRIZES = 30
 // Tras confirmar que están juntos, la ruleta especial queda disponible por 20 minutos
 private const val TOGETHER_VALID_MS = 20 * 60_000L
 
@@ -199,6 +200,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val p = snapshot.toObject(Pet::class.java)
                 if (p != null) {
                     _petState.value = p
+                    seedTogetherPrizesIfMissing(p)
                     checkPetDecay(p)
                     savePetDataToWidgetPrefs(p)
                     checkAndMigratePetRanking(p)
@@ -1288,6 +1290,50 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val p = _petState.value ?: return 0
         val today = dayFormat.format(Date())
         return (Pet.ROULETTE_MAX_SPINS_PER_DAY - p.getRouletteSpinsToday(isCurrentUserKevin(), today)).coerceAtLeast(0)
+    }
+
+    // --- PREMIOS DE LA RULETA JUNTOS (en Firestore) ---
+    private var togetherPrizesSeeded = false
+
+    // Siembra única: si el documento aún no tiene premios, guarda los predeterminados (1 escritura, una sola vez)
+    private fun seedTogetherPrizesIfMissing(p: Pet) {
+        if (togetherPrizesSeeded || p.togetherPrizes.isNotEmpty()) return
+        togetherPrizesSeeded = true
+        db.collection("pets").document(currentCoupleId).update("togetherPrizes", DEFAULT_TOGETHER_PRIZES)
+    }
+
+    fun addTogetherPrize(emoji: String, title: String, value: Int, spicy: Boolean): Boolean {
+        val p = _petState.value ?: return false
+        val current = p.getActiveTogetherPrizes()
+        if (title.isBlank()) return false
+        if (current.size >= MAX_TOGETHER_PRIZES) {
+            toastMessage.value = "Máximo $MAX_TOGETHER_PRIZES premios en la ruleta"
+            return false
+        }
+        val prize = RoulettePrize(
+            id = "tp_${System.currentTimeMillis()}",
+            emoji = emoji.ifBlank { "🎁" }.trim(),
+            title = title.trim(),
+            value = value.coerceIn(5, 500),
+            spicy = spicy
+        )
+        db.collection("pets").document(currentCoupleId)
+            .update("togetherPrizes", current + prize)
+            .addOnSuccessListener { toastMessage.value = "¡Premio agregado a la ruleta Juntos! 💞" }
+            .addOnFailureListener { toastMessage.value = "No se pudo agregar el premio" }
+        return true
+    }
+
+    fun deleteTogetherPrize(prizeId: String) {
+        val p = _petState.value ?: return
+        val current = p.getActiveTogetherPrizes()
+        if (current.size <= 1) {
+            toastMessage.value = "La ruleta necesita al menos 1 premio"
+            return
+        }
+        db.collection("pets").document(currentCoupleId)
+            .update("togetherPrizes", current.filter { it.id != prizeId })
+            .addOnSuccessListener { toastMessage.value = "Premio eliminado de la ruleta Juntos" }
     }
 
     // --- RULETA JUNTOS ---
