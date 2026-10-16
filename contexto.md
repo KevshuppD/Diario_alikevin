@@ -137,6 +137,8 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 - `imageUrls: MutableList<String>?` (URLs de Cloudinary).
 - `timestamp: Long` (Fecha de publicación).
 - `liked: Boolean` (Estado de me gusta / favorito).
+  - **Reglas de likes:** solo la pareja puede dar o quitar like; en las cartas propias el corazón está deshabilitado (`enabled = message.authorId != currentUserId` en `MessageCard`) pero se ve rosado si la pareja dio like. `MainActivity` también ignora el toque en cartas propias y envía la notificación push "¡le encantó!" solo al dar like.
+  - **No mutar `Message` en sitio:** `toggleLikeMessage` debe crear una copia (`it.copy(liked = ...)`) sin modificar el objeto original. Mutarlo hace que la lista nueva sea `equals` a la anterior y el `MutableState` del feed no recompone (bug corregido en v1.7.82).
 - `type: String?` (`MESSAGE` o `ALBUM`).
 
 ### C. Horario de Clases (`schedules/<coupleId>`) - `ScheduleCompose.kt`
@@ -671,6 +673,11 @@ graph TD
 - **`RadarMapCompose.kt`:** el bloque `update` del `MapView` solo reconstruye polígonos y marcadores cuando cambia una clave (`zones`, tema, bitmaps de marcadores, lat/lng propia y de la pareja) guardada en `mapView.tag`. Antes se rehacían en cada recomposición de `ThorRadarCompose` (batería, SOS, ubicación). Medido en un moto g35 al arrastrar el mapa: percentil 99 de 200 ms → 17 ms y frames con tirones 5,3 % → 3,4 %.
 - **`RadarZonesCompose.kt`:** `onScroll`/`onZoom` publican el centro del mapa en el estado 150 ms después del último evento (antes, una escritura de estado por frame recomponía todo el diálogo), y la geocodificación inversa espera 500 ms a que el mapa se detenga.
 - Ambos mapas ocultan los botones de zoom integrados de osmdroid (`CustomZoomButtonsController.Visibility.NEVER`): ya existen botones +/- propios.
+
+### Inventario de Opciones Visibles (no eliminar sin autorización — ver regla 8 de AGENTS.md)
+- **Configuración → Diseño y Tema:** selector de tema, paleta de colores por familias, casilla *Fondo con tono personalizado* (`useCustomBg`), casilla *Mostrar barra superior ('Nuestro Diario')* (`showTopBar`, se guarda en `DiarioPrefs` y en Firestore y la aplica `MainActivity.updateTopBarVisibility()`).
+- **Cartas:** like / quitar like (solo en cartas de la pareja), menú de mantener presionado, borrar carta propia, paginación de 5 en 5.
+- **Historial:** la casilla de barra superior se perdió por accidente en el commit `586863a` (v1.7.54, reorganización de Configuración) y se restauró en v1.7.82. El cambio de nombre de la mascota desde `PetMenuDialog` se quitó en `70c004f` (v1.7.52); el parámetro `onUpdateName` sigue sin usarse.
 
 ## 15. Tareas Pendientes / Backlog
 

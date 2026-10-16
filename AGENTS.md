@@ -65,3 +65,12 @@
 - **Catálogo Maestro**:
   - Consultar siempre `espiritus.md` como la Fuente Única de Verdad de nombres, categorías, IDs y enlaces directos a Fortnite.GG.
 
+---
+
+## 🚫 8. Prohibido Eliminar Funciones sin Autorización Explícita
+- **Ninguna IA puede quitar, ocultar ni reemplazar una opción, botón, pantalla o función existente** a menos que el usuario lo pida explícitamente en ese mismo mensaje. Refactorizar, "limpiar", reorganizar u optimizar **no** autoriza a eliminar funcionalidad.
+- **Al reorganizar una pantalla** (ej. `ProfileSettingsCompose.kt`), cada elemento de la UI anterior debe seguir existiendo en la nueva versión. Antes de hacer commit, revisar `git diff` buscando líneas `Text(`, `Checkbox(`, `Switch(`, `Button(` eliminadas y confirmar que cada una fue movida, no borrada.
+- **Señal de alerta**: un parámetro de un Composable que ya no se usa en su cuerpo (ej. `showTopBar` / `onShowTopBarChange` que quedaron sin casilla en la v1.7.54–1.7.81) suele indicar una función perdida. No borrar el parámetro "por limpieza": restaurar la UI o preguntar al usuario.
+- **Si una eliminación parece necesaria**, proponerla y esperar confirmación; luego documentarla en `contexto.md` (qué se quitó, cuándo y por pedido de quién).
+- **Inventario de funciones**: `contexto.md` (sección *Inventario de Opciones Visibles*) lista las opciones que deben existir. Si se agrega o quita una con autorización, actualizar ese inventario en el mismo commit.
+
