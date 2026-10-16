@@ -32,6 +32,8 @@
 
 -keepclassmembers class calendario.kevshupp.diariokevinali.Pet { *; }
 -keep class calendario.kevshupp.diariokevinali.Pet { *; }
+-keepclassmembers class calendario.kevshupp.diariokevinali.PetVoucher { *; }
+-keep class calendario.kevshupp.diariokevinali.PetVoucher { *; }
 
 -keepclassmembers class calendario.kevshupp.diariokevinali.Recipe { *; }
 -keep class calendario.kevshupp.diariokevinali.Recipe { *; }

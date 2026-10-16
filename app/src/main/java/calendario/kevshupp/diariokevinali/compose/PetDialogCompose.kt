@@ -354,12 +354,13 @@ fun PetMenuDialog(
                     }
                 }
 
-                // Header con 5 pestañas: INFO, RANKING 🏆, ESTILO 👑, COMIDA, AJUSTES
+                // Header con 6 pestañas: INFO, RANKING 🏆, ESTILO 👑, COMIDA, VALES 🎟️, AJUSTES
                 Row(modifier = Modifier.fillMaxWidth()) {
                     TabItem("INFO", selectedTab == 0, isDark, borderColor) { selectedTab = 0 }
                     TabItem("RANK 🏆", selectedTab == 2, isDark, borderColor) { selectedTab = 2 }
                     TabItem("ESTILO 👑", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
                     TabItem(if (pet.isCuky()) "COMIDA 🌽" else "COMIDA 🐟", selectedTab == 3, isDark, borderColor) { selectedTab = 3 }
+                    TabItem("🎟️", selectedTab == 5, isDark, borderColor) { selectedTab = 5 }
                     TabItem("⚙️", selectedTab == 4, isDark, borderColor) { selectedTab = 4 }
                 }
 
@@ -1146,6 +1147,16 @@ fun PetMenuDialog(
                         onBackToHome = { selectedTab = 0 },
                         modifier = Modifier.weight(1f)
                     )
+                } else if (selectedTab == 5) {
+                    // Pestaña de Vales de Pareja (gastan los puntos de amor compartidos)
+                    PetVouchersContent(
+                        pet = pet,
+                        isDark = isDark,
+                        borderColor = borderColor,
+                        contentColor = contentColor,
+                        accentColor = accentColor,
+                        modifier = Modifier.weight(1f)
+                    )
                 } else if (selectedTab == 4) {
                     val sharedPrefsNotif = remember { context.getSharedPreferences("pet_notif_prefs", Context.MODE_PRIVATE) }
                     var notificationsEnabled by remember { mutableStateOf(sharedPrefsNotif.getBoolean("notifications_enabled", true)) }
@@ -1193,7 +1204,7 @@ fun PetMenuDialog(
                                     notificationsEnabled = isChecked
                                     sharedPrefsNotif.edit().putBoolean("notifications_enabled", isChecked).apply()
                                     val statusText = if (isChecked) "activadas" else "desactivadas"
-                                    (context as? MainActivity)?.showStyledPixelToast("Notificaciones $statusText 🔔")
+                                    context.findMainActivity()?.showStyledPixelToast("Notificaciones $statusText 🔔")
                                 },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = accentColor,
@@ -1217,10 +1228,10 @@ fun PetMenuDialog(
                             Spacer(modifier = Modifier.height(10.dp))
                             Button(
                                 onClick = {
-                                    (context as? MainActivity)?.showStyledPixelToast("Sincronizando... ☁️")
+                                    context.findMainActivity()?.showStyledPixelToast("Sincronizando... ☁️")
                                     scope.launch {
                                         delay(800)
-                                        (context as? MainActivity)?.showStyledPixelToast("¡Sincronización forzada con éxito! ☁️✨")
+                                        context.findMainActivity()?.showStyledPixelToast("¡Sincronización forzada con éxito! ☁️✨")
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),

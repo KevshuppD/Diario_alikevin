@@ -106,7 +106,20 @@ data class Pet(
     var tapCountKevin: Int = 0,
     var tapCountAli: Int = 0,
     var minigameCountKevin: Int = 0,
-    var minigameCountAli: Int = 0
+    var minigameCountAli: Int = 0,
+
+    // --- VALES DE PAREJA (se ganan en la ruleta, que se paga con lovePoints compartidos) ---
+    var vouchers: List<PetVoucher> = listOf(),
+    // Giros de ruleta del día por persona (fecha yyyy-MM-dd + cantidad)
+    var rouletteDateKevin: String? = null,
+    var rouletteSpinsKevin: Int = 0,
+    var rouletteDateAli: String? = null,
+    var rouletteSpinsAli: Int = 0,
+    // Giros de la ruleta "Juntos" del día por persona
+    var togetherDateKevin: String? = null,
+    var togetherSpinsKevin: Int = 0,
+    var togetherDateAli: String? = null,
+    var togetherSpinsAli: Int = 0
 ) {
     @get:Exclude
     var isSleepingSetFromNewField: Boolean = false
@@ -225,45 +238,81 @@ data class Pet(
     }
 
     fun getCaregiverLevel(points: Int): Int {
-        return when {
-            points >= 1000 -> 6
-            points >= 600 -> 5
-            points >= 300 -> 4
-            points >= 150 -> 3
-            points >= 50 -> 2
-            else -> 1
-        }
+        val idx = CAREGIVER_THRESHOLDS.indexOfLast { points >= it }
+        return (idx + 1).coerceAtLeast(1)
     }
 
     fun getCaregiverTitle(points: Int, isAli: Boolean): String {
-        val level = getCaregiverLevel(points)
-        return when (level) {
-            6 -> if (isAli) "👑 Maestra Legendaria" else "👑 Maestro Legendario"
-            5 -> if (isAli) "⭐ Guardiana Estelar" else "⭐ Guardián Estelar"
-            4 -> if (isAli) "💖 Cuidadora Experta" else "💖 Cuidador Experto"
-            3 -> if (isAli) "🐾 Amiga de Oro" else "🐾 Amigo de Oro"
-            2 -> if (isAli) "🌸 Cuidadora Dedicada" else "🌿 Cuidador Dedicado"
-            else -> if (isAli) "🌱 Cuidadora Novata" else "🌱 Cuidador Novato"
-        }
+        val rank = CAREGIVER_RANKS[getCaregiverLevel(points) - 1]
+        return if (isAli) rank.second else rank.first
     }
 
     fun getCaregiverProgress(points: Int): Float {
-        val thresholds = listOf(0, 50, 150, 300, 600, 1000)
         val level = getCaregiverLevel(points)
-        if (level >= 6) return 1f
-        val currentFloor = thresholds[level - 1]
-        val nextCeil = thresholds[level]
+        if (level >= CAREGIVER_MAX_LEVEL) return 1f
+        val currentFloor = CAREGIVER_THRESHOLDS[level - 1]
+        val nextCeil = CAREGIVER_THRESHOLDS[level]
         return ((points - currentFloor).toFloat() / (nextCeil - currentFloor).toFloat()).coerceIn(0f, 1f)
     }
 
     fun getCaregiverNextLevelTarget(points: Int): Int {
-        val thresholds = listOf(50, 150, 300, 600, 1000, 1000)
         val level = getCaregiverLevel(points)
-        if (level >= 6) return 1000
-        return thresholds[level - 1]
+        if (level >= CAREGIVER_MAX_LEVEL) return CAREGIVER_THRESHOLDS.last()
+        return CAREGIVER_THRESHOLDS[level]
+    }
+
+    fun getRouletteSpinsToday(isKevin: Boolean, today: String): Int {
+        val date = if (isKevin) rouletteDateKevin else rouletteDateAli
+        return if (date == today) (if (isKevin) rouletteSpinsKevin else rouletteSpinsAli) else 0
+    }
+
+    fun getTogetherSpinsToday(isKevin: Boolean, today: String): Int {
+        val date = if (isKevin) togetherDateKevin else togetherDateAli
+        return if (date == today) (if (isKevin) togetherSpinsKevin else togetherSpinsAli) else 0
     }
 
     companion object {
+        // Ruleta "Juntos": solo cuando el radar confirma que están en el mismo lugar.
+        // Sus giros son aparte de los de la ruleta normal (contador propio).
+        const val TOGETHER_SPINS_PER_DAY = 2
+        const val TOGETHER_SPIN_COST = 80
+
+        // Ruleta: 2 giros normales por persona al día + 1 giro extra más caro
+        const val ROULETTE_SPINS_PER_DAY = 2
+        const val ROULETTE_EXTRA_SPINS_PER_DAY = 1
+        const val ROULETTE_MAX_SPINS_PER_DAY = ROULETTE_SPINS_PER_DAY + ROULETTE_EXTRA_SPINS_PER_DAY
+        const val ROULETTE_SPIN_COST = 50
+        const val ROULETTE_EXTRA_SPIN_COST = 100
+
+        // Costo del próximo giro según cuántos lleva hoy la persona
+        fun rouletteSpinCost(spinsToday: Int): Int =
+            if (spinsToday < ROULETTE_SPINS_PER_DAY) ROULETTE_SPIN_COST else ROULETTE_EXTRA_SPIN_COST
+
+        // Puntos mínimos de cada nivel de cuidador (Nv 1 = índice 0). Los 6 primeros son los originales.
+        val CAREGIVER_THRESHOLDS = intArrayOf(
+            0, 50, 150, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000, 13000, 17000
+        )
+
+        // Título por nivel: (Kevin, Ali)
+        val CAREGIVER_RANKS = listOf(
+            "🌱 Cuidador Novato" to "🌱 Cuidadora Novata",
+            "🌿 Cuidador Dedicado" to "🌸 Cuidadora Dedicada",
+            "🐾 Amigo de Oro" to "🐾 Amiga de Oro",
+            "💖 Cuidador Experto" to "💖 Cuidadora Experta",
+            "⭐ Guardián Estelar" to "⭐ Guardiana Estelar",
+            "🛡️ Protector Leal" to "🛡️ Protectora Leal",
+            "🌙 Guardián Lunar" to "🌙 Guardiana Lunar",
+            "💎 Cuidador de Diamante" to "💎 Cuidadora de Diamante",
+            "🔥 Héroe de las Mascotas" to "🔥 Heroína de las Mascotas",
+            "🌈 Alma Gemela Peluda" to "🌈 Alma Gemela Peluda",
+            "🏰 Caballero del Reino" to "🏰 Dama del Reino",
+            "🐉 Domador de Dragones" to "🐉 Domadora de Dragones",
+            "🌌 Sabio Cósmico" to "🌌 Sabia Cósmica",
+            "✨ Ángel Guardián" to "✨ Ángel Guardiana",
+            "👑 Maestro Legendario" to "👑 Maestra Legendaria"
+        )
+
+        val CAREGIVER_MAX_LEVEL = CAREGIVER_THRESHOLDS.size
         const val PET_THOR = "thor"
         const val PET_CUKY = "cuky"
 
@@ -285,5 +334,31 @@ data class Pet(
         const val ACC_BANDANA = "bandana"
         const val ACC_BANANA = "banana"
         const val ACC_SOCKS = "socks"
+    }
+}
+
+/**
+ * Vale de pareja ganado en la ruleta (se paga con puntos de amor compartidos).
+ * Quien lo gana (buyer) se lo cobra a su pareja, que debe cumplirlo.
+ */
+@IgnoreExtraProperties
+data class PetVoucher(
+    var id: String = "",
+    var title: String = "",
+    var emoji: String = "🎟️",
+    var cost: Int = 0,
+    var buyerId: String = "",
+    var buyerName: String = "",
+    var status: String = STATUS_PENDING,
+    var createdAt: Long = 0,
+    var doneAt: Long = 0,
+    // Ganado en la ruleta Juntos: solo se puede marcar como cumplido cuando el radar confirma que están juntos
+    var together: Boolean = false,
+    // Premio picante: en las notificaciones se muestra como "vale secreto"
+    var spicy: Boolean = false
+) {
+    companion object {
+        const val STATUS_PENDING = "pending"
+        const val STATUS_DONE = "done"
     }
 }

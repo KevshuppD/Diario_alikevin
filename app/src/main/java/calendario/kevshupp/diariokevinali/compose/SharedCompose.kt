@@ -1,6 +1,8 @@
 package calendario.kevshupp.diariokevinali.compose
 
 import android.content.Context
+import android.content.ContextWrapper
+import calendario.kevshupp.diariokevinali.MainActivity
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -170,3 +172,15 @@ fun Color.toDarkVariant(): Color {
     return Color(android.graphics.Color.HSVToColor(hsv))
 }
 
+/**
+ * Dentro de un Dialog de Compose, LocalContext es un ContextThemeWrapper y no la Activity:
+ * `context as? MainActivity` da null. Esta función desenvuelve la cadena hasta encontrarla.
+ */
+fun Context.findMainActivity(): MainActivity? {
+    var ctx: Context? = this
+    while (ctx is ContextWrapper) {
+        if (ctx is MainActivity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}

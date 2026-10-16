@@ -367,13 +367,7 @@ fun PetCaregiverRankingContent(
                                 "• 💖 Acariciar en la habitación: +1 pt por mimo (máx 30/día)\n" +
                                 "• 🕹️ Jugar minijuegos: +10 pts de cuidador\n" +
                                 "• 💌 Enviar cartas en el diario: +5 pts de cuidador\n\n" +
-                                "⭐ Rangos de Cuidador:\n" +
-                                "🌱 Nv 1: Novato/a (0 - 49 pts)\n" +
-                                "🌸 Nv 2: Dedicado/a (50 - 149 pts)\n" +
-                                "🐾 Nv 3: Amigo/a de Oro (150 - 299 pts)\n" +
-                                "💖 Nv 4: Experto/a (300 - 599 pts)\n" +
-                                "⭐ Nv 5: Guardián/a Estelar (600 - 999 pts)\n" +
-                                "👑 Nv 6: Leyenda Absoluta (1000+ pts)",
+                                "⭐ Rangos de Cuidador:\n" + CAREGIVER_GUIDE_TEXT,
                         fontFamily = Vt323,
                         fontSize = 15.sp,
                         color = if (isDark) Color.LightGray else Color.DarkGray
@@ -438,4 +432,13 @@ fun RankingCategoryRow(
             )
         }
     }
+}
+
+// Lista de rangos para la guía, generada una sola vez desde los umbrales de Pet
+private val CAREGIVER_GUIDE_TEXT: String = Pet.CAREGIVER_RANKS.indices.joinToString("\n") { i ->
+    val (kevin, ali) = Pet.CAREGIVER_RANKS[i]
+    val from = Pet.CAREGIVER_THRESHOLDS[i]
+    val range = if (i + 1 < Pet.CAREGIVER_THRESHOLDS.size) "$from - ${Pet.CAREGIVER_THRESHOLDS[i + 1] - 1} pts" else "$from+ pts"
+    val title = if (kevin == ali) kevin else "$kevin / ${ali.substringAfter(' ')}"
+    "Nv ${i + 1}: $title ($range)"
 }

@@ -1283,6 +1283,27 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         previewContainer.visibility = View.GONE
     }
 
+    // Vales de pareja: el ViewModel hace la escritura y aquí se avisa a la pareja por FCM (0 costo en Firestore)
+    fun saveRouletteSpin(title: String?, emoji: String) {
+        if (viewModel.saveRouletteSpin(title, emoji) && title != null) {
+            sendNotificationV1("🎡 ¡$currentUserName ganó un vale en la ruleta!", "$emoji $title — te toca cumplirlo 💖", null, "pet")
+        }
+    }
+
+    fun saveTogetherSpin(title: String?, emoji: String, spicy: Boolean) {
+        if (viewModel.saveTogetherSpin(title, emoji, spicy) && title != null) {
+            // Los premios picantes no se nombran en la notificación (se ve en la pantalla bloqueada)
+            val body = if (spicy) "🌶️ Un vale secreto... ábrelo en la app 😏" else "$emoji $title — te toca cumplirlo 💖"
+            sendNotificationV1("💞 ¡$currentUserName ganó un vale en la ruleta juntos!", body, null, "pet")
+        }
+    }
+
+    fun completeVoucher(voucherId: String) {
+        val voucher = viewModel.completeVoucher(voucherId) ?: return
+        val name = if (voucher.spicy) "🌶️ un vale secreto 😏" else "${voucher.emoji} ${voucher.title}"
+        sendNotificationV1("💖 ¡Vale cumplido!", "$currentUserName marcó como cumplido: $name", null, "pet")
+    }
+
     fun sendNotificationV1(title: String?, messageText: String?, imageUrl: String?) {
         sendNotificationV1(title, messageText, imageUrl, null)
     }

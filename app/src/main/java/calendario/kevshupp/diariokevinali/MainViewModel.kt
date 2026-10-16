@@ -24,6 +24,10 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
+private const val MAX_DONE_VOUCHERS = 20
+// Tras confirmar que están juntos, la ruleta especial queda disponible por 20 minutos
+private const val TOGETHER_VALID_MS = 20 * 60_000L
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = FirebaseFirestore.getInstance()
@@ -1277,6 +1281,137 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .addOnSuccessListener {
                 toastMessage.value = if (newPetType == Pet.PET_CUKY) "¡Cuky la gallina ahora te acompaña! 🐔🤎" else "¡Thor el gatito ahora te acompaña! 🐱🤍"
             }
+    }
+
+    // --- VALES DE PAREJA ---
+    fun rouletteSpinsLeftToday(): Int {
+        val p = _petState.value ?: return 0
+        val today = dayFormat.format(Date())
+        return (Pet.ROULETTE_MAX_SPINS_PER_DAY - p.getRouletteSpinsToday(isCurrentUserKevin(), today)).coerceAtLeast(0)
+    }
+
+    // --- RULETA JUNTOS ---
+    // Momento de la última comprobación exitosa del radar (solo en memoria: no se guarda en Firestore)
+    var togetherVerifiedAt: Long = 0L
+        private set
+
+    fun markTogetherVerified() { togetherVerifiedAt = System.currentTimeMillis() }
+
+    fun isTogetherStillValid(): Boolean = System.currentTimeMillis() - togetherVerifiedAt <= TOGETHER_VALID_MS
+
+    // Giro de la ruleta Juntos: 1 sola escritura (igual que la normal, con su propio contador y costo)
+    fun saveTogetherSpin(title: String?, emoji: String, spicy: Boolean): Boolean {
+        val p = _petState.value ?: return false
+        if (!isTogetherStillValid()) {
+            toastMessage.value = "Vuelvan a comprobar que están juntos 📍"
+            return false
+        }
+        val isKevin = isCurrentUserKevin()
+        val today = dayFormat.format(Date())
+        val spins = p.getTogetherSpinsToday(isKevin, today)
+        if (spins >= Pet.TOGETHER_SPINS_PER_DAY) {
+            toastMessage.value = "Ya usaste tus ${Pet.TOGETHER_SPINS_PER_DAY} giros juntos de hoy 💞"
+            return false
+        }
+        val cost = Pet.TOGETHER_SPIN_COST
+        if (p.lovePoints < cost) {
+            toastMessage.value = "No tienen suficientes puntos de amor ❤️"
+            return false
+        }
+        val suffix = if (isKevin) "Kevin" else "Ali"
+        val updates = mutableMapOf<String, Any>(
+            "lovePoints" to FieldValue.increment(-cost.toLong()),
+            "togetherDate$suffix" to today,
+            "togetherSpins$suffix" to spins + 1
+        )
+        if (title != null) {
+            updates["vouchers"] = FieldValue.arrayUnion(
+                PetVoucher(
+                    id = "v_${System.currentTimeMillis()}_${currentUserId.takeLast(4)}",
+                    title = title.trim(),
+                    emoji = emoji,
+                    cost = cost,
+                    buyerId = currentUserId,
+                    buyerName = currentUserName,
+                    status = PetVoucher.STATUS_PENDING,
+                    createdAt = System.currentTimeMillis(),
+                    together = true,
+                    spicy = spicy
+                )
+            )
+        }
+        db.collection("pets").document(currentCoupleId)
+            .update(updates)
+            .addOnSuccessListener {
+                toastMessage.value = if (title != null) "¡Vale juntos guardado en Pendientes! 💞" else "Esta vez no salió nada 😢"
+            }
+            .addOnFailureListener { toastMessage.value = "No se pudo guardar el giro" }
+        return true
+    }
+
+    // Giro de ruleta: 1 sola escritura (descuenta lovePoints compartidos, suma el giro del día y, si hubo premio, guarda el vale).
+    // title == null significa que salió "Nada". El costo se calcula aquí (normal o giro extra) según los giros de hoy.
+    fun saveRouletteSpin(title: String?, emoji: String): Boolean {
+        val p = _petState.value ?: return false
+        if (rouletteSpinsLeftToday() <= 0) {
+            toastMessage.value = "Ya usaste todos tus giros de hoy 🎡"
+            return false
+        }
+        val cost = Pet.rouletteSpinCost(p.getRouletteSpinsToday(isCurrentUserKevin(), dayFormat.format(Date())))
+        if (p.lovePoints < cost) {
+            toastMessage.value = "No tienen suficientes puntos de amor ❤️"
+            return false
+        }
+        val isKevin = isCurrentUserKevin()
+        val today = dayFormat.format(Date())
+        val suffix = if (isKevin) "Kevin" else "Ali"
+        val updates = mutableMapOf<String, Any>(
+            "lovePoints" to FieldValue.increment(-cost.toLong()),
+            "rouletteDate$suffix" to today,
+            "rouletteSpins$suffix" to p.getRouletteSpinsToday(isKevin, today) + 1
+        )
+        if (title != null) {
+            updates["vouchers"] = FieldValue.arrayUnion(
+                PetVoucher(
+                    id = "v_${System.currentTimeMillis()}_${currentUserId.takeLast(4)}",
+                    title = title.trim(),
+                    emoji = emoji,
+                    cost = cost,
+                    buyerId = currentUserId,
+                    buyerName = currentUserName,
+                    status = PetVoucher.STATUS_PENDING,
+                    createdAt = System.currentTimeMillis()
+                )
+            )
+        }
+        db.collection("pets").document(currentCoupleId)
+            .update(updates)
+            .addOnSuccessListener {
+                toastMessage.value = if (title != null) "¡Vale guardado en Pendientes! 🎟️" else "Esta vez no salió nada 😢"
+            }
+            .addOnFailureListener { toastMessage.value = "No se pudo guardar el giro" }
+        return true
+    }
+
+    // Marcar como cumplido: 1 escritura. Se conservan solo los últimos vales cumplidos para no inflar el documento.
+    fun completeVoucher(voucherId: String): PetVoucher? {
+        val p = _petState.value ?: return null
+        val target = p.vouchers.firstOrNull { it.id == voucherId && it.status == PetVoucher.STATUS_PENDING } ?: return null
+        if (target.together && !isTogetherStillValid()) {
+            toastMessage.value = "💞 Este vale solo se cumple cuando están juntos. Comprueben con el radar 📍"
+            return null
+        }
+        val updated = p.vouchers.map {
+            if (it.id == voucherId) it.copy(status = PetVoucher.STATUS_DONE, doneAt = System.currentTimeMillis()) else it
+        }
+        val pending = updated.filter { it.status == PetVoucher.STATUS_PENDING }
+        val done = updated.filter { it.status == PetVoucher.STATUS_DONE }
+            .sortedByDescending { it.doneAt }
+            .take(MAX_DONE_VOUCHERS)
+        db.collection("pets").document(currentCoupleId)
+            .update("vouchers", pending + done)
+            .addOnSuccessListener { toastMessage.value = "¡Vale cumplido! 💖" }
+        return target
     }
 
     fun buyAccessory(accessoryId: String, cost: Int) {
