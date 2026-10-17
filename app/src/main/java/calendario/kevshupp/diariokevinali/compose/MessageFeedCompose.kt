@@ -604,6 +604,9 @@ fun MessageCard(
     }
 }
 
+/** false mientras el feed está oculto detrás de otra pantalla (lo actualiza MainActivity). */
+val feedAnimationsActive = mutableStateOf(true)
+
 @Composable
 fun rememberTimeUntilDecay(lastInteraction: Long, happiness: Int): String {
     if (happiness <= 0) return "¡Dale amor! ❤️"
@@ -657,35 +660,21 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
         else -> Color(0xFF4A2511)
     }
 
-    // Infinite transition for bobbing and breathing animations
-    val infiniteTransition = rememberInfiniteTransition(label = "petCardTransition")
-    val bobbingOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = -6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1400, easing = EaseInOutQuad),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bobbing"
-    )
-    val breathingScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = EaseInOutQuad),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "breathing"
-    )
-    val wiggleRotation by infiniteTransition.animateFloat(
-        initialValue = -3f,
-        targetValue = 3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 850, easing = EaseInOutQuad),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "wiggle"
-    )
+    // Animaciones de bamboleo y respiración: se pausan mientras el feed está oculto
+    // (Configuración y otras pantallas lo tapan con GONE pero sigue compuesto)
+    val animationsActive = feedAnimationsActive.value
+    val bobbing = remember { Animatable(0f) }
+    val breathing = remember { Animatable(1f) }
+    val wiggle = remember { Animatable(-3f) }
+    LaunchedEffect(animationsActive) {
+        if (!animationsActive) return@LaunchedEffect
+        launch { bobbing.animateTo(-6f, infiniteRepeatable(tween(1400, easing = EaseInOutQuad), RepeatMode.Reverse)) }
+        launch { breathing.animateTo(1.04f, infiniteRepeatable(tween(1000, easing = EaseInOutQuad), RepeatMode.Reverse)) }
+        launch { wiggle.animateTo(3f, infiniteRepeatable(tween(850, easing = EaseInOutQuad), RepeatMode.Reverse)) }
+    }
+    val bobbingOffset by bobbing.asState()
+    val breathingScale by breathing.asState()
+    val wiggleRotation by wiggle.asState()
 
     var isClicked by remember { mutableStateOf(false) }
     val clickScale by animateFloatAsState(

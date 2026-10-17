@@ -431,6 +431,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
             }
             fragmentContainer.visibility = View.GONE
             composeFeed.visibility = View.VISIBLE
+            calendario.kevshupp.diariokevinali.compose.feedAnimationsActive.value = true
             inputArea.visibility = View.VISIBLE
             btnMenuMore.visibility = View.VISIBLE
         }
@@ -448,6 +449,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     }
                     fragmentContainer.visibility = View.GONE
                     composeFeed.visibility = View.VISIBLE
+                    calendario.kevshupp.diariokevinali.compose.feedAnimationsActive.value = true
                     inputArea.visibility = View.VISIBLE
                     btnMenuMore.visibility = View.VISIBLE
                     updateTabSelection(R.id.btnHome)
@@ -579,6 +581,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         if (isFinishing || isDestroyed) return
         btnMenuMore.visibility = View.GONE
         composeFeed.visibility = View.GONE
+        calendario.kevshupp.diariokevinali.compose.feedAnimationsActive.value = false
         inputArea.visibility = View.GONE
         fragmentContainer.visibility = View.VISIBLE
         
@@ -1195,6 +1198,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     updateTabSelection(R.id.btnHome)
                     fragmentContainer.visibility = View.GONE
                     composeFeed.visibility = View.VISIBLE
+                    calendario.kevshupp.diariokevinali.compose.feedAnimationsActive.value = true
                     inputArea.visibility = View.VISIBLE
                     btnMenuMore.visibility = View.VISIBLE
                     showPetDialogState.value = true
@@ -1203,6 +1207,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     updateTabSelection(R.id.btnHome)
                     fragmentContainer.visibility = View.GONE
                     composeFeed.visibility = View.VISIBLE
+                    calendario.kevshupp.diariokevinali.compose.feedAnimationsActive.value = true
                     inputArea.visibility = View.VISIBLE
                     btnMenuMore.visibility = View.VISIBLE
                 }
@@ -1250,6 +1255,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                     updateTabSelection(R.id.btnHome)
                     fragmentContainer.visibility = View.GONE
                     composeFeed.visibility = View.VISIBLE
+                    calendario.kevshupp.diariokevinali.compose.feedAnimationsActive.value = true
                     inputArea.visibility = View.VISIBLE
                     btnMenuMore.visibility = View.VISIBLE
                 }
