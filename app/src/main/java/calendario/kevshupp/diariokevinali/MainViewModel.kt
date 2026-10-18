@@ -1708,6 +1708,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
     }
 
+    // Borra todos los vales (pendientes y cumplidos) y los giros del día de ambas ruletas. No toca los ❤️ ni los premios Juntos.
+    fun adminResetVouchers() {
+        if (currentCoupleId.isEmpty()) return
+        val updates = mapOf<String, Any?>(
+            "vouchers" to emptyList<Any>(),
+            "rouletteDateKevin" to null,
+            "rouletteSpinsKevin" to 0,
+            "rouletteDateAli" to null,
+            "rouletteSpinsAli" to 0,
+            "togetherDateKevin" to null,
+            "togetherSpinsKevin" to 0,
+            "togetherDateAli" to null,
+            "togetherSpinsAli" to 0
+        )
+        db.collection("pets").document(currentCoupleId)
+            .update(updates)
+            .addOnSuccessListener { toastMessage.value = "🎟️ ¡Vales y giros de las ruletas reiniciados!" }
+            .addOnFailureListener { toastMessage.value = "❌ Error al reiniciar vales: ${it.message}" }
+    }
+
     fun adminResetPets() {
         if (currentCoupleId.isEmpty()) return
         val now = System.currentTimeMillis()

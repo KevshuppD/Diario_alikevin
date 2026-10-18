@@ -136,7 +136,18 @@ object PermissionHelper {
         }
     }
 
+    // Uso de batería "Restringido": Android bloquea startForeground() en segundo plano
+    // aunque la optimización de batería esté desactivada.
+    fun isBackgroundRestricted(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+            return am?.isBackgroundRestricted ?: false
+        }
+        return false
+    }
+
     fun isIgnoringBatteryOptimizations(context: Context): Boolean {
+        if (isBackgroundRestricted(context)) return false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
             return pm?.isIgnoringBatteryOptimizations(context.packageName) ?: true
@@ -144,7 +155,24 @@ object PermissionHelper {
         return true
     }
 
-    fun requestIgnoreBatteryOptimizations(context: Context) {
+    fun requestIgnoreBatteryOptimizations(context: Context, onChanged: () -> Unit = {}) {
+        if (isBackgroundRestricted(context)) {
+            if (ShizukuHelper.isAvailable()) {
+                ShizukuHelper.allowBackground(context) { ok ->
+                    android.widget.Toast.makeText(
+                        context,
+                        if (ok) "✅ Batería sin restricciones (Shizuku)" else "⚠️ Shizuku no pudo cambiarlo, elige Batería → Sin restricciones",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    if (!ok) openAppSettings(context)
+                    onChanged()
+                }
+                return
+            }
+            // No hay diálogo directo: se abre la info de la app para elegir Batería → Sin restricciones
+            openAppSettings(context)
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
             if (pm != null && !pm.isIgnoringBatteryOptimizations(context.packageName)) {

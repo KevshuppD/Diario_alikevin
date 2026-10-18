@@ -41,20 +41,20 @@ import kotlinx.coroutines.launch
 // value = "valor" en ❤️ del vale: solo define qué tan seguido sale en la ruleta (no se pueden comprar)
 private data class VoucherOption(val emoji: String, val title: String, val value: Int, val spicy: Boolean = false)
 
-// Premios de la ruleta (constante a nivel superior)
+// Premios de la ruleta a la distancia (constante a nivel superior). Los de estar juntos van en la ruleta Juntos.
 private val VOUCHER_CATALOG = listOf(
-    VoucherOption("🤗", "Abrazo de 1 minuto", 15),
-    VoucherOption("💋", "10 besitos seguidos", 20),
-    VoucherOption("🎮", "Partida al juego que yo elija", 25),
-    VoucherOption("🎬", "Yo elijo la película", 30),
-    VoucherOption("😴", "Siesta sin interrupciones", 30),
+    VoucherOption("📞", "Videollamada de 30 minutos", 15),
+    VoucherOption("🎙️", "Audio de buenas noches", 20),
+    VoucherOption("🎮", "Partida online al juego que yo elija", 25),
+    VoucherOption("🎬", "Película a la vez en llamada (yo elijo)", 30),
+    VoucherOption("💌", "Me escribes una carta en el Diario", 30),
     VoucherOption("📺", "Yo elijo el próximo anime", 40),
-    VoucherOption("🍽️", "Me libro de lavar la loza", 40),
-    VoucherOption("💆", "Masaje de 15 minutos", 60),
-    VoucherOption("🧹", "Haces una tarea de la casa por mí", 60),
-    VoucherOption("🍕", "Tú invitas el antojo", 70),
-    VoucherOption("🥞", "Desayuno en la cama", 80),
-    VoucherOption("🌹", "Cita sorpresa organizada por ti", 150)
+    VoucherOption("🎶", "Playlist hecha para mí", 40),
+    VoucherOption("📝", "10 cosas que amas de mí", 60),
+    VoucherOption("🌙", "Llamada hasta quedarnos dormidos", 60),
+    VoucherOption("🍕", "Me mandas un delivery sorpresa", 70),
+    VoucherOption("🎁", "Paquete sorpresa por correo", 80),
+    VoucherOption("✈️", "Tú planeas la próxima visita", 150)
 )
 
 // "Nada": trozo sin premio (se cobra el giro igual). Con value = 12 sale ~20 % de las veces.
@@ -205,14 +205,15 @@ fun PetVouchersContent(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // --- RULETA NORMAL ---
+        // --- RULETA A LA DISTANCIA (solo cuando no hay confirmación de que están juntos) ---
+        if (!togetherUnlocked) {
         val normalLeft = (Pet.ROULETTE_SPINS_PER_DAY - spinsToday).coerceAtLeast(0)
         val isExtraSpin = normalLeft == 0
         val spinCost = Pet.rouletteSpinCost(spinsToday)
         val noSpinsLeft = spinsToday >= Pet.ROULETTE_MAX_SPINS_PER_DAY
         VoucherRoulette(
             wheel = NORMAL_WHEEL,
-            title = "🎡 RULETA DE VALES",
+            title = "🎡 RULETA A LA DISTANCIA",
             canSpin = !noSpinsLeft && pet.lovePoints >= spinCost,
             idleText = when {
                 noSpinsLeft -> "Ya usaste todos tus giros de hoy (incluido el extra). ¡Vuelve mañana!"
@@ -230,6 +231,7 @@ fun PetVouchersContent(
                 activity?.saveRouletteSpin(if (option === ROULETTE_NOTHING) null else option.title, option.emoji)
             }
         )
+        }
 
         // --- RULETA JUNTOS ---
         TogetherRouletteSection(
@@ -373,7 +375,7 @@ private fun TogetherRouletteSection(
         ) {
             VoucherSectionTitle("💞 RULETA JUNTOS", pink)
             Text(
-                "Una ruleta especial con premios distintos, solo cuando el radar confirma que están en el mismo lugar.",
+                "Premios para cuando están juntos. Al confirmarlo con el radar, la ruleta a la distancia se cambia por esta.",
                 fontFamily = Vt323,
                 fontSize = 16.sp,
                 color = contentColor,

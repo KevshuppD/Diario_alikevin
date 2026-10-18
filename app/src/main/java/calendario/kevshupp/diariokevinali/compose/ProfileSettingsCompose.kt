@@ -93,7 +93,8 @@ fun SettingsScreen(
     coupleId: String? = null,
     onAdminResetRanking: () -> Unit = {},
     onAdminResetMinigames: () -> Unit = {},
-    onAdminResetPets: () -> Unit = {}
+    onAdminResetPets: () -> Unit = {},
+    onAdminResetVouchers: () -> Unit = {}
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
     val isMono = currentTheme == "Pixel Monocromático"
@@ -676,6 +677,7 @@ fun SettingsScreen(
                         onResetRanking = onAdminResetRanking,
                         onResetMinigames = onAdminResetMinigames,
                         onResetPets = onAdminResetPets,
+                        onResetVouchers = onAdminResetVouchers,
                         onIncorrectPassword = onIncorrectPassword
                     )
                 }

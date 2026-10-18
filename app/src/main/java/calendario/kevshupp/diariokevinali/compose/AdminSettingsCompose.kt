@@ -28,6 +28,7 @@ fun AdminSettingsCompose(
     onResetRanking: () -> Unit,
     onResetMinigames: () -> Unit,
     onResetPets: () -> Unit,
+    onResetVouchers: () -> Unit = {},
     onIncorrectPassword: () -> Unit
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
@@ -299,6 +300,19 @@ fun AdminSettingsCompose(
                 pendingAction = "pets"
             }
 
+            AdminActionCard(
+                icon = "🎟️",
+                title = "REINICIAR VALES DE LAS RULETAS",
+                description = "Borra todos los vales (pendientes y cumplidos) y los giros de hoy de la ruleta a la distancia y la ruleta Juntos. No toca los ❤️ ni los premios Juntos.",
+                buttonText = "🎟️ REINICIAR VALES",
+                buttonBg = if (isDark) Color(0xFFAD1457) else Color(0xFFEC4899),
+                boxBackground = boxBackground,
+                textColor = textColor,
+                borderColor = borderColor
+            ) {
+                pendingAction = "vouchers"
+            }
+
             Spacer(modifier = Modifier.height(30.dp))
         }
     }
@@ -307,6 +321,7 @@ fun AdminSettingsCompose(
         val (actionTitle, actionDesc) = when (pendingAction) {
             "ranking" -> "Reiniciar Ranking" to "¿Estás seguro de reiniciar todo el ranking y contadores de cuidadores a 0?"
             "minigames" -> "Reiniciar Minijuegos" to "¿Estás seguro de reiniciar los récords (High Scores) y registros de minijuegos a 0?"
+            "vouchers" -> "Reiniciar Vales" to "¿Estás seguro de borrar todos los vales y los giros de hoy de ambas ruletas?"
             else -> "Reiniciar Mascotas" to "¿Estás seguro de reiniciar a Thor y Cuky al Nivel 1 y 0 EXP?"
         }
 
@@ -365,6 +380,7 @@ fun AdminSettingsCompose(
                                     "ranking" -> onResetRanking()
                                     "minigames" -> onResetMinigames()
                                     "pets" -> onResetPets()
+                                    "vouchers" -> onResetVouchers()
                                 }
                                 pendingAction = null
                             },

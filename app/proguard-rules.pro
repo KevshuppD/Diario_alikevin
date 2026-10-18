@@ -85,3 +85,5 @@
 -keep class calendario.kevshupp.diariokevinali.compose.RadarLocationData { *; }
 -keepclassmembers class calendario.kevshupp.diariokevinali.compose.RadarPlaceZone { *; }
 -keep class calendario.kevshupp.diariokevinali.compose.RadarPlaceZone { *; }
+# Shizuku: ShizukuHelper llama a newProcess por reflexión
+-keep class rikka.shizuku.Shizuku { *; }

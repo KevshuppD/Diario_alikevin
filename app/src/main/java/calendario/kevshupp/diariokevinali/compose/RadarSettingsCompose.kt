@@ -159,7 +159,9 @@ fun RadarSettingsView(
                     isOk = localIgnoringBattery,
                     buttonText = if (localIgnoringBattery) null else "QUITAR LÍMITE",
                     onButtonClick = {
-                        PermissionHelper.requestIgnoreBatteryOptimizations(context)
+                        PermissionHelper.requestIgnoreBatteryOptimizations(context) {
+                            localIgnoringBattery = PermissionHelper.isIgnoringBatteryOptimizations(context)
+                        }
                         localIgnoringBattery = PermissionHelper.isIgnoringBatteryOptimizations(context)
                     },
                     textColor = textColor,

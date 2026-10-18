@@ -24,8 +24,11 @@ osmdroid = "6.1.20"
 googleApiDrive = "v3-rev20230822-2.0.0"
 googleApiClient = "2.2.0"
 googleHttpClientGson = "1.44.1"
+shizuku = "13.1.5"
 
 [libraries]
+shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
+shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref = "shizuku" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

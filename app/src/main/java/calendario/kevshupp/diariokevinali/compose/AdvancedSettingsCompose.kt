@@ -25,6 +25,7 @@ fun AdvancedSettingsCompose(
     onResetRanking: () -> Unit = {},
     onResetMinigames: () -> Unit = {},
     onResetPets: () -> Unit = {},
+    onResetVouchers: () -> Unit = {},
     onIncorrectPassword: () -> Unit = {}
 ) {
     val isDark = currentTheme == "Pixel Oscuro"
@@ -115,6 +116,7 @@ fun AdvancedSettingsCompose(
             onResetRanking = onResetRanking,
             onResetMinigames = onResetMinigames,
             onResetPets = onResetPets,
+            onResetVouchers = onResetVouchers,
             onIncorrectPassword = onIncorrectPassword
         )
     }

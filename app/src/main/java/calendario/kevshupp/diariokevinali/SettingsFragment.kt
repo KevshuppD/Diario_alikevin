@@ -702,6 +702,9 @@ class SettingsFragment : Fragment() {
                         },
                         onAdminResetPets = {
                             act?.viewModel?.adminResetPets()
+                        },
+                        onAdminResetVouchers = {
+                            act?.viewModel?.adminResetVouchers()
                         }
                     )
                 }

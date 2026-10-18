@@ -1051,7 +1051,9 @@ fun ThorRadarScreen(
                 }
             },
             onRequestIgnoreBattery = {
-                PermissionHelper.requestIgnoreBatteryOptimizations(context)
+                PermissionHelper.requestIgnoreBatteryOptimizations(context) {
+                    isIgnoringBattery = PermissionHelper.isIgnoringBatteryOptimizations(context)
+                }
                 isIgnoringBattery = PermissionHelper.isIgnoringBatteryOptimizations(context)
             },
             onDismiss = {

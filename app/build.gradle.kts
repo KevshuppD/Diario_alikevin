@@ -12,8 +12,8 @@ android {
         applicationId = "calendario.kevshupp.diariokevinali"
         minSdk = 24
         targetSdk = 35
-        versionCode = 131
-        versionName = "1.7.86"
+        versionCode = 132
+        versionName = "1.7.87"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -78,6 +78,8 @@ android {
 
 dependencies {
     implementation(libs.appcompat)
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.activity.compose)
