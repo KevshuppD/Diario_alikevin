@@ -45,7 +45,9 @@ object PermissionHelper {
             ActivityCompat.requestPermissions(activity, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
         }
 
-        requestIgnoreBatteryOptimizations(activity)
+        // Al abrir la app solo se pide el diálogo normal de optimización; si la batería está "Restringida"
+        // no se manda a Ajustes sin aviso: eso queda para el botón QUITAR LÍMITE del radar.
+        if (!isBackgroundRestricted(activity)) requestIgnoreBatteryOptimizations(activity)
     }
 
     fun checkNotificationAndAlarmPermissions(activity: Activity) {
