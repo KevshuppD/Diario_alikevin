@@ -479,6 +479,10 @@ fun MessageCard(
                     lineHeight = 22.sp
                 )
             } else {
+                // Ancho del texto medido por Compose: así las fotos se dimensionan sin esperar a que el TextView
+                // se mida (antes se usaba post {}, y al volver a la carta tras scrollear el alto quedaba en 1 línea)
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val textWidthPx = constraints.maxWidth
                 AndroidView(
                     factory = { ctx ->
                         TextView(ctx).apply {
@@ -493,20 +497,17 @@ fun MessageCard(
                         // El tag evita volver a parsear (y a pedir las fotos) en cada recomposición
                         if (textView.tag != html) {
                             textView.tag = html
-                            val applyHtml = {
-                                textView.text = android.text.Html.fromHtml(
-                                    LetterImageGetter.isolateImages(html),
-                                    android.text.Html.FROM_HTML_MODE_LEGACY,
-                                    LetterImageGetter(textView),
-                                    null
-                                )
-                            }
-                            // Las fotos se dimensionan según el ancho del texto: esperar a que esté medido
-                            if (textView.width == 0 && html.contains("<img", ignoreCase = true)) textView.post { applyHtml() } else applyHtml()
+                            textView.text = android.text.Html.fromHtml(
+                                LetterImageGetter.isolateImages(html),
+                                android.text.Html.FROM_HTML_MODE_LEGACY,
+                                LetterImageGetter(textView, textWidthPx),
+                                null
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
+                }
             }
 
             // Imagen o Galería

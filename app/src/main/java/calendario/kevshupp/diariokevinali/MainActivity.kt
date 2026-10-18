@@ -756,14 +756,14 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         viewModel.setSelectedFilterDate(selectedFilterDate)
     }
 
+    // Los listeners de cartas y calendario viven entre onStart y onStop (startAllListeners / stopAllListeners).
+    // Reabrirlos en cada onResume volvía a pedir hasta 100 cartas y el feed parecía cargar desde 0.
     override fun onPause() {
         super.onPause()
-        viewModel.stopActiveListeners()
     }
 
     override fun onResume() {
         super.onResume()
-        viewModel.startActiveListeners()
         enableImmersiveMode()
 
         val prefs = getSharedPreferences("DiarioPrefs", MODE_PRIVATE)

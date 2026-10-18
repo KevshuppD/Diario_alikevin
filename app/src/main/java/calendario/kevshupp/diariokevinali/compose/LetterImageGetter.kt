@@ -18,7 +18,7 @@ import coil.request.ImageRequest
  *
  * El fragmento #w= indica el ancho en % del texto (33, 50 o 100). Sin él, se usa el ancho completo.
  */
-class LetterImageGetter(private val textView: TextView) : Html.ImageGetter {
+class LetterImageGetter(private val textView: TextView, private val knownWidth: Int = 0) : Html.ImageGetter {
 
     override fun getDrawable(source: String?): Drawable {
         val holder = UrlDrawable()
@@ -28,7 +28,7 @@ class LetterImageGetter(private val textView: TextView) : Html.ImageGetter {
             ?.coerceIn(10, 100) ?: 100
         val cleanUrl = source.substringBefore('#')
         val availableWidth = (textView.width - textView.paddingLeft - textView.paddingRight)
-            .takeIf { it > 0 } ?: textView.resources.displayMetrics.widthPixels
+            .takeIf { it > 0 } ?: knownWidth.takeIf { it > 0 } ?: textView.resources.displayMetrics.widthPixels
         val targetWidth = availableWidth * widthPercent / 100
         // Alto provisional 3:4 para que el texto no salte demasiado mientras carga
         holder.setBounds(0, 0, targetWidth, targetWidth * 3 / 4)

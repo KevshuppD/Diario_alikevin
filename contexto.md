@@ -139,6 +139,8 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 - `liked: Boolean` (Estado de me gusta / favorito).
   - **Reglas de likes:** solo la pareja puede dar o quitar like; en las cartas propias el corazón está deshabilitado (`enabled = message.authorId != currentUserId` en `MessageCard`) pero se ve rosado si la pareja dio like. `MainActivity` también ignora el toque en cartas propias y envía la notificación push "¡le encantó!" solo al dar like.
   - **No mutar `Message` en sitio:** `toggleLikeMessage` debe crear una copia (`it.copy(liked = ...)`) sin modificar el objeto original. Mutarlo hace que la lista nueva sea `equals` a la anterior y el `MutableState` del feed no recompone (bug corregido en v1.7.82).
+  - **Texto de carta (`AndroidView` + `TextView`) en `LazyColumn`:** el HTML se aplica de inmediato dentro de un `BoxWithConstraints`, pasando `constraints.maxWidth` a `LetterImageGetter(textView, knownWidth)`. No usar `textView.post { ... }`: al reciclar el ítem Compose no vuelve a medir y la carta quedaba cortada a una línea al volver a subir (corregido en v1.7.88).
+  - **Listeners y caché:** los listeners de Firestore viven de `onStart` (`startAllListeners`) a `onStop` (`stopAllListeners`); `MainActivity` ya no los reinicia en `onPause`/`onResume`, así el feed muestra las cartas en caché sin volver a pedirlas cada vez (v1.7.88).
 - `type: String?` (`MESSAGE` o `ALBUM`).
 
 ### C. Horario de Clases (`schedules/<coupleId>`) - `ScheduleCompose.kt`
