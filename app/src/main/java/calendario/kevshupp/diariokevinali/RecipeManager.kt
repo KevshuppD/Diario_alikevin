@@ -124,7 +124,8 @@ class RecipeManager(
                 imageUrl = pendingImageUrl,
                 authorId = existing?.authorId ?: userId,
                 authorName = existing?.authorName ?: userName,
-                timestamp = existing?.timestamp ?: System.currentTimeMillis()
+                timestamp = existing?.timestamp ?: System.currentTimeMillis(),
+                variants = existing?.variants ?: emptyList()
             )
 
             if (recipe.recipeId != null) {

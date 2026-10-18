@@ -769,14 +769,19 @@ object ThorRadarManager {
 
         var calculatedSpeedKmh = 0f
         if (activeLoc != null && activeLoc.hasSpeed() && activeLoc.speed > 0.35f) {
-            calculatedSpeedKmh = activeLoc.speed * 3.6f
+            // Velocidad del GPS con un margen de error mayor que el valor medido: es ruido
+            val unreliable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                activeLoc.hasSpeedAccuracy() && activeLoc.speedAccuracyMetersPerSecond >= activeLoc.speed
+            if (!unreliable) calculatedSpeedKmh = activeLoc.speed * 3.6f
         }
 
         if (lastSpeedCalcTime > 0L && lastSpeedCalcLat != 0.0 && lat != 0.0) {
             val timeDiffSec = (now - lastSpeedCalcTime) / 1000f
-            if (timeDiffSec in 1.2f..120.0f) {
+            // Con lecturas muy seguidas (ráfagas de 1-2 s al forzar el radar) el salto del GPS en interiores
+            // (9 m en 2 s = 16 km/h) marcaba "En auto" estando quieto: se exigen 5 s y moverse más que la precisión.
+            if (timeDiffSec in 5.0f..120.0f) {
                 val distMeters = calculateDistance(lastSpeedCalcLat, lastSpeedCalcLng, lat, lon)
-                val minMoveThreshold = maxOf(3.5f, accuracy * 0.35f)
+                val minMoveThreshold = maxOf(8f, accuracy)
                 if (distMeters > minMoveThreshold) {
                     val rawSpeed = (distMeters / timeDiffSec) * 3.6f
                     if (rawSpeed in 0.5f..220f) {
@@ -798,7 +803,8 @@ object ThorRadarManager {
 
         val speedKmh = if (smoothedSpeedKmh < 1.8f) 0f else smoothedSpeedKmh
 
-        if (lat != 0.0 && lon != 0.0) {
+        // El punto de referencia solo avanza cada 5 s; si no, las ráfagas lo pisan y nunca se mide el desplazamiento
+        if (lat != 0.0 && lon != 0.0 && (lastSpeedCalcTime == 0L || now - lastSpeedCalcTime >= 5_000L)) {
             lastSpeedCalcLat = lat
             lastSpeedCalcLng = lon
             lastSpeedCalcTime = now

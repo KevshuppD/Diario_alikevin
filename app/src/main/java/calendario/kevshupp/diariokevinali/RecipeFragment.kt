@@ -52,7 +52,9 @@ class RecipeFragment : Fragment() {
                 val prefs = activityRef?.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
                 
                 var recipes by remember { mutableStateOf(listOf<Recipe>()) }
-                var selectedRecipe by remember { mutableStateOf<Recipe?>(null) }
+                var selectedRecipeId by remember { mutableStateOf<String?>(null) }
+                // Se busca en la lista viva para que las variaciones guardadas aparezcan al instante
+                val selectedRecipe = recipes.firstOrNull { it.recipeId == selectedRecipeId }
                 var currentId by remember { 
                     mutableStateOf(coupleId ?: prefs?.getString("coupleId", "vínculo_único_123")) 
                 }
@@ -97,7 +99,7 @@ class RecipeFragment : Fragment() {
                         currentUserId = currentUserId,
                         isDark = isDark,
                         onEdit = {
-                            selectedRecipe = null
+                            selectedRecipeId = null
                             activityRef?.recipeManager?.showAddRecipeDialog(recipe)
                         },
                         onDelete = {
@@ -106,21 +108,33 @@ class RecipeFragment : Fragment() {
                                 db.collection("recipes").document(id).delete()
                                     .addOnSuccessListener {
                                         android.widget.Toast.makeText(context, "Receta eliminada", android.widget.Toast.LENGTH_SHORT).show()
-                                        selectedRecipe = null
+                                        selectedRecipeId = null
                                     }
                                     .addOnFailureListener {
                                         android.widget.Toast.makeText(context, "Error al eliminar", android.widget.Toast.LENGTH_SHORT).show()
                                     }
                             }
                         },
-                        onDismiss = { selectedRecipe = null }
+                        onDismiss = { selectedRecipeId = null },
+                        currentUserName = prefs?.getString("userName", null),
+                        onSaveVariants = { variants ->
+                            val id = recipe.recipeId ?: return@RecipeDetailDialog
+                            db.collection("recipes").document(id)
+                                .update("variants", variants)
+                                .addOnSuccessListener {
+                                    android.widget.Toast.makeText(context, "Variación guardada 🔀", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                                .addOnFailureListener {
+                                    android.widget.Toast.makeText(context, "Error al guardar la variación", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                        }
                     )
                 }
 
                 RecipeListScreen(
                     recipes = recipes,
                     theme = theme,
-                    onRecipeClick = { recipe -> selectedRecipe = recipe },
+                    onRecipeClick = { recipe -> selectedRecipeId = recipe.recipeId },
                     onAddRecipeClick = { activityRef?.openAddRecipeDialog() }
                 )
             }
