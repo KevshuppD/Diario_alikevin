@@ -1009,7 +1009,10 @@ export function renderWorkspace() {
     slotsGrid.dataset.categoryName = cat.name;
 
     const slotsFragment = document.createDocumentFragment();
-    matchingSpirits.forEach(id => {
+    // Dentro de la categoría, el orden lo dan los tipos en "Tipos y Categorías" (sort estable: mismo tipo conserva su orden)
+    const typeOrder = new Map(state.spiritTypes.map((t, i) => [t.name, i]));
+    const typeIndexOf = id => typeOrder.get(getSpiritCurrentType(id)) ?? typeOrder.size;
+    [...matchingSpirits].sort((a, b) => typeIndexOf(a) - typeIndexOf(b)).forEach(id => {
       const slot = createSpiritSlot(id, cat.name);
       slotsFragment.appendChild(slot);
     });

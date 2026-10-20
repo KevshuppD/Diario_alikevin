@@ -3,8 +3,8 @@
 // ==========================================
 
 import { state } from './state.js';
-import { triggerAutoSave } from './firestore.js';
-import { getSpiritCurrentType, renderWorkspace, getDefaultSpiritName } from './normal-view.js';
+import { triggerAutoSave, saveSpiritsBackupAsync, restoreSpiritsBackupAsync } from './firestore.js';
+import { getSpiritCurrentType, renderWorkspace, getDefaultSpiritName, getSpiritName, clearSpiritCache } from './normal-view.js';
 
 let draggedCategoryIndex = null;
 let draggedTypeIndex = null;
@@ -74,6 +74,9 @@ export function renderCategoriesConfigEditor(options = {}) {
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button class="btn btn-secondary" onclick="window.normalizeAllSpiritNames()" style="padding: 8px 14px; font-size: 16px; display: inline-flex; align-items: center; gap: 6px;" title="Normaliza los nombres de todos los espíritus según su categoría y variante activa">
             <span>🪄</span> Normalizar Nombres
+          </button>
+          <button class="btn btn-secondary" onclick="window.restoreSpiritsBackup()" style="padding: 8px 14px; font-size: 16px; display: inline-flex; align-items: center; gap: 6px; border-color: #D97706; color: #D97706;" title="Restablece los espíritus al respaldo creado antes de la última normalización">
+            <span>⚠️</span> Restablecer Respaldo
           </button>
           <div class="autosave-status-pill" id="categories-autosave-pill" title="Los cambios se guardan automáticamente en Firestore y se sincronizan en vivo">
             <span class="autosave-icon">✓</span>
@@ -591,9 +594,122 @@ export function addConfigType() {
   if (window.showToast) window.showToast(`Tipo "${name}" agregado con éxito.`, false);
 }
 
+// Pantalla de "trabajando" para operaciones largas (normalizar / restablecer respaldo)
+let busyFallbackTimer = null;
+function showBusyOverlay(message) {
+  let overlay = document.getElementById("busy-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "busy-overlay";
+    overlay.style.cssText = "position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.65); padding:16px;";
+    overlay.innerHTML = `
+      <div style="background:var(--card-bg, #1A1A1A); border:2px solid #D97706; box-shadow:6px 6px 0 #000; padding:20px 24px; max-width:360px; width:100%; text-align:center; font-family:'VT323',monospace;">
+        <div id="busy-overlay-icon" style="font-size:40px; line-height:1;">⏳</div>
+        <div id="busy-overlay-text" style="font-size:22px; margin-top:10px; color:var(--text-color, #fff);"></div>
+        <div style="font-size:16px; margin-top:6px; color:var(--text-muted, #aaa);">No cierres ni recargues la página</div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+  document.getElementById("busy-overlay-text").textContent = message;
+  overlay.style.display = "flex";
+  // Por si el guardado falla y nunca llega la confirmación
+  clearTimeout(busyFallbackTimer);
+  busyFallbackTimer = setTimeout(hideBusyOverlay, 20000);
+}
+
+function updateBusyOverlay(message) {
+  const text = document.getElementById("busy-overlay-text");
+  if (text) text.textContent = message;
+}
+
+function hideBusyOverlay() {
+  clearTimeout(busyFallbackTimer);
+  const overlay = document.getElementById("busy-overlay");
+  if (overlay) overlay.style.display = "none";
+}
+
+function getDefaultSpiritImgUrl(id) {
+  const formattedId = String(id).padStart(2, '0');
+  return state.currentSeason === 2
+    ? `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits_s2/ic_spirit_s2_${formattedId}.png`
+    : `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+}
+
+// Renumera los IDs del 1 al máximo según el orden visible: categorías en orden, dentro de cada una por
+// el orden de los tipos, y al final los sueltos. Nombres, imágenes, obtenidos y maestrías viajan con el espíritu.
+// Devuelve cuántos IDs cambiaron.
+function renumberSpiritIds() {
+  const typeOrder = new Map(state.spiritTypes.map((t, i) => [t.name, i]));
+  const typeIndexOf = id => typeOrder.get(getSpiritCurrentType(id)) ?? typeOrder.size;
+  const plain = id => String(parseInt(id, 10));
+
+  const orderedIds = [];
+  const seen = new Set();
+  const pushId = id => {
+    if (seen.has(plain(id))) return;
+    seen.add(plain(id));
+    orderedIds.push(id);
+  };
+  state.categories.forEach(cat => {
+    [...(cat.spiritIds || [])].sort((a, b) => typeIndexOf(a) - typeIndexOf(b)).forEach(pushId);
+  });
+  [...state.spiritsList].sort((a, b) => parseInt(a, 10) - parseInt(b, 10)).forEach(pushId);
+
+  const newIdOf = new Map();
+  orderedIds.forEach((id, i) => newIdOf.set(plain(id), String(i + 1).padStart(2, '0')));
+  const changed = orderedIds.filter(id => newIdOf.get(plain(id)) !== id).length;
+  if (changed === 0) return 0;
+
+  // El nombre y la imagen por defecto dependen del ID y la posición: se fijan antes de mover
+  const newNames = {};
+  const newImages = {};
+  const newBusters = {};
+  orderedIds.forEach(id => {
+    const newId = newIdOf.get(plain(id));
+    newNames[newId] = getSpiritName(id);
+    const formattedId = String(id).padStart(2, '0');
+    const customImg = state.customImages[id] || state.customImages[formattedId] || state.customImages[plain(id)];
+    newImages[newId] = customImg || getDefaultSpiritImgUrl(id);
+    const buster = state.imageCacheBusters?.[id];
+    if (buster) newBusters[newId] = buster;
+  });
+
+  const remapList = list => (list || []).map(id => newIdOf.get(plain(id))).filter(Boolean);
+
+  state.categories = state.categories.map(cat => ({
+    name: cat.name,
+    spiritIds: [...(cat.spiritIds || [])].sort((a, b) => typeIndexOf(a) - typeIndexOf(b)).map(id => newIdOf.get(plain(id)))
+  }));
+  state.spiritsList = orderedIds.map(id => newIdOf.get(plain(id)));
+  state.kevinList = remapList(state.kevinList);
+  state.aliList = remapList(state.aliList);
+  state.kevinMastery = remapList(state.kevinMastery);
+  state.aliMastery = remapList(state.aliMastery);
+  state.customNames = newNames;
+  // Las imágenes que coinciden con la por defecto de su nuevo ID no necesitan quedar guardadas
+  Object.keys(newImages).forEach(newId => {
+    if (newImages[newId] === getDefaultSpiritImgUrl(newId)) delete newImages[newId];
+  });
+  state.customImages = newImages;
+  state.imageCacheBusters = newBusters;
+  clearSpiritCache();
+  return changed;
+}
+
 export function normalizeAllSpiritNames() {
   if (window.customConfirm) {
-    window.customConfirm("¿Deseas normalizar automáticamente los nombres de todos los espíritus según su categoría asignada y su tipo/variante activa?", "🪄", () => {
+    window.customConfirm("¿Deseas normalizar automáticamente los nombres de todos los espíritus según su categoría asignada y su tipo/variante activa? También se renumerarán los IDs del 1 al máximo según el orden actual, conservando obtenidos y maestrías. Antes se guardará un respaldo.", "🪄", async () => {
+      showBusyOverlay("Creando respaldo...");
+      try {
+        await saveSpiritsBackupAsync();
+      } catch (err) {
+        hideBusyOverlay();
+        console.error("Error al crear el respaldo:", err);
+        if (window.showToast) window.showToast(`🛡️ No se normalizó: falló el respaldo (${err.message})`, true);
+        return;
+      }
+      updateBusyOverlay("Renumerando y normalizando...");
+      const renumberedCount = renumberSpiritIds();
       let updatedCount = 0;
 
       state.categories.forEach(cat => {
@@ -644,10 +760,34 @@ export function normalizeAllSpiritNames() {
 
       renderWorkspace();
       renderCategoriesConfigEditor();
-      triggerAutoSave(50);
-      if (window.showToast) window.showToast(`✨ Se normalizaron los nombres (${updatedCount} actualizados)`, false);
+      updateBusyOverlay("Guardando en Firestore...");
+      triggerAutoSave(50, hideBusyOverlay, hideBusyOverlay);
+      if (window.showToast) window.showToast(`✨ Se normalizaron los nombres (${updatedCount} actualizados) y se renumeraron ${renumberedCount} IDs`, false);
     });
   }
+}
+
+const RESTORE_PASSWORD = "123";
+
+export function restoreSpiritsBackup() {
+  if (!window.customPrompt) return;
+  window.customPrompt("⚠️ Esto reemplaza los espíritus, obtenidos y maestrías por el respaldo creado antes de la última normalización. Escribe la contraseña para continuar:", "⚠️", async (val) => {
+    if ((val || "").trim() !== RESTORE_PASSWORD) {
+      if (window.showToast) window.showToast("Contraseña incorrecta", true);
+      return;
+    }
+    showBusyOverlay("Restableciendo respaldo...");
+    try {
+      const createdAt = await restoreSpiritsBackupAsync();
+      hideBusyOverlay();
+      const when = createdAt ? new Date(createdAt).toLocaleString() : "";
+      if (window.showToast) window.showToast(`♻️ Respaldo restablecido ${when}`, false);
+    } catch (err) {
+      hideBusyOverlay();
+      console.error("Error al restablecer el respaldo:", err);
+      if (window.showToast) window.showToast(`No se pudo restablecer: ${err.message}`, true);
+    }
+  });
 }
 
 export const renderCategoriesManager = renderCategoriesConfigEditor;
@@ -661,6 +801,7 @@ window.updateConfigTypeSuffix = updateConfigTypeSuffix;
 window.deleteConfigType = deleteConfigType;
 window.addConfigType = addConfigType;
 window.normalizeAllSpiritNames = normalizeAllSpiritNames;
+window.restoreSpiritsBackup = restoreSpiritsBackup;
 window.renderCategoriesConfigEditor = renderCategoriesConfigEditor;
 window.renderCategoriesManager = renderCategoriesManager;
 

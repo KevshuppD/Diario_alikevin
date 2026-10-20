@@ -2,11 +2,11 @@
 // FIRESTORE ENGINE & REALTIME LISTENERS
 // ==========================================
 
-import { db, rtdb, doc, collection, setDoc, onSnapshot, serverTimestamp, rtdbRef, rtdbOnValue } from './firebase-config.js';
+import { db, rtdb, doc, collection, setDoc, getDoc, onSnapshot, serverTimestamp, rtdbRef, rtdbOnValue } from './firebase-config.js';
 import { state, getFirestoreCollection, mergeSpiritTypes } from './state.js';
 import { defaultSpiritsListT1, defaultSpiritsListT2, defaultCategoriesT1, defaultCategoriesT2, defaultSpiritTypesT1, defaultSpiritTypesT2 } from './constants.js';
 import { sendWsMessage } from './websocket.js';
-import { getDefaultSpiritName, clearSpiritCache } from './normal-view.js';
+import { getDefaultSpiritName, clearSpiritCache, updateStats } from './normal-view.js';
 
 let firestoreUnsubscribe = null;
 let radarUnsubscribe = null;
@@ -103,7 +103,7 @@ export function collectInputsFromDOM() {
   });
 }
 
-export function triggerAutoSave(delay = 400, onSavedCallback) {
+export function triggerAutoSave(delay = 400, onSavedCallback, onErrorCallback) {
   updateAutoSaveIndicator('saving', 'Guardando cambios...');
   if (autoSaveTimer) clearTimeout(autoSaveTimer);
 
@@ -141,6 +141,7 @@ export function triggerAutoSave(delay = 400, onSavedCallback) {
     } catch (err) {
       console.error("Error en autoguardado:", err);
       updateAutoSaveIndicator('error', 'Error al sincronizar');
+      if (onErrorCallback) onErrorCallback(err);
       if (err && typeof err.message === 'string' && err.message.startsWith("Guardado bloqueado") && window.showToast) {
         window.showToast(`🛡️ ${err.message}`, true);
       }
@@ -224,6 +225,38 @@ export async function saveChangesToFirestoreAsync() {
   await setDoc(docRef, dataToSave, { mergeFields: Object.keys(dataToSave) });
 }
 
+// Respaldo del botón "Normalizar Nombres": copia del documento de la temporada activa guardada en su propio
+// campo `normalize_backup`. El autoguardado usa mergeFields, así que nunca toca este campo.
+const BACKUP_FIELDS = ['categories', 'custom_names', 'custom_categories', 'custom_images', 'spirit_types', 'spirits_list', 'kevin_list', 'ali_list', 'kevin_mastery', 'ali_mastery'];
+
+export async function saveSpiritsBackupAsync() {
+  const docRef = doc(db, getFirestoreCollection(), state.coupleId);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) throw new Error("No hay datos en Firestore para respaldar.");
+  const data = snap.data();
+  const backup = { created_at: Date.now() };
+  BACKUP_FIELDS.forEach(field => { if (data[field] !== undefined) backup[field] = data[field]; });
+  await setDoc(docRef, { normalize_backup: backup }, { mergeFields: ['normalize_backup'] });
+  return backup.created_at;
+}
+
+export async function restoreSpiritsBackupAsync() {
+  const docRef = doc(db, getFirestoreCollection(), state.coupleId);
+  const snap = await getDoc(docRef);
+  const backup = snap.exists() ? snap.data().normalize_backup : null;
+  if (!backup || !Array.isArray(backup.spirits_list)) throw new Error("No hay ningún respaldo guardado para esta temporada.");
+  const dataToRestore = { last_updated: serverTimestamp() };
+  BACKUP_FIELDS.forEach(field => { if (backup[field] !== undefined) dataToRestore[field] = backup[field]; });
+  await setDoc(docRef, dataToRestore, { mergeFields: Object.keys(dataToRestore) });
+  return backup.created_at;
+}
+
+function stableStringify(value) {
+  return JSON.stringify(value, (key, val) => (val && typeof val === 'object' && !Array.isArray(val))
+    ? Object.keys(val).sort().reduce((acc, k) => { acc[k] = val[k]; return acc; }, {})
+    : val);
+}
+
 let lastListenedSeason = null;
 let lastSyncedStructureSig = null;
 let lastSyncedListsSig = null;
@@ -254,6 +287,9 @@ export function listenFirestore(onDataUpdated) {
         return;
       }
 
+      // Solo un snapshot cuya estructura se aplicó al estado puede pedir redibujar la colección:
+      // si se omitió (guardado propio pendiente, escribiendo), lo pintado ya refleja el estado local
+      let appliedServerStructure = false;
       if (snapshot.exists()) {
         const data = snapshot.data();
         if (!snapshot.metadata.hasPendingWrites) {
@@ -279,6 +315,7 @@ export function listenFirestore(onDataUpdated) {
         const isAutoSavePending = !isSeasonChange && (autoSaveTimer !== null || isAutoSaving);
 
         if ((!isActivelyTyping && !isAutoSavePending && !snapshot.metadata.hasPendingWrites) || isInitialLoad) {
+          appliedServerStructure = true;
           clearSpiritCache();
           state.customNames = data.custom_names || {};
           state.customCategories = data.custom_categories || {};
@@ -317,6 +354,7 @@ export function listenFirestore(onDataUpdated) {
       } else {
         // El servidor confirma que el documento no existe (temporada o pareja nueva): se permite crearlo
         loadedSpiritsDoc = { key: listenedDocKey, sizes: {} };
+        appliedServerStructure = true;
         state.kevinList = [];
         state.aliList = [];
         state.kevinMastery = [];
@@ -333,12 +371,13 @@ export function listenFirestore(onDataUpdated) {
 
       // includeMetadataChanges emite varios snapshots por cada escritura (pendiente, confirmado, caché -> servidor).
       // Si el estado resultante es idéntico al ya pintado, se omite el guardado en caché y el redibujado.
-      const structureSig = JSON.stringify([
+      // Claves ordenadas: Firestore puede devolver los mapas en otro orden que el estado local
+      const structureSig = stableStringify([
         state.spiritsList, state.categories, state.customNames,
         state.customCategories, state.customImages, state.spiritTypes
       ]);
       const listsSig = JSON.stringify([state.kevinList, state.aliList, state.kevinMastery, state.aliMastery]);
-      const structureChanged = structureSig !== lastSyncedStructureSig;
+      const structureChanged = lastSyncedStructureSig === null || (appliedServerStructure && structureSig !== lastSyncedStructureSig);
       const listsChanged = listsSig !== lastSyncedListsSig;
       const isInitialLoadRender = lastSyncedStructureSig === null;
       lastSyncedStructureSig = structureSig;
@@ -368,6 +407,11 @@ export function listenFirestore(onDataUpdated) {
       // Si solo cambiaron checks/maestrías, se actualizan los slots existentes sin reconstruir la colección
       if (!structureChanged && state.currentMode === "normal" && typeof window.syncAllSpiritSlotsDOM === 'function') {
         window.syncAllSpiritSlotsDOM();
+        return;
+      }
+      // En /edicion las tarjetas no muestran checks ni maestrías: basta con los contadores
+      if (!structureChanged && state.currentMode === "edit") {
+        updateStats();
         return;
       }
 

@@ -257,12 +257,30 @@ export function changeSpiritType(id, newTypeName) {
     state.customNames[id] = newFullName;
   }
   clearSpiritCache();
-  // Solo cambia el nombre de esta tarjeta: no hace falta reconstruir la colección
   document.querySelectorAll(`.spirit-slot.edit-mode-slot[data-id="${id}"] input[data-id]`).forEach(input => {
     input.value = getSpiritName(id);
   });
+  repositionSlotByType(id);
   if (state.searchQuery) applyFilterVisibility();
   triggerAutoSave(50);
+}
+
+// El tipo decide la posición dentro de la categoría: mueve solo esa tarjeta, sin redibujar la colección,
+// y mantiene el foco y la vista en ella
+function repositionSlotByType(id) {
+  const slot = document.querySelector(`.spirit-slot.edit-mode-slot[data-id="${id}"]`);
+  const grid = slot?.parentElement;
+  if (!slot || !grid) return;
+  const typeOrder = new Map(state.spiritTypes.map((t, i) => [t.name, i]));
+  const typeIndexOf = sid => typeOrder.get(getSpiritCurrentType(sid)) ?? typeOrder.size;
+  const myIndex = typeIndexOf(id);
+  const siblings = Array.from(grid.children).filter(el => el !== slot && el.classList.contains("spirit-slot"));
+  const next = siblings.find(el => typeIndexOf(el.dataset.id) > myIndex) || null;
+  if (slot.nextElementSibling === next || (next === null && slot === grid.lastElementChild)) return;
+  const focused = document.activeElement;
+  grid.insertBefore(slot, next);
+  if (focused && slot.contains(focused)) focused.focus({ preventScroll: true });
+  slot.scrollIntoView({ block: "nearest" });
 }
 
 // Mueve la tarjeta ya dibujada a la grilla de destino. Devuelve false si no se pudo (se redibuja todo).
