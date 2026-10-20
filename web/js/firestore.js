@@ -219,7 +219,9 @@ export async function saveChangesToFirestoreAsync() {
   };
 
   assertSafeSpiritsWrite(dataToSave, loadedSpiritsDoc, getSpiritsDocKey());
-  await setDoc(docRef, dataToSave, { merge: true });
+  // mergeFields reemplaza cada campo completo: con merge:true los mapas (custom_names...) se fusionan
+  // y una clave borrada en local (nombre que vuelve a ser el por defecto) reaparecía desde el servidor
+  await setDoc(docRef, dataToSave, { mergeFields: Object.keys(dataToSave) });
 }
 
 let lastListenedSeason = null;
