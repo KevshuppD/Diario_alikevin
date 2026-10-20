@@ -76,7 +76,13 @@ class RecipeFragment : Fragment() {
                                 }
                                 if (value != null) {
                                     val items = value.mapNotNull { doc ->
-                                        doc.toObject(Recipe::class.java).apply { recipeId = doc.id }
+                                        // Una receta mal formada no debe tumbar el recetario completo
+                                        try {
+                                            doc.toObject(Recipe::class.java).apply { recipeId = doc.id }
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("RecipeFragment", "Receta ${doc.id} no se pudo leer: ${e.message}")
+                                            null
+                                        }
                                     }.sortedByDescending { it.timestamp }
                                     android.util.Log.d("RecipeFragment", "Recetas cargadas: ${items.size}")
                                     recipes = items

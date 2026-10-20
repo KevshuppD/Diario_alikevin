@@ -39,6 +39,8 @@
 
 -keepclassmembers class calendario.kevshupp.diariokevinali.Recipe { *; }
 -keep class calendario.kevshupp.diariokevinali.Recipe { *; }
+-keepclassmembers class calendario.kevshupp.diariokevinali.RecipeVariant { *; }
+-keep class calendario.kevshupp.diariokevinali.RecipeVariant { *; }
 
 -keepclassmembers class calendario.kevshupp.diariokevinali.CalendarEvent { *; }
 -keep class calendario.kevshupp.diariokevinali.CalendarEvent { *; }

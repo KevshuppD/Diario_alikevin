@@ -174,6 +174,7 @@ app.post('/api/upload-spirit-image', async (req, res) => {
 // API: Fotos de cartas y notificaciones push (mismos handlers que las funciones de Vercel)
 app.post('/api/upload-letter-image', require('./api/upload-letter-image'));
 app.post('/api/send-push', require('./api/send-push'));
+app.post('/api/send-push', require('./api/send-push'));
 
 // API: Eliminar imágenes no utilizadas de Cloudinary
 app.post('/api/clean-unused-cloudinary', async (req, res) => {

@@ -5,6 +5,7 @@
 import { state } from './state.js';
 import { db, rtdb, doc, setDoc, rtdbRef, rtdbSet, rtdbUpdate } from './firebase-config.js';
 import { sendWsMessage } from './websocket.js';
+import { getPushTopic } from './letters-view.js';
 
 let radarMap = null;
 let currentTileLayer = null;
@@ -711,6 +712,37 @@ export async function sendRemoteMagicPing(targetUser, silent = true) {
       requestedAt: now,
       requestedBy: state.currentUser ? state.currentUser.username : "web_manager"
     });
+
+    // El ping en RTDB solo lo ve un teléfono con la app despierta: el push FCM de prioridad alta es el que lo
+    // despierta (mismo payload que ThorRadarManager.sendLocationRequestPing). Solo datos, sin bloque notification,
+    // para que MyFirebaseMessagingService lo reciba aunque la app esté en segundo plano.
+    const pushRes = await fetch("/api/send-push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic: getPushTopic(),
+        data: {
+          authorId: "web_manager",
+          authorName: state.currentUser ? state.currentUser.name : "Web",
+          targetDoc: targetUser,
+          click_type: "radar_ping",
+          type: "radar_ping",
+          magic_packet: "WOL_LOCATION_WAKEUP",
+          timestamp: String(now),
+          silent: silent ? "true" : "false",
+          is_silent: silent ? "true" : "false",
+          ...(silent ? {} : {
+            title: "📍 Actualización de Thor Radar",
+            body: `¡${state.currentUser ? state.currentUser.name : "La web"} ha solicitado tu ubicación en vivo!`
+          })
+        }
+      })
+    });
+    if (!pushRes.ok) {
+      const errBody = await pushRes.json().catch(() => ({}));
+      const detail = typeof errBody.error === 'string' ? errBody.error : errBody.error?.error?.message;
+      throw new Error(detail || `push FCM HTTP ${pushRes.status}`);
+    }
 
     sendWsMessage({
       type: 'MAGIC_PACKET_PING',
