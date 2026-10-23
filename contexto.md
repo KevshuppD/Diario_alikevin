@@ -161,6 +161,11 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 ### F. Anime (`anime_list/<coupleId>`) - `AnimeCompose.kt`
 - `title: String`, `episodesWatched: Int`, `totalEpisodes: Int`, `rating: Float`, `status: String` (`"WATCHING"`, `"COMPLETED"`, `"PLAN_TO_WATCH"`)
 
+### F2. Bitácora de Ánimo (`mood_logs/<coupleId>/entries/<id>`) - `MoodLogCompose.kt`
+- `who: String` (`"Ali"`/`"Kevin"`), `mood: String` (emoji), `moodLabel: String`, `intensity: Int` (1-5), `note: String`, `timestamp: Long`, `dayKey: String` (`yyyy-MM-dd`), `author: String` (userName de quien anotó), `isGeneral: Boolean`
+- Registros **generales** (casilla *Sin fecha*): `dayKey = "general"`, se muestran en la pestaña 📝 GENERAL sin fecha ni hora; el `timestamp` real de creación solo se usa para ordenar (más recientes primero).
+- Listener solo sobre `whereEqualTo("dayKey", día visible)` (lecturas acotadas al día, sin índice compuesto); 1 escritura por registro. Solo el autor puede borrar su registro.
+
 ### G. Ubicación y Geocercas de Thor Radar (`locations/<coupleId>`) - `ThorRadarCompose.kt`
 - **Usuarios (`locations/<coupleId>/users/<kevin|ali>`)**:
   - `userId: String`, `userName: String`, `profileImageUrl: String` (Foto de perfil del usuario cargada con Coil en marcadores)
@@ -714,6 +719,7 @@ graph TD
 - **Avanzado y Admin:** reiniciar ranking, minijuegos, mascotas y vales de las ruletas; editor de premios Juntos.
 - **Cartas:** like / quitar like (solo en cartas de la pareja), menú de mantener presionado, borrar carta propia, paginación de 5 en 5.
 - **Web → Tipos y Categorías:** botón *🪄 Normalizar Nombres* (respalda, renumera IDs y normaliza nombres) y botón *⚠️ Restablecer Respaldo* (contraseña `123`).
+- **Misceláneo:** Espíritus, Anime, Web Gestión, Medicamentos, Horario, Thor Radar y 📔 Bitácora Ánimo (pestañas 📅 POR DÍA / 📝 GENERAL, selector de día ◀▶, filtro Ali/Kevin/Ambos, registros agrupados por hora, ➕ registrar, ✕ borrar propio).
 - **Historial:** la casilla de barra superior se perdió por accidente en el commit `586863a` (v1.7.54, reorganización de Configuración) y se restauró en v1.7.82. El cambio de nombre de la mascota desde `PetMenuDialog` se quitó en `70c004f` (v1.7.52); el parámetro `onUpdateName` sigue sin usarse.
 
 ## 15. Tareas Pendientes / Backlog

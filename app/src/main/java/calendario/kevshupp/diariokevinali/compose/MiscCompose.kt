@@ -40,7 +40,7 @@ fun MiscScreen(
     val borderColor = if (isDark) Color(0xFF91465F) else if (isMono) Color.Black else Color(0xFF4A2511)
     val cardBg = if (isDark) Color(0xFF1E1E1E) else if (isMono) Color.White else Color(0xFFFFFBEA)
 
-    // View state: "grid", "checklist", "anime", "meds", "web", "schedule", "radar"
+    // View state: "grid", "checklist", "anime", "meds", "web", "schedule", "radar", "mood"
     var currentView by remember(initialView) { mutableStateOf(initialView) }
 
     // Interceptar el botón Atrás del sistema cuando se esté dentro de una sub-sección de Misceláneos
@@ -60,7 +60,8 @@ fun MiscScreen(
             onSelectMeds = { currentView = "meds" },
             onSelectWeb = { currentView = "web" },
             onSelectSchedule = { currentView = "schedule" },
-            onSelectRadar = { currentView = "radar" }
+            onSelectRadar = { currentView = "radar" },
+            onSelectMood = { currentView = "mood" }
         )
     } else if (currentView == "checklist") {
         SpiritsChecklistView(
@@ -88,6 +89,14 @@ fun MiscScreen(
         )
     } else if (currentView == "schedule") {
         ScheduleDashboardView(
+            theme = theme,
+            textColor = textColor,
+            borderColor = borderColor,
+            cardBg = cardBg,
+            onBack = { currentView = "grid" }
+        )
+    } else if (currentView == "mood") {
+        MoodLogDashboardView(
             theme = theme,
             textColor = textColor,
             borderColor = borderColor,
@@ -152,7 +161,8 @@ fun MiscGridView(
     onSelectMeds: () -> Unit,
     onSelectWeb: () -> Unit,
     onSelectSchedule: () -> Unit,
-    onSelectRadar: () -> Unit
+    onSelectRadar: () -> Unit,
+    onSelectMood: () -> Unit
 ) {
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
@@ -212,11 +222,11 @@ fun MiscGridView(
             )
         }
 
-        // 2x3 Grid Layout
+        // Grid de 2 columnas
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(4.dp),
+            contentPadding = PaddingValues(start = 4.dp, top = 4.dp, end = 4.dp, bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -413,6 +423,40 @@ fun MiscGridView(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Thor Radar",
+                            fontFamily = Vt323,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 22.sp
+                        )
+                    }
+                }
+            }
+
+            // Seventh item: Bitácora de Ánimo
+            item {
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .border(3.dp, borderColor)
+                        .background(cardBg)
+                        .clickable { onSelectMood() }
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "📔",
+                            fontSize = 44.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Bitácora Ánimo",
                             fontFamily = Vt323,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
