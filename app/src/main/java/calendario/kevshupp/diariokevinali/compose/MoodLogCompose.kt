@@ -11,12 +11,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -51,6 +53,8 @@ private val MOOD_OPTIONS = listOf(
     "😐" to "Neutral",
     "🤩" to "Emocionada"
 )
+
+private const val MOOD_NOTE_MAX = 2000
 
 private val MOOD_PINK = Color(0xFFEC4899)
 private val MOOD_BLUE = Color(0xFF2563EB)
@@ -467,7 +471,7 @@ private fun AddMoodDialog(
         text = {
             Column(
                 modifier = Modifier
-                    .heightIn(max = 460.dp)
+                    .heightIn(max = 560.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 Text("¿De quién?", fontFamily = Vt323, fontSize = 18.sp, color = textColor)
@@ -555,10 +559,28 @@ private fun AddMoodDialog(
                 Spacer(modifier = Modifier.height(10.dp))
                 OutlinedTextField(
                     value = note,
-                    onValueChange = { note = it.take(300) },
+                    onValueChange = { note = it.take(MOOD_NOTE_MAX) },
                     label = { Text("Nota (opcional)", fontFamily = Vt323) },
                     modifier = Modifier.fillMaxWidth(),
-                    maxLines = 4
+                    textStyle = TextStyle(fontFamily = Vt323, fontSize = 20.sp, color = textColor),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = textColor,
+                        unfocusedTextColor = textColor,
+                        cursorColor = textColor,
+                        focusedBorderColor = MOOD_AMBER,
+                        unfocusedBorderColor = borderColor,
+                        focusedLabelColor = MOOD_AMBER,
+                        unfocusedLabelColor = textColor.copy(alpha = 0.7f)
+                    ),
+                    minLines = 6,
+                    maxLines = 14
+                )
+                Text(
+                    "${note.length}/$MOOD_NOTE_MAX",
+                    fontFamily = Vt323,
+                    fontSize = 14.sp,
+                    color = textColor.copy(alpha = 0.6f),
+                    modifier = Modifier.align(Alignment.End)
                 )
             }
         },
