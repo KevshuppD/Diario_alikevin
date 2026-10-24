@@ -574,7 +574,7 @@ graph TD
     - **Unificación de Base de Datos:** Migración y sincronización de colecciones entre Web y Android al proyecto oficial de Firebase `diario-ali-kevin` (`fortnite_spirits_s2/<coupleId>`), con 105 espíritus y 21 categorías por defecto.
     - **Normalización Unicode NFC de Vínculo:** Aplicación estricta de `Normalizer.normalize(coupleId, Normalizer.Form.NFC)` tanto en Kotlin como en JavaScript para evitar discrepancias de codificación en el ID de documento (`vínculo_único_123`).
     - **Carga de Imágenes Directa HTTPS (Cloudinary T2):** Carga optimizada vía Coil y Web desde Cloudinary (`https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/spirits_s2/ic_spirit_s2_$id.png`).
-    - **Categorías Nativas y Nombres Dinámicos:** Integración en `SpiritsCompose.kt` de `defaultCategoriesT2` (21 categorías) y nombres dinámicos calculados a partir del nombre de la categoría activa (`getSpiritDisplayName`).
+    - **Categorías Nativas y Nombres Dinámicos:** Integración en `SpiritsCompose.kt` de `defaultCategoriesT2` (21 categorías) y nombres dinámicos calculados a partir del nombre de la categoría activa (`getSpiritDisplayName`). Si no hay nombre en `custom_names`, el nombre es categoría + sufijo del tipo según la posición del espíritu dentro de su categoría (`spirit_types`, o `defaultSpiritTypeSuffixesT2` si no existe), igual que `getDefaultSpiritName` en la web.
 
 21. **Auto-actualización Blindada & Edición Web Fluida (v1.7.64 - Build 109):**
     - **Blindaje del Ciclo de Vida en Android (`DiarioApp.kt`):** Inicialización de `firestoreSettings`, `MediaManager.init` y `Configuration.load(Osmdroid)` envuelta en bloques `try-catch` para prevenir cierres inesperados durante arranques en frío o tras actualizaciones del APK.

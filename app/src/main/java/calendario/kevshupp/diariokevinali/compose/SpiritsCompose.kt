@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -563,6 +564,11 @@ fun SpiritGridCard(
     }
 }
 
+private val defaultSpiritTypeSuffixesT2 = listOf(
+    "", " Dorado", " Hacker", " Hacker de botin", " Cazarrecompensas", " Matrix",
+    " Galaxia", " Truco o Trato", " Cazarrecompensas Especial", " Especial"
+)
+
 @Composable
 fun SpiritsChecklistView(
     theme: String,
@@ -724,6 +730,14 @@ fun SpiritsChecklistView(
     var aliMastery by remember { mutableStateOf(emptyList<String>()) }
 
     var customNames by remember { mutableStateOf(emptyMap<String, String>()) }
+    // Sufijos de tipo T2 en el orden de spirit_types: el espíritu en la posición i de su categoría usa el sufijo i (igual que la web)
+    var spiritTypeSuffixesT2 by remember { mutableStateOf(defaultSpiritTypeSuffixesT2) }
+    // Temporada cuyos datos ya llegaron: al cambiar, la lista vuelve arriba (si no, conserva el ítem por key y aparece abajo)
+    var loadedSeason by remember { mutableStateOf(0) }
+    val spiritsListState = rememberLazyListState()
+    LaunchedEffect(loadedSeason) {
+        if (loadedSeason != 0) spiritsListState.scrollToItem(0)
+    }
     var customCategories by remember { mutableStateOf(emptyMap<String, String>()) }
     var customImages by remember { mutableStateOf(emptyMap<String, String>()) }
     var isEditMode by remember { mutableStateOf(false) }
@@ -762,6 +776,8 @@ fun SpiritsChecklistView(
                     customNames = cNames?.entries?.associate { it.key.toString() to it.value.toString() } ?: emptyMap()
                     customCategories = cCategories?.entries?.associate { it.key.toString() to it.value.toString() } ?: emptyMap()
                     customImages = cImages?.entries?.associate { it.key.toString() to it.value.toString() } ?: emptyMap()
+                    val dbTypes = (snapshot.get("spirit_types") as? List<*>)?.mapNotNull { (it as? Map<*, *>)?.get("suffix") as? String }
+                    spiritTypeSuffixesT2 = if (dbTypes.isNullOrEmpty()) defaultSpiritTypeSuffixesT2 else dbTypes
 
                     val dbSpiritsList = snapshot.get("spirits_list") as? List<*>
                     val parsedSpiritsList = dbSpiritsList?.filterIsInstance<String>() ?: emptyList()
@@ -812,6 +828,7 @@ fun SpiritsChecklistView(
                         categories = if (parsedCategories.isNotEmpty()) parsedCategories else defaultCategoriesT2
                         spiritsList = if (combinedSpiritsList.isNotEmpty()) combinedSpiritsList else defaultSpiritsListT2
                     }
+                    loadedSeason = currentSeason
                 } else {
                     kevinList = emptyList()
                     aliList = emptyList()
@@ -822,6 +839,7 @@ fun SpiritsChecklistView(
                     customImages = emptyMap()
                     categories = if (currentSeason == 2) defaultCategoriesT2 else defaultCategoriesT1
                     spiritsList = if (currentSeason == 2) defaultSpiritsListT2 else defaultSpiritsListT1
+                    loadedSeason = currentSeason
                 }
             }
         onDispose {
@@ -860,7 +878,8 @@ fun SpiritsChecklistView(
         } else if (currentSeason == 2) {
             val cat = categories.find { it.spiritIds.contains(id) || it.spiritIds.contains(formattedId) || it.spiritIds.contains(plainId) }
             if (cat != null) {
-                customCategories[cat.name] ?: cat.name
+                val idxInCat = cat.spiritIds.indexOfFirst { it == id || it == formattedId || it == plainId }
+                (customCategories[cat.name] ?: cat.name) + spiritTypeSuffixesT2.getOrElse(idxInCat) { "" }
             } else {
                 "Espíritu #$formattedId"
             }
@@ -1402,6 +1421,7 @@ fun SpiritsChecklistView(
 
         // Checklist Items List
         LazyColumn(
+            state = spiritsListState,
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(bottom = 16.dp)
