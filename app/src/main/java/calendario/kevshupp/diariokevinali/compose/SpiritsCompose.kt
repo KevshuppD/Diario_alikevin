@@ -551,11 +551,13 @@ fun SpiritGridCard(
             fontSize = 11.sp,
             color = textColor,
             textAlign = TextAlign.Center,
-            maxLines = 1,
+            lineHeight = 10.sp,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
+                .padding(horizontal = 2.dp)
                 .padding(bottom = 2.dp)
         )
     }
