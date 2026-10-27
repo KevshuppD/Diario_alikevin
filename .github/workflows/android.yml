@@ -69,14 +69,16 @@ jobs:
           body: ${{ steps.release_notes.outputs.notes }}
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # El código es privado: el APK se publica en un repo público solo de releases,
+          # que es el que consulta UpdateManager.kt.
+          repository: KevshuppD/Diario_alikevin-releases
+          token: ${{ secrets.RELEASES_REPO_TOKEN }}
 
       - name: Send FCM Update Notification
         if: success()
         run: |
           pip install google-auth requests
-          python3 .github/scripts/send_update_notification.py "${{ github.ref_name }}" "${{ github.repository }}" "$RELEASE_NOTES"
+          python3 .github/scripts/send_update_notification.py "${{ github.ref_name }}" "KevshuppD/Diario_alikevin-releases" "$RELEASE_NOTES"
         env:
           SERVICE_ACCOUNT_PATH: "app/src/main/assets/service-account.json"
           RELEASE_NOTES: ${{ steps.release_notes.outputs.notes }}

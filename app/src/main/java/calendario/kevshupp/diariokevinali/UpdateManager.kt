@@ -53,7 +53,7 @@ class UpdateManager(private val context: Context) {
     }
 
     fun checkForUpdates(callback: UpdateCallback?) {
-        val repoUrl = "https://api.github.com/repos/KevshuppD/Diario_alikevin/releases/latest"
+        val repoUrl = "https://api.github.com/repos/KevshuppD/Diario_alikevin-releases/releases/latest"
         val request = Request.Builder()
             .url(repoUrl)
             .header("User-Agent", "DiarioKevinAli-App")
