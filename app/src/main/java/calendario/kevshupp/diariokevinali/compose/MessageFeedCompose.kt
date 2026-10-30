@@ -717,20 +717,34 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         .clickable { isClicked = true }
                         .padding(4.dp)
                 ) {
-                    val petImageRes = getPetDrawableRes(pet)
-                    
-                    Image(
-                        painter = painterResource(id = petImageRes),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = breathingScale * clickScale
-                                scaleY = breathingScale * clickScale
-                                translationY = if (isSleeping) 0f else bobbingOffset
-                                rotationZ = if (isSleeping) 0f else wiggleRotation
-                            }
-                    )
+                    if (pet.isCuky()) {
+                        // Cuky procedural: respira, parpadea y muestra su suciedad y accesorio
+                        CukyPixelStage(
+                            pet = pet,
+                            strollScene = false,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    scaleX = clickScale
+                                    scaleY = clickScale
+                                }
+                        )
+                    } else {
+                        val petImageRes = getPetDrawableRes(pet)
+
+                        Image(
+                            painter = painterResource(id = petImageRes),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    scaleX = breathingScale * clickScale
+                                    scaleY = breathingScale * clickScale
+                                    translationY = if (isSleeping) 0f else bobbingOffset
+                                    rotationZ = if (isSleeping) 0f else wiggleRotation
+                                }
+                        )
+                    }
 
                     if (isSleeping) {
                         Text(

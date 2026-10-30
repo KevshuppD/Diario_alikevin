@@ -138,114 +138,13 @@ fun PetMenuDialog(
         finishedListener = { dIsClicked = false }
     )
 
-    // Animaciones procedurales de paseo y picoteo para Cuky
-    val cukyWalkX = remember { Animatable(0f) }
-    val cukyWalkY = remember { Animatable(0f) }
-    var cukyFacingDirection by remember { mutableStateOf(1f) } // 1f: derecha, -1f: izquierda
-    val cukyWaddleRotation = remember { Animatable(0f) }
-    val cukyStepBounce = remember { Animatable(0f) }
-    val cukyPeckRotation = remember { Animatable(0f) }
-    val cukyPeckOffsetY = remember { Animatable(0f) }
-    var showPeckSeed by remember { mutableStateOf(false) }
-    val seedAlpha = remember { Animatable(0f) }
-
-    LaunchedEffect(selectedTab, pet.getActiveIsSleeping(), isWashing, isPlayingBall, pet.isCuky()) {
-        val isCuky = pet.isCuky()
-        if (!isCuky || pet.getActiveIsSleeping() || isWashing || isPlayingBall || selectedTab != 0) {
-            cukyWalkX.snapTo(0f)
-            cukyWalkY.snapTo(0f)
-            cukyWaddleRotation.snapTo(0f)
-            cukyStepBounce.snapTo(0f)
-            cukyPeckRotation.snapTo(0f)
-            cukyPeckOffsetY.snapTo(0f)
-            showPeckSeed = false
-            return@LaunchedEffect
-        }
-
-        // Bucle de comportamiento autónomo de Cuky
-        while (true) {
-            // 1. Descanso / Observar entorno (1.2s - 2.5s)
-            delay((1200..2500).random().toLong())
-
-            // 2. Elegir nuevo destino X cubriendo ambos extremos (-120dp a +120dp)
-            // Alternar para asegurar que viaje a los extremos izquierdo y derecho
-            val currentX = cukyWalkX.value
-            val targetX = if (currentX > 40f) {
-                // Si está a la derecha, viajar hacia el extremo izquierdo o centro-izquierda
-                (-120..-20).random().toFloat()
-            } else if (currentX < -40f) {
-                // Si está a la izquierda, viajar hacia el extremo derecho o centro-derecha
-                (20..120).random().toFloat()
-            } else {
-                // Si está en el centro, elegir cualquier extremo
-                if (Math.random() < 0.5) (-120..-60).random().toFloat() else (60..120).random().toFloat()
-            }
-
-            val startX = cukyWalkX.value
-            val deltaX = targetX - startX
-
-            if (Math.abs(deltaX) > 10f) {
-                // Orientar hacia el destino
-                cukyFacingDirection = if (deltaX > 0) 1f else -1f
-
-                // Caminar dando pasitos de gallina a paso continuo
-                val steps = (Math.abs(deltaX) / 6.5f).toInt().coerceIn(4, 28)
-                for (s in 1..steps) {
-                    val progress = s.toFloat() / steps
-                    val nextX = startX + deltaX * progress
-
-                    // Pasito en X
-                    launch {
-                        cukyWalkX.animateTo(nextX, tween(120, easing = LinearEasing))
-                    }
-                    // Bamboleo de cuerpo de gallina (Waddle)
-                    val waddleTarget = if (s % 2 == 0) 7.5f else -7.5f
-                    launch {
-                        cukyWaddleRotation.animateTo(waddleTarget, tween(60, easing = EaseInOutQuad))
-                        cukyWaddleRotation.animateTo(0f, tween(60, easing = EaseInOutQuad))
-                    }
-                    // Botecito de patitas (Hop)
-                    launch {
-                        cukyStepBounce.animateTo(-6f, tween(60, easing = EaseOutQuad))
-                        cukyStepBounce.animateTo(0f, tween(60, easing = EaseInQuad))
-                    }
-                    delay(125L)
-                }
-                cukyWaddleRotation.snapTo(0f)
-                cukyStepBounce.snapTo(0f)
-            }
-
-            // 3. Picotear el suelo (65% probabilidad)
-            if (Math.random() < 0.65) {
-                showPeckSeed = true
-                launch {
-                    seedAlpha.snapTo(1f)
-                    delay(600)
-                    seedAlpha.animateTo(0f, tween(300))
-                }
-
-                val pecks = (2..3).random()
-                for (p in 1..pecks) {
-                    // Inclinar cabeza y cuerpo hacia abajo para picotear
-                    launch {
-                        cukyPeckRotation.animateTo(-22f * cukyFacingDirection, tween(90, easing = EaseOutQuad))
-                    }
-                    launch {
-                        cukyPeckOffsetY.animateTo(12f, tween(90, easing = EaseOutQuad))
-                    }
-                    delay(110L)
-                    // Volver arriba
-                    launch {
-                        cukyPeckRotation.animateTo(0f, tween(90, easing = EaseInQuad))
-                    }
-                    launch {
-                        cukyPeckOffsetY.animateTo(0f, tween(90, easing = EaseInQuad))
-                    }
-                    delay(110L)
-                }
-                showPeckSeed = false
-            }
-        }
+    // Acciones del sprite procedural de Cuky (picoteo, aleteo, salto, baño)
+    var cukyAction by remember { mutableStateOf(CukyAction.NONE) }
+    var cukyActionKey by remember { mutableStateOf(0) }
+    var cukyBathStart by remember { mutableStateOf(100) }
+    fun playCuky(action: Int) {
+        cukyAction = action
+        cukyActionKey++
     }
 
     Dialog(
@@ -375,10 +274,19 @@ fun PetMenuDialog(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // 🏡 LA HABITACIÓN DE LA MASCOTA (INTERACTIVA 2D TAMAGOTCHI)
+                        val cukyProceduralRoom = pet.isCuky() && pet.getActiveEquippedBackground() in CUKY_PROCEDURAL_BACKGROUNDS
+                        val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.95f)
-                                .height(340.dp)
+                                .then(
+                                    // Escenario procedural de borde a borde (anula el padding lateral del diálogo)
+                                    if (cukyProceduralRoom) Modifier
+                                        .requiredWidth(screenWidth)
+                                        .aspectRatio(CUKY_SCENE_W.toFloat() / CUKY_SCENE_H)
+                                    else Modifier
+                                        .fillMaxWidth(0.95f)
+                                        .height(340.dp)
+                                )
                                 .border(3.dp, borderColor)
                                 .background(
                                     if (pet.getActiveIsSleeping()) Color(0xFF0F0F3D)
@@ -399,6 +307,7 @@ fun PetMenuDialog(
                                         return@clickable
                                     }
 
+                                    if (pet.isCuky()) playCuky(CukyAction.FLAP)
                                     scope.launch {
                                         showLoveHeart = true
                                         heartY.snapTo(20f)
@@ -439,14 +348,36 @@ fun PetMenuDialog(
                                 "beach" -> if (isSleeping) R.drawable.bg_thor_beach_night else R.drawable.bg_thor_beach_day
                                 else -> if (isSleeping) R.drawable.bg_thor_room_night else R.drawable.bg_thor_room_day
                             }
-                            Image(
-                                painter = painterResource(id = roomBgRes),
-                                contentDescription = null,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            if (!cukyProceduralRoom) {
+                                Image(
+                                    painter = painterResource(id = roomBgRes),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.FillBounds,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
 
-                            // Imagen de la mascota con estados de imagen pixel-art reales (Thor / Cuky)
+                            val isCuky = pet.isCuky()
+                            if (isCuky) {
+                                // Cuky: sprite procedural por capas que pasea por el escenario
+                                // (los fondos procedurales ya traen su versión de noche)
+                                if (pet.getActiveIsSleeping() && !cukyProceduralRoom) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color(0x9A0A0E29))
+                                    )
+                                }
+                                CukyPixelStage(
+                                    pet = pet,
+                                    modifier = Modifier.fillMaxSize(),
+                                    action = cukyAction,
+                                    actionKey = cukyActionKey,
+                                    bathStartCleanliness = cukyBathStart,
+                                    background = if (cukyProceduralRoom) currentBg else null
+                                )
+                            } else {
+                            // Imagen de la mascota con estados de imagen pixel-art reales (Thor)
                             val dThorImageRes = getPetDrawableRes(
                                 pet = pet,
                                 isWashing = isWashing,
@@ -454,7 +385,6 @@ fun PetMenuDialog(
                             )
 
                             // Render de la mascota escalada
-                            val isCuky = pet.isCuky()
                             val thorSize = when {
                                 pet.getActiveIsSleeping() -> if (isCuky) 230.dp else 195.dp
                                 isWashing -> if (isCuky) 225.dp else 190.dp
@@ -486,48 +416,21 @@ fun PetMenuDialog(
                                         .fillMaxSize()
                                         .graphicsLayer {
                                             val activeSleeping = pet.getActiveIsSleeping()
-                                            scaleX = if (isCuky && !activeSleeping && !isWashing && !isPlayingBall) {
-                                                cukyFacingDirection * (if (dIsClicked) dBreathingScale * dClickScale else dBreathingScale)
-                                            } else {
-                                                if (activeSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale
-                                            }
+                                            scaleX = if (activeSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale
                                             scaleY = if (activeSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale
-                                            translationX = if (isCuky && !activeSleeping && !isWashing && !isPlayingBall) {
-                                                cukyWalkX.value
-                                            } else {
-                                                catTranslationX.value
-                                            }
-                                            translationY = if (isCuky && !activeSleeping && !isWashing && !isPlayingBall) {
-                                                cukyWalkY.value + cukyStepBounce.value + cukyPeckOffsetY.value
-                                            } else if (activeSleeping || isWashing) {
+                                            translationX = catTranslationX.value
+                                            translationY = if (activeSleeping || isWashing) {
                                                 catTranslationY.value
                                             } else {
                                                 dBobbingOffset + catTranslationY.value
                                             }
-                                            rotationZ = if (isCuky && !activeSleeping && !isWashing && !isPlayingBall) {
-                                                cukyWaddleRotation.value + cukyPeckRotation.value
-                                            } else if (activeSleeping || isWashing) {
+                                            rotationZ = if (activeSleeping || isWashing) {
                                                 0f
                                             } else {
                                                 dWiggleRotation
                                             }
                                         }
                                 )
-
-                                // Semillitas que aparecen en el suelo cuando Cuky picotea
-                                if (showPeckSeed && isCuky && !pet.getActiveIsSleeping()) {
-                                    Text(
-                                        text = "🌾",
-                                        fontSize = 18.sp,
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .offset(
-                                                x = (cukyWalkX.value + (18f * cukyFacingDirection)).dp,
-                                                y = (cukyWalkY.value + 16f).dp
-                                            )
-                                            .graphicsLayer { alpha = seedAlpha.value }
-                                    )
-                                }
 
                                 if (pet.getActiveIsSleeping()) {
                                     val zzzInfinite = rememberInfiniteTransition(label = "zzz")
@@ -570,6 +473,7 @@ fun PetMenuDialog(
                                         .background(Color(0x9A0A0E29))
                                  )
                             }
+                            }
 
                             // Corazón flotante
                             if (showLoveHeart) {
@@ -598,8 +502,8 @@ fun PetMenuDialog(
                                 )
                             }
 
-                            // Burbujas de Baño
-                            if (isWashing) {
+                            // Burbujas de Baño (Cuky dibuja las suyas en pixel-art)
+                            if (isWashing && !isCuky) {
                                 Box(modifier = Modifier.fillMaxSize()) {
                                     val bubbles = listOf("🫧", "🫧", "🫧", "🫧")
                                     bubbles.forEachIndexed { idx, bubble ->
@@ -660,6 +564,7 @@ fun PetMenuDialog(
                                         } else {
                                             scope.launch {
                                                 isPlayingBall = true
+                                                if (pet.isCuky()) playCuky(CukyAction.HOP)
                                                 ballX.snapTo(-60f)
                                                 ballY.snapTo(-80f)
                                                 ballRotation.snapTo(0f)
@@ -721,6 +626,15 @@ fun PetMenuDialog(
                                         } else {
                                             scope.launch {
                                                 isWashing = true
+                                                if (pet.isCuky()) {
+                                                    // Tina, espuma y sacudida: la suciedad se va quitando mientras se baña
+                                                    cukyBathStart = pet.getActiveCleanliness()
+                                                    playCuky(CukyAction.BATH)
+                                                    onBathPet()
+                                                    delay(CukyAction.millis(CukyAction.BATH))
+                                                    isWashing = false
+                                                    return@launch
+                                                }
                                                 bubbleOffsetY.snapTo(120f)
                                                 onBathPet()
                                                 dIsClicked = true
@@ -868,12 +782,15 @@ fun PetMenuDialog(
                                 "beach" -> if (isSleeping) R.drawable.bg_thor_beach_night else R.drawable.bg_thor_beach_day
                                 else -> if (isSleeping) R.drawable.bg_thor_room_night else R.drawable.bg_thor_room_day
                             }
-                            Image(
-                                painter = painterResource(id = previewBgRes),
-                                contentDescription = null,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            val previewProcedural = pet.isCuky() && previewBackground in CUKY_PROCEDURAL_BACKGROUNDS
+                            if (!previewProcedural) {
+                                Image(
+                                    painter = painterResource(id = previewBgRes),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.FillBounds,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
 
                             val previewMascotRes = getPetDrawableRes(
                                 pet = pet,
@@ -881,14 +798,33 @@ fun PetMenuDialog(
                                 isSleeping = isSleeping
                             )
                             val previewMascotSize = if (pet.isCuky()) 110.dp else 90.dp
-                            Image(
-                                painter = painterResource(id = previewMascotRes),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(previewMascotSize)
-                                    .align(Alignment.BottomCenter)
-                                    .padding(bottom = 6.dp)
-                            )
+                            if (previewProcedural) {
+                                CukyPixelStage(
+                                    pet = pet,
+                                    accessory = previewAccessory,
+                                    background = previewBackground,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else if (pet.isCuky()) {
+                                CukyPixelStage(
+                                    pet = pet,
+                                    accessory = previewAccessory,
+                                    strollScene = false,
+                                    modifier = Modifier
+                                        .size(previewMascotSize)
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 6.dp)
+                                )
+                            } else {
+                                Image(
+                                    painter = painterResource(id = previewMascotRes),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(previewMascotSize)
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 6.dp)
+                                )
+                            }
 
                             if (isSleeping) {
                                 Box(
@@ -1014,6 +950,9 @@ fun PetMenuDialog(
                                 listOf(
                                     Triple("coop", "Gallinero Acogedor 🛖", 0),
                                     Triple("farm", "Huerta de Cultivos 🌽🌻", 50),
+                                    Triple("meadow", "Pradera de Flores 🌸🦋", 80),
+                                    Triple("rain", "Día de Lluvia 🌧️🍄", 90),
+                                    Triple("sunset", "Atardecer en el Granero 🌅", 110),
                                     Triple("beach", "Playa Paradise 🏖️", 100),
                                     Triple("jungle", "Selva Tropical 🌴", 120),
                                     Triple("default", "Habitación Clásica 🏠", 150),
@@ -1124,6 +1063,7 @@ fun PetMenuDialog(
                                                 selectedTab = 0
                                                 
                                                 foodY.animateTo(190f, animationSpec = tween(900, easing = EaseInQuad))
+                                                if (pet.isCuky()) playCuky(CukyAction.PECK)
                                                 dIsClicked = true
                                                 foodAlpha.animateTo(0f, animationSpec = tween(300))
                                                 foodAnimationType = null
