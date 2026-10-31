@@ -146,6 +146,12 @@ fun PetMenuDialog(
         cukyAction = action
         cukyActionKey++
     }
+    var thorAction by remember { mutableStateOf(ThorAction.NONE) }
+    var thorActionKey by remember { mutableStateOf(0) }
+    fun playThor(action: Int) {
+        thorAction = action
+        thorActionKey++
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -255,12 +261,12 @@ fun PetMenuDialog(
 
                 // Header con 6 pestañas: INFO, RANKING 🏆, ESTILO 👑, COMIDA, VALES 🎟️, AJUSTES
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    TabItem("INFO", selectedTab == 0, isDark, borderColor) { selectedTab = 0 }
-                    TabItem("RANK 🏆", selectedTab == 2, isDark, borderColor) { selectedTab = 2 }
-                    TabItem("ESTILO 👑", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
-                    TabItem(if (pet.isCuky()) "COMIDA 🌽" else "COMIDA 🐟", selectedTab == 3, isDark, borderColor) { selectedTab = 3 }
-                    TabItem("🎟️", selectedTab == 5, isDark, borderColor) { selectedTab = 5 }
-                    TabItem("⚙️", selectedTab == 4, isDark, borderColor) { selectedTab = 4 }
+                    TabItem("🐾\nINFO", selectedTab == 0, isDark, borderColor) { selectedTab = 0 }
+                    TabItem("🏆\nRANK", selectedTab == 2, isDark, borderColor) { selectedTab = 2 }
+                    TabItem("👑\nESTILO", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
+                    TabItem(if (pet.isCuky()) "🌽\nCOMIDA" else "🐟\nCOMIDA", selectedTab == 3, isDark, borderColor) { selectedTab = 3 }
+                    TabItem("🎟️\nVALES", selectedTab == 5, isDark, borderColor) { selectedTab = 5 }
+                    TabItem("⚙️\nAJUSTES", selectedTab == 4, isDark, borderColor) { selectedTab = 4 }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -275,12 +281,13 @@ fun PetMenuDialog(
                     ) {
                         // 🏡 LA HABITACIÓN DE LA MASCOTA (INTERACTIVA 2D TAMAGOTCHI)
                         val cukyProceduralRoom = pet.isCuky() && pet.getActiveEquippedBackground() in CUKY_PROCEDURAL_BACKGROUNDS
+                        val thorProceduralRoom = !pet.isCuky() && pet.getActiveEquippedBackground() in THOR_PROCEDURAL_BACKGROUNDS
                         val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
                         Box(
                             modifier = Modifier
                                 .then(
                                     // Escenario procedural de borde a borde (anula el padding lateral del diálogo)
-                                    if (cukyProceduralRoom) Modifier
+                                    if (cukyProceduralRoom || thorProceduralRoom) Modifier
                                         .requiredWidth(screenWidth)
                                         .aspectRatio(CUKY_SCENE_W.toFloat() / CUKY_SCENE_H)
                                     else Modifier
@@ -307,7 +314,7 @@ fun PetMenuDialog(
                                         return@clickable
                                     }
 
-                                    if (pet.isCuky()) playCuky(CukyAction.FLAP)
+                                    if (pet.isCuky()) playCuky(CukyAction.FLAP) else playThor(ThorAction.PURR)
                                     scope.launch {
                                         showLoveHeart = true
                                         heartY.snapTo(20f)
@@ -348,7 +355,7 @@ fun PetMenuDialog(
                                 "beach" -> if (isSleeping) R.drawable.bg_thor_beach_night else R.drawable.bg_thor_beach_day
                                 else -> if (isSleeping) R.drawable.bg_thor_room_night else R.drawable.bg_thor_room_day
                             }
-                            if (!cukyProceduralRoom) {
+                            if (!cukyProceduralRoom && !thorProceduralRoom) {
                                 Image(
                                     painter = painterResource(id = roomBgRes),
                                     contentDescription = null,
@@ -377,103 +384,48 @@ fun PetMenuDialog(
                                     background = if (cukyProceduralRoom) currentBg else null
                                 )
                             } else {
-                            // Imagen de la mascota con estados de imagen pixel-art reales (Thor)
-                            val dThorImageRes = getPetDrawableRes(
-                                pet = pet,
-                                isWashing = isWashing,
-                                isPlayingBall = isPlayingBall
-                            )
-
-                            // Render de la mascota escalada
-                            val thorSize = when {
-                                pet.getActiveIsSleeping() -> if (isCuky) 230.dp else 195.dp
-                                isWashing -> if (isCuky) 225.dp else 190.dp
-                                isPlayingBall -> if (isCuky) 215.dp else 175.dp
-                                else -> if (isCuky) 205.dp else 165.dp
-                            }
-                            val thorOffsetY = when {
-                                pet.getActiveIsSleeping() -> (-15).dp
-                                isWashing -> (-8).dp
-                                isPlayingBall -> (-12).dp
-                                else -> if (isCuky) (-12).dp else (-22).dp
-                            }
-                            val thorOffsetX = when {
-                                pet.getActiveIsSleeping() -> (-8).dp
-                                else -> 0.dp
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .size(thorSize)
-                                    .align(Alignment.BottomCenter)
-                                    .offset(x = thorOffsetX, y = thorOffsetY)
-                            ) {
-                                Image(
-                                    painter = painterResource(id = dThorImageRes),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .graphicsLayer {
-                                            val activeSleeping = pet.getActiveIsSleeping()
-                                            scaleX = if (activeSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale
-                                            scaleY = if (activeSleeping || isWashing) dBreathingScale else dBreathingScale * dClickScale
-                                            translationX = catTranslationX.value
-                                            translationY = if (activeSleeping || isWashing) {
-                                                catTranslationY.value
-                                            } else {
-                                                dBobbingOffset + catTranslationY.value
-                                            }
-                                            rotationZ = if (activeSleeping || isWashing) {
-                                                0f
-                                            } else {
-                                                dWiggleRotation
-                                            }
-                                        }
-                                )
-
-                                if (pet.getActiveIsSleeping()) {
-                                    val zzzInfinite = rememberInfiniteTransition(label = "zzz")
-                                    val zzzOffset by zzzInfinite.animateFloat(
-                                        initialValue = 0f,
-                                        targetValue = -30f,
-                                        animationSpec = infiniteRepeatable(
-                                            animation = tween(1500, easing = EaseOutQuad),
-                                            repeatMode = RepeatMode.Restart
-                                        ),
-                                        label = "zzz"
-                                    )
-                                    val zzzAlpha by zzzInfinite.animateFloat(
-                                        initialValue = 1f,
-                                        targetValue = 0f,
-                                        animationSpec = infiniteRepeatable(
-                                            animation = tween(1500, easing = EaseOutQuad),
-                                            repeatMode = RepeatMode.Restart
-                                        ),
-                                        label = "zzzAlpha"
-                                    )
-                                    Text(
-                                        text = "Zzz...",
-                                        fontFamily = Vt323,
-                                        fontSize = 20.sp,
-                                        color = Color.White,
+                                // Thor: sprite procedural (los fondos procedurales ya traen su versión de noche)
+                                if (pet.getActiveIsSleeping() && !thorProceduralRoom) {
+                                    Box(
                                         modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .offset(y = zzzOffset.dp, x = 10.dp)
-                                            .graphicsLayer { alpha = zzzAlpha }
+                                            .fillMaxSize()
+                                            .background(Color(0x9A0A0E29))
                                     )
                                 }
+                                ThorPixelStage(
+                                    pet = pet,
+                                    modifier = Modifier.fillMaxSize(),
+                                    action = thorAction,
+                                    actionKey = thorActionKey,
+                                    bathStartCleanliness = cukyBathStart,
+                                    background = if (thorProceduralRoom) currentBg else null
+                                )
                             }
 
-                            // Capa de "Luz Apagada" cuando duerme
-                            if (pet.getActiveIsSleeping()) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Color(0x9A0A0E29))
-                                 )
+                            // Nivel, racha y puntos sobre la escena
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .fillMaxWidth()
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                PetHudChip("NV ${pet.getActiveLevel()} · ${petStageName(pet)}")
+                                PetHudChip("🔥 ${pet.getActiveStreak()}d · ❤ ${pet.lovePoints + accumulatedTaps}")
                             }
-                            }
+                            val moodText = petMoodText(pet)
+                            Text(
+                                text = moodText,
+                                fontFamily = Vt323,
+                                fontSize = 15.sp,
+                                color = Color(0xFF2B1A12),
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 30.dp)
+                                    .background(Color(0xFFFBF6EA))
+                                    .border(2.dp, Color(0xFF2B1A12))
+                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                            )
 
                             // Corazón flotante
                             if (showLoveHeart) {
@@ -491,7 +443,7 @@ fun PetMenuDialog(
                             }
 
                             // Pelota rebotando
-                            if (isPlayingBall) {
+                            if (isPlayingBall && isCuky) {
                                 Image(
                                     painter = painterResource(id = R.drawable.ic_toy_ball),
                                     contentDescription = null,
@@ -500,23 +452,6 @@ fun PetMenuDialog(
                                         .offset(x = ballX.value.dp, y = ballY.value.dp)
                                         .graphicsLayer { rotationZ = ballRotation.value }
                                 )
-                            }
-
-                            // Burbujas de Baño (Cuky dibuja las suyas en pixel-art)
-                            if (isWashing && !isCuky) {
-                                Box(modifier = Modifier.fillMaxSize()) {
-                                    val bubbles = listOf("🫧", "🫧", "🫧", "🫧")
-                                    bubbles.forEachIndexed { idx, bubble ->
-                                        val offsetFactor = idx * 45
-                                        Text(
-                                            text = bubble,
-                                            fontSize = 22.sp,
-                                            modifier = Modifier
-                                                .align(Alignment.BottomStart)
-                                                .offset(x = (20 + offsetFactor).dp, y = (bubbleOffsetY.value - (idx * 20)).dp)
-                                        )
-                                    }
-                                }
                             }
 
                             // Comida cayendo
@@ -564,7 +499,7 @@ fun PetMenuDialog(
                                         } else {
                                             scope.launch {
                                                 isPlayingBall = true
-                                                if (pet.isCuky()) playCuky(CukyAction.HOP)
+                                                if (pet.isCuky()) playCuky(CukyAction.HOP) else playThor(ThorAction.PLAY)
                                                 ballX.snapTo(-60f)
                                                 ballY.snapTo(-80f)
                                                 ballRotation.snapTo(0f)
@@ -635,10 +570,10 @@ fun PetMenuDialog(
                                                     isWashing = false
                                                     return@launch
                                                 }
-                                                bubbleOffsetY.snapTo(120f)
+                                                cukyBathStart = pet.getActiveCleanliness()
+                                                playThor(ThorAction.BATH)
                                                 onBathPet()
-                                                dIsClicked = true
-                                                bubbleOffsetY.animateTo(-60f, animationSpec = tween(1800, easing = LinearEasing))
+                                                delay(ThorAction.millis(ThorAction.BATH))
                                                 isWashing = false
                                             }
                                         }
@@ -650,7 +585,8 @@ fun PetMenuDialog(
                                         .fillMaxWidth()
                                         .height(38.dp)
                                         .border(2.dp, borderColor)
-                                        .background(if (pet.getActiveIsSleeping() || pet.getActiveCleanliness() >= 80) Color.Gray else Color(0xFF0EA5E9)),
+                                        .background(if (pet.getActiveIsSleeping() || pet.getActiveCleanliness() >= 80) Color.Gray else Color(0xFF0EA5E9))
+                                        .then(if (!pet.getActiveIsSleeping() && pet.getActiveCleanliness() < 60) Modifier.border(3.dp, Color.White) else Modifier),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("🧼 BAÑAR", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
@@ -660,36 +596,43 @@ fun PetMenuDialog(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Panel de estadísticas compacto
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.95f)
-                                .border(2.dp, borderColor)
-                                .background(if (isDark) Color(0xFF2A2A2A) else Color(0xFFFFFDF0))
-                                .padding(8.dp)
+                        // Experiencia y estadísticas en bloques; la que necesita atención va en rojo
+                        Column(
+                            modifier = Modifier.fillMaxWidth(0.95f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(18.dp)
+                                    .border(2.dp, borderColor)
+                                    .background(if (isDark) Color(0xFF333333) else Color(0xFFE8D7C0))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth((pet.getActiveExperience() / 100f).coerceIn(0f, 1f))
+                                        .fillMaxHeight()
+                                        .background(Color(0xFF2563EB))
+                                )
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    CompactStat("Nivel", pet.getActiveLevel().toString(), contentColor)
-                                    CompactStat("Racha 🔥", "${pet.getActiveStreak()}d", accentColor)
-                                    CompactStat("Amor ❤️", (pet.lovePoints + accumulatedTaps).toString(), Color(0xFFFF4081))
-                                    CompactStat("EXP ⭐", "${pet.getActiveExperience()}/100", Color(0xFF2196F3))
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    CompactStat("Felicidad 😊", "${pet.getActiveHappiness()}%", Color(0xFF4CAF50))
-                                    CompactStat("Hambre 🍖", "${pet.getActiveHunger()}%", Color(0xFFFF9800))
-                                    CompactStat("Limpieza 🧼", "${pet.getActiveCleanliness()}%", Color(0xFF0EA5E9))
-                                    CompactStat("Sueño 💤", "${pet.getActiveSleepPercent()}%", Color(0xFF9C27B0))
+                                    Text("EXP ⭐", fontFamily = Vt323, fontSize = 14.sp, color = Color.White)
+                                    Text("${pet.getActiveExperience()}/100", fontFamily = Vt323, fontSize = 14.sp, color = Color.White)
                                 }
                             }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                PetStatBlock("😊 Felicidad", pet.getActiveHappiness(), Color(0xFF22C55E), pet.getActiveHappiness() < 30, contentColor, borderColor, isDark)
+                                PetStatBlock("🍖 Hambre", pet.getActiveHunger(), Color(0xFFF59E0B), pet.getActiveHunger() >= 70, contentColor, borderColor, isDark)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                PetStatBlock("🧼 Limpieza", pet.getActiveCleanliness(), Color(0xFF38BDF8), pet.getActiveCleanliness() < 60, contentColor, borderColor, isDark)
+                                PetStatBlock("💤 Sueño", pet.getActiveSleepPercent(), Color(0xFFA855F7), !pet.getActiveIsSleeping() && pet.getActiveSleepPercent() < 30, contentColor, borderColor, isDark)
+                            }
                         }
-                        
+
                         if (pet.getActiveIsSleeping()) {
                             val remainingMinutes = (100 - pet.getActiveSleepPercent()) * 4
                             val hours = remainingMinutes / 60
@@ -719,8 +662,9 @@ fun PetMenuDialog(
                             color = if (pet.getActiveHappiness() <= 0) Color(0xFFFF4081) else contentColor.copy(alpha = 0.8f)
                         )
                         
-                        Spacer(modifier = Modifier.height(24.dp))
-                        
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = { 
                                 if (pet.getActiveIsSleeping()) {
@@ -731,26 +675,27 @@ fun PetMenuDialog(
                                     showGameSelector = true 
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (pet.getActiveIsSleeping() || pet.getActiveStatus() == Pet.STATUS_HUNGRY) Color.Gray else Color(0xFF4CAF50)
                             ),
-                            shape = RectangleShape
+                            shape = RectangleShape,
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
-                            Text("🎮 JUGAR MINIJUEGOS", fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
+                            Text("🎮 MINIJUEGOS", fontFamily = Vt323, color = Color.White, fontSize = 17.sp, maxLines = 1)
                         }
-
-                        Spacer(modifier = Modifier.height(8.dp))
 
                         val sleepButtonColor = if (pet.getActiveIsSleeping()) Color(0xFFFFA000) else Color(0xFF673AB7)
                         val sleepButtonText = if (pet.getActiveIsSleeping()) "☀️ Despertar" else "🌙 Poner a dormir"
                         Button(
                             onClick = { onToggleSleep() },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = sleepButtonColor),
-                            shape = RectangleShape
+                            shape = RectangleShape,
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
-                            Text(sleepButtonText, fontFamily = Vt323, color = Color.White, fontSize = 18.sp)
+                            Text(sleepButtonText, fontFamily = Vt323, color = Color.White, fontSize = 17.sp, maxLines = 1)
+                        }
                         }
                         Spacer(modifier = Modifier.height(64.dp))
                     }
@@ -783,7 +728,8 @@ fun PetMenuDialog(
                                 else -> if (isSleeping) R.drawable.bg_thor_room_night else R.drawable.bg_thor_room_day
                             }
                             val previewProcedural = pet.isCuky() && previewBackground in CUKY_PROCEDURAL_BACKGROUNDS
-                            if (!previewProcedural) {
+                            val previewThorProcedural = !pet.isCuky() && previewBackground in THOR_PROCEDURAL_BACKGROUNDS
+                            if (!previewProcedural && !previewThorProcedural) {
                                 Image(
                                     painter = painterResource(id = previewBgRes),
                                     contentDescription = null,
@@ -792,14 +738,16 @@ fun PetMenuDialog(
                                 )
                             }
 
-                            val previewMascotRes = getPetDrawableRes(
-                                pet = pet,
-                                accessory = previewAccessory,
-                                isSleeping = isSleeping
-                            )
-                            val previewMascotSize = if (pet.isCuky()) 110.dp else 90.dp
+                            val previewMascotSize = if (pet.isCuky()) 110.dp else 120.dp
                             if (previewProcedural) {
                                 CukyPixelStage(
+                                    pet = pet,
+                                    accessory = previewAccessory,
+                                    background = previewBackground,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else if (previewThorProcedural) {
+                                ThorPixelStage(
                                     pet = pet,
                                     accessory = previewAccessory,
                                     background = previewBackground,
@@ -816,9 +764,10 @@ fun PetMenuDialog(
                                         .padding(bottom = 6.dp)
                                 )
                             } else {
-                                Image(
-                                    painter = painterResource(id = previewMascotRes),
-                                    contentDescription = null,
+                                ThorPixelStage(
+                                    pet = pet,
+                                    accessory = previewAccessory,
+                                    strollScene = false,
                                     modifier = Modifier
                                         .size(previewMascotSize)
                                         .align(Alignment.BottomCenter)
@@ -826,7 +775,7 @@ fun PetMenuDialog(
                                 )
                             }
 
-                            if (isSleeping) {
+                            if (isSleeping && !previewProcedural && !previewThorProcedural) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -1063,7 +1012,7 @@ fun PetMenuDialog(
                                                 selectedTab = 0
                                                 
                                                 foodY.animateTo(190f, animationSpec = tween(900, easing = EaseInQuad))
-                                                if (pet.isCuky()) playCuky(CukyAction.PECK)
+                                                if (pet.isCuky()) playCuky(CukyAction.PECK) else playThor(ThorAction.PURR)
                                                 dIsClicked = true
                                                 foodAlpha.animateTo(0f, animationSpec = tween(300))
                                                 foodAnimationType = null
@@ -1244,7 +1193,7 @@ fun RowScope.TabItem(text: String, isSelected: Boolean, isDark: Boolean, borderC
     Box(
         modifier = Modifier
             .weight(1f)
-            .height(40.dp)
+            .height(46.dp)
             .background(if (isSelected) borderColor else Color.Transparent)
             .clickable { onClick() }
             .border(1.dp, borderColor),
@@ -1253,7 +1202,9 @@ fun RowScope.TabItem(text: String, isSelected: Boolean, isDark: Boolean, borderC
         Text(
             text = text,
             fontFamily = Vt323,
-            fontSize = 18.sp,
+            fontSize = 14.sp,
+            lineHeight = 15.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             color = if (isSelected) Color.White else if (isDark) Color.LightGray else Color.DarkGray
         )
     }
@@ -1314,3 +1265,62 @@ fun getPetDrawableRes(
     }
 }
 
+private fun petStageName(pet: Pet): String {
+    val level = pet.getActiveLevel()
+    return if (pet.isCuky()) {
+        if (level < 5) "Pollito" else if (level < 15) "Gallinita" else "Gallina Reina"
+    } else {
+        if (level < 5) "Gatito" else if (level < 15) "Thor" else "Thor del Trueno"
+    }
+}
+
+private fun petMoodText(pet: Pet): String = when {
+    pet.getActiveIsSleeping() -> "Zzz…"
+    pet.getActiveHunger() >= 70 -> "¡Tengo hambre!"
+    pet.getActiveCleanliness() < 60 -> "Me vendría un baño…"
+    pet.getActiveSleepPercent() < 30 -> "Tengo sueño…"
+    pet.getActiveHappiness() < 30 -> "Quiero jugar…"
+    else -> "¡Hoy estoy feliz! ♥"
+}
+
+@Composable
+private fun PetHudChip(text: String) {
+    Text(
+        text = text,
+        fontFamily = Vt323,
+        fontSize = 15.sp,
+        color = Color(0xFFFFD76A),
+        modifier = Modifier
+            .background(Color(0xD11A1A1A))
+            .padding(horizontal = 5.dp, vertical = 1.dp)
+    )
+}
+
+@Composable
+private fun RowScope.PetStatBlock(label: String, value: Int, color: Color, alert: Boolean, contentColor: Color, borderColor: Color, isDark: Boolean) {
+    val alertColor = Color(0xFFF87171)
+    val on = (value + 5) / 10
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .border(2.dp, if (alert) alertColor else borderColor)
+            .background(if (alert) (if (isDark) Color(0xFF3A1E1E) else Color(0xFFFDE2E2)) else Color.Transparent)
+            .padding(5.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, fontFamily = Vt323, fontSize = 15.sp, color = contentColor)
+            Text("${if (alert) "! " else ""}$value%", fontFamily = Vt323, fontSize = 15.sp, color = contentColor)
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+            for (i in 0 until 10) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(8.dp)
+                        .background(if (i < on) (if (alert) alertColor else color) else if (isDark) Color(0xFF3A3632) else Color(0xFFD8CBB5))
+                )
+            }
+        }
+    }
+}

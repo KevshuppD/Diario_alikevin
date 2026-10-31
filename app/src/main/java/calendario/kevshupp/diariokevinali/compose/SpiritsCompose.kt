@@ -110,7 +110,7 @@ fun CategoryHeader(
     onDeleteCategory: () -> Unit = {},
     onClick: () -> Unit
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .border(2.dp, borderColor)
@@ -166,13 +166,11 @@ fun CategoryHeader(
                     }
                 }
             }
-            if (!isEditMode) {
-                Text(
-                    text = "K: $kevinCount ($kevinMasteryCount👑) | A: $aliCount ($aliMasteryCount👑)",
-                    fontFamily = Vt323,
-                    fontSize = 16.sp,
-                    color = textColor.copy(alpha = 0.8f)
-                )
+        }
+        if (!isEditMode) {
+            Row(modifier = Modifier.fillMaxWidth().padding(start = 18.dp, top = 2.dp)) {
+                Text("Kevin $kevinCount · 👑 $kevinMasteryCount", fontFamily = Vt323, fontSize = 16.sp, color = textColor.copy(alpha = 0.8f), modifier = Modifier.weight(1f))
+                Text("Ali $aliCount · 👑 $aliMasteryCount", fontFamily = Vt323, fontSize = 16.sp, color = textColor.copy(alpha = 0.8f), modifier = Modifier.weight(1f))
             }
         }
     }
@@ -1139,25 +1137,6 @@ fun SpiritsChecklistView(
                 )
             }
             Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = when (viewMode) {
-                    "grupos" -> "[GRUPOS]"
-                    "lista" -> "[LISTA]"
-                    else -> "[FORTNITE]"
-                },
-                fontFamily = Vt323,
-                fontSize = 18.sp,
-                color = textColor,
-                modifier = Modifier
-                    .clickable {
-                        viewMode = when (viewMode) {
-                            "grupos" -> "lista"
-                            "lista" -> "fortnite"
-                            else -> "grupos"
-                        }
-                    }
-                    .padding(8.dp)
-            )
             Spacer(modifier = Modifier.width(8.dp))
             Box {
                 Text(
@@ -1311,6 +1290,35 @@ fun SpiritsChecklistView(
                 }
             }
         }
+
+        // Vistas y filtro activo, siempre a la vista
+        PixelSegmented(
+            options = listOf("grupos" to "Grupos", "lista" to "Lista", "fortnite" to "Fortnite"),
+            selected = viewMode,
+            onSelect = { viewMode = it },
+            textColor = textColor,
+            borderColor = borderColor,
+            background = cardBg
+        )
+        Text(
+            text = "Filtro: " + when (filterMode) {
+                "no_obtenidos" -> "Faltantes míos"
+                "obtenidos_otro_no_yo" -> "Del otro que no tengo"
+                "obtenidos_yo_no_otro" -> "Míos que el otro no tiene"
+                "obtenidos_sin_maestria" -> "Obtenidos sin maestría 👑"
+                "sin_maestria" -> "Sin maestría (todos) 👑"
+                "maestria_otro_no_yo" -> "Maestría del otro que no tengo 👑"
+                "maestria_yo_no_otro" -> "Mi maestría que el otro no tiene 👑"
+                else -> "Todos"
+            } + " ▾",
+            fontFamily = Vt323,
+            fontSize = 18.sp,
+            color = textColor,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showFiltersMenu = true }
+                .padding(vertical = 8.dp)
+        )
 
         // Gamified Scoreboard Card
         Box(

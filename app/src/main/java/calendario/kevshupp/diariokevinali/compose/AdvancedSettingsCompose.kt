@@ -42,7 +42,7 @@ fun AdvancedSettingsCompose(
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = "ESTADO DE CONEXIONES (DIAGNÓSTICO)",
+            text = "ESTADO DE CONEXIONES",
             fontFamily = Vt323Sync,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
@@ -76,7 +76,7 @@ fun AdvancedSettingsCompose(
             }
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // 2. Firebase Firestore Card
         ConnectionCard(
@@ -103,12 +103,14 @@ fun AdvancedSettingsCompose(
             }
         )
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(20.dp))
+        SettingsSectionLabel("RULETA", textColor, Modifier.padding(bottom = 6.dp))
 
         // Premios de la ruleta Juntos (guardados en Firestore)
         TogetherPrizesEditor(isDark = isDark, textColor = textColor, borderColor = borderColor)
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(20.dp))
+        SettingsSectionLabel("ADMINISTRADOR", textColor, Modifier.padding(bottom = 6.dp))
 
         // Panel de Administrador Integrado
         AdminSettingsCompose(
@@ -138,16 +140,19 @@ fun ConnectionCard(
 ) {
     val Vt323Sync = Vt323
     val cardBg = if (isDark) Color(0xFF1E1E3F) else Color(0xFFFFFDF6)
+    var expanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .border(2.dp, borderColor)
             .background(cardBg)
-            .padding(12.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -156,7 +161,8 @@ fun ConnectionCard(
                 fontFamily = Vt323Sync,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = textColor
+                color = textColor,
+                modifier = Modifier.weight(1f)
             )
             Text(
                 text = status,
@@ -168,10 +174,16 @@ fun ConnectionCard(
                     .border(1.dp, statusColor)
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             )
+            Text(
+                text = if (expanded) "▲" else "▼",
+                fontFamily = Vt323Sync,
+                fontSize = 18.sp,
+                color = borderColor,
+                modifier = Modifier.padding(start = 8.dp)
+            )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
+        if (expanded) Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
         details.forEach { detail ->
             Text(
                 text = "• $detail",
@@ -230,6 +242,7 @@ fun ConnectionCard(
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
         }
     }
 }

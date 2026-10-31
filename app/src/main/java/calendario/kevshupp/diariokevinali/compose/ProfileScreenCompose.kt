@@ -291,16 +291,18 @@ fun ProfileScreen(
                     .background(borderColor)
             )
             // Tarjeta principal
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(3.dp, borderColor)
                     .background(boxBackground)
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
                         text = "HISTORIA DE AMOR 📜",
                         fontFamily = Vt323,
@@ -308,23 +310,58 @@ fun ProfileScreen(
                         color = secondaryTextColor,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    // Botón editar fecha
+                    IconButton(
+                        onClick = { showAnniversaryDialog = true },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Text("✏️", fontSize = 22.sp)
+                    }
+                }
+                val (years, months, days) = timeTogetherParts(anniversaryDate)
+                if (years == 0 && months == 0 && days == 0) {
                     Text(
                         text = calculateTimeTogether(anniversaryDate),
                         fontFamily = Vt323,
                         fontSize = 22.sp,
                         color = textColor,
-                        fontWeight = FontWeight.Bold,
-                        lineHeight = 24.sp
+                        fontWeight = FontWeight.Bold
                     )
-                }
-                
-                // Botón editar fecha
-                IconButton(
-                    onClick = { showAnniversaryDialog = true },
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Text("✏️", fontSize = 22.sp)
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(
+                            years to if (years == 1) "AÑO" else "AÑOS",
+                            months to if (months == 1) "MES" else "MESES",
+                            days to if (days == 1) "DÍA" else "DÍAS"
+                        ).forEach { (value, unit) ->
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .border(2.dp, borderColor)
+                                    .background(backgroundColor)
+                                    .padding(vertical = 4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$value",
+                                    fontFamily = Vt323,
+                                    fontSize = 44.sp,
+                                    lineHeight = 44.sp,
+                                    color = if (isMono) Color.Black else Color(0xFFD97706),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(text = unit, fontFamily = Vt323, fontSize = 16.sp, color = textColor)
+                            }
+                        }
+                    }
+                    Text(
+                        text = "juntos",
+                        fontFamily = Vt323,
+                        fontSize = 20.sp,
+                        color = textColor,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                    )
                 }
             }
         }
@@ -342,6 +379,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
+            shape = RectangleShape,
             trailingIcon = {
                 IconButton(
                     onClick = { onSaveProfile(nameText, currentUserImageUri, anniversaryDate) }
@@ -373,31 +411,10 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Botón 3D Cerrar Sesión
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(60.dp)
-                .clickable { onLogout() }
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .offset(y = 6.dp)
-                    .background(borderColor)
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .border(3.dp, borderColor)
-                    .background(Color(0xFFD32F2F)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("🚪 CERRAR SESIÓN", fontFamily = Vt323, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
-        }
+        // Cerrar sesión: visible, sin competir con el resto de la pantalla
+        PixelLogoutButton(isDark = isDark, onClick = onLogout)
+
+        Spacer(modifier = Modifier.height(70.dp))
     }
 
     // Diálogo Ficha Médica de Emergencia
@@ -607,7 +624,8 @@ fun RetroNumberPicker(
     }
 }
 
-fun calculateTimeTogether(anniversaryMillis: Long): String {
+/** Años, meses y días transcurridos desde el aniversario. */
+fun timeTogetherParts(anniversaryMillis: Long): Triple<Int, Int, Int> {
     val anniversary = Calendar.getInstance().apply { timeInMillis = anniversaryMillis }
     val today = Calendar.getInstance()
     
@@ -630,6 +648,11 @@ fun calculateTimeTogether(anniversaryMillis: Long): String {
         months += 12
     }
     
+    return Triple(years, months, days)
+}
+
+fun calculateTimeTogether(anniversaryMillis: Long): String {
+    val (years, months, days) = timeTogetherParts(anniversaryMillis)
     val parts = mutableListOf<String>()
     if (years > 0) parts.add("$years ${if (years == 1) "año" else "años"}")
     if (months > 0) parts.add("$months ${if (months == 1) "mes" else "meses"}")

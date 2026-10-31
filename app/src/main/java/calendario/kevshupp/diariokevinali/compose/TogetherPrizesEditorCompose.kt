@@ -98,7 +98,6 @@ fun TogetherPrizesEditor(isDark: Boolean, textColor: Color, borderColor: Color) 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(pink)
                     .clickable { expanded = !expanded }
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -111,16 +110,16 @@ fun TogetherPrizesEditor(isDark: Boolean, textColor: Color, borderColor: Color) 
                         fontFamily = Vt323,
                         fontSize = 21.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = textColor
                     )
                     Text(
                         "${prizes.size}/$MAX_PRIZES_UI premios • ${prizes.size - spicyCount} normales • $spicyCount 🌶️",
                         fontFamily = Vt323,
                         fontSize = 15.sp,
-                        color = Color.White.copy(alpha = 0.9f)
+                        color = textColor.copy(alpha = 0.85f)
                     )
                 }
-                Text(if (expanded) "▲" else "▼", fontFamily = Vt323, fontSize = 22.sp, color = Color.White)
+                Text(if (expanded) "▲" else "▼", fontFamily = Vt323, fontSize = 22.sp, color = pink)
             }
 
             if (expanded) {

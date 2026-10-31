@@ -9,8 +9,8 @@ import coil.compose.AsyncImage
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -222,251 +222,44 @@ fun MiscGridView(
             )
         }
 
-        // Grid de 2 columnas
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 4.dp, top = 4.dp, end = 4.dp, bottom = 80.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        // Lista por temas: todo cabe en pantalla, igual que el menú de Configuración
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // First item: active Fortnite Spirits Checklist button
-            item {
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .border(3.dp, borderColor)
-                        .background(cardBg)
-                        .clickable { onSelectSpirits() }
-                        .padding(12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        AsyncImage(
-                            model = spiritImageModel,
-                            contentDescription = "Espíritus Fortnite",
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Espíritus",
-                            fontFamily = Vt323,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 22.sp
-                        )
-                    }
-                }
+            val row: @Composable (String, String, String, () -> Unit) -> Unit = { icon, title, description, onClick ->
+                SettingsToolRow(icon, title, description, cardBg, textColor, borderColor, onClick)
             }
-
-            // Second item: Anime section
-            item {
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .border(3.dp, borderColor)
-                        .background(cardBg)
-                        .clickable { onSelectAnime() }
-                        .padding(12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "📺",
-                            fontSize = 44.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Anime",
-                            fontFamily = Vt323,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 22.sp
-                        )
-                    }
+            SettingsSectionLabel("NOSOTROS", textColor)
+            row("🧭", "Thor Radar", "Ubicación, zonas y alerta SOS", onSelectRadar)
+            row("📔", "Bitácora de Ánimo", "Cómo nos sentimos cada día", onSelectMood)
+            row("📚", "Horario", "Clases de Kevin y Ali", onSelectSchedule)
+            SettingsSectionLabel("SALUD", textColor, Modifier.padding(top = 6.dp))
+            row("💊", "Medicamentos", "Tomas y recordatorios", onSelectMeds)
+            SettingsSectionLabel("ENTRETENIMIENTO", textColor, Modifier.padding(top = 6.dp))
+            row("📺", "Anime", "Lo que vemos juntos", onSelectAnime)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(2.dp, borderColor)
+                    .background(cardBg)
+                    .clickable { onSelectSpirits() }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(model = spiritImageModel, contentDescription = "Espíritus Fortnite", modifier = Modifier.size(30.dp))
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Espíritus", fontFamily = Vt323, fontSize = 20.sp, color = textColor, fontWeight = FontWeight.Bold)
+                    Text("Colección de Fortnite", fontFamily = Vt323, fontSize = 15.sp, color = textColor.copy(alpha = 0.75f))
                 }
+                Text("▶", fontFamily = Vt323, fontSize = 16.sp, color = borderColor)
             }
-
-            // Third item: Web manager section (abre web directamente en WebView integrado)
-            item {
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .border(3.dp, borderColor)
-                        .background(cardBg)
-                        .clickable { onSelectWeb() }
-                        .padding(12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "🌐",
-                            fontSize = 44.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Web Gestión",
-                            fontFamily = Vt323,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 22.sp
-                        )
-                    }
-                }
-            }
-
-            // Fourth item: Medicamentos
-            item {
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .border(3.dp, borderColor)
-                        .background(cardBg)
-                        .clickable { onSelectMeds() }
-                        .padding(12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "💊",
-                            fontSize = 44.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Medicamentos",
-                            fontFamily = Vt323,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 22.sp
-                        )
-                    }
-                }
-            }
-
-            // Fifth item: Horario de Clases
-            item {
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .border(3.dp, borderColor)
-                        .background(cardBg)
-                        .clickable { onSelectSchedule() }
-                        .padding(12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "📚",
-                            fontSize = 44.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Horario",
-                            fontFamily = Vt323,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 22.sp
-                        )
-                    }
-                }
-            }
-
-            // Sixth item: Thor Radar (Ubicación en tiempo real y Zonas)
-            item {
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .border(3.dp, borderColor)
-                        .background(cardBg)
-                        .clickable { onSelectRadar() }
-                        .padding(12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "🧭",
-                            fontSize = 44.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Thor Radar",
-                            fontFamily = Vt323,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 22.sp
-                        )
-                    }
-                }
-            }
-
-            // Seventh item: Bitácora de Ánimo
-            item {
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .border(3.dp, borderColor)
-                        .background(cardBg)
-                        .clickable { onSelectMood() }
-                        .padding(12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "📔",
-                            fontSize = 44.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Bitácora Ánimo",
-                            fontFamily = Vt323,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 22.sp
-                        )
-                    }
-                }
-            }
+            SettingsSectionLabel("HERRAMIENTAS", textColor, Modifier.padding(top = 6.dp))
+            row("🌐", "Web Gestión", "Abre la página de administración", onSelectWeb)
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }

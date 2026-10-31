@@ -25,19 +25,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.content.res.ResourcesCompat
 import calendario.kevshupp.diariokevinali.Message
 import calendario.kevshupp.diariokevinali.R
@@ -62,9 +71,11 @@ fun MessageEditorDialog(
     var imageUrl by remember { mutableStateOf(initialMessage?.imageUrl ?: currentSelectedImageUrl) }
     var activeTab by remember { mutableStateOf(0) } // 0 = Escribir, 1 = Vista Previa, 2 = Plantillas
 
-    var showColors by remember { mutableStateOf(false) }
-    var showSizes by remember { mutableStateOf(false) }
-    var showEmojis by remember { mutableStateOf(false) }
+    // Categoría abierta de la barra, como las pestañas de Word: "letra", "alinear", "insertar", "stickers"
+    var openToolPanel by remember { mutableStateOf<String?>(null) }
+    fun togglePanel(panel: String) {
+        openToolPanel = if (openToolPanel == panel) null else panel
+    }
 
     // Historial para Deshacer / Rehacer
     val undoStack = remember { mutableStateListOf<TextFieldValue>() }
@@ -160,6 +171,14 @@ fun MessageEditorDialog(
     val toolbarBg = if (isDark) Color(0xFF252736) else Color(0xFFEFE2CB)
 
     val canSave = contentValue.text.isNotBlank()
+    val htmlTransformation = remember { HtmlVisualTransformation() }
+
+    // La hoja donde se escribe es la misma de las cartas del feed
+    val paperColor = Color(0xFFF3E5AB)
+    val paperInk = Color(0xFF4A2511)
+    val paperSubtle = Color(0xFF8B4513)
+    val paperRule = Color(0x224A2511)
+    val paperMargin = Color(0x55EC4899)
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -167,10 +186,16 @@ fun MessageEditorDialog(
             usePlatformDefaultWidth = false
         )
     ) {
+        // La ventana se ajusta al teclado: encabezado y herramientas nunca salen de la pantalla
+        val dialogView = LocalView.current
+        SideEffect {
+            (dialogView.parent as? DialogWindowProvider)?.window?.setSoftInputMode(
+                android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            )
+        }
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.88f)
+                .fillMaxSize()
                 .border(3.dp, accentBorder),
             color = bgModal,
             shape = RectangleShape,
@@ -196,6 +221,16 @@ fun MessageEditorDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.weight(1f)
                     ) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cerrar",
+                                tint = textColor
+                            )
+                        }
                         Text(text = "💌", fontSize = 20.sp)
                         Text(
                             text = if (initialMessage == null) "Escribir Carta" else "Editar Carta",
@@ -231,17 +266,6 @@ fun MessageEditorDialog(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
-                            )
-                        }
-
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cerrar",
-                                tint = textColor
                             )
                         }
                     }
@@ -294,8 +318,8 @@ fun MessageEditorDialog(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(cardParchment)
-                                    .border(1.dp, borderColor)
+                                    .background(paperColor)
+                                    .border(2.dp, paperInk)
                                     .padding(horizontal = 8.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -312,7 +336,7 @@ fun MessageEditorDialog(
                                             "Título o dedicatoria...",
                                             fontFamily = Vt323,
                                             fontSize = 18.sp,
-                                            color = textSubtle.copy(alpha = 0.7f)
+                                            color = paperSubtle.copy(alpha = 0.7f)
                                         )
                                     },
                                     modifier = Modifier.weight(1f),
@@ -320,14 +344,14 @@ fun MessageEditorDialog(
                                         fontFamily = Vt323,
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = textColor
+                                        color = paperInk
                                     ),
                                     colors = TextFieldDefaults.colors(
                                         focusedContainerColor = Color.Transparent,
                                         unfocusedContainerColor = Color.Transparent,
                                         focusedIndicatorColor = Color.Transparent,
                                         unfocusedIndicatorColor = Color.Transparent,
-                                        cursorColor = accentBorder
+                                        cursorColor = paperInk
                                     ),
                                     singleLine = true
                                 )
@@ -339,7 +363,7 @@ fun MessageEditorDialog(
                                         Icon(
                                             imageVector = Icons.Default.Close,
                                             contentDescription = "Limpiar",
-                                            tint = textSubtle,
+                                            tint = paperSubtle,
                                             modifier = Modifier.size(14.dp)
                                         )
                                     }
@@ -353,25 +377,35 @@ fun MessageEditorDialog(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxWidth()
-                                    .background(cardParchment)
-                                    .border(1.5.dp, borderColor)
+                                    .background(paperColor)
+                                    .border(2.dp, paperInk)
+                                    .drawBehind {
+                                        val step = 22.sp.toPx()
+                                        var y = 16.dp.toPx() + step
+                                        while (y < size.height) {
+                                            drawRect(color = paperRule, topLeft = Offset(0f, y), size = Size(size.width, 1.dp.toPx()))
+                                            y += step
+                                        }
+                                        drawRect(color = paperMargin, topLeft = Offset(10.dp.toPx(), 0f), size = Size(2.dp.toPx(), size.height))
+                                    }
                             ) {
                                 OutlinedTextField(
                                     value = contentValue,
-                                    onValueChange = { updateContentWithHistory(it) },
+                                    onValueChange = { updateContentWithHistory(protectHtmlTags(contentValue, it)) },
+                                    visualTransformation = htmlTransformation,
                                     placeholder = {
                                         Text(
                                             "Mi querido/a amor...\n\nEscribe aquí tus sentimientos, recuerdos o pensamientos bonitos...",
                                             fontFamily = Vt323,
                                             fontSize = 18.sp,
-                                            color = textSubtle.copy(alpha = 0.6f)
+                                            color = paperSubtle.copy(alpha = 0.6f)
                                         )
                                     },
                                     modifier = Modifier.fillMaxSize(),
                                     textStyle = TextStyle(
                                         fontFamily = Vt323,
                                         fontSize = 18.sp,
-                                        color = textColor,
+                                        color = paperInk,
                                         lineHeight = 22.sp
                                     ),
                                     shape = RectangleShape,
@@ -380,7 +414,7 @@ fun MessageEditorDialog(
                                         unfocusedContainerColor = Color.Transparent,
                                         focusedBorderColor = Color.Transparent,
                                         unfocusedBorderColor = Color.Transparent,
-                                        cursorColor = accentBorder
+                                        cursorColor = paperInk
                                     )
                                 )
                             }
@@ -400,216 +434,6 @@ fun MessageEditorDialog(
                                     color = textSubtle
                                 )
 
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    ToolMiniButton(
-                                        label = "↩ Deshacer",
-                                        enabled = undoStack.isNotEmpty(),
-                                        isDark = isDark,
-                                        onClick = { undo() }
-                                    )
-                                    ToolMiniButton(
-                                        label = "↪ Rehacer",
-                                        enabled = redoStack.isNotEmpty(),
-                                        isDark = isDark,
-                                        onClick = { redo() }
-                                    )
-                                }
-                            }
-
-                            // 🌟 BARRA DE HERRAMIENTAS DE FORMATO
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(toolbarBg)
-                                    .border(1.dp, borderColor)
-                                    .padding(4.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    FormatButton("B", isDark) { applyFormat("<b>", "</b>") }
-                                    FormatButton("I", isDark) { applyFormat("<i>", "</i>") }
-                                    FormatButton("U", isDark) { applyFormat("<u>", "</u>") }
-                                    FormatButton("S", isDark) { applyFormat("<s>", "</s>") }
-
-                                    Text("|", color = borderColor, modifier = Modifier.padding(horizontal = 1.dp))
-
-                                    FormatButton("◀", isDark) { applyFormat("<p align=\"left\">", "</p>") }
-                                    FormatButton("◀▶", isDark) { applyFormat("<p align=\"center\">", "</p>") }
-                                    FormatButton("▶", isDark) { applyFormat("<p align=\"right\">", "</p>") }
-
-                                    Text("|", color = borderColor, modifier = Modifier.padding(horizontal = 1.dp))
-
-                                    FormatButton("❝ Cita", isDark) {
-                                        applyFormat("<blockquote><i>«", "»</i></blockquote>")
-                                    }
-                                    FormatButton("♡ Separador", isDark) {
-                                        insertTextAtCursor("\n<p align=\"center\">─── ♡ ───</p>\n")
-                                    }
-
-                                    FormatButton(
-                                        text = if (showSizes) "Tamaño ▲" else "Tamaño ▼",
-                                        isDark = isDark,
-                                        isActive = showSizes
-                                    ) {
-                                        showSizes = !showSizes
-                                        showColors = false
-                                        showEmojis = false
-                                    }
-
-                                    FormatButton(
-                                        text = if (showColors) "Color ▲" else "Color 🎨",
-                                        isDark = isDark,
-                                        isActive = showColors
-                                    ) {
-                                        showColors = !showColors
-                                        showSizes = false
-                                        showEmojis = false
-                                    }
-
-                                    FormatButton(
-                                        text = if (showEmojis) "Stickers ▲" else "Stickers ✨",
-                                        isDark = isDark,
-                                        isActive = showEmojis
-                                    ) {
-                                        showEmojis = !showEmojis
-                                        showColors = false
-                                        showSizes = false
-                                    }
-                                }
-
-                                // Sub-panel: Tamaños
-                                AnimatedVisibility(
-                                    visible = showSizes,
-                                    enter = fadeIn() + expandVertically(),
-                                    exit = fadeOut() + shrinkVertically()
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 3.dp)
-                                            .background(cardParchment)
-                                            .border(1.dp, borderColor)
-                                            .padding(3.dp),
-                                        horizontalArrangement = Arrangement.SpaceEvenly
-                                    ) {
-                                        listOf(
-                                            "2" to "Pequeño",
-                                            "4" to "Normal",
-                                            "6" to "Grande",
-                                            "7" to "Titular"
-                                        ).forEach { (sizeVal, label) ->
-                                            Button(
-                                                onClick = {
-                                                    applyFormat("<font size='$sizeVal'>", "</font>")
-                                                    showSizes = false
-                                                },
-                                                shape = RectangleShape,
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = accentBorder,
-                                                    contentColor = Color.White
-                                                ),
-                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                                                modifier = Modifier.height(26.dp)
-                                            ) {
-                                                Text(label, fontFamily = Vt323, fontSize = 13.sp)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Sub-panel: Colores
-                                AnimatedVisibility(
-                                    visible = showColors,
-                                    enter = fadeIn() + expandVertically(),
-                                    exit = fadeOut() + shrinkVertically()
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 3.dp)
-                                            .background(cardParchment)
-                                            .border(1.dp, borderColor)
-                                            .padding(4.dp)
-                                            .horizontalScroll(rememberScrollState()),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        val colorPalette = listOf(
-                                            "#E91E63" to "Rosa Pasión",
-                                            "#FF4081" to "Rosa Claro",
-                                            "#9C27B0" to "Morado",
-                                            "#673AB7" to "Violeta",
-                                            "#2196F3" to "Azul Cielo",
-                                            "#00BCD4" to "Cian",
-                                            "#4CAF50" to "Verde",
-                                            "#8BC34A" to "Lima",
-                                            "#FF9800" to "Naranja",
-                                            "#FF5722" to "Coral",
-                                            "#FFD700" to "Dorado",
-                                            "#8D6E63" to "Marrón",
-                                            "#FFFFFF" to "Blanco",
-                                            "#111111" to "Negro"
-                                        )
-                                        colorPalette.forEach { (hex, _) ->
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(22.dp)
-                                                    .background(Color(android.graphics.Color.parseColor(hex)), CircleShape)
-                                                    .border(2.dp, if (hex == "#FFFFFF") Color.Gray else borderColor, CircleShape)
-                                                    .clickable {
-                                                        applyFormat("<font color='$hex'>", "</font>")
-                                                        showColors = false
-                                                    }
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Sub-panel: Emojis
-                                AnimatedVisibility(
-                                    visible = showEmojis,
-                                    enter = fadeIn() + expandVertically(),
-                                    exit = fadeOut() + shrinkVertically()
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 3.dp)
-                                            .background(cardParchment)
-                                            .border(1.dp, borderColor)
-                                            .padding(4.dp)
-                                    ) {
-                                        val emojiList = listOf(
-                                            "❤️", "💖", "💕", "💌", "🌹", "💍", "💐", "🍫",
-                                            "🐱", "🐾", "☕", "🧁", "🍓", "🧸", "🎀", "🍰",
-                                            "✨", "⭐", "🌙", "🌸", "🍀", "🦋", "🕊️", "☁️",
-                                            "🎮", "👾", "🏰", "🕯️", "📜", "💎", "🗝️", "🔮"
-                                        )
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .horizontalScroll(rememberScrollState()),
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            emojiList.forEach { emoji ->
-                                                Text(
-                                                    text = emoji,
-                                                    fontSize = 18.sp,
-                                                    modifier = Modifier
-                                                        .background(toolbarBg, RoundedCornerShape(3.dp))
-                                                        .border(1.dp, borderColor.copy(alpha = 0.5f), RoundedCornerShape(3.dp))
-                                                        .clickable { insertTextAtCursor(emoji) }
-                                                        .padding(horizontal = 5.dp, vertical = 1.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
                             }
 
                             // Tarjeta de Imagen Adjunta (si existe)
@@ -883,64 +707,106 @@ fun MessageEditorDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // 🌟 BARRA DE ACCIÓN INFERIOR (FOTO, CANCELAR Y ENVIAR)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Button(
-                        onClick = onPickImage,
+                // 🌟 HERRAMIENTAS: categorías que abren su panel justo encima del teclado, sin scroll lateral
+                if (activeTab == 0) {
+                    Column(
                         modifier = Modifier
-                            .weight(1f)
-                            .height(38.dp),
-                        shape = RectangleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isDark) Color(0xFF4A148C) else Color(0xFF6A1B9A)
-                        ),
-                        border = BorderStroke(1.dp, borderColor),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                            .fillMaxWidth()
+                            .background(toolbarBg)
+                            .border(1.dp, borderColor)
+                            .padding(4.dp)
                     ) {
-                        Text("📸 Foto", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
-                    }
+                        when (openToolPanel) {
+                            "letra" -> Column(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 3.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    EditorToolButton("Negrita", isDark, Modifier.weight(1f), onClick = { applyFormat("<b>", "</b>") }) { EditorGlyph("B", fontWeight = FontWeight.Bold) }
+                                    EditorToolButton("Cursiva", isDark, Modifier.weight(1f), onClick = { applyFormat("<i>", "</i>") }) { EditorGlyph("I", fontStyle = FontStyle.Italic) }
+                                    EditorToolButton("Subrayar", isDark, Modifier.weight(1f), onClick = { applyFormat("<u>", "</u>") }) { EditorGlyph("U", decoration = TextDecoration.Underline) }
+                                    EditorToolButton("Tachar", isDark, Modifier.weight(1f), onClick = { applyFormat("<s>", "</s>") }) { EditorGlyph("S", decoration = TextDecoration.LineThrough) }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    EDITOR_FONT_SIZES.forEach { (sizeVal, label) ->
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(34.dp)
+                                                .background(accentBorder)
+                                                .clickable {
+                                                    applyFormat("<font size='$sizeVal'>", "</font>")
+                                                    openToolPanel = null
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(label, fontFamily = Vt323, fontSize = 16.sp, color = Color.White, maxLines = 1)
+                                        }
+                                    }
+                                }
+                                EDITOR_TEXT_COLORS.chunked(7).forEach { rowColors ->
+                                    Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
+                                        rowColors.forEach { hex ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(34.dp)
+                                                    .background(Color(android.graphics.Color.parseColor(hex)), CircleShape)
+                                                    .border(2.dp, if (hex == "#FFFFFF") Color.Gray else borderColor, CircleShape)
+                                                    .clickable {
+                                                        applyFormat("<font color='$hex'>", "</font>")
+                                                        openToolPanel = null
+                                                    }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            "alinear" -> Row(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 3.dp),
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                EditorToolButton("Izquierda", isDark, Modifier.weight(1f), onClick = { applyFormat("<p align=\"left\">", "</p>") }) { AlignGlyph(0) }
+                                EditorToolButton("Centro", isDark, Modifier.weight(1f), onClick = { applyFormat("<p align=\"center\">", "</p>") }) { AlignGlyph(1) }
+                                EditorToolButton("Derecha", isDark, Modifier.weight(1f), onClick = { applyFormat("<p align=\"right\">", "</p>") }) { AlignGlyph(2) }
+                            }
+                            "insertar" -> Row(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 3.dp),
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                EditorToolButton("Foto", isDark, Modifier.weight(1f), onClick = onPickImage) { EditorGlyph("📸") }
+                                EditorToolButton("Cita", isDark, Modifier.weight(1f), onClick = { applyFormat("<blockquote><i>«", "»</i></blockquote>") }) { EditorGlyph("❝") }
+                                EditorToolButton("Separador", isDark, Modifier.weight(1f), onClick = { insertTextAtCursor("\n<p align=\"center\">─── ♡ ───</p>\n") }) { EditorGlyph("♡") }
+                            }
+                            "stickers" -> Column(modifier = Modifier.fillMaxWidth().padding(bottom = 3.dp)) {
+                                EDITOR_STICKERS.chunked(8).forEach { rowEmojis ->
+                                    Row(modifier = Modifier.fillMaxWidth()) {
+                                        rowEmojis.forEach { emoji ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(36.dp)
+                                                    .clickable { insertTextAtCursor(emoji) },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(text = emoji, fontSize = 22.sp)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(38.dp),
-                        shape = RectangleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isDark) Color(0xFF37474F) else Color(0xFF795548)
-                        ),
-                        border = BorderStroke(1.dp, borderColor),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                    ) {
-                        Text("Cancelar ❌", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
-                    }
-
-                    Button(
-                        onClick = { onSave(title, contentValue.text, imageUrl) },
-                        modifier = Modifier
-                            .weight(1.3f)
-                            .height(38.dp),
-                        shape = RectangleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isDark) Color(0xFF2E7D32) else Color(0xFF388E3C),
-                            disabledContainerColor = Color.Gray.copy(alpha = 0.5f)
-                        ),
-                        border = BorderStroke(1.dp, Color(0xFF1B5E20)),
-                        enabled = canSave,
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                    ) {
-                        Text(
-                            text = if (initialMessage == null) "Enviar ✉" else "Guardar 💾",
-                            fontFamily = Vt323,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            EditorToolButton("Letra", isDark, Modifier.weight(1f), isActive = openToolPanel == "letra", onClick = { togglePanel("letra") }) { EditorGlyph("A", fontWeight = FontWeight.Bold) }
+                            EditorToolButton("Alinear", isDark, Modifier.weight(1f), isActive = openToolPanel == "alinear", onClick = { togglePanel("alinear") }) { AlignGlyph(0) }
+                            EditorToolButton("Insertar", isDark, Modifier.weight(1f), isActive = openToolPanel == "insertar", onClick = { togglePanel("insertar") }) { EditorGlyph("＋") }
+                            EditorToolButton("Stickers", isDark, Modifier.weight(1f), isActive = openToolPanel == "stickers", onClick = { togglePanel("stickers") }) { EditorGlyph("✨") }
+                            EditorToolButton("Deshacer", isDark, Modifier.weight(1f), enabled = undoStack.isNotEmpty(), onClick = { undo() }) { EditorGlyph("↩") }
+                            EditorToolButton("Rehacer", isDark, Modifier.weight(1f), enabled = redoStack.isNotEmpty(), onClick = { redo() }) { EditorGlyph("↪") }
+                        }
                     }
                 }
             }
@@ -982,73 +848,88 @@ fun TabItem(
     }
 }
 
+/** Botón de herramienta con dibujo y nombre, para que se entienda sin adivinar. */
 @Composable
-fun FormatButton(
-    text: String,
+private fun EditorToolButton(
+    caption: String,
     isDark: Boolean,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     isActive: Boolean = false,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    glyph: @Composable () -> Unit
 ) {
-    val bg = if (isActive) {
-        if (isDark) Color(0xFFAB47BC) else Color(0xFF8E24AA)
-    } else {
-        if (isDark) Color(0xFF37394E) else Color(0xFFDFCEB2)
+    val bg = when {
+        isActive -> if (isDark) Color(0xFFAB47BC) else Color(0xFF8E24AA)
+        else -> if (isDark) Color(0xFF37394E) else Color(0xFFDFCEB2)
     }
-    val contentCol = if (isActive) Color.White else if (isDark) Color.White else Color(0xFF3D2314)
+    val contentCol = if (isActive || isDark) Color.White else Color(0xFF3D2314)
     val borderCol = if (isActive) Color.White else if (isDark) Color(0xFF5C5E77) else Color(0xFF8B4513)
-
-    Box(
-        modifier = Modifier
-            .height(28.dp)
-            .background(bg)
-            .border(1.dp, borderCol)
-            .clickable { onClick() }
-            .padding(horizontal = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            fontFamily = Vt323,
-            fontSize = 15.sp,
-            fontWeight = if (text == "B" || isActive) FontWeight.Bold else FontWeight.Normal,
-            color = contentCol
-        )
+    CompositionLocalProvider(LocalContentColor provides contentCol) {
+        Column(
+            modifier = modifier
+                .height(50.dp)
+                .graphicsLayer { alpha = if (enabled) 1f else 0.4f }
+                .background(bg)
+                .border(1.dp, borderCol)
+                .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
+                .padding(vertical = 2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Box(modifier = Modifier.height(28.dp), contentAlignment = Alignment.Center) { glyph() }
+            Text(text = caption, fontFamily = Vt323, fontSize = 13.sp, maxLines = 1, color = contentCol)
+        }
     }
 }
 
 @Composable
-fun ToolMiniButton(
-    label: String,
-    enabled: Boolean,
-    isDark: Boolean,
-    onClick: () -> Unit
+private fun EditorGlyph(
+    text: String,
+    fontWeight: FontWeight = FontWeight.Normal,
+    fontStyle: FontStyle = FontStyle.Normal,
+    decoration: TextDecoration = TextDecoration.None
 ) {
-    val bg = if (!enabled) {
-        if (isDark) Color(0xFF1E1F29) else Color(0xFFECE5D8)
-    } else {
-        if (isDark) Color(0xFF2E3144) else Color(0xFFE5D5BC)
-    }
-    val textCol = if (!enabled) {
-        if (isDark) Color(0xFF555566) else Color(0xFFAAAAAA)
-    } else {
-        if (isDark) Color(0xFFDDDDEE) else Color(0xFF3D2314)
-    }
+    Text(
+        text = text,
+        fontFamily = Vt323,
+        fontSize = 22.sp,
+        fontWeight = fontWeight,
+        fontStyle = fontStyle,
+        textDecoration = decoration,
+        color = LocalContentColor.current
+    )
+}
 
-    Box(
-        modifier = Modifier
-            .height(22.dp)
-            .background(bg)
-            .border(1.dp, if (enabled) if (isDark) Color(0xFF555570) else Color(0xFF8B4513) else Color.Transparent)
-            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
-            .padding(horizontal = 5.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            fontFamily = Vt323,
-            fontSize = 12.sp,
-            color = textCol
-        )
+private val EDITOR_FONT_SIZES = listOf("2" to "Pequeño", "4" to "Normal", "6" to "Grande", "7" to "Titular")
+private val EDITOR_TEXT_COLORS = listOf(
+    "#E91E63", "#FF4081", "#9C27B0", "#673AB7", "#2196F3", "#00BCD4", "#4CAF50",
+    "#8BC34A", "#FF9800", "#FF5722", "#FFD700", "#8D6E63", "#FFFFFF", "#111111"
+)
+private val EDITOR_STICKERS = listOf(
+    "❤️", "💖", "💕", "💌", "🌹", "💍", "💐", "🍫",
+    "🐱", "🐾", "☕", "🧁", "🍓", "🧸", "🎀", "🍰",
+    "✨", "⭐", "🌙", "🌸", "🍀", "🦋", "🕊️", "☁️",
+    "🎮", "👾", "🏰", "🕯️", "📜", "💎", "🗝️", "🔮"
+)
+private val ALIGN_LINE_WIDTHS = floatArrayOf(1f, 0.6f, 0.85f, 0.5f)
+
+/** Líneas de texto alineadas: 0 izquierda, 1 centro, 2 derecha. */
+@Composable
+private fun AlignGlyph(align: Int) {
+    val color = LocalContentColor.current
+    Canvas(modifier = Modifier.size(width = 24.dp, height = 18.dp)) {
+        val lineH = 2.dp.toPx()
+        val gap = (size.height - lineH * ALIGN_LINE_WIDTHS.size) / (ALIGN_LINE_WIDTHS.size - 1)
+        for (i in ALIGN_LINE_WIDTHS.indices) {
+            val w = size.width * ALIGN_LINE_WIDTHS[i]
+            val x = when (align) {
+                1 -> (size.width - w) / 2f
+                2 -> size.width - w
+                else -> 0f
+            }
+            drawRect(color = color, topLeft = Offset(x, i * (lineH + gap)), size = Size(w, lineH))
+        }
     }
 }
 

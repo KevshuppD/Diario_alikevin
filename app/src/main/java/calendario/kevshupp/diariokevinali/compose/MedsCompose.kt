@@ -224,8 +224,22 @@ fun MedsDashboardView(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        nextDoseOf(medsList)?.let { (name, time) ->
+                            item(key = "next_dose") {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(2.dp, Color(0xFFD97706))
+                                        .background(boxBackground)
+                                        .padding(10.dp)
+                                ) {
+                                    Text("PRÓXIMA TOMA", fontFamily = Vt323, fontSize = 15.sp, color = Color(0xFFD97706))
+                                    Text("$name · $time", fontFamily = Vt323, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textColor)
+                                }
+                            }
+                        }
                         items(
                             items = medsList,
                             key = { it.id }
@@ -305,6 +319,14 @@ fun MedsDashboardView(
             }
         )
     }
+}
+
+/** Siguiente hora de toma de hoy; si ya pasaron todas, la primera de mañana. */
+private fun nextDoseOf(meds: List<MedicationItem>): Pair<String, String>? {
+    val doses = meds.flatMap { med -> med.selectedTimes.map { med.name to it } }.sortedBy { it.second }
+    if (doses.isEmpty()) return null
+    val now = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+    return doses.firstOrNull { it.second >= now } ?: doses.first()
 }
 
 @Composable

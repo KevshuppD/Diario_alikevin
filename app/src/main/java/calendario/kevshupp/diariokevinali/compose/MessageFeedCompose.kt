@@ -55,6 +55,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.viewinterop.AndroidView
@@ -168,8 +172,6 @@ fun MessageFeedScreen(
     onPlayMinigame: (String, Int, Int, Int) -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
-    var selectedMessageForMenu by remember { mutableStateOf<Message?>(null) }
-    var showMenu by remember { mutableStateOf(false) }
     var messageToDelete by remember { mutableStateOf<Message?>(null) }
 
     if (showPetDialogState.value) {
@@ -206,6 +208,20 @@ fun MessageFeedScreen(
         )
     }
 
+    var readingMessage by remember { mutableStateOf<Message?>(null) }
+    readingMessage?.let { letter ->
+        LetterReaderDialog(
+            message = letter,
+            currentUserId = currentUserId,
+            dateFormat = dateFormat,
+            onDismiss = { readingMessage = null },
+            onEdit = {
+                readingMessage = null
+                onMessageLongClick(letter)
+            }
+        )
+    }
+
     var visibleCount by remember { mutableStateOf(5) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -229,11 +245,12 @@ fun MessageFeedScreen(
                     currentUserId = currentUserId,
                     theme = theme,
                     dateFormat = dateFormat,
-                    onClick = { onMessageClick(message) },
-                    onLongClick = { 
-                        selectedMessageForMenu = message
-                        showMenu = true
+                    onClick = {
+                        // Las cartas se leen en su hoja; los momentos del álbum siguen con su pantalla
+                        if (message.content?.startsWith("[ALBUM]") == true || message.type == "ALBUM") onMessageClick(message)
+                        else readingMessage = message
                     },
+                    onEdit = { onMessageLongClick(message) },
                     onDelete = { messageToDelete = message },
                     onLike = { onLikeClick(message) }
                 )
@@ -286,45 +303,128 @@ fun MessageFeedScreen(
             }
         }
 
-        // Menú contextual centralizado
-        if (showMenu && selectedMessageForMenu != null) {
-            val isDark = theme == "Pixel Oscuro"
-            val isMono = theme == "Pixel Monocromático"
-            val bgColor = when {
-                isDark -> Color(0xFF1A1A1A)
-                isMono -> Color.White
-                else -> Color(0xFFF3E5AB)
-            }
-            val borderColor = when {
-                isDark -> Color(0xFF91465F)
-                isMono -> Color.Black
-                else -> Color(0xFF4A2511)
-            }
-            val contentColor = when {
-                isDark -> Color.White
-                isMono -> Color.Black
-                else -> Color(0xFF4A2511)
+    }
+}
+
+private const val LETTER_PREVIEW_LINES = 6
+
+/** Carta a pantalla completa: siempre muestra el texto, con sus fotos debajo. */
+@Composable
+private fun LetterReaderDialog(
+    message: Message,
+    currentUserId: String,
+    dateFormat: SimpleDateFormat,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit
+) {
+    val paper = Color(0xFFF3E5AB)
+    val ink = Color(0xFF4A2511)
+    val context = LocalContext.current
+    val html = message.content ?: ""
+    val photos = remember(message.imageUrls, message.imageUrl) {
+        (message.imageUrls.orEmpty() + listOfNotNull(message.imageUrl)).distinct()
+    }
+    val inlinePhotos = remember(html) { LetterImageGetter.inlineImageUrls(html) }
+
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Column(modifier = Modifier.fillMaxSize().background(paper).border(3.dp, ink)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().background(ink).padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "✕ Cerrar",
+                    fontFamily = Vt323,
+                    fontSize = 20.sp,
+                    color = paper,
+                    modifier = Modifier.clickable { onDismiss() }.padding(6.dp)
+                )
+                Row {
+                    if (photos.isNotEmpty()) {
+                        Text(
+                            text = "🖼 Fotos",
+                            fontFamily = Vt323,
+                            fontSize = 20.sp,
+                            color = paper,
+                            modifier = Modifier
+                                .clickable { context.findMainActivity()?.getAlbumManager()?.showAlbumDetail(message) }
+                                .padding(6.dp)
+                        )
+                    }
+                    if (message.authorId == currentUserId) {
+                        Text(
+                            text = "✏️ Editar",
+                            fontFamily = Vt323,
+                            fontSize = 20.sp,
+                            color = paper,
+                            modifier = Modifier.clickable { onEdit() }.padding(6.dp)
+                        )
+                    }
+                }
             }
 
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false },
-                modifier = Modifier.background(bgColor).border(1.dp, borderColor)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 20.dp, top = 16.dp, end = 16.dp)
             ) {
-                DropdownMenuItem(
-                    text = { Text("Editar", fontFamily = Vt323, fontSize = 18.sp, color = contentColor) },
-                    onClick = {
-                        showMenu = false
-                        onMessageLongClick(selectedMessageForMenu!!)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("De: ${message.authorName}", fontFamily = Vt323, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA61E4D))
+                        Text(dateFormat.format(Date(message.timestamp)), fontFamily = Vt323, fontSize = 16.sp, color = Color(0xFF8B4513))
                     }
-                )
-                DropdownMenuItem(
-                    text = { Text("Borrar", fontFamily = Vt323, fontSize = 18.sp, color = Color.Red) },
-                    onClick = {
-                        showMenu = false
-                        messageToDelete = selectedMessageForMenu
-                    }
-                )
+                    AsyncImage(
+                        model = (message.authorImageUrl ?: R.drawable.ic_profile_pixel).toString().optimizeCloudinary(160),
+                        contentDescription = null,
+                        modifier = Modifier.size(52.dp).border(2.dp, ink),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                if (!message.title.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(message.title!!, fontFamily = Vt323, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = ink)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val widthPx = constraints.maxWidth
+                    AndroidView(
+                        factory = { ctx ->
+                            TextView(ctx).apply {
+                                typeface = ResourcesCompat.getFont(ctx, R.font.vt323)
+                                textSize = 22f
+                                setTextColor(ink.toArgb())
+                                setTextIsSelectable(true)
+                                text = android.text.Html.fromHtml(
+                                    LetterImageGetter.isolateImages(html),
+                                    android.text.Html.FROM_HTML_MODE_LEGACY,
+                                    LetterImageGetter(this, widthPx),
+                                    null
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                // Fotos adjuntas que no están ya dentro del texto; al tocarlas se abren en grande
+                photos.filter { it.substringBefore('#') !in inlinePhotos }.forEach { url ->
+                    Spacer(modifier = Modifier.height(12.dp))
+                    AsyncImage(
+                        model = url.optimizeCloudinary(1000),
+                        contentDescription = "Foto de la carta",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(2.dp, ink)
+                            .clickable { context.findMainActivity()?.getAlbumManager()?.showFullScreenImage(url, message) },
+                        contentScale = ContentScale.FillWidth
+                    )
+                }
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
     }
@@ -338,7 +438,7 @@ fun MessageCard(
     theme: String,
     dateFormat: SimpleDateFormat,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     onLike: () -> Unit
 ) {
@@ -346,49 +446,22 @@ fun MessageCard(
     val isDark = remember(theme) { theme == "Pixel Oscuro" }
     val isMono = remember(theme) { theme == "Pixel Monocromático" }
     
-    val bgColor = remember(theme) {
-        when {
-            isDark -> Color(0xFF1A1A1A)
-            isMono -> Color.White
-            else -> Color(0xFFF3E5AB)
-        }
-    }
-    
-    val borderColor = remember(theme) {
-        when {
-            isDark -> Color(0xFF91465F)
-            isMono -> Color.Black
-            else -> Color(0xFF4A2511)
-        }
-    }
-    
-    val authorColor = remember(theme) {
-        when {
-            isDark -> Color(0xFFFF4081)
-            isMono -> Color.Black
-            else -> Color(0xFF1A5D1A)
-        }
-    }
-    
-    val contentColor = remember(theme) {
-        when {
-            isDark -> Color.White
-            isMono -> Color.Black
-            else -> Color(0xFF4A2511)
-        }
-    }
-
-    val timeColor = remember(theme) {
-        when {
-            isDark -> Color.LightGray
-            isMono -> Color.DarkGray
-            else -> Color(0xFF8B4513)
-        }
-    }
+    // La carta siempre es una hoja de pergamino, también en el tema oscuro (blanca en monocromático)
+    val bgColor = if (isMono) Color.White else Color(0xFFF3E5AB)
+    val borderColor = if (isMono) Color.Black else Color(0xFF4A2511)
+    val authorColor = if (isMono) Color.Black else Color(0xFFA61E4D)
+    val contentColor = if (isMono) Color.Black else Color(0xFF4A2511)
+    val timeColor = if (isMono) Color.DarkGray else Color(0xFF8B4513)
+    val ruleColor = if (isMono) Color.Transparent else Color(0x224A2511)
+    val marginColor = if (isMono) Color.Transparent else Color(0x55EC4899)
 
     val isAlbum = remember(message.content) { message.content?.startsWith("[ALBUM]") == true }
 
+    // El menú de mantener presionado aparece donde está el dedo
     var showMenu by remember { mutableStateOf(false) }
+    var pressOffset by remember { mutableStateOf(androidx.compose.ui.unit.IntOffset.Zero) }
+    var expanded by androidx.compose.runtime.saveable.rememberSaveable(message.messageId) { mutableStateOf(false) }
+    var hasMoreLines by remember(message.content) { mutableStateOf(false) }
 
     @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
     Box(
@@ -396,35 +469,76 @@ fun MessageCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .border(3.dp, borderColor)
-            .drawBehind {
-                val sizePx = 8.dp.toPx()
-                // Dibujar solo los rectángulos de las esquinas para el efecto pixel
-                drawRect(color = borderColor, topLeft = Offset.Zero, size = Size(sizePx, sizePx))
-                drawRect(color = borderColor, topLeft = Offset(size.width - sizePx, 0f), size = Size(sizePx, sizePx))
-                drawRect(color = borderColor, topLeft = Offset(0f, size.height - sizePx), size = Size(sizePx, sizePx))
-                drawRect(color = borderColor, topLeft = Offset(size.width - sizePx, size.height - sizePx), size = Size(sizePx, sizePx))
-            }
             .background(bgColor)
+            .drawBehind {
+                // Renglones y margen de la hoja
+                val step = 24.dp.toPx()
+                var y = step
+                while (y < size.height) {
+                    drawRect(color = ruleColor, topLeft = Offset(0f, y), size = Size(size.width, 1.dp.toPx()))
+                    y += step
+                }
+                drawRect(color = marginColor, topLeft = Offset(12.dp.toPx(), 0f), size = Size(2.dp.toPx(), size.height))
+            }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    pressOffset = androidx.compose.ui.unit.IntOffset(down.position.x.toInt(), down.position.y.toInt())
+                }
+            }
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = onLongClick
+                // Editar y Borrar solo en las cartas propias
+                onLongClick = if (message.authorId == currentUserId) ({ showMenu = true }) else null
             )
     ) {
+        Box(modifier = Modifier.offset { pressOffset }) {
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                modifier = Modifier
+                    .background(if (isDark) Color(0xFF1A1A1A) else if (isMono) Color.White else Color(0xFFF3E5AB))
+                    .border(1.dp, if (isDark) Color(0xFF91465F) else if (isMono) Color.Black else Color(0xFF4A2511))
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Editar", fontFamily = Vt323, fontSize = 18.sp, color = if (isDark) Color.White else if (isMono) Color.Black else Color(0xFF4A2511)) },
+                    onClick = {
+                        showMenu = false
+                        onEdit()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Borrar", fontFamily = Vt323, fontSize = 18.sp, color = Color.Red) },
+                    onClick = {
+                        showMenu = false
+                        onDelete()
+                    }
+                )
+            }
+        }
 
-        Column(modifier = Modifier.padding(16.dp)) {
+
+        Column(modifier = Modifier.padding(start = 24.dp, top = 12.dp, end = 12.dp, bottom = 8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "De: ${message.authorName}",
-                    fontFamily = Vt323,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = authorColor,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "De: ${message.authorName}",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = authorColor
+                    )
+                    Text(
+                        text = dateFormat.format(Date(message.timestamp)),
+                        fontFamily = Vt323,
+                        fontSize = 14.sp,
+                        color = timeColor
+                    )
+                }
 
                 // Avatar
                 Box(
@@ -489,10 +603,15 @@ fun MessageCard(
                             val typeface = ResourcesCompat.getFont(ctx, R.font.vt323)
                             setTypeface(typeface)
                             textSize = 20f
+                            // Sin ellipsize, lineCount da el total aunque maxLines recorte la carta
+                            addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                                hasMoreLines = (v as TextView).lineCount > LETTER_PREVIEW_LINES
+                            }
                         }
                     },
                     update = { textView ->
                         textView.setTextColor(contentColor.toArgb())
+                        textView.maxLines = if (expanded) Int.MAX_VALUE else LETTER_PREVIEW_LINES
                         val html = message.content ?: ""
                         // El tag evita volver a parsear (y a pedir las fotos) en cada recomposición
                         if (textView.tag != html) {
@@ -574,32 +693,39 @@ fun MessageCard(
                     Icon(
                         painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_heart_pixel),
                         contentDescription = "Like",
-                        tint = if (isLiked) Color(0xFFFF4081) else Color.Gray,
+                        tint = if (isLiked) Color(0xFFD6246E) else Color(0xFFA58B66),
                         modifier = Modifier.size(24.dp)
                     )
                 }
 
-                Text(
-                    text = dateFormat.format(Date(message.timestamp)),
-                    fontFamily = Vt323,
-                    fontSize = 14.sp,
-                    color = timeColor
-                )
-            }
-        }
-        
-        // Botón eliminar (arriba a la derecha)
-        if (message.authorId == currentUserId) {
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.align(Alignment.TopEnd).size(36.dp).padding(4.dp)
-            ) {
-                Icon(
-                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_delete_pixel),
-                    contentDescription = "Borrar",
-                    tint = borderColor,
-                    modifier = Modifier.size(20.dp)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (hasMoreLines) {
+                        Text(
+                            text = if (expanded) "Cerrar carta ▲" else "Leer carta ▼",
+                            fontFamily = Vt323,
+                            fontSize = 17.sp,
+                            color = contentColor,
+                            modifier = Modifier
+                                .border(2.dp, borderColor)
+                                .clickable { expanded = !expanded }
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                    // Solo en cartas propias; ya no comparte esquina con el avatar
+                    if (message.authorId == currentUserId) {
+                        IconButton(
+                            onClick = onDelete,
+                            modifier = Modifier.padding(start = 6.dp).size(32.dp)
+                        ) {
+                            Icon(
+                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_delete_pixel),
+                                contentDescription = "Borrar",
+                                tint = borderColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -687,7 +813,7 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .border(2.dp, borderColor)
             .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = bgColor)
@@ -705,13 +831,13 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
         val activeLastInteractionDate = pet.getActiveLastInteractionDate()
         val activeStreak = pet.getActiveStreak()
 
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
+                        .size(64.dp)
                         .border(2.dp, borderColor)
                         .background(if (isSleeping) Color(0xFF0F0F3D) else Color.White.copy(alpha = 0.1f))
                         .clickable { isClicked = true }
@@ -730,18 +856,14 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                                 }
                         )
                     } else {
-                        val petImageRes = getPetDrawableRes(pet)
-
-                        Image(
-                            painter = painterResource(id = petImageRes),
-                            contentDescription = null,
+                        ThorPixelStage(
+                            pet = pet,
+                            strollScene = false,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer {
-                                    scaleX = breathingScale * clickScale
-                                    scaleY = breathingScale * clickScale
-                                    translationY = if (isSleeping) 0f else bobbingOffset
-                                    rotationZ = if (isSleeping) 0f else wiggleRotation
+                                    scaleX = clickScale
+                                    scaleY = clickScale
                                 }
                         )
                     }
@@ -763,38 +885,50 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                     }
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = activeName,
                             fontFamily = Vt323,
-                            fontSize = 24.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isDark) Color.White else Color.Black
                         )
-                        
                         // Badge de Nivel
                         Surface(
                             color = borderColor,
                             shape = RectangleShape,
-                            modifier = Modifier.padding(start = 4.dp)
+                            modifier = Modifier.padding(start = 6.dp)
                         ) {
                             Text(
                                 text = "LVL $activeLevel",
                                 fontFamily = Vt323,
                                 fontSize = 14.sp,
                                 color = Color.White,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.weight(1f))
+                        // Puntos de Amor
+                        Icon(
+                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_heart_pixel),
+                            contentDescription = null,
+                            tint = Color(0xFFFF4081),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = " ${pet.lovePoints} Puntos",
+                            fontFamily = Vt323,
+                            fontSize = 15.sp,
+                            color = if (isDark) Color.White else Color(0xFF4A2511)
+                        )
                     }
-                    
+
                     val stateText = if (isSleeping) {
                         val remainingMinutes = (100 - activeSleepPercent) * 4
                         val hours = remainingMinutes / 60
@@ -810,205 +944,39 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                     Text(
                         text = stateText,
                         fontFamily = Vt323,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         color = if (isDark) Color.LightGray else Color.DarkGray
                     )
-                    
-                    Spacer(modifier = Modifier.height(6.dp))
-                    
-                    // Barra de felicidad
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Felicidad 😊",
-                                fontFamily = Vt323,
-                                fontSize = 14.sp,
-                                color = if (isDark) Color.LightGray else Color.DarkGray
-                            )
-                            Text(
-                                text = "$activeHappiness%",
-                                fontFamily = Vt323,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) Color.White else Color.Black
-                            )
-                        }
-                        
-                        val timeUntilDecay = rememberTimeUntilDecay(activeLastInteraction, activeHappiness)
-                        Text(
-                            text = timeUntilDecay,
-                            fontFamily = Vt323,
-                            fontSize = 12.sp,
-                            color = if (activeHappiness <= 0) Color(0xFFFF4081) else if (isDark) Color.LightGray.copy(alpha = 0.7f) else Color.DarkGray.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(bottom = 2.dp)
-                        )
-                        
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .border(1.dp, borderColor)
-                                .background(Color.Gray.copy(alpha = 0.3f))
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(activeHappiness / 100f)
-                                    .fillMaxHeight()
-                                    .background(if (activeHappiness > 50) Color(0xFF4CAF50) else Color(0xFFF44336))
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Barra de Experiencia
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Experiencia ✨",
-                                fontFamily = Vt323,
-                                fontSize = 14.sp,
-                                color = if (isDark) Color.LightGray else Color.DarkGray
-                            )
-                            Text(
-                                text = "$activeExp/100 XP",
-                                fontFamily = Vt323,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) Color.White else Color.Black
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .border(1.dp, borderColor.copy(alpha = 0.5f))
-                                .background(Color.Gray.copy(alpha = 0.2f))
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(activeExp / 100f)
-                                    .fillMaxHeight()
-                                    .background(Color(0xFF2196F3))
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Barra de Hambre
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Hambre 🍖",
-                                fontFamily = Vt323,
-                                fontSize = 14.sp,
-                                color = if (isDark) Color.LightGray else Color.DarkGray
-                            )
-                            Text(
-                                text = "$activeHunger%",
-                                fontFamily = Vt323,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) Color.White else Color.Black
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .border(1.dp, borderColor.copy(alpha = 0.5f))
-                                .background(Color.Gray.copy(alpha = 0.2f))
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(activeHunger / 100f)
-                                    .fillMaxHeight()
-                                    .background(if (activeHunger >= 70) Color(0xFFF44336) else Color(0xFFFF9800))
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Barra de Limpieza
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Limpieza 🧼",
-                                fontFamily = Vt323,
-                                fontSize = 14.sp,
-                                color = if (isDark) Color.LightGray else Color.DarkGray
-                            )
-                            Text(
-                                text = "$activeCleanliness%",
-                                fontFamily = Vt323,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) Color.White else Color.Black
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .border(1.dp, borderColor.copy(alpha = 0.5f))
-                                .background(Color.Gray.copy(alpha = 0.2f))
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(activeCleanliness / 100f)
-                                    .fillMaxHeight()
-                                    .background(if (activeCleanliness < 30) Color(0xFFF44336) else Color(0xFF0EA5E9))
-                            )
-                        }
-                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // Footer de la tarjeta con Puntos y Racha
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                PetMiniStat("Feliz", "$activeHappiness%", activeHappiness, if (activeHappiness > 50) Color(0xFF4CAF50) else Color(0xFFF44336), isDark, borderColor, Modifier.weight(1f))
+                PetMiniStat("Exp", "$activeExp/100", activeExp, Color(0xFF2196F3), isDark, borderColor, Modifier.weight(1f))
+                PetMiniStat("Hambre", "$activeHunger%", activeHunger, if (activeHunger >= 70) Color(0xFFF44336) else Color(0xFFFF9800), isDark, borderColor, Modifier.weight(1f))
+                PetMiniStat("Limpio", "$activeCleanliness%", activeCleanliness, if (activeCleanliness < 30) Color(0xFFF44336) else Color(0xFF0EA5E9), isDark, borderColor, Modifier.weight(1f))
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Próxima baja de felicidad y racha diaria
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Puntos de Amor
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_heart_pixel),
-                        contentDescription = null,
-                        tint = Color(0xFFFF4081),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${pet.lovePoints} Puntos",
-                        fontFamily = Vt323,
-                        fontSize = 18.sp,
-                        color = if (isDark) Color.White else Color(0xFF4A2511)
-                    )
-                }
+                val timeUntilDecay = rememberTimeUntilDecay(activeLastInteraction, activeHappiness)
+                Text(
+                    text = timeUntilDecay,
+                    fontFamily = Vt323,
+                    fontSize = 13.sp,
+                    color = if (activeHappiness <= 0) Color(0xFFFF4081) else if (isDark) Color.LightGray.copy(alpha = 0.8f) else Color.DarkGray.copy(alpha = 0.8f)
+                )
 
                 // Racha Diaria (Verificación activa de vigencia)
                 val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
@@ -1022,28 +990,42 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                 val effectiveStreak = if (isStreakActive) activeStreak else 0
 
                 if (effectiveStreak > 0) {
-                    Surface(
-                        color = Color(0xFFFF9800).copy(alpha = 0.2f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF9800)),
-                        shape = RectangleShape
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text("🔥", fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            val dayText = if (effectiveStreak == 1) "día" else "días"
-                            Text(
-                                text = "Racha: $effectiveStreak $dayText",
-                                fontFamily = Vt323,
-                                fontSize = 16.sp,
-                                color = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)
-                            )
-                        }
-                    }
+                    val dayText = if (effectiveStreak == 1) "día" else "días"
+                    Text(
+                        text = "🔥 Racha: $effectiveStreak $dayText",
+                        fontFamily = Vt323,
+                        fontSize = 14.sp,
+                        color = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PetMiniStat(label: String, value: String, percent: Int, color: Color, isDark: Boolean, borderColor: Color, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(
+            text = "$label $value",
+            fontFamily = Vt323,
+            fontSize = 13.sp,
+            maxLines = 1,
+            color = if (isDark) Color.LightGray else Color.DarkGray
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(7.dp)
+                .border(1.dp, borderColor)
+                .background(Color.Gray.copy(alpha = 0.25f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth((percent / 100f).coerceIn(0f, 1f))
+                    .fillMaxHeight()
+                    .background(color)
+            )
         }
     }
 }

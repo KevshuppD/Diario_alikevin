@@ -266,6 +266,13 @@ class AlbumManager(
     }
 
     fun showEditAlbumDialog(msg: Message) {
+        // Las cartas se editan en el editor completo; este diálogo es solo para momentos del álbum
+        val isAlbum = msg.content?.startsWith("[ALBUM]") == true || msg.type == "ALBUM"
+        val activity = context as? MainActivity
+        if (!isAlbum && activity != null) {
+            activity.openLetterEditor(msg)
+            return
+        }
         val b = AlertDialog.Builder(context)
         val v = LayoutInflater.from(context).inflate(R.layout.dialog_edit_message, null)
         b.setView(v)
@@ -583,7 +590,9 @@ class AlbumManager(
         bottomBar.addView(btnShare)
         
         // Edit Button (Only rename if local, or edit caption if it is a Cloudinary photo with parentMessage)
-        if (isLocal || parentMessage != null) {
+        // Las cartas solo las edita quien las escribió
+        val parentIsLetter = parentMessage != null && parentMessage.content?.startsWith("[ALBUM]") != true && parentMessage.type != "ALBUM"
+        if (isLocal || (parentMessage != null && (!parentIsLetter || parentMessage.authorId == userId))) {
             val btnEdit = createPixelButton("Editar") {
                 if (isLocal) {
                     val alertRename = AlertDialog.Builder(context)

@@ -373,6 +373,7 @@ fun ScheduleDashboardView(
                     onSelectDay = { selectedDayTab = it },
                     subjects = filteredSubjects,
                     currentUserOwner = currentUserOwner,
+                    showBothColumns = filterOwner == "both",
                     borderColor = borderColor,
                     cardBg = cardBg,
                     textColor = textColor,
@@ -455,6 +456,7 @@ fun ScheduleAgendaView(
     onSelectDay: (Int) -> Unit,
     subjects: List<ClassSubject>,
     currentUserOwner: String,
+    showBothColumns: Boolean = false,
     borderColor: Color,
     cardBg: Color,
     textColor: Color,
@@ -545,6 +547,8 @@ fun ScheduleAgendaView(
                     }
                 }
             }
+        } else if (showBothColumns) {
+            ScheduleDayTimeline(daySubjects, borderColor, textColor, onSubjectClick)
         } else {
             LazyColumn(
                 modifier = Modifier
@@ -667,6 +671,123 @@ fun ScheduleAgendaView(
                 }
             }
         }
+    }
+}
+
+private fun ClassSubject.startMin() = startHour * 60 + startMinute
+private fun ClassSubject.endMin() = endHour * 60 + endMinute
+private fun clockLabel(minutes: Int) = String.format("%02d:%02d", minutes / 60, minutes % 60)
+
+/** Tramos en que Kevin y Ali tienen clase a la vez. Una clase de "Ambos" cuenta para los dos, pero no choca consigo misma. */
+private fun overlapRanges(subjects: List<ClassSubject>): List<Pair<Int, Int>> {
+    val kevin = subjects.filter { it.owner == "kevin" }
+    val ali = subjects.filter { it.owner == "ali" }
+    return kevin.flatMap { k ->
+        ali.mapNotNull { a ->
+            val from = maxOf(k.startMin(), a.startMin())
+            val to = minOf(k.endMin(), a.endMin())
+            if (from < to) from to to else null
+        }
+    }.sortedBy { it.first }
+}
+
+/** Ratos en que ninguno tiene clase, entre la primera y la última clase del día (15 minutos o más). */
+private fun bothFreeRanges(subjects: List<ClassSubject>): List<Pair<Int, Int>> {
+    val free = mutableListOf<Pair<Int, Int>>()
+    var busyUntil = -1
+    subjects.sortedBy { it.startMin() }.forEach { sub ->
+        if (busyUntil >= 0 && sub.startMin() - busyUntil >= 15) free.add(busyUntil to sub.startMin())
+        busyUntil = maxOf(busyUntil, sub.endMin())
+    }
+    return free
+}
+
+/** Día en dos columnas sobre la misma línea de horas, para ver cuándo coinciden las clases. */
+@Composable
+private fun ScheduleDayTimeline(
+    subjects: List<ClassSubject>,
+    borderColor: Color,
+    textColor: Color,
+    onSubjectClick: (ClassSubject) -> Unit
+) {
+    val hourHeight = 64.dp
+    val hoursWidth = 40.dp
+    val firstHour = subjects.minOf { it.startHour }
+    val lastHour = subjects.maxOf { if (it.endMinute > 0) it.endHour + 1 else it.endHour }
+    val overlaps = remember(subjects) { overlapRanges(subjects) }
+    val freeRanges = remember(subjects) { bothFreeRanges(subjects) }
+    fun yOf(minutes: Int) = hourHeight * ((minutes - firstHour * 60) / 60f)
+
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(8.dp)) {
+        if (overlaps.isNotEmpty()) {
+            Text(
+                text = "⚠️ A la misma hora: " + overlaps.joinToString(" y ") { "${clockLabel(it.first)}-${clockLabel(it.second)}" },
+                fontFamily = Vt323,
+                fontSize = 16.sp,
+                color = if (textColor == Color.White) Color(0xFFF5B83D) else Color(0xFFB45309)
+            )
+        }
+        if (freeRanges.isNotEmpty()) {
+            Text(
+                text = "💚 Libres los dos: " + freeRanges.joinToString(" y ") { "${clockLabel(it.first)}-${clockLabel(it.second)}" },
+                fontFamily = Vt323,
+                fontSize = 16.sp,
+                color = if (textColor == Color.White) Color(0xFF69DB7C) else Color(0xFF15803D)
+            )
+        }
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, start = hoursWidth)) {
+            Text("👦 Kevin", fontFamily = Vt323, fontSize = 17.sp, color = textColor, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+            Text("👧 Ali", fontFamily = Vt323, fontSize = 17.sp, color = textColor, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+        }
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(hourHeight * (lastHour - firstHour) + 8.dp)) {
+            val columnWidth = (maxWidth - hoursWidth) / 2
+            for (hour in firstHour..lastHour) {
+                val y = hourHeight * (hour - firstHour)
+                Box(modifier = Modifier.offset(y = y).fillMaxWidth().height(1.dp).background(borderColor.copy(alpha = 0.35f)))
+                Text(String.format("%02d:00", hour), fontFamily = Vt323, fontSize = 12.sp, color = textColor.copy(alpha = 0.7f), modifier = Modifier.offset(y = y))
+            }
+            subjects.forEach { sub ->
+                val color = try {
+                    Color(android.graphics.Color.parseColor(sub.colorHex))
+                } catch (e: Exception) {
+                    Color(0xFFFF6B6B)
+                }
+                val content = getContrastingTextColor(color)
+                val x = if (sub.owner == "ali") hoursWidth + columnWidth else hoursWidth
+                val width = if (sub.owner == "kevin" || sub.owner == "ali") columnWidth else columnWidth * 2
+                Column(
+                    modifier = Modifier
+                        .offset(x = x, y = yOf(sub.startMin()))
+                        .width(width)
+                        .height(yOf(sub.endMin()) - yOf(sub.startMin()))
+                        .padding(horizontal = 2.dp)
+                        .background(color)
+                        .border(1.dp, Color.Black)
+                        .clickable { onSubjectClick(sub) }
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Text(sub.name, fontFamily = Vt323, fontSize = 15.sp, lineHeight = 15.sp, fontWeight = FontWeight.Bold, color = content)
+                    Text("${clockLabel(sub.startMin())}-${clockLabel(sub.endMin())}", fontFamily = Vt323, fontSize = 13.sp, color = content)
+                    if (sub.room.isNotBlank()) {
+                        Text("📍 ${sub.room}", fontFamily = Vt323, fontSize = 13.sp, color = content)
+                    }
+                    if (sub.teacher.isNotBlank()) {
+                        Text("👨‍🏫 ${sub.teacher}", fontFamily = Vt323, fontSize = 13.sp, color = content)
+                    }
+                }
+            }
+            // Franja entre las dos columnas: marca el tramo en que coinciden
+            overlaps.forEach { (from, to) ->
+                Box(
+                    modifier = Modifier
+                        .offset(x = hoursWidth + columnWidth - 3.dp, y = yOf(from))
+                        .width(6.dp)
+                        .height(yOf(to) - yOf(from))
+                        .background(Color(0xFFF5B83D))
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(70.dp))
     }
 }
 

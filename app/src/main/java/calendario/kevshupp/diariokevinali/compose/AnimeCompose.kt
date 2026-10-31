@@ -42,6 +42,7 @@ fun AnimeDashboardView(
     cardBg: Color,
     onBack: () -> Unit
 ) {
+    var animeToDelete by remember { mutableStateOf<AnimeItem?>(null) }
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
     val context = LocalContext.current
@@ -358,7 +359,7 @@ fun AnimeDashboardView(
                                 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        text = "Capítulo: ",
+                                        text = "Cap. ",
                                         fontFamily = Vt323,
                                         fontSize = 16.sp,
                                         color = textColor
@@ -369,12 +370,12 @@ fun AnimeDashboardView(
                                             .border(1.dp, borderColor)
                                             .background(if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDF5))
                                             .clickable { updateAnimeEpisode(anime.id, -1, animeList) }
-                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
                                     ) {
                                         Text(
                                             text = "-",
                                             fontFamily = Vt323,
-                                            fontSize = 14.sp,
+                                            fontSize = 20.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = textColor
                                         )
@@ -393,12 +394,12 @@ fun AnimeDashboardView(
                                             .border(1.dp, borderColor)
                                             .background(if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDF5))
                                             .clickable { updateAnimeEpisode(anime.id, 1, animeList) }
-                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
                                     ) {
                                         Text(
                                             text = "+",
                                             fontFamily = Vt323,
-                                            fontSize = 14.sp,
+                                            fontSize = 20.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = textColor
                                         )
@@ -447,32 +448,36 @@ fun AnimeDashboardView(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .width(80.dp)
+                                        .height(36.dp)
                                         .border(2.dp, Color(0xFF10B981))
                                         .background(cardBg)
                                         .clickable { toggleAnimeWatched(anime.id, animeList) },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "✓",
+                                        text = "✓ Visto",
+                                        maxLines = 1,
                                         fontFamily = Vt323,
-                                        fontSize = 18.sp,
+                                        fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF10B981)
                                     )
                                 }
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .width(80.dp)
+                                        .height(36.dp)
                                         .border(2.dp, Color.Red.copy(alpha = 0.7f))
                                         .background(cardBg)
-                                        .clickable { deleteAnime(anime.id, animeList) },
+                                        .clickable { animeToDelete = anime },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "X",
+                                        text = "✕ Borrar",
+                                        maxLines = 1,
                                         fontFamily = Vt323,
-                                        fontSize = 18.sp,
+                                        fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.Red
                                     )
@@ -709,16 +714,18 @@ fun AnimeDashboardView(
                                 }
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .width(80.dp)
+                                        .height(36.dp)
                                         .border(2.dp, Color.Red.copy(alpha = 0.7f))
                                         .background(cardBg)
-                                        .clickable { deleteAnime(anime.id, animeList) },
+                                        .clickable { animeToDelete = anime },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "X",
+                                        text = "✕ Borrar",
+                                        maxLines = 1,
                                         fontFamily = Vt323,
-                                        fontSize = 18.sp,
+                                        fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.Red
                                     )
@@ -894,6 +901,26 @@ fun AnimeDashboardView(
             },
             containerColor = cardBg,
             textContentColor = textColor
+        )
+    }
+
+    animeToDelete?.let { anime ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { animeToDelete = null },
+            shape = androidx.compose.ui.graphics.RectangleShape,
+            title = { Text("¿Borrar anime?", fontFamily = Vt323, fontSize = 24.sp) },
+            text = { Text("Se borrará \"${anime.title}\" de la lista compartida.", fontFamily = Vt323, fontSize = 20.sp) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    deleteAnime(anime.id, animeList)
+                    animeToDelete = null
+                }) { Text("BORRAR", fontFamily = Vt323, fontSize = 20.sp, color = Color.Red) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { animeToDelete = null }) {
+                    Text("CANCELAR", fontFamily = Vt323, fontSize = 20.sp)
+                }
+            }
         )
     }
 }

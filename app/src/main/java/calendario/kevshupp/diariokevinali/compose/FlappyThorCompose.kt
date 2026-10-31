@@ -1140,41 +1140,21 @@ private val HEART_PIXEL_MATRIX = arrayOf(
     intArrayOf(0, 0, 0, 1, 0, 0, 0)
 )
 
-private val THOR_PIXEL_MATRIX = arrayOf(
-    // Orejitas
-    intArrayOf(0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0),
-    intArrayOf(1, 2, 2, 1, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0),
-    intArrayOf(1, 2, 3, 1, 1, 1, 1, 1, 1, 1, 3, 2, 1, 0),
-    // Cabeza
-    intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
-    intArrayOf(1, 2, 4, 5, 2, 2, 2, 2, 4, 5, 2, 2, 1, 0),
-    intArrayOf(1, 2, 4, 4, 2, 2, 2, 2, 4, 4, 2, 2, 1, 0),
-    intArrayOf(1, 7, 2, 2, 2, 6, 6, 2, 2, 2, 7, 2, 1, 0),
-    // Cuerpo esponjoso
-    intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
-    intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
-    intArrayOf(1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 0),
-    intArrayOf(0, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0, 0),
-    intArrayOf(0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0)
+// Sprites de Flappy de perfil (miran hacia donde vuelan), con 3 posiciones de ala.
+private val THOR_BIRD_ROWS = arrayOf(
+    "..........oo....oo..", ".........opwo..opwo.", ".........owwwoowwwo.", "..oo.....owwwwwwwwwo",
+    ".owwo....owEEwwEEwwo", ".owo.....owEOwwEIwwo", ".owo...oowwbwnnwbwwo", ".owwooowwwwwwwwwwwo.",
+    "..owwwwwwwwwwwwwwwo.", "...owwwwwwwwwwwwwso.", "....owwwwwwwwwwsso..", ".....ossssssssso....", "......oo.oo..oo.oo.."
 )
-
-private val CUKY_PIXEL_MATRIX = arrayOf(
-    // Cresta Roja
-    intArrayOf(0, 0, 0, 0, 0, 7, 7, 0, 7, 7, 0, 0, 0, 0),
-    intArrayOf(0, 0, 0, 0, 1, 7, 7, 1, 7, 7, 1, 0, 0, 0),
-    // Cabeza
-    intArrayOf(0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 0, 0),
-    intArrayOf(0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0),
-    intArrayOf(0, 1, 2, 4, 5, 2, 2, 2, 4, 5, 2, 2, 1, 0),
-    intArrayOf(0, 1, 2, 4, 4, 6, 6, 6, 4, 4, 2, 2, 1, 0),
-    intArrayOf(0, 1, 8, 2, 2, 7, 7, 2, 2, 2, 8, 2, 1, 0),
-    // Cuerpo rechoncho
-    intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1),
-    intArrayOf(1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1),
-    intArrayOf(1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1),
-    intArrayOf(0, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0),
-    intArrayOf(0, 0, 1, 6, 6, 1, 1, 1, 1, 6, 6, 1, 0, 0)
+private val CUKY_BIRD_ROWS = arrayOf(
+    "............rr.r....", "...........rrrrr....", "..........oooooo....", "..oo.....oLLLLLLo...",
+    ".oDLo....oLLLEELLo..", ".oDDo...oLLLLEILLoYY", ".oDLLoooLLLLLbLLLoYA", "..oLLLLLLLLLLLLLLrr.",
+    "..oLLLLLLLLLLLLLLLo.", "...oLLLLLLLLLLLLDo..", "....oLLLLLLLLLDDo...", ".....oDDDDDDDDDo....", ".......Yy..Yy......."
 )
+private val BIRD_WING_UP = arrayOf("...oo..", "..oWWo.", ".oWWWo.", ".oWWso.", "..oWso.", "...oo..")
+private val BIRD_WING_MID = arrayOf("oooooo.", "oWWWWWo", ".oWWsso", "..oooo.")
+private val BIRD_WING_DOWN = arrayOf("..oooo.", ".oWWWWo", ".oWWWso", "..oWso.", "...oo..")
+private val BIRD_WING_FRAMES = intArrayOf(0, 1, 2, 1)
 
 private fun DrawScope.drawFullPixelHeart(cx: Float, cy: Float) {
     val pixelSize = 3.dp.toPx()
@@ -1213,170 +1193,74 @@ private fun DrawScope.drawPixelCloud(x: Float, y: Float, isDark: Boolean) {
     )
 }
 
-/**
- * Dibuja el sprite pixel-art dedicado y limpio de Thor Blanco (Perrito/Pájaro volador).
- * Diseño limpio sin bordes extraños, con pelaje blanco puro, orejitas esponjosas, ojitos negros tiernos y alitas batientes.
- */
-private fun DrawScope.drawWhiteThorBirdSprite(
-    cx: Float,
-    cy: Float,
-    sizePx: Float,
-    velocity: Float,
-    ticks: Long,
-    accessory: String,
-    isPocket: Boolean = false
-) {
-    val pixel = sizePx / 16f
-    val startX = cx - (sizePx / 2f)
-    val startY = cy - (sizePx / 2f)
-
-    // Paleta limpia
-    val white = if (isPocket) Color(0xFFE0F8D0) else Color(0xFFFFFFFF)
-    val softGray = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFE2E8F0)
-    val darkOutline = if (isPocket) Color(0xFF0F380F) else Color(0xFF2D3748)
-    val eyeColor = if (isPocket) Color(0xFF0F380F) else Color(0xFF1A202C)
-    val blush = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFFFB2D6)
-    val noseColor = if (isPocket) Color(0xFF0F380F) else Color(0xFF1A202C)
-    val wingFeather = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFEDF2F7)
-
-    // Aleteo animado suave
-    val flapFrame = ((ticks / 4) % 3).toInt()
-
-    THOR_PIXEL_MATRIX.forEachIndexed { r, row ->
-        row.forEachIndexed { c, cell ->
-            val col = when (cell) {
-                1 -> darkOutline
-                2 -> white
-                3 -> softGray
-                4 -> eyeColor
-                5 -> Color.White
-                6 -> noseColor
-                7 -> blush
-                else -> null
+private fun DrawScope.drawBirdGrid(rows: Array<String>, x: Float, y: Float, pixel: Float, isCuky: Boolean, isPocket: Boolean) {
+    for (r in rows.indices) {
+        val row = rows[r]
+        for (c in row.indices) {
+            val k = row[c]
+            if (k == '.') continue
+            val col = if (isPocket) when (k) {
+                'o', 'E', 'I', 'O', 'A' -> Color(0xFF0F380F)
+                's', 'D', 'b', 'p', 'n', 'r' -> Color(0xFF306230)
+                'L', 'Y', 'y' -> Color(0xFF8BAC0F)
+                else -> Color(0xFFE0F8D0)
+            } else when (k) {
+                'o' -> if (isCuky) Color(0xFF2D1E12) else Color(0xFF2D2A4A)
+                'w' -> Color(0xFFFFFFFF)
+                'W' -> if (isCuky) Color(0xFFB45309) else Color(0xFFF2F4FF)
+                's' -> if (isCuky) Color(0xFF92400E) else Color(0xFFBFC8EC)
+                'p' -> Color(0xFFFF8FBE)
+                'E' -> Color(0xFF1A1A3A)
+                'I' -> Color(0xFF38BDF8)
+                'O' -> Color(0xFFF97316)
+                'r' -> Color(0xFFDC2626)
+                'L' -> Color(0xFFD97706)
+                'D' -> Color(0xFF78350F)
+                'Y' -> Color(0xFFF59E0B)
+                'A' -> Color(0xFFB45309)
+                'y' -> Color(0xFFD97706)
+                'b' -> Color(0xFFFFB2D6)
+                else -> Color(0xFFFF5C9A)
             }
-            if (col != null) {
-                drawRect(
-                    color = col,
-                    topLeft = Offset(startX + c * pixel, startY + r * pixel),
-                    size = Size(pixel, pixel)
-                )
-            }
-        }
-    }
-
-    // Alita blanca pixelada que bate
-    val wingDY = when (flapFrame) {
-        0 -> -2 * pixel
-        1 -> 0f
-        else -> 2 * pixel
-    }
-
-    // Ala batiente pixel art
-    drawRect(color = darkOutline, topLeft = Offset(startX + 1 * pixel, startY + 6 * pixel + wingDY), size = Size(5 * pixel, 4 * pixel))
-    drawRect(color = wingFeather, topLeft = Offset(startX + 2 * pixel, startY + 7 * pixel + wingDY), size = Size(3 * pixel, 2 * pixel))
-    drawRect(color = white, topLeft = Offset(startX + 2 * pixel, startY + 7 * pixel + wingDY), size = Size(2 * pixel, 1 * pixel))
-
-    // Accesorios
-    when (accessory) {
-        "crown" -> {
-            val cx = startX + 4 * pixel
-            val cy = startY - 2 * pixel
-            drawRect(color = Color(0xFFFFD700), topLeft = Offset(cx, cy), size = Size(5 * pixel, 2 * pixel))
-            drawRect(color = Color(0xFFFF1744), topLeft = Offset(cx + 2 * pixel, cy - 1 * pixel), size = Size(1 * pixel, 1 * pixel))
-        }
-        "bow" -> {
-            drawRect(color = Color(0xFFFF4081), topLeft = Offset(startX + 2 * pixel, startY + 1 * pixel), size = Size(3 * pixel, 2 * pixel))
-        }
-        "glasses" -> {
-            drawRect(color = darkOutline, topLeft = Offset(startX + 2 * pixel, startY + 4 * pixel), size = Size(9 * pixel, 2 * pixel), style = androidx.compose.ui.graphics.drawscope.Stroke(1.2f * pixel))
-        }
-        "bandana" -> {
-            drawRect(color = Color(0xFFE53935), topLeft = Offset(startX + 2 * pixel, startY + 7 * pixel), size = Size(9 * pixel, 2 * pixel))
+            drawRect(color = col, topLeft = Offset(x + c * pixel, y + r * pixel), size = Size(pixel + 0.5f, pixel + 0.5f))
         }
     }
 }
 
-/**
- * Dibuja el sprite pixel-art dedicado y tierno de Cuky (Gallinita café voladora).
- * Cuenta con cresta roja, plumaje café caramelo, ojitos tiernos, pico amarillo y alitas batientes.
- */
-private fun DrawScope.drawBrownCukyBirdSprite(
-    cx: Float,
-    cy: Float,
-    sizePx: Float,
-    velocity: Float,
-    ticks: Long,
-    accessory: String,
-    isPocket: Boolean = false
-) {
-    val pixel = sizePx / 16f
-    val startX = cx - (sizePx / 2f)
-    val startY = cy - (sizePx / 2f)
-
-    // Paleta de Cuky (Gallina café)
-    val brownLight = if (isPocket) Color(0xFFE0F8D0) else Color(0xFFD97706)
-    val brownMain = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFB45309)
-    val brownDark = if (isPocket) Color(0xFF306230) else Color(0xFF78350F)
-    val darkOutline = if (isPocket) Color(0xFF0F380F) else Color(0xFF2D1E12)
-    val combRed = if (isPocket) Color(0xFF306230) else Color(0xFFDC2626)
-    val beakYellow = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFF59E0B)
-    val eyeColor = if (isPocket) Color(0xFF0F380F) else Color(0xFF1E1E24)
-    val blush = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFFFB2D6)
-
-    val flapFrame = ((ticks / 4) % 3).toInt()
-
-    CUKY_PIXEL_MATRIX.forEachIndexed { r, row ->
-        row.forEachIndexed { c, cell ->
-            val col = when (cell) {
-                1 -> darkOutline
-                2 -> brownLight
-                3 -> brownDark
-                4 -> eyeColor
-                5 -> Color.White
-                6 -> beakYellow
-                7 -> combRed
-                8 -> blush
-                else -> null
-            }
-            if (col != null) {
-                drawRect(
-                    color = col,
-                    topLeft = Offset(startX + c * pixel, startY + r * pixel),
-                    size = Size(pixel, pixel)
-                )
-            }
-        }
+/** Mascota de perfil dentro del mismo tamaño de antes, así el área de choque no cambia. */
+private fun DrawScope.drawFlappyPet(cx: Float, cy: Float, sizePx: Float, velocity: Float, ticks: Long, accessory: String, isPocket: Boolean, isCuky: Boolean) {
+    val pixel = sizePx / 20f
+    val x0 = cx - sizePx / 2f
+    val y0 = cy - 6.5f * pixel
+    drawBirdGrid(if (isCuky) CUKY_BIRD_ROWS else THOR_BIRD_ROWS, x0, y0, pixel, isCuky, isPocket)
+    val outline = if (isPocket) Color(0xFF0F380F) else if (isCuky) Color(0xFF2D1E12) else Color(0xFF2D2A4A)
+    fun rect(col: Color, gx: Int, gy: Int, w: Int, h: Int) = drawRect(col, Offset(x0 + gx * pixel, y0 + gy * pixel), Size(w * pixel, h * pixel))
+    // Sube contento (ojos ^ ^); cae asustado (gotita)
+    if (velocity < -0.002f) {
+        val skin = if (isPocket) Color(0xFFE0F8D0) else if (isCuky) Color(0xFFD97706) else Color.White
+        val eyes = if (isCuky) EYES_CUKY else EYES_THOR
+        for (e in eyes) { rect(skin, e, 4, 2, 2); rect(outline, e, 5, 1, 1); rect(outline, e + 1, 4, 1, 1) }
     }
-
-    // Alita café que bate
-    val wingDY = when (flapFrame) {
-        0 -> -2 * pixel
-        1 -> 0f
-        else -> 2 * pixel
-    }
-
-    // Ala batiente
-    drawRect(color = darkOutline, topLeft = Offset(startX + 1 * pixel, startY + 7 * pixel + wingDY), size = Size(5 * pixel, 4 * pixel))
-    drawRect(color = brownMain, topLeft = Offset(startX + 2 * pixel, startY + 8 * pixel + wingDY), size = Size(3 * pixel, 2 * pixel))
-    drawRect(color = brownLight, topLeft = Offset(startX + 2 * pixel, startY + 8 * pixel + wingDY), size = Size(2 * pixel, 1 * pixel))
-
-    // Accesorios
+    if (velocity > 0.004f && !isPocket) rect(Color(0xFF7DD3FC), 19, 1, 1, 2)
     when (accessory) {
-        "crown" -> {
-            val cx = startX + 4 * pixel
-            val cy = startY - 2 * pixel
-            drawRect(color = Color(0xFFFFD700), topLeft = Offset(cx, cy), size = Size(5 * pixel, 2 * pixel))
-            drawRect(color = Color(0xFFFF1744), topLeft = Offset(cx + 2 * pixel, cy - 1 * pixel), size = Size(1 * pixel, 1 * pixel))
-        }
-        "bow" -> {
-            drawRect(color = Color(0xFFFF4081), topLeft = Offset(startX + 2 * pixel, startY + 2 * pixel), size = Size(3 * pixel, 2 * pixel))
-        }
-        "glasses" -> {
-            drawRect(color = darkOutline, topLeft = Offset(startX + 2 * pixel, startY + 4 * pixel), size = Size(9 * pixel, 2 * pixel), style = androidx.compose.ui.graphics.drawscope.Stroke(1.2f * pixel))
-        }
-        "bandana" -> {
-            drawRect(color = Color(0xFFE53935), topLeft = Offset(startX + 2 * pixel, startY + 7 * pixel), size = Size(9 * pixel, 2 * pixel))
-        }
+        "crown" -> { val g = if (isPocket) Color(0xFF8BAC0F) else Color(0xFFFFD700); rect(g, 11, -3, 5, 3); rect(g, 11, -4, 1, 1); rect(g, 13, -4, 1, 1); rect(g, 15, -4, 1, 1); rect(if (isPocket) outline else Color(0xFFFF1744), 13, -2, 1, 1) }
+        "glasses" -> { rect(outline, 10, 4, 9, 1); rect(outline, 11, 5, 2, 1); rect(outline, 15, 5, 2, 1) }
+        "bow" -> { rect(if (isPocket) Color(0xFF306230) else Color(0xFFFF4081), 16, 0, 4, 3); rect(if (isPocket) outline else Color(0xFFC2185B), 17, 1, 2, 1) }
+        "bandana" -> { val red = if (isPocket) Color(0xFF306230) else Color(0xFFE53935); rect(red, 9, 7, 9, 2); rect(red, 12, 9, 3, 1) }
+    }
+    val frame = BIRD_WING_FRAMES[((ticks / 4) % 4).toInt()]
+    when (frame) {
+        0 -> drawBirdGrid(BIRD_WING_UP, x0 + 5 * pixel, y0 + 3 * pixel, pixel, isCuky, isPocket)
+        1 -> drawBirdGrid(BIRD_WING_MID, x0 + 5 * pixel, y0 + 7 * pixel, pixel, isCuky, isPocket)
+        else -> drawBirdGrid(BIRD_WING_DOWN, x0 + 5 * pixel, y0 + 8 * pixel, pixel, isCuky, isPocket)
     }
 }
+private val EYES_THOR = intArrayOf(11, 15)
+private val EYES_CUKY = intArrayOf(13)
+
+private fun DrawScope.drawWhiteThorBirdSprite(cx: Float, cy: Float, sizePx: Float, velocity: Float, ticks: Long, accessory: String, isPocket: Boolean = false) =
+    drawFlappyPet(cx, cy, sizePx, velocity, ticks, accessory, isPocket, false)
+
+private fun DrawScope.drawBrownCukyBirdSprite(cx: Float, cy: Float, sizePx: Float, velocity: Float, ticks: Long, accessory: String, isPocket: Boolean = false) =
+    drawFlappyPet(cx, cy, sizePx, velocity, ticks, accessory, isPocket, true)
 

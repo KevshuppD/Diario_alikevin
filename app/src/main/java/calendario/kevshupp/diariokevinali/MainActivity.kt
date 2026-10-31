@@ -1975,6 +1975,12 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     
     fun getAlbumManager(): AlbumManager = albumManager
 
+    fun openLetterEditor(msg: Message) {
+        editingMessageState.value = msg
+        currentSelectedImageUrlState.value = msg.imageUrl
+        showEditorState.value = true
+    }
+
     fun onMessageClick(v: View?, msg: Message) { 
         val imgUrl = msg.imageUrl
         if (imgUrl != null) {

@@ -662,26 +662,20 @@ fun ThorRadarScreen(
                 .padding(vertical = 4.dp)
                 .border(2.dp, Color(0xFFFF9800))
                 .background(if (isDark) Color(0xFF332005) else Color(0xFFFFF3E0))
-                .padding(8.dp)
+                .padding(horizontal = 8.dp, vertical = 2.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "🛰️", fontSize = 22.sp)
+                Text(text = "🛰️", fontSize = 16.sp)
                 Spacer(modifier = Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "RASTREO CON APP CERRADA (TODO EL TIEMPO)",
-                        fontFamily = Vt323,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)
-                    )
-                    Text(
-                        text = "Para que tu pareja vea tu ubicación aun con la app cerrada, activa 'Permitir todo el tiempo'.",
-                        fontFamily = Vt323,
-                        fontSize = 13.sp,
-                        color = textColor
-                    )
-                }
+                Text(
+                    text = "Falta 'Permitir todo el tiempo'",
+                    fontFamily = Vt323,
+                    fontSize = 15.sp,
+                    color = textColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
                 Spacer(modifier = Modifier.width(4.dp))
                 Button(
                     onClick = {
@@ -891,11 +885,6 @@ fun ThorRadarScreen(
                     onEditZone = { zone ->
                         editingZone = zone
                         showAddEditZoneDialog = true
-                    },
-                    onTriggerSos = {
-                        isSosCountingDown = true
-                        sosCountdown = 3
-                        showSosDialog = true
                     }
                 )
                 1 -> RadarCompassView(
@@ -971,6 +960,22 @@ fun ThorRadarScreen(
                     onOpenSetupWizard = { showSetupWizardDialog = true }
                 )
             }
+        }
+
+        // SOS siempre a la vista, en todas las pestañas; pide confirmación con cuenta regresiva
+        Spacer(modifier = Modifier.height(6.dp))
+        Button(
+            onClick = {
+                isSosCountingDown = true
+                sosCountdown = 3
+                showSosDialog = true
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+            shape = RoundedCornerShape(0.dp),
+            contentPadding = PaddingValues(vertical = 2.dp),
+            modifier = Modifier.fillMaxWidth().height(40.dp)
+        ) {
+            Text(text = "🚨 SOS ALERTA", fontFamily = Vt323, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
         }
     }
 

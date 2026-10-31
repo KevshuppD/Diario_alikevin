@@ -76,8 +76,11 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 ### 📁 Pantallas en Jetpack Compose (`compose/`)
 - [MessageFeedCompose.kt](app/src/main/java/calendario/kevshupp/diariokevinali/compose/MessageFeedCompose.kt): Feed principal con paginación de 5 en 5 cartas, tarjeta de mascota adaptativa (`PetCard` para Thor / Cuky) con animaciones en Draw Phase (`graphicsLayer { ... }`), getters dinámicos (`getActive...()`), estado de racha y diálogo de confirmación de borrado.
 - [PetDialogCompose.kt](app/src/main/java/calendario/kevshupp/diariokevinali/compose/PetDialogCompose.kt): Diálogo interactivo principal de mascotas (**Thor & Cuky**) con selector switchable, habitación 2D / gallinero, animaciones de baño y pelota adaptadas a cada especie.
-- [CukyPixelSprite.kt](app/src/main/java/calendario/kevshupp/diariokevinali/compose/CukyPixelSprite.kt): Sprite **procedural** de Cuky (reemplaza los PNG `ic_cuky_*` en la habitación, la previsualización de Estilo y la `PetCard` del feed; el widget sigue con PNG). Capas en matrices estáticas (cresta, cabeza, cuerpo, ala, patas), 8 FPS a pasos de píxel entero. `CukyPixelStage` hace el paseo (caminar, picotear, aletear, mirar), dormir en nido, baño en tina con espuma y sacudida, saltito al subir de nivel y al jugar pelota, hambre (hambre ≥ 70), 5 niveles de suciedad según limpieza (≥80 limpia, ≥60 polvito, ≥40 manchada, ≥20 embarrada, <20 muy sucia), 10 accesorios anclados a cada parte y 3 etapas por nivel (Pollito 1–4, Gallinita 5–14, Gallina Reina 15+ con cola y corona). Acciones se disparan con `CukyAction` + llave incremental.
-- [CukyBackgrounds.kt](app/src/main/java/calendario/kevshupp/diariokevinali/compose/CukyBackgrounds.kt): Fondos procedurales de Cuky en escena de 80×52 celdas con versión día/noche (noche = Cuky dormida): `coop`, `farm`, `meadow`, `rain`, `sunset`, `beach`, `jungle`, `default`, `space`. Con estos fondos la habitación de Cuky va de borde a borde con proporción 80:52. Tienda de Cuky suma Pradera (80), Lluvia (90) y Atardecer (110). Thor sigue con los PNG `bg_thor_*`.
+- [CukyPixelSprite.kt](app/src/main/java/calendario/kevshupp/diariokevinali/compose/CukyPixelSprite.kt): Sprite **procedural** de Cuky (reemplaza los PNG `ic_cuky_*` en la habitación, la previsualización de Estilo y la `PetCard` del feed; el widget usa un cuadro fijo del mismo sprite). Capas en matrices estáticas (cresta, cabeza, cuerpo, ala, patas), 8 FPS a pasos de píxel entero. `CukyPixelStage` hace el paseo (caminar, picotear, aletear, mirar), dormir en nido, baño en tina con espuma y sacudida, saltito al subir de nivel y al jugar pelota, hambre (hambre ≥ 70), 5 niveles de suciedad según limpieza (≥80 limpia, ≥60 polvito, ≥40 manchada, ≥20 embarrada, <20 muy sucia), 10 accesorios anclados a cada parte y 3 etapas por nivel (Pollito 1–4, Gallinita 5–14, Gallina Reina 15+ con cola y corona). Acciones se disparan con `CukyAction` + llave incremental.
+- [CukyBackgrounds.kt](app/src/main/java/calendario/kevshupp/diariokevinali/compose/CukyBackgrounds.kt): Fondos procedurales de Cuky en escena de 80×52 celdas con versión día/noche (noche = Cuky dormida): `coop`, `farm`, `meadow`, `rain`, `sunset`, `beach`, `jungle`, `default`, `space`. Con estos fondos la habitación de Cuky va de borde a borde con proporción 80:52. Tienda de Cuky suma Pradera (80), Lluvia (90) y Atardecer (110). Thor también usa escenas procedurales (`drawThorBackground`, octubre 2026): Habitación de ladrillo, Playa, Selva y Nave del artefacto, más Gallinero y Huerta reutilizadas de Cuky; los PNG quedan solo como respaldo. Gallinero, Huerta, Pradera, Lluvia y Atardecer se redibujaron con más color y capas (octubre 2026); Playa, Selva, Habitación y Nave conservan el dibujo anterior.
+- [ThorPixelSprite.kt](app/src/main/java/calendario/kevshupp/diariokevinali/compose/ThorPixelSprite.kt): Sprite **procedural** de Thor (angora turco blanco, ojo ámbar a la izquierda y azul a la derecha, según foto real). `ThorPixelStage` reemplaza los PNG `ic_thor_*` en la habitación, la previsualización de Estilo y la `PetCard`; el widget usa un cuadro fijo del mismo sprite. Echado para reposo, lamerse, ronronear, dormir y hambre; de pie (versión "Alto y gordito") para caminar, pelota, baño y sacudida. Etapas: Gatito 1–4 (dibujo propio), Thor 5–14, Thor del Trueno 15+ con capa. Los ojos cruzan colores al voltear el sprite para seguir en su lado. Acciones con `ThorAction` + llave incremental.
+- **Pantalla INFO de `PetMenuDialog` (octubre 2026):** nivel, etapa, racha y puntos pasan a una franja sobre la escena, con globo de ánimo; EXP es una barra; las 4 estadísticas van en bloques (rojo si necesitan atención); Bañar se destaca con limpieza < 60; Minijuegos y Dormir comparten fila; las 6 pestañas llevan ícono y nombre. No se quitó ninguna función.
+- **Flappy (`FlappyThorCompose.kt`, octubre 2026):** Thor y Cuky se dibujan de perfil con 3 posiciones de ala (`drawFlappyPet`), dentro del mismo tamaño, así el área de choque no cambia.
 - [PetShopCompose.kt](app/src/main/java/calendario/kevshupp/diariokevinali/compose/PetShopCompose.kt): Componentes de tienda de accesorios/ropa y compras de comida para la mascota activa.
 - [PetMinigamesSelectorCompose.kt](app/src/main/java/calendario/kevshupp/diariokevinali/compose/PetMinigamesSelectorCompose.kt): Selector modal de minijuegos con estados de recompensa diaria y récord.
 - [PetRankingCompose.kt](app/src/main/java/calendario/kevshupp/diariokevinali/compose/PetRankingCompose.kt): Vista detallada del Ranking de Cuidadores (Global, Thor, Cuky), amorómetro, medallero y desglose de puntos.
@@ -720,12 +723,46 @@ graph TD
 - **Configuración → Diseño y Tema:** selector de tema, paleta de colores por familias, casilla *Fondo con tono personalizado* (`useCustomBg`), casilla *Mostrar barra superior ('Nuestro Diario')* (`showTopBar`, se guarda en `DiarioPrefs` y en Firestore y la aplica `MainActivity.updateTopBarVisibility()`).
 - **Mascota (`PetMenuDialog`):** pestañas INFO, RANK 🏆 (15 niveles), ESTILO 👑, COMIDA, VALES 🎟️ (ruleta a la distancia o ruleta Juntos según el radar) y ⚙️.
 - **Avanzado y Admin:** reiniciar ranking, minijuegos, mascotas y vales de las ruletas; editor de premios Juntos.
-- **Cartas:** like / quitar like (solo en cartas de la pareja), menú de mantener presionado, borrar carta propia, paginación de 5 en 5.
+- **Cartas:** like / quitar like (solo en cartas de la pareja), menú de mantener presionado (solo en cartas propias, por pedido del usuario, 2026-10-31), borrar carta propia, paginación de 5 en 5.
 - **Web → Tipos y Categorías:** botón *🪄 Normalizar Nombres* (respalda, renumera IDs y normaliza nombres) y botón *⚠️ Restablecer Respaldo* (contraseña `123`).
 - **Misceláneo:** Espíritus, Anime, Web Gestión, Medicamentos, Horario, Thor Radar y 📔 Bitácora Ánimo (pestañas 📅 POR DÍA / 📝 GENERAL, selector de día ◀▶, filtro Ali/Kevin/Ambos, registros agrupados por hora, ➕ registrar, ✕ borrar propio).
 - **Historial:** la casilla de barra superior se perdió por accidente en el commit `586863a` (v1.7.54, reorganización de Configuración) y se restauró en v1.7.82. El cambio de nombre de la mascota desde `PetMenuDialog` se quitó en `70c004f` (v1.7.52); el parámetro `onUpdateName` sigue sin usarse.
 
 ## 15. Tareas Pendientes / Backlog
+
+### Trabajo en curso: rediseño pixel-art de mascotas (estado al 2026-10-30)
+
+**Artefactos de referencia:**
+- Cuky en Movimiento (animaciones, fondos, propuestas de interfaz y Flappy; compartido por enlace): https://claude.ai/artifact/371K4UEVD8qFQvC3bkoS2r
+- Thor en Movimiento (diseño de Thor y propuestas de patas; privado): https://claude.ai/artifact/9mzyB7fMB4Yeq4asYGbmvR
+
+**Estado:** publicado en v1.7.98 (2026-10-31). Probado en Galaxy A71 con la versión debug solo en las pantallas indicadas abajo.
+
+**Decisiones del usuario:**
+- Thor se basa en su foto real: angora turco blanco, ojo ámbar a la izquierda de quien mira y gris azulado a la derecha, bandana turquesa con dibujos naranjas.
+- Para las poses de pie eligió la versión 1, "Alto y gordito", tras rechazar varias con patas cortas o raras. Las poses echadas le gustaron desde el principio.
+
+**Decisiones tomadas sin confirmación del usuario (revisables):**
+- La capa de Thor del Trueno se dejó como está en el artefacto, aunque se recomendó cambiarla por rayitos.
+- Gallinero y Huerta de Thor reutilizan las escenas de Cuky, porque el artefacto solo redibujó 4 fondos de Thor.
+- Playa, Selva, Habitación y Nave de Cuky siguen con el dibujo anterior.
+
+**Pendiente:**
+1. Probar en el teléfono: los 5 fondos nuevos de Cuky, el Gatito caminando, los accesorios de Thor, los sprites dentro de Flappy (también en la consola Pocket) y si la pantalla INFO de Thor aún necesita scroll en el Moto G35 (la escena mantiene 340 dp).
+2. Probar el widget, que ya dibuja un cuadro fijo de los sprites procedurales (`renderThorBitmap` / `renderCukyBitmap`) según nivel, accesorio, sueño, hambre y limpieza de la mascota activa. Los PNG `ic_*` siguen en el repo: los usa `PetDialogCompose.kt`, el selector de minijuegos y la vista inicial de `widget_thor.xml`.
+3. Mejora opcional pendiente: "marcar como tomado" en Medicamentos y aviso de Web Gestión.
+
+**Rediseño de pantallas (2026-10-31, elegido por el usuario, sin commit):** Cartas B (hoja de pergamino, 6 líneas con "Leer carta", fecha arriba, Borrar en el pie; `PetCard` compacta con todos sus datos), Perfil A (contador años/meses/días) y Configuración A en menú y secciones (`SettingsUi.kt`: `PixelSegmented`, `SettingsToolRow`, `PixelLogoutButton`; conexiones de Avanzado desplegables). No se quitó ninguna función. Los nombres de las familias de color se acortaron a su emoji. Verificado en teléfono: Cartas, Perfil, menú, Sistema y abrir/cerrar carta. Falta verificar: Diseño y Tema, Alertas, Sincronización, Almacenamiento, Avanzado y temas claro/monocromático. Riesgo: las cartas con texto de color claro pueden leerse peor sobre el papel.
+
+**Editor de cartas (2026-10-31, propuesta A):** pantalla completa ajustada al teclado (`imePadding`), hoja de pergamino, Enviar y ✕ en el encabezado (reemplazan la barra inferior repetida Foto/Cancelar/Enviar) y barra sin scroll lateral sobre el teclado, con categorías que abren su panel: Letra (negrita, cursiva, subrayar, tachar, tamaño, color), Alinear, Insertar (foto, cita, separador) y Stickers, más Deshacer y Rehacer. `EditorHtmlText.kt` oculta las etiquetas al escribir y muestra su efecto; la carta se sigue guardando como HTML. Sin confirmar en teléfono.
+
+**Lectura de cartas (2026-10-31):** tocar una carta abre `LetterReaderDialog` (hoja a pantalla completa con texto y fotos). El botón Fotos abre la pantalla anterior `showAlbumDetail` (columnas y borrar foto); los momentos del álbum no cambian.
+
+**Recetas (2026-10-31, propuesta A):** detalle a pantalla completa en pergamino, ingredientes para marcar (marcas locales en `RecipeChecks`), formulario de variación en la misma pantalla y confirmación antes de eliminar. Una flecha reemplaza ✕ y Cerrar detalle, por pedido del usuario. Sin confirmar en teléfono.
+
+**Misceláneo (2026-10-31):** menú en lista por temas; Horario en Ambos con vista Día en dos columnas, choques y ratos libres entre clases; Anime con Visto y Borrar escritos, y confirmación antes de borrar; Espíritus con vistas y filtro visibles; Medicamentos con próxima toma; Bitácora con selector rápido; radar con aviso en una línea, tarjeta y barras más bajas para agrandar el mapa y SOS fijo en todas las pestañas (se quitó el rótulo decorativo "Radar satelital"). Pendiente: aviso de Web Gestión (`web/js/app.js`, requiere desplegar la web) y decisión sobre "marcar como tomado".
+
+**Nota técnica:** `ThorPixelSprite.kt` se generó con scripts temporales (`genthor.py`, `thor.json`, `thor_body.kt`) que no están en el repo. El archivo Kotlin es ahora la fuente que se debe editar; el diseño original se puede consultar en el artefacto de Thor.
 
 
 

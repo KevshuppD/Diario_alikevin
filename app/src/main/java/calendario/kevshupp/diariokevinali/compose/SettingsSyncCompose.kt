@@ -95,8 +95,29 @@ fun SettingsSyncCompose(
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
+        // Estado de la cuenta, visible sin entrar a Avanzado
+        val linked = googleAccountEmail != null
+        val linkColor = if (linked) Color(0xFF2E7D32) else Color(0xFFC62828)
+        Text(
+            text = if (linked) "VINCULADO" else "NO VINCULADO",
+            fontFamily = Vt323Sync,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = linkColor,
+            modifier = Modifier.border(1.dp, linkColor).padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+
         if (googleAccountEmail == null) {
             // FASE 1: Botón de Vinculación de Cuenta de Google
+            Text(text = "☐ Cuenta: Ninguna", fontFamily = Vt323Sync, fontSize = 18.sp, color = textColor)
+            Text(
+                text = if (selectedFolderUri.isNullOrEmpty()) "☐ Carpeta local: No seleccionada" else "☑ Carpeta local: Seleccionada",
+                fontFamily = Vt323Sync,
+                fontSize = 18.sp,
+                color = textColor,
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
             Text(
                 text = "Vincula tu Google Drive para respaldar y compartir automáticamente tu carpeta de fotos local con tu pareja a la distancia.",
                 fontFamily = Vt323Sync,

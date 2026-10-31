@@ -12,8 +12,8 @@ android {
         applicationId = "calendario.kevshupp.diariokevinali"
         minSdk = 24
         targetSdk = 35
-        versionCode = 142
-        versionName = "1.7.97"
+        versionCode = 143
+        versionName = "1.7.98"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

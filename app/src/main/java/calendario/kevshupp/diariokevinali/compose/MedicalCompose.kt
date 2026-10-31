@@ -112,23 +112,16 @@ fun MedicalEmergencyCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp)
+            .padding(vertical = 6.dp)
             .clickable { onOpenDialog() }
     ) {
-        // Sombra 3D
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .offset(x = 6.dp, y = 6.dp)
-                .background(borderColor)
-        )
         // Contenido principal de la tarjeta
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(3.dp, borderColor)
+                .border(2.dp, borderColor)
                 .background(boxBackground)
-                .padding(14.dp),
+                .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -138,7 +131,7 @@ fun MedicalEmergencyCard(
             ) {
                 Text(
                     text = "🏥",
-                    fontSize = 32.sp,
+                    fontSize = 26.sp,
                     modifier = Modifier.padding(end = 12.dp)
                 )
                 Column {

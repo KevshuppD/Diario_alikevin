@@ -1,5 +1,6 @@
 package calendario.kevshupp.diariokevinali.compose
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -10,8 +11,14 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas as ComposeCanvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import calendario.kevshupp.diariokevinali.Pet
 import kotlinx.coroutines.delay
 import kotlin.math.floor
@@ -257,7 +264,7 @@ private fun poseShake(f: Int, s: CukyPose) {
     val p = f % 12
     if (p < 6) {
         s.dx = if (p % 2 == 1) -1 else 1
-        s.crestDx = if (p % 2 == 1) 2 else -2
+        s.crestDx = if (p % 2 == 1) 1 else -1
         s.eyes = EYES_CLOSED
     } else {
         poseIdle(f, s); s.eyes = EYES_HAPPY
@@ -273,7 +280,7 @@ private fun poseBath(p: Int, startDirt: Int, s: CukyPose) {
         return
     }
     s.sit = true; s.body = 1
-    s.head = (p shr 1) % 2; s.crest = s.head
+    s.head = 1 + (p shr 1) % 2; s.crest = 0
     s.dy = if (p % 4 < 2) 0 else 1
     s.eyes = if (p % 8 < 5) EYES_HAPPY else EYES_CLOSED
     s.dirt = max(0, startDirt - p / 6)
@@ -606,3 +613,29 @@ fun CukyPixelStage(
         drawCuky(t, s, level, accessory)
     }
 }
+
+/** Dibuja un sprite procedural en un Bitmap, para superficies sin Compose como el widget. */
+internal fun renderPixelPetBitmap(sizePx: Int, draw: DrawScope.() -> Unit): Bitmap {
+    val image = ImageBitmap(sizePx, sizePx)
+    val size = Size(sizePx.toFloat(), sizePx.toFloat())
+    CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, ComposeCanvas(image), size, draw)
+    return image.asAndroidBitmap()
+}
+
+/** Cuadro fijo de Cuky para el widget: mismo encuadre que la tarjeta del feed. */
+fun renderCukyBitmap(sizePx: Int, level: Int, accessory: String?, sleeping: Boolean, hunger: Int, cleanliness: Int): Bitmap =
+    renderPixelPetBitmap(sizePx) {
+        val s = CukyPose()
+        when {
+            sleeping -> poseSleep(0, s)
+            hunger >= 70 -> poseHungry(0, s)
+            else -> poseIdle(0, s)
+        }
+        s.dirt = cukyDirtLevel(cleanliness)
+        if (s.dirt == 4 && s.eyes == EYES_OPEN) s.eyes = EYES_TIRED
+        val t = CukyTransform()
+        t.cell = floor(min(size.width, size.height) / 26f)
+        t.ox = floor((size.width - 26 * t.cell) / 2f)
+        t.oy = floor((size.height - 26 * t.cell) / 2f)
+        drawCuky(t, s, level, accessory)
+    }

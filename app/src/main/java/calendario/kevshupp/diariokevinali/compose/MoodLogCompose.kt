@@ -91,6 +91,7 @@ fun MoodLogDashboardView(
     var entries by remember { mutableStateOf(emptyList<MoodEntry>()) }
     var isLoading by remember { mutableStateOf(true) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var quickMood by remember { mutableStateOf<Pair<String, String>?>(null) }
     var entryToDelete by remember { mutableStateOf<MoodEntry?>(null) }
 
     // Solo se escucha el día visible: lecturas acotadas al día seleccionado
@@ -320,12 +321,33 @@ fun MoodLogDashboardView(
             }
         }
 
+        // Selector rápido: abre el registro con ese ánimo ya elegido
+        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+            MOOD_OPTIONS.take(5).forEach { option ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            quickMood = option
+                            showAddDialog = true
+                        }
+                        .padding(vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(option.first, fontSize = 30.sp)
+                }
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .border(2.dp, borderColor)
                 .background(MOOD_PINK)
-                .clickable { showAddDialog = true }
+                .clickable {
+                    quickMood = null
+                    showAddDialog = true
+                }
                 .padding(vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -336,6 +358,7 @@ fun MoodLogDashboardView(
     if (showAddDialog) {
         AddMoodDialog(
             defaultWho = partnerName,
+            initialMood = quickMood,
             defaultGeneral = showGeneral,
             baseDay = selectedDay,
             textColor = textColor,
@@ -447,6 +470,7 @@ private fun MoodEntryCard(
 @Composable
 private fun AddMoodDialog(
     defaultWho: String,
+    initialMood: Pair<String, String>? = null,
     defaultGeneral: Boolean,
     baseDay: Calendar,
     textColor: Color,
@@ -457,7 +481,7 @@ private fun AddMoodDialog(
 ) {
     val now = remember { Calendar.getInstance() }
     var who by remember { mutableStateOf(defaultWho) }
-    var selectedMood by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var selectedMood by remember { mutableStateOf(initialMood) }
     var intensity by remember { mutableStateOf(3) }
     var note by remember { mutableStateOf("") }
     var hour by remember { mutableStateOf(now.get(Calendar.HOUR_OF_DAY)) }

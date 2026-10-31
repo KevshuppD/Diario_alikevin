@@ -7,6 +7,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
+import calendario.kevshupp.diariokevinali.compose.renderCukyBitmap
+import calendario.kevshupp.diariokevinali.compose.renderThorBitmap
 
 class ThorWidgetProvider : AppWidgetProvider() {
 
@@ -17,6 +19,8 @@ class ThorWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        private const val AVATAR_PX = 256
+
         @JvmStatic
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
             val prefs = context.getSharedPreferences("thor_widget_prefs", Context.MODE_PRIVATE)
@@ -29,25 +33,17 @@ class ThorWidgetProvider : AppWidgetProvider() {
             val accessory = prefs.getString("pet_accessory", "none") ?: "none"
             val isSleeping = prefs.getBoolean("pet_sleeping", false)
 
-            val thorImageRes = when {
-                isSleeping -> if (isCuky) R.drawable.ic_cuky_sleep else R.drawable.ic_thor_sleep
-                else -> when (accessory) {
-                    "collar" -> if (isCuky) R.drawable.ic_cuky_collar else R.drawable.ic_thor_collar
-                    "mustache" -> if (isCuky) R.drawable.ic_cuky_mustache else R.drawable.ic_thor_mustache
-                    "balloon" -> if (isCuky) R.drawable.ic_cuky_balloon else R.drawable.ic_thor_balloon
-                    "bow" -> if (isCuky) R.drawable.ic_cuky_bow else R.drawable.ic_thor_bow
-                    "hat" -> if (isCuky) R.drawable.ic_cuky_hat else R.drawable.ic_thor_hat
-                    "bandana" -> if (isCuky) R.drawable.ic_cuky_bandana else R.drawable.ic_thor_bandana
-                    "glasses" -> if (isCuky) R.drawable.ic_cuky_glasses else R.drawable.ic_thor_glasses
-                    "crown" -> if (isCuky) R.drawable.ic_cuky_crown else R.drawable.ic_thor_crown
-                    "banana" -> if (isCuky) R.drawable.ic_cuky_banana else R.drawable.ic_thor_banana
-                    "socks" -> if (isCuky) R.drawable.ic_cuky_socks else R.drawable.ic_thor_socks
-                    else -> if (isCuky) R.drawable.ic_cuky_base_trans else R.drawable.ic_thor_base_trans
-                }
+            val hunger = prefs.getInt("pet_hunger", 0)
+            val cleanliness = prefs.getInt("pet_cleanliness", 100)
+            val wornAccessory = accessory.takeUnless { it == "none" }
+            val avatar = if (isCuky) {
+                renderCukyBitmap(AVATAR_PX, level, wornAccessory, isSleeping, hunger, cleanliness)
+            } else {
+                renderThorBitmap(AVATAR_PX, level, wornAccessory, isSleeping, hunger, cleanliness)
             }
 
             val views = RemoteViews(context.packageName, R.layout.widget_thor).apply {
-                setImageViewResource(R.id.widget_pet_avatar, thorImageRes)
+                setImageViewBitmap(R.id.widget_pet_avatar, avatar)
                 setTextViewText(R.id.widget_pet_name, name)
                 setTextViewText(R.id.widget_pet_level, "LVL $level")
 

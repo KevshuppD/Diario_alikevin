@@ -148,7 +148,7 @@ fun PartnerLiveCard(
                 // Avatar Pixel / Foto con Badge de estado
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(36.dp)
                         .border(2.dp, if (partnerName == "Ali") Color(0xFFFF80AB) else Color(0xFF64B5F6))
                         .background(if (isDark) Color(0xFF2C2C2C) else Color(0xFFE8E8E8))
                         .clipToBounds(),
@@ -388,7 +388,6 @@ fun RadarMapView(
     accentColor: Color,
     onOpenAddZone: () -> Unit,
     onEditZone: (RadarPlaceZone) -> Unit,
-    onTriggerSos: () -> Unit
 ) {
     val context = LocalContext.current
     val isDark = theme == "Pixel Oscuro"
@@ -539,29 +538,6 @@ fun RadarMapView(
             .background(cardBg)
             .clipToBounds()
     ) {
-        // Barra Superior del Marco de Mapa
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(if (isDark) Color(0xFF2C2C2C) else Color(0xFFEADBBE))
-                .border(1.dp, borderColor)
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "🛰️ RADAR SATELITAL", fontFamily = Vt323, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textColor)
-            }
-
-            val speedText = if (myLocation.speedKmh >= 2.0f) " • 🚀 ${myLocation.speedKmh.roundToInt()} km/h" else ""
-            Text(
-                text = (if (myLocation.accuracy > 0) "PRECISIÓN: ±${myLocation.accuracy.roundToInt()}m" else "GPS ACTIVO") + speedText,
-                fontFamily = Vt323,
-                fontSize = 13.sp,
-                color = textColor.copy(alpha = 0.8f)
-            )
-        }
-
         // Contenedor del Mapa estrictamente contenido con clip
         Box(
             modifier = Modifier
@@ -824,28 +800,27 @@ fun RadarMapView(
                 .fillMaxWidth()
                 .background(if (isDark) Color(0xFF242424) else Color(0xFFF5E6BE))
                 .border(1.dp, borderColor)
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
                 onClick = onOpenAddZone,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
                 shape = RoundedCornerShape(0.dp),
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(vertical = 4.dp)
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                modifier = Modifier.height(32.dp)
             ) {
-                Text(text = "➕ CREAR ZONA", fontFamily = Vt323, fontSize = 16.sp, color = Color.White)
+                Text(text = "➕ CREAR ZONA", fontFamily = Vt323, fontSize = 15.sp, color = Color.White)
             }
-
-            Button(
-                onClick = onTriggerSos,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                shape = RoundedCornerShape(0.dp),
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(vertical = 4.dp)
-            ) {
-                Text(text = "🚨 SOS ALERTA", fontFamily = Vt323, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
+            val speedText = if (myLocation.speedKmh >= 2.0f) " • 🚀 ${myLocation.speedKmh.roundToInt()} km/h" else ""
+            Text(
+                text = (if (myLocation.accuracy > 0) "PRECISIÓN: ±${myLocation.accuracy.roundToInt()}m" else "GPS ACTIVO") + speedText,
+                fontFamily = Vt323,
+                fontSize = 13.sp,
+                color = textColor.copy(alpha = 0.8f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                modifier = Modifier.weight(1f).align(Alignment.CenterVertically)
+            )
         }
     }
 }
