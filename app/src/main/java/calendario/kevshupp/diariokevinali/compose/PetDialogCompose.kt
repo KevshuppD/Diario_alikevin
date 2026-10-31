@@ -90,9 +90,6 @@ fun PetMenuDialog(
     var isWashing by remember { mutableStateOf(false) }
     var foodAnimationType by remember { mutableStateOf<String?>(null) }
     var showLoveHeart by remember { mutableStateOf(false) }
-    val ballY = remember { Animatable(0f) }
-    val ballX = remember { Animatable(80f) }
-    val ballRotation = remember { Animatable(0f) }
     val bubbleOffsetY = remember { Animatable(200f) }
     val heartY = remember { Animatable(0f) }
     val heartAlpha = remember { Animatable(0f) }
@@ -442,18 +439,6 @@ fun PetMenuDialog(
                                 )
                             }
 
-                            // Pelota rebotando
-                            if (isPlayingBall && isCuky) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.ic_toy_ball),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(35.dp)
-                                        .offset(x = ballX.value.dp, y = ballY.value.dp)
-                                        .graphicsLayer { rotationZ = ballRotation.value }
-                                )
-                            }
-
                             // Comida cayendo
                             if (foodAnimationType != null) {
                                 val foodEmoji = when (foodAnimationType) {
@@ -499,35 +484,24 @@ fun PetMenuDialog(
                                         } else {
                                             scope.launch {
                                                 isPlayingBall = true
-                                                if (pet.isCuky()) playCuky(CukyAction.HOP) else playThor(ThorAction.PLAY)
-                                                ballX.snapTo(-60f)
-                                                ballY.snapTo(-80f)
-                                                ballRotation.snapTo(0f)
-                                                catTranslationX.snapTo(0f)
-                                                catTranslationY.snapTo(0f)
-                                                
-                                                launch {
-                                                    delay(200)
-                                                    catTranslationX.animateTo(40f, animationSpec = tween(300, easing = EaseOutQuad))
-                                                    catTranslationY.animateTo(-65f, animationSpec = tween(200, easing = EaseOutQuad))
-                                                    catTranslationY.animateTo(0f, animationSpec = tween(200, easing = EaseInQuad))
-                                                    delay(300)
-                                                    catTranslationX.animateTo(0f, animationSpec = tween(400, easing = EaseInOutQuad))
+                                                if (pet.isCuky()) {
+                                                    playCuky(CukyAction.BALL)
+                                                    delay(CukyAction.millis(CukyAction.BALL))
+                                                } else {
+                                                    playThor(ThorAction.PLAY)
+                                                    catTranslationX.snapTo(0f)
+                                                    catTranslationY.snapTo(0f)
+                                                    launch {
+                                                        delay(200)
+                                                        catTranslationX.animateTo(40f, animationSpec = tween(300, easing = EaseOutQuad))
+                                                        catTranslationY.animateTo(-65f, animationSpec = tween(200, easing = EaseOutQuad))
+                                                        catTranslationY.animateTo(0f, animationSpec = tween(200, easing = EaseInQuad))
+                                                        delay(300)
+                                                        catTranslationX.animateTo(0f, animationSpec = tween(400, easing = EaseInOutQuad))
+                                                    }
+                                                    delay(1500)
                                                 }
-                                                
-                                                launch { ballRotation.animateTo(360f, animationSpec = tween(500, easing = LinearEasing)) }
-                                                launch { ballX.animateTo(30f, animationSpec = tween(500, easing = EaseOutQuad)) }
-                                                ballY.animateTo(190f, animationSpec = tween(500, easing = EaseInQuad))
-                                                
-                                                launch { ballRotation.animateTo(720f, animationSpec = tween(400, easing = LinearEasing)) }
-                                                launch { ballX.animateTo(90f, animationSpec = tween(400, easing = EaseOutQuad)) }
-                                                ballY.animateTo(110f, animationSpec = tween(200, easing = EaseOutQuad))
-                                                ballY.animateTo(190f, animationSpec = tween(200, easing = EaseInQuad))
-                                                
-                                                launch { ballRotation.animateTo(1080f, animationSpec = tween(600, easing = LinearEasing)) }
-                                                launch { ballX.animateTo(240f, animationSpec = tween(600, easing = EaseOutQuad)) }
-                                                ballY.animateTo(190f, animationSpec = tween(600, easing = LinearEasing))
-                                                
+
                                                 isPlayingBall = false
                                                 onPlayBallPet(10, 20)
                                             }
@@ -714,8 +688,8 @@ fun PetMenuDialog(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(130.dp)
-                                .padding(bottom = 12.dp)
+                                .height(180.dp)
+                                .padding(bottom = 8.dp)
                                 .border(2.dp, borderColor)
                         ) {
                             val isSleeping = pet.getActiveIsSleeping()
@@ -802,7 +776,7 @@ fun PetMenuDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 12.dp)
+                                .padding(bottom = 8.dp)
                                 .border(1.dp, borderColor),
                             horizontalArrangement = Arrangement.SpaceAround,
                             verticalAlignment = Alignment.CenterVertically
@@ -861,37 +835,23 @@ fun PetMenuDialog(
                             val activeUnlockedAccs = pet.getActiveUnlockedAccessories()
                             val activeEquippedAcc = pet.getActiveEquippedAccessory()
 
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                contentPadding = PaddingValues(top = 4.dp, bottom = 64.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                items(
-                                    items = items,
-                                    key = { it.first }
-                                ) { (id, name, cost) ->
-                                    val isUnlocked = activeUnlockedAccs.contains(id)
-                                    val isEquipped = activeEquippedAcc == id
-                                    val isPreviewed = previewAccessory == id
-
-                                    AccessoryRow(
-                                        name = name,
-                                        cost = cost,
-                                        isUnlocked = isUnlocked,
-                                        isEquipped = isEquipped,
-                                        isPreviewed = isPreviewed,
-                                        isDark = isDark,
-                                        borderColor = borderColor,
-                                        onPreview = {
-                                            previewAccessory = if (previewAccessory == id) Pet.ACC_NONE else id
-                                        },
-                                        onAction = {
-                                            if (isUnlocked) onEquipAccessory(if (isEquipped) Pet.ACC_NONE else id)
-                                            else onBuyAccessory(id, cost)
-                                        }
-                                    )
+                            ShopItemPicker(
+                                items = items,
+                                isUnlocked = { id, _ -> activeUnlockedAccs.contains(id) },
+                                equippedId = activeEquippedAcc,
+                                previewId = previewAccessory,
+                                emptyHint = "Toca un accesorio para probárselo",
+                                isDark = isDark,
+                                borderColor = borderColor,
+                                accentColor = accentColor,
+                                onPreview = { id ->
+                                    previewAccessory = if (previewAccessory == id) Pet.ACC_NONE else id
+                                },
+                                onAction = { id, cost ->
+                                    if (activeUnlockedAccs.contains(id)) onEquipAccessory(if (activeEquippedAcc == id) Pet.ACC_NONE else id)
+                                    else onBuyAccessory(id, cost)
                                 }
-                            }
+                            )
                         } else {
                             val activeUnlockedBgs = pet.getActiveUnlockedBackgrounds()
                             val activeEquippedBg = pet.getActiveEquippedBackground()
@@ -917,37 +877,21 @@ fun PetMenuDialog(
                                     Triple("beach", "Playa Paradise 🏖️", 150)
                                 )
                             }
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                contentPadding = PaddingValues(top = 4.dp, bottom = 64.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                items(
-                                    items = backgrounds,
-                                    key = { it.first }
-                                ) { (id, name, cost) ->
-                                    val isUnlocked = activeUnlockedBgs.contains(id)
-                                    val isEquipped = activeEquippedBg == id
-                                    val isPreviewed = previewBackground == id
-
-                                    AccessoryRow(
-                                        name = name,
-                                        cost = cost,
-                                        isUnlocked = isUnlocked || cost == 0,
-                                        isEquipped = isEquipped,
-                                        isPreviewed = isPreviewed,
-                                        isDark = isDark,
-                                        borderColor = borderColor,
-                                        onPreview = {
-                                            previewBackground = id
-                                        },
-                                        onAction = {
-                                            if (isUnlocked || cost == 0) onEquipBackground(id)
-                                            else onBuyBackground(id, cost)
-                                        }
-                                    )
+                            ShopItemPicker(
+                                items = backgrounds,
+                                isUnlocked = { id, cost -> activeUnlockedBgs.contains(id) || cost == 0 },
+                                equippedId = activeEquippedBg,
+                                previewId = previewBackground,
+                                emptyHint = "Toca un fondo para probarlo",
+                                isDark = isDark,
+                                borderColor = borderColor,
+                                accentColor = accentColor,
+                                onPreview = { id -> previewBackground = id },
+                                onAction = { id, cost ->
+                                    if (activeUnlockedBgs.contains(id) || cost == 0) onEquipBackground(id)
+                                    else onBuyBackground(id, cost)
                                 }
-                            }
+                            )
                         }
                     }
                 } else if (selectedTab == 3) {

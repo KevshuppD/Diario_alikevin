@@ -145,6 +145,7 @@ object CukyAction {
     const val FLAP = 2
     const val HOP = 3
     const val BATH = 4
+    const val BALL = 5
 
     /** Duración de cada acción en cuadros (8 FPS). */
     fun frames(action: Int): Int = when (action) {
@@ -152,6 +153,7 @@ object CukyAction {
         FLAP -> 12
         HOP -> 24
         BATH -> 40
+        BALL -> BALL_FRAMES
         else -> 0
     }
 
@@ -160,6 +162,14 @@ object CukyAction {
 }
 
 private const val FRAME_MS = 125L
+
+// ---- Pelota: cae rebotando, Cuky camina hacia ella, la picotea y la pelota se aleja
+private const val BALL_FRAMES = 24
+private const val BALL_GONE_FRAME = 22
+private const val BALL_REACH = 6
+private const val BALL_MAX_SPRITE_X = 51
+private val BALL_X = intArrayOf(46, 44, 42, 40, 38, 36, 35, 34, 33, 32, 31, 31, 31, 34, 37, 40, 43, 45, 46, 46, 46, 46)
+private val BALL_HEIGHT = intArrayOf(20, 12, 4, 0, 6, 8, 4, 0, 2, 0, 0, 0, 0, 3, 5, 3, 0, 1, 0, 0, 0, 0)
 
 // ---- Paseo: acción, dirección, duración
 private val ROUTE_ACT = intArrayOf(ANIM_WALK, ANIM_PECK, ANIM_WALK, ANIM_IDLE, ANIM_WALK, ANIM_FLAP, ANIM_WALK, ANIM_PECK, ANIM_IDLE)
@@ -250,6 +260,32 @@ private fun poseHop(f: Int, s: CukyPose) {
     s.wingUp = p in 1..5
     s.eyes = if (p in 1..7) EYES_HAPPY else EYES_OPEN
     s.fx = FX_HOP; s.fxF = p
+}
+
+private fun poseBall(f: Int, s: CukyPose) {
+    when {
+        f < 4 -> { s.head = 1; s.lookDown = true }
+        f < 10 -> { poseWalk(f, s); s.dx = f - 3 }
+        f < 13 -> {
+            s.head = PECK_SEQ[f - 9]
+            s.crest = if (f == 12) 1 else 0
+            s.body = if (f == 12) 1 else 0
+            s.dx = BALL_REACH
+        }
+        f < 20 -> { poseHop(f - 13, s); s.dx = BALL_REACH }
+        else -> { poseWalk(f, s); s.dx = BALL_REACH - (f - 19) * 2 + 1 }
+    }
+}
+
+private fun DrawScope.drawBall(t: CukyTransform, f: Int) {
+    if (f >= BALL_GONE_FRAME) return
+    val x = BALL_X[f]
+    val y = OY + 18 + CUKY_FEET.size - 5 - BALL_HEIGHT[f]
+    val edge = 0xFF7F1D1D.toInt()
+    crect(t, x + 1, y, 3, 1, edge); crect(t, x, y + 1, 5, 3, edge); crect(t, x + 1, y + 4, 3, 1, edge)
+    crect(t, x + 1, y + 1, 3, 3, 0xFFDC2626.toInt())
+    // El brillo cambia de lugar para que se note que gira
+    cpx(t, x + 1 + f % 3, y + 1 + (f + 1) % 2, 0xFFFCA5A5.toInt())
 }
 
 private fun poseSleep(f: Int, s: CukyPose) {
@@ -574,6 +610,7 @@ fun CukyPixelStage(
                 CukyAction.BATH -> poseBath(af, clock.bathDirt, s)
                 CukyAction.PECK -> posePeck(af, s)
                 CukyAction.FLAP -> poseFlap(af, s)
+                CukyAction.BALL -> poseBall(af, s)
                 else -> poseHop(af, s)
             }
             strollScene -> { poseStroll(clock.strollT, hungry, s); x = s.x; face = s.face }
@@ -610,7 +647,11 @@ fun CukyPixelStage(
             t.oy = floor((size.height - 26 * t.cell) / 2f)
             t.flip = false
         }
+        val playingBall = !sleeping && af >= 0 && clock.action == CukyAction.BALL
+        // Juega hacia el lado con más espacio, para que la pelota no salga de la escena
+        if (playingBall && strollScene) t.flip = x + BALL_MAX_SPRITE_X > sceneCells
         drawCuky(t, s, level, accessory)
+        if (playingBall) drawBall(t, af)
     }
 }
 

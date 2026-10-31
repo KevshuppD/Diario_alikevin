@@ -14,7 +14,7 @@ data class CalendarEvent(
     var authorId: String = "",
     var authorName: String = "",
     var partnerId: String = "",
-    var recurrence: String = "NONE" // "NONE", "WEEKLY", "YEARLY"
+    var recurrence: String = "NONE" // "NONE", "DAILY", "WEEKLY", "MONTHLY", "YEARLY"
 ) {
     // Constructor secundario para compatibilidad con el código Java existente (6 parámetros)
     constructor(

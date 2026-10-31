@@ -1525,120 +1525,17 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         viewModel.rescheduleAllCalendarReminders()
     }
 
-    override fun showAddEventDialog(date: String, event: CalendarEvent?) {
-        try {
-            val ts = date.toLong()
-            showAddEventDialog(ts, event)
-        } catch (e: NumberFormatException) {
-            Log.e("MainActivity", "Error parsing date: $date")
+    override fun saveCalendarEvent(edit: CalendarEvent?, title: String, description: String, date: Long, recurrence: String) {
+        val isNew = (edit == null)
+        val id = edit?.eventId ?: UUID.randomUUID().toString()
+        val ev = CalendarEvent(id, title, description, date, currentUserId ?: "", currentCoupleId)
+        ev.authorName = currentUserName ?: ""
+        ev.recurrence = recurrence
+        db.collection("calendar").document(id).set(ev).addOnSuccessListener {
+            viewModel.scheduleCalendarReminder(ev)
+            val notifTitle = if (isNew) "¡Nueva cita creada! 📅" else "¡Cita modificada! 📅"
+            sendNotificationV1(notifTitle, "$currentUserName ${if (isNew) "agregó la cita: \"" else "modificó la cita: \""}${ev.title}\"", null, "cita")
         }
-    }
-
-    fun showAddEventDialog(ts: Long, edit: CalendarEvent?) {
-        val b = AlertDialog.Builder(this)
-        val v = LayoutInflater.from(this).inflate(R.layout.dialog_add_calendar_event, null)
-        b.setView(v)
-
-        val spinner = v.findViewById<Spinner>(R.id.spinnerRecurrence)
-        val displayValues = arrayOf("No repetir", "Diario", "Semanal", "Mensual", "Anual")
-        val values = arrayOf("NONE", "DAILY", "WEEKLY", "MONTHLY", "YEARLY")
-        
-        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, displayValues) {
-            @NonNull
-            override fun getView(position: Int, @Nullable convertView: View?, @NonNull parent: android.view.ViewGroup): View {
-                val view = super.getView(position, convertView, parent)
-                if (view is TextView) {
-                    view.typeface = androidx.core.content.res.ResourcesCompat.getFont(this@MainActivity, R.font.vt323)
-                    if ("Pixel Oscuro" == currentTheme) view.setTextColor(Color.WHITE)
-                    else view.setTextColor(Color.parseColor("#4A2511"))
-                }
-                return view
-            }
-
-            override fun getDropDownView(position: Int, @Nullable convertView: View?, @NonNull parent: android.view.ViewGroup): View {
-                val view = super.getDropDownView(position, convertView, parent)
-                if (view is TextView) {
-                    view.typeface = androidx.core.content.res.ResourcesCompat.getFont(this@MainActivity, R.font.vt323)
-                    if ("Pixel Oscuro" == currentTheme) {
-                        view.setTextColor(Color.WHITE)
-                        view.setBackgroundColor(Color.parseColor("#1A1A2E"))
-                    } else {
-                        view.setTextColor(Color.parseColor("#4A2511"))
-                        view.setBackgroundColor(Color.parseColor("#F3E5AB"))
-                    }
-                }
-                return view
-            }
-        }
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinner.adapter = adapter
-
-        if (currentTheme == "Pixel Oscuro") {
-            v.setBackgroundResource(R.drawable.bg_parchment_pixel_dark)
-            v.findViewById<TextView>(R.id.tvAddEventTitle).setTextColor(Color.WHITE)
-            val et1 = v.findViewById<EditText>(R.id.etEventTitle)
-            et1.setTextColor(Color.WHITE)
-            et1.setHintTextColor(Color.LTGRAY)
-            et1.setBackgroundResource(R.drawable.bg_message_pixel_dark)
-            
-            val et2 = v.findViewById<EditText>(R.id.etEventDescription)
-            if (et2 != null) {
-                et2.setTextColor(Color.WHITE)
-                et2.setHintTextColor(Color.LTGRAY)
-                et2.setBackgroundResource(R.drawable.bg_message_pixel_dark)
-            }
-            ((v.findViewById<View>(R.id.llTime) as android.view.ViewGroup).getChildAt(0) as TextView).setTextColor(Color.WHITE)
-            ((v.findViewById<View>(R.id.llRecurrence) as android.view.ViewGroup).getChildAt(0) as TextView).setTextColor(Color.WHITE)
-            v.findViewById<Button>(R.id.btnPickTime).setTextColor(Color.WHITE)
-            v.findViewById<Button>(R.id.btnSaveEvent).setTextColor(Color.WHITE)
-            v.findViewById<Button>(R.id.btnCancelEvent).setTextColor(Color.WHITE)
-            spinner.setBackgroundResource(R.drawable.bg_message_pixel_dark)
-            spinner.setPopupBackgroundResource(R.drawable.bg_parchment_pixel_dark)
-        }
-
-        val et = v.findViewById<EditText>(R.id.etEventTitle)
-        val etDesc = v.findViewById<EditText>(R.id.etEventDescription)
-        val btnTime = v.findViewById<Button>(R.id.btnPickTime)
-        val time = Calendar.getInstance()
-        if (edit != null) { 
-            et.setText(edit.title) 
-            etDesc?.setText(edit.description) 
-            time.timeInMillis = edit.date 
-            for (i in values.indices) {
-                if (values[i] == edit.recurrence) spinner.setSelection(i)
-            }
-        } else { 
-            time.timeInMillis = ts 
-            time.set(Calendar.HOUR_OF_DAY, 12) 
-            time.set(Calendar.MINUTE, 0) 
-        }
-        btnTime.text = String.format(Locale.getDefault(), "%02d:%02d", time.get(Calendar.HOUR_OF_DAY), time.get(Calendar.MINUTE))
-        btnTime.setOnClickListener {
-            android.app.TimePickerDialog(this, { _, h, m ->
-                time.set(Calendar.HOUR_OF_DAY, h)
-                time.set(Calendar.MINUTE, m)
-                btnTime.text = String.format(Locale.getDefault(), "%02d:%02d", h, m)
-            }, time.get(Calendar.HOUR_OF_DAY), time.get(Calendar.MINUTE), true).show()
-        }
-        val d = b.create()
-        v.findViewById<View>(R.id.btnSaveEvent).setOnClickListener { 
-            val title = et.text.toString().trim() 
-            if (title.isEmpty()) return@setOnClickListener 
-            val isNew = (edit == null)
-            val id = edit?.eventId ?: UUID.randomUUID().toString() 
-            val ev = CalendarEvent(id, title, etDesc?.text?.toString()?.trim() ?: "", time.timeInMillis, currentUserId ?: "", currentCoupleId) 
-            ev.authorName = currentUserName ?: ""
-            val pos = spinner.selectedItemPosition
-            ev.recurrence = if (pos >= 0) values[pos] else "NONE" 
-            db.collection("calendar").document(id).set(ev).addOnSuccessListener {
-                viewModel.scheduleCalendarReminder(ev)
-                val notifTitle = if (isNew) "¡Nueva cita creada! 📅" else "¡Cita modificada! 📅"
-                sendNotificationV1(notifTitle, "$currentUserName ${if (isNew) "agregó la cita: \"" else "modificó la cita: \""}ev.title\"", null, "cita")
-            }
-            d.dismiss() 
-        }
-        v.findViewById<View>(R.id.btnCancelEvent).setOnClickListener { d.dismiss() }
-        d.show()
     }
 
     private fun isColorLight(color: Int): Boolean {

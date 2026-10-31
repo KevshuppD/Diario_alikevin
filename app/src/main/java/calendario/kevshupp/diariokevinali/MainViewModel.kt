@@ -323,6 +323,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     return@addSnapshotListener
                 }
                 if (snaps != null) {
+                    // Una cita borrada (también por la pareja) no debe seguir avisando
+                    for (change in snaps.documentChanges) {
+                        if (change.type == com.google.firebase.firestore.DocumentChange.Type.REMOVED) {
+                            CalendarReminders.cancel(app, change.document.id)
+                        }
+                    }
                     for (doc in snaps) {
                         val ev = doc.toObject(CalendarEvent::class.java)
                         if (ev.eventId.isEmpty()) ev.eventId = doc.id
@@ -1592,28 +1598,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun scheduleCalendarReminder(event: CalendarEvent) {
-        val alarmManager = app.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-        val intent = Intent(app, NotificationReceiver::class.java).apply {
-            putExtra("title", "Cita programada")
-            putExtra("content", "${event.title} - ${event.description}")
-        }
-        val pendingIntent = PendingIntent.getBroadcast(
-            app,
-            event.eventId.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val appointmentLeadTime = prefs.getLong("appointmentLeadTime", 60L) * 60 * 1000
-        val alarmTime = event.date - appointmentLeadTime
-
-        if (alarmTime > System.currentTimeMillis()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTime, pendingIntent)
-            } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, alarmTime, pendingIntent)
-            }
-        }
+        CalendarReminders.schedule(app, event)
     }
 
     fun rescheduleAllCalendarReminders() {

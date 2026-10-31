@@ -725,6 +725,8 @@ graph TD
 - **Avanzado y Admin:** reiniciar ranking, minijuegos, mascotas y vales de las ruletas; editor de premios Juntos.
 - **Cartas:** like / quitar like (solo en cartas de la pareja), menú de mantener presionado (solo en cartas propias, por pedido del usuario, 2026-10-31), borrar carta propia, paginación de 5 en 5.
 - **Web → Tipos y Categorías:** botón *🪄 Normalizar Nombres* (respalda, renumera IDs y normaliza nombres) y botón *⚠️ Restablecer Respaldo* (contraseña `123`).
+- **Calendario:** cambiar de mes, Hoy, elegir día, agendar, editar tocando la cita, borrar con confirmación, 5 repeticiones.
+- **Álbum:** pestañas Recuerdos y General, añadir recuerdo, abrir, editar y eliminar propios, recargar, buscar, 4 órdenes, 4 filtros, 2 a 6 columnas.
 - **Misceláneo:** Espíritus, Anime, Web Gestión, Medicamentos, Horario, Thor Radar y 📔 Bitácora Ánimo (pestañas 📅 POR DÍA / 📝 GENERAL, selector de día ◀▶, filtro Ali/Kevin/Ambos, registros agrupados por hora, ➕ registrar, ✕ borrar propio).
 - **Historial:** la casilla de barra superior se perdió por accidente en el commit `586863a` (v1.7.54, reorganización de Configuración) y se restauró en v1.7.82. El cambio de nombre de la mascota desde `PetMenuDialog` se quitó en `70c004f` (v1.7.52); el parámetro `onUpdateName` sigue sin usarse.
 
@@ -761,6 +763,18 @@ graph TD
 **Recetas (2026-10-31, propuesta A):** detalle a pantalla completa en pergamino, ingredientes para marcar (marcas locales en `RecipeChecks`), formulario de variación en la misma pantalla y confirmación antes de eliminar. Una flecha reemplaza ✕ y Cerrar detalle, por pedido del usuario. Sin confirmar en teléfono.
 
 **Misceláneo (2026-10-31):** menú en lista por temas; Horario en Ambos con vista Día en dos columnas, choques y ratos libres entre clases; Anime con Visto y Borrar escritos, y confirmación antes de borrar; Espíritus con vistas y filtro visibles; Medicamentos con próxima toma; Bitácora con selector rápido; radar con aviso en una línea, tarjeta y barras más bajas para agrandar el mapa y SOS fijo en todas las pestañas (se quitó el rótulo decorativo "Radar satelital"). Pendiente: aviso de Web Gestión (`web/js/app.js`, requiere desplegar la web) y decisión sobre "marcar como tomado".
+
+**Calendario (2026-10-31, propuesta A + línea de la B, decisión delegada por el usuario):** mes con marcas por autor, hoy marcado, mes visible independiente del día elegido, botón Hoy, línea "Próxima: … en N días", cita con hora, autor y repetición, y confirmación al borrar. Colores de los 3 temas. `CalendarRecurrence.kt` aplica `recurrence` (NONE, DAILY, WEEKLY, MONTHLY, YEARLY) a la vista y a los recordatorios: `NotificationReceiver` agenda el siguiente aviso de una cita repetida y `CalendarReminders.cancel` lo anula al borrarla (`REMOVED` en el listener de `MainViewModel`). Corregida la notificación que mostraba `ev.title` literal. Sin confirmar en teléfono.
+
+**Álbum (2026-10-31, propuesta B, pedido del usuario):** se quitó la pantalla de carpetas y su `BackHandler` interno, y entra directo a las pestañas Recuerdos / General con contadores. Ordenar, filtrar y columnas (2 a 6) pasaron del menú ⋮ a filas visibles. Títulos por mes con el mes actual fijo arriba (en General, solo al ordenar por fecha). Recuerdos propios con botón ⋮, además de mantener presionado; con 4 o más columnas solo se ve la foto y queda mantener presionado. Sin confirmar en teléfono.
+
+**Cartas en oscuro (2026-10-31, propuesta A, elegida por el usuario):** `LetterPaper.kt` define la hoja del feed, la lectura y el editor. En oscuro es papel de noche, derivado del color de fondo; claro conserva el pergamino y mono el blanco (la lectura en mono pasó de crema a blanco). `adjustLetterColors` / `readableColorOn` aclaran al mostrar los colores con contraste menor a 4,5; el HTML guardado no cambia.
+
+**Nueva cita (2026-10-31):** `EventEditorSheet` en `CalendarCompose.kt` reemplaza el diálogo XML (`dialog_add_calendar_event.xml` eliminado) con los mismos campos y las 5 repeticiones. El guardado y el aviso a la pareja están en `MainActivity.saveCalendarEvent`. La pestaña inferior pasó de "Calendario" a "Citas" porque se cortaba.
+
+**Tienda y minijuegos (2026-10-31):** ESTILO es un probador (`ShopItemPicker`): vista previa más alta, cuadrícula de 4 columnas y barra con Comprar / Equipar / Equipado; reemplaza a `AccessoryRow` sin quitar acciones. El selector de minijuegos muestra etiqueta de recompensa o modo libre y récords en duelo con corona; Memory y Snake llevan el nombre de la mascota activa. Sin confirmar en teléfono.
+
+**Pelota de Cuky (2026-10-31):** `CukyAction.BALL` dibuja una pelota pixelada dentro de `CukyPixelStage` (cae rebotando, Cuky camina, la picotea, la pelota se aleja y Cuky salta), hacia el lado con más espacio. Reemplaza la imagen `ic_toy_ball` que cruzaba la habitación; la recompensa no cambia y se entrega al terminar la animación. Probada en una vista temporal sin escribir datos; falta el botón real.
 
 **Nota técnica:** `ThorPixelSprite.kt` se generó con scripts temporales (`genthor.py`, `thor.json`, `thor_body.kt`) que no están en el repo. El archivo Kotlin es ahora la fuente que se debe editar; el diseño original se puede consultar en el artefacto de Thor.
 

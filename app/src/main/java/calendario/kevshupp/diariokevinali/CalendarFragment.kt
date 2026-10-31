@@ -59,14 +59,14 @@ class CalendarFragment : Fragment() {
                     events = eventsState.value,
                     selectedTimestamp = normalizeDate(dateState.value),
                     onDateSelected = { _selectedDate.value = it },
-                    onAddEvent = {
-                        (activity as? AppNavigation)?.showAddEventDialog(normalizeDate(_selectedDate.value).toString(), null)
-                    },
-                    onEditEvent = { event ->
-                        (activity as? AppNavigation)?.showAddEventDialog(normalizeDate(event.date).toString(), event)
+                    onSaveEvent = { edit, title, description, date, recurrence ->
+                        (activity as? AppNavigation)?.saveCalendarEvent(edit, title, description, date, recurrence)
                     },
                     onDeleteEvent = { event ->
-                        event.eventId?.let { id -> db.collection("calendar").document(id).delete() }
+                        event.eventId?.let { id ->
+                            CalendarReminders.cancel(requireContext(), id)
+                            db.collection("calendar").document(id).delete()
+                        }
                     }
                 )
             }

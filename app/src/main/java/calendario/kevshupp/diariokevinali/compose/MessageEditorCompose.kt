@@ -171,14 +171,16 @@ fun MessageEditorDialog(
     val toolbarBg = if (isDark) Color(0xFF252736) else Color(0xFFEFE2CB)
 
     val canSave = contentValue.text.isNotBlank()
-    val htmlTransformation = remember { HtmlVisualTransformation() }
-
     // La hoja donde se escribe es la misma de las cartas del feed
-    val paperColor = Color(0xFFF3E5AB)
-    val paperInk = Color(0xFF4A2511)
-    val paperSubtle = Color(0xFF8B4513)
-    val paperRule = Color(0x224A2511)
-    val paperMargin = Color(0x55EC4899)
+    val letterPaper = rememberLetterPaper(if (isDark) "Pixel Oscuro" else "Pixel Claro")
+    val paperColor = letterPaper.paper
+    val paperInk = letterPaper.ink
+    val paperSubtle = letterPaper.subtle
+    val paperRule = letterPaper.rule
+    val paperMargin = letterPaper.margin
+    val htmlTransformation = remember(letterPaper) {
+        HtmlVisualTransformation(if (letterPaper.adjustColors) paperColor else null)
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -577,7 +579,7 @@ fun MessageEditorDialog(
                                                 contentValue.text.ifBlank { "<i>(Carta vacía...)</i>" },
                                                 android.text.Html.FROM_HTML_MODE_LEGACY
                                             )
-                                            textView.text = parsed
+                                            textView.text = if (isDark) adjustLetterColors(parsed, Color(0xFF1B1C26)) else parsed
                                         },
                                         modifier = Modifier.fillMaxWidth()
                                     )

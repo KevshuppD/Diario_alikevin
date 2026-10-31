@@ -1,8 +1,12 @@
 package calendario.kevshupp.diariokevinali.compose
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,6 +38,8 @@ fun MinigamesSelectorDialog(
     val bgColor = if (isDark) Color(0xFF1A1A1A) else Color(0xFFF3E5AB)
     val contentColor = if (isDark) Color.White else Color(0xFF4A2511)
     val borderColor = if (isDark) Color(0xFF91465F) else Color(0xFF4A2511)
+    val cardColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)
+    val activeName = pet.getActiveName().uppercase()
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -47,171 +53,136 @@ fun MinigamesSelectorDialog(
             shape = RectangleShape
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = "🎮 SELECCIONAR JUEGO 🎮",
                     fontFamily = Vt323,
                     fontSize = 24.sp,
                     color = contentColor,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 2.dp)
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "Gana ❤️ y EXP en tu 1ª partida del día y juega libremente.",
                     fontFamily = Vt323,
-                    fontSize = 14.sp,
-                    color = contentColor.copy(alpha = 0.75f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = 10.dp)
+                    fontSize = 16.sp,
+                    color = contentColor.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center
                 )
 
-                // Botón Flappy Pet
-                Button(
-                    onClick = onPlayFlappy,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                        .border(2.dp, borderColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
-                    shape = RectangleShape,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val flappyIconRes = if (pet.isCuky()) R.drawable.ic_cuky_balloon else R.drawable.ic_thor_balloon
-                        val flappyTitle = if (pet.isCuky()) "🐔 FLAPPY CUKY 🪽" else "🐱 FLAPPY THOR 🪽"
-                        Image(
-                            painter = painterResource(id = flappyIconRes),
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(flappyTitle, fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
-                                if (playedFlappyToday) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("⭐ Libre", fontFamily = Vt323, fontSize = 13.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Text(
-                                if (playedFlappyToday) "¡Juega por diversión! (Premio de hoy listo)"
-                                else "¡Vuela y esquiva obstáculos! ✨ Recompensa diaria",
-                                fontFamily = Vt323,
-                                fontSize = 13.sp,
-                                color = contentColor.copy(alpha = 0.75f)
-                            )
-                            Text(
-                                text = "🏆 Récords: Kevin: ${pet.flappyHighScoreKevin} pts | Ali: ${pet.flappyHighScoreAli} pts",
-                                fontFamily = Vt323,
-                                fontSize = 12.sp,
-                                color = Color(0xFFFF9800),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                // Botón Retro Memory
-                Button(
-                    onClick = onPlayMemory,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                        .border(2.dp, borderColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
-                    shape = RectangleShape,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_heart_pixel),
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("🧠 RETRO MEMORY", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
-                                if (playedMemoryToday) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("⭐ Libre", fontFamily = Vt323, fontSize = 13.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Text(
-                                if (playedMemoryToday) "¡Juega por diversión! (Premio de hoy listo)"
-                                else "¡Encuentra ropa pixel-art! ✨ Recompensa diaria",
-                                fontFamily = Vt323,
-                                fontSize = 13.sp,
-                                color = contentColor.copy(alpha = 0.75f)
-                            )
-                        }
-                    }
-                }
-
-                // Botón Retro Snake
-                Button(
-                    onClick = onPlaySnake,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 10.dp)
-                        .border(2.dp, borderColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF2C2C2C) else Color(0xFFFFFDD0)),
-                    shape = RectangleShape,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_recipe_pixel),
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("🐍 LA SERPIENTE", fontFamily = Vt323, fontSize = 20.sp, color = contentColor, fontWeight = FontWeight.Bold)
-                                if (playedSnakeToday) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("⭐ Libre", fontFamily = Vt323, fontSize = 13.sp, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Text(
-                                if (playedSnakeToday) "¡Juega por diversión! (Premio de hoy listo)"
-                                else "¡Come manzanas y bate récords! ✨ Recompensa diaria",
-                                fontFamily = Vt323,
-                                fontSize = 13.sp,
-                                color = contentColor.copy(alpha = 0.75f)
-                            )
-                            Text(
-                                text = "🏆 Récords: Kevin: ${pet.snakeHighScoreKevin} pts | Ali: ${pet.snakeHighScoreAli} pts",
-                                fontFamily = Vt323,
-                                fontSize = 12.sp,
-                                color = Color(0xFFFF9800),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
+                GameCard(
+                    iconRes = if (pet.isCuky()) R.drawable.ic_cuky_balloon else R.drawable.ic_thor_balloon,
+                    title = if (pet.isCuky()) "🐔 FLAPPY CUKY 🪽" else "🐱 FLAPPY THOR 🪽",
+                    description = "¡Vuela y esquiva obstáculos!",
+                    playedToday = playedFlappyToday,
+                    kevinScore = pet.flappyHighScoreKevin,
+                    aliScore = pet.flappyHighScoreAli,
+                    contentColor = contentColor,
+                    borderColor = borderColor,
+                    cardColor = cardColor,
+                    onClick = onPlayFlappy
+                )
+                GameCard(
+                    iconRes = R.drawable.ic_heart_pixel,
+                    title = "🧠 $activeName MEMORY",
+                    description = "¡Encuentra ropa pixel-art!",
+                    playedToday = playedMemoryToday,
+                    kevinScore = null,
+                    aliScore = null,
+                    contentColor = contentColor,
+                    borderColor = borderColor,
+                    cardColor = cardColor,
+                    onClick = onPlayMemory
+                )
+                GameCard(
+                    iconRes = R.drawable.ic_recipe_pixel,
+                    title = "🐍 $activeName SNAKE",
+                    description = "¡Come manzanas y bate récords!",
+                    playedToday = playedSnakeToday,
+                    kevinScore = pet.snakeHighScoreKevin,
+                    aliScore = pet.snakeHighScoreAli,
+                    contentColor = contentColor,
+                    borderColor = borderColor,
+                    cardColor = cardColor,
+                    onClick = onPlaySnake
+                )
 
                 Button(
                     onClick = onDismiss,
                     colors = ButtonDefaults.buttonColors(containerColor = borderColor),
                     shape = RectangleShape,
-                    modifier = Modifier.fillMaxWidth().height(38.dp)
+                    modifier = Modifier.fillMaxWidth().height(40.dp)
                 ) {
                     Text("Cerrar ❌", fontFamily = Vt323, fontSize = 17.sp, color = Color.White)
                 }
             }
         }
     }
+}
+
+@Composable
+private fun GameCard(
+    iconRes: Int,
+    title: String,
+    description: String,
+    playedToday: Boolean,
+    kevinScore: Int?,
+    aliScore: Int?,
+    contentColor: Color,
+    borderColor: Color,
+    cardColor: Color,
+    onClick: () -> Unit
+) {
+    val statusColor = if (playedToday) Color(0xFFFF9800) else Color(0xFFE91E63)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(2.dp, borderColor)
+            .background(cardColor)
+            .clickable(onClick = onClick)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = if (playedToday) "⭐ Modo libre: premio de hoy listo" else "❤️ Recompensa diaria disponible",
+            fontFamily = Vt323,
+            fontSize = 15.sp,
+            color = statusColor,
+            modifier = Modifier.border(1.dp, statusColor).padding(horizontal = 5.dp)
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(id = iconRes),
+                contentDescription = null,
+                modifier = Modifier.size(36.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(title, fontFamily = Vt323, fontSize = 22.sp, color = contentColor, fontWeight = FontWeight.Bold)
+                Text(description, fontFamily = Vt323, fontSize = 16.sp, color = contentColor.copy(alpha = 0.8f))
+            }
+        }
+        if (kevinScore != null && aliScore != null) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                DuelScore("Kevin", kevinScore, kevinScore > aliScore, contentColor, borderColor, Modifier.weight(1f))
+                DuelScore("Ali", aliScore, aliScore > kevinScore, contentColor, borderColor, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DuelScore(name: String, score: Int, leads: Boolean, contentColor: Color, borderColor: Color, modifier: Modifier) {
+    Text(
+        text = "${if (leads) "👑 " else ""}$name: $score pts",
+        fontFamily = Vt323,
+        fontSize = 17.sp,
+        color = contentColor,
+        textAlign = TextAlign.Center,
+        modifier = modifier.border(1.dp, borderColor).padding(vertical = 3.dp)
+    )
 }

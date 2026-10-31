@@ -6,6 +6,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,73 +39,118 @@ fun CompactStat(label: String, value: String, color: Color) {
     }
 }
 
+/** Probador: cada toque viste a la mascota en la vista previa y la barra muestra qué se puede hacer con lo elegido. */
 @Composable
-fun AccessoryRow(
-    name: String,
-    cost: Int,
-    isUnlocked: Boolean,
-    isEquipped: Boolean,
-    isPreviewed: Boolean,
+fun ColumnScope.ShopItemPicker(
+    items: List<Triple<String, String, Int>>,
+    isUnlocked: (id: String, cost: Int) -> Boolean,
+    equippedId: String?,
+    previewId: String?,
+    emptyHint: String,
     isDark: Boolean,
     borderColor: Color,
-    onPreview: () -> Unit,
-    onAction: () -> Unit
+    accentColor: Color,
+    onPreview: (String) -> Unit,
+    onAction: (id: String, cost: Int) -> Unit
 ) {
-    val rowBorderColor = if (isPreviewed) borderColor else borderColor.copy(alpha = 0.3f)
-    val rowBg = if (isPreviewed) {
-        if (isDark) Color(0xFF2C2C35) else Color(0xFFFFF9E6)
-    } else {
-        Color.Transparent
-    }
+    val textColor = if (isDark) Color.White else Color(0xFF4A2511)
+    val selected = items.firstOrNull { it.first == previewId }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .border(if (isPreviewed) 2.dp else 1.dp, rowBorderColor)
-            .background(rowBg)
-            .clickable { onPreview() }
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .heightIn(min = 52.dp)
+            .border(2.dp, borderColor)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(name, fontFamily = Vt323, fontSize = 18.sp, color = if (isDark) Color.White else Color.Black)
-                if (isPreviewed) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("👁️", fontSize = 14.sp)
-                }
+        if (selected == null) {
+            Text(emptyHint, fontFamily = Vt323, fontSize = 18.sp, color = textColor)
+        } else {
+            val (id, name, cost) = selected
+            val unlocked = isUnlocked(id, cost)
+            val equipped = equippedId == id
+            Column(modifier = Modifier.weight(1f)) {
+                Text(name, fontFamily = Vt323, fontSize = 19.sp, color = textColor)
+                Text(
+                    text = when {
+                        equipped -> "Equipado actualmente"
+                        unlocked -> "Desbloqueado"
+                        else -> "${cost} ❤️"
+                    },
+                    fontFamily = Vt323,
+                    fontSize = 16.sp,
+                    color = when {
+                        equipped -> Color(0xFF4CAF50)
+                        unlocked -> textColor.copy(alpha = 0.75f)
+                        else -> Color(0xFFFF4081)
+                    }
+                )
             }
-            if (!isUnlocked) {
-                Text("${cost} ❤️", fontFamily = Vt323, fontSize = 14.sp, color = Color(0xFFFF4081))
-            } else if (isEquipped) {
-                Text("Equipado actualmente", fontFamily = Vt323, fontSize = 13.sp, color = Color(0xFF4CAF50))
-            } else {
-                Text("Desbloqueado", fontFamily = Vt323, fontSize = 13.sp, color = if (isDark) Color.LightGray else Color.DarkGray)
+            Button(
+                onClick = { onAction(id, cost) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = when {
+                        equipped -> Color(0xFF4CAF50)
+                        unlocked -> borderColor
+                        else -> Color(0xFF8B4513)
+                    }
+                ),
+                shape = RectangleShape,
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                modifier = Modifier.height(38.dp)
+            ) {
+                Text(
+                    text = when {
+                        equipped -> "EQUIPADO"
+                        unlocked -> "EQUIPAR"
+                        else -> "COMPRAR"
+                    },
+                    fontFamily = Vt323,
+                    fontSize = 16.sp,
+                    color = Color.White
+                )
             }
         }
+    }
 
-        Button(
-            onClick = onAction,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = when {
-                    isEquipped -> Color(0xFF4CAF50)
-                    isUnlocked -> borderColor
-                    else -> Color(0xFF8B4513)
-                }
-            ),
-            shape = RectangleShape,
-            modifier = Modifier.height(36.dp)
-        ) {
-            Text(
-                text = when {
-                    isEquipped -> "EQUIPADO"
-                    isUnlocked -> "EQUIPAR"
-                    else -> "COMPRAR"
-                },
-                fontFamily = Vt323,
-                fontSize = 14.sp
-            )
+    Spacer(modifier = Modifier.height(8.dp))
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(4),
+        modifier = Modifier.weight(1f).fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        contentPadding = PaddingValues(bottom = 64.dp)
+    ) {
+        items(items, key = { it.first }) { (id, name, cost) ->
+            val unlocked = isUnlocked(id, cost)
+            val equipped = equippedId == id
+            val previewed = previewId == id
+            Column(
+                modifier = Modifier
+                    .border(if (previewed) 3.dp else 1.dp, if (previewed) accentColor else borderColor)
+                    .clickable { onPreview(id) }
+                    .padding(vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(name.substringAfterLast(' '), fontSize = 24.sp, maxLines = 1)
+                Text(
+                    text = when {
+                        equipped -> "✓ Puesto"
+                        unlocked -> "Tuyo"
+                        else -> "${cost} ❤️"
+                    },
+                    fontFamily = Vt323,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    color = when {
+                        equipped -> Color(0xFF4CAF50)
+                        unlocked -> textColor
+                        else -> Color(0xFFFF4081)
+                    }
+                )
+            }
         }
     }
 }

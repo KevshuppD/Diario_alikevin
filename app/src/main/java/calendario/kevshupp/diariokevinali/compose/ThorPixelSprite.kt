@@ -483,6 +483,31 @@ private fun DrawScope.tcape(t: ThorT, bx: Int, by: Int) {
     }
     tr(t, bx + 18, by + 16, 3, 3, 0xFFFACC15.toInt())
 }
+private val TH_BANANA = arrayOf(
+    "OO.......",
+    "OAO....OO",
+    "OyyO..OyO",
+    "OyyyOOyyO",
+    ".OyyyyysO",
+    "..OOssOO."
+)
+/** Plátano apoyado en el suelo, junto a las patas delanteras. */
+private fun DrawScope.tbanana(t: ThorT, x: Int) {
+    val top = TH_GROUND - TH_BANANA.size
+    for (r in TH_BANANA.indices) {
+        val row = TH_BANANA[r]
+        for (col in row.indices) {
+            val color = when (row[col]) {
+                'O' -> 0xFF7A4E12.toInt()
+                'A' -> 0xFF4A2F0B.toInt()
+                'y' -> 0xFFFDE047.toInt()
+                's' -> 0xFFEAB308.toInt()
+                else -> continue
+            }
+            tr(t, x + col, top + r, 1, 1, color)
+        }
+    }
+}
 private fun DrawScope.twear(t: ThorT, a: String?, hx: Int, hy: Int, bx: Int, by: Int, stand: Boolean) {
     val c = hx + 25
     when (a) {
@@ -492,8 +517,15 @@ private fun DrawScope.twear(t: ThorT, a: String?, hx: Int, hy: Int, bx: Int, by:
         Pet.ACC_MUSTACHE -> { val b = 0xFF5B3A1E.toInt(); tr(t, c - 5, hy + 15, 4, 1, b); tr(t, c + 2, hy + 15, 4, 1, b); tr(t, c - 1, hy + 14, 3, 1, b) }
         Pet.ACC_BOW -> { val k = 0xFFEC4899.toInt(); tr(t, c + 3, hy + 1, 2, 3, k); tr(t, c + 6, hy + 1, 2, 3, k); tr(t, c + 5, hy + 2, 1, 1, 0xFFBE185D.toInt()) }
         Pet.ACC_BALLOON -> { tr(t, bx + 6, by + 3, 5, 5, 0xFFEC4899.toInt()); tr(t, bx + 7, by + 4, 1, 1, C_FOAM); tr(t, bx + 8, by + 8, 1, 10, C_O) }
-        Pet.ACC_BANANA -> { val y = 0xFFFDE047.toInt(); tr(t, bx + 37, by + 26, 5, 2, y); tr(t, bx + 40, by + 24, 2, 2, y); tr(t, bx + 37, by + 26, 1, 1, 0xFFA16207.toInt()) }
-        Pet.ACC_BANDANA -> { val x = c + 5; val y = hy + 17; val q = 0xFF2BB6AE.toInt(); val o = 0xFFF59E0B.toInt(); tr(t, x, y, 6, 3, q); tr(t, x + 1, y + 3, 4, 3, q); tr(t, x + 2, y + 6, 2, 2, q); tr(t, x + 1, y + 1, 2, 1, o); tr(t, x + 3, y + 4, 1, 2, o); tr(t, x + 4, y, 1, 1, 0xFFFFD76A.toInt()) }
+        Pet.ACC_BANANA -> tbanana(t, bx + 37)
+        Pet.ACC_BANDANA -> {
+            // Pañuelo pirata atado sobre la frente, con calavera y nudo al costado
+            val k = 0xFF1F2937.toInt(); val h = 0xFF374151.toInt()
+            tr(t, c - 6, hy + 3, 13, 1, k); tr(t, c - 8, hy + 4, 17, 3, k); tr(t, c - 8, hy + 4, 17, 1, h)
+            tr(t, c - 1, hy + 3, 3, 1, C_FOAM); tr(t, c - 2, hy + 4, 5, 2, C_FOAM); tr(t, c - 1, hy + 4, 1, 1, k); tr(t, c + 1, hy + 4, 1, 1, k)
+            tr(t, c - 1, hy + 6, 1, 1, C_FOAM); tr(t, c + 1, hy + 6, 1, 1, C_FOAM)
+            tr(t, c + 9, hy + 4, 2, 2, k); tr(t, c + 11, hy + 5, 1, 3, k); tr(t, c + 9, hy + 6, 1, 3, k)
+        }
         Pet.ACC_COLLAR -> { tr(t, c - 7, hy + 18, 15, 1, 0xFFEC4899.toInt()); tr(t, c - 1, hy + 19, 3, 2, 0xFFFACC15.toInt()) }
         Pet.ACC_SOCKS -> if (!stand) { val r = 0xFFDC2626.toInt(); tr(t, bx + 20, by + 27, 7, 2, r); tr(t, bx + 22, by + 27, 1, 2, C_FOAM); tr(t, bx + 31, by + 27, 7, 2, r); tr(t, bx + 33, by + 27, 1, 2, C_FOAM) }
     }

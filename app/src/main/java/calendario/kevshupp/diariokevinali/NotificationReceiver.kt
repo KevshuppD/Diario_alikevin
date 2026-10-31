@@ -52,5 +52,23 @@ class NotificationReceiver : BroadcastReceiver() {
             .setContentIntent(pendingIntent)
 
         notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
+
+        // Una cita repetida deja agendado su siguiente recordatorio, aunque no se abra la app
+        val eventId = intent.getStringExtra(CalendarReminders.EXTRA_EVENT_ID)
+        val recurrence = intent.getStringExtra(CalendarReminders.EXTRA_EVENT_RECURRENCE)
+        if (!eventId.isNullOrEmpty() && recurrence != null && recurrence != "NONE") {
+            val event = CalendarEvent(
+                eventId = eventId,
+                title = intent.getStringExtra(CalendarReminders.EXTRA_EVENT_TITLE) ?: "",
+                description = intent.getStringExtra(CalendarReminders.EXTRA_EVENT_DESCRIPTION) ?: "",
+                date = intent.getLongExtra(CalendarReminders.EXTRA_EVENT_DATE, 0L),
+                recurrence = recurrence
+            )
+            try {
+                CalendarReminders.schedule(context, event)
+            } catch (e: SecurityException) {
+                android.util.Log.e("NotificationReceiver", "Sin permiso para reagendar la cita", e)
+            }
+        }
     }
 }

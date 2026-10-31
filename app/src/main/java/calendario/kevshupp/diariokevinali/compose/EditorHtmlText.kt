@@ -1,6 +1,7 @@
 package calendario.kevshupp.diariokevinali.compose
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.SpanStyle
@@ -32,7 +33,7 @@ private fun fontSizeFor(size: Int) = when {
 private class OpenTag(val name: String, val start: Int, val style: SpanStyle?, val paragraph: ParagraphStyle?)
 
 /** Oculta las etiquetas HTML y muestra su efecto; el texto real del campo no cambia. */
-class HtmlVisualTransformation : VisualTransformation {
+class HtmlVisualTransformation(private val readableOn: Color? = null) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val source = text.text
         val visible = StringBuilder(source.length)
@@ -87,7 +88,10 @@ class HtmlVisualTransformation : VisualTransformation {
                     "u" -> SpanStyle(textDecoration = TextDecoration.Underline)
                     "s", "strike", "del" -> SpanStyle(textDecoration = TextDecoration.LineThrough)
                     "font" -> SpanStyle(
-                        color = FONT_COLOR.find(tag)?.let { Color(android.graphics.Color.parseColor(it.groupValues[1])) } ?: Color.Unspecified,
+                        color = FONT_COLOR.find(tag)?.let {
+                            val color = android.graphics.Color.parseColor(it.groupValues[1])
+                            Color(if (readableOn != null) readableColorOn(color, readableOn.toArgb()) else color)
+                        } ?: Color.Unspecified,
                         fontSize = FONT_SIZE.find(tag)?.let { fontSizeFor(it.groupValues[1].toInt()) } ?: androidx.compose.ui.unit.TextUnit.Unspecified
                     )
                     else -> null

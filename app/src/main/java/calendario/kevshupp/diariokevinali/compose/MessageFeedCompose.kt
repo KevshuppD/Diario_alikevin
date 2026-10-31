@@ -213,6 +213,7 @@ fun MessageFeedScreen(
         LetterReaderDialog(
             message = letter,
             currentUserId = currentUserId,
+            theme = theme,
             dateFormat = dateFormat,
             onDismiss = { readingMessage = null },
             onEdit = {
@@ -313,12 +314,14 @@ private const val LETTER_PREVIEW_LINES = 6
 private fun LetterReaderDialog(
     message: Message,
     currentUserId: String,
+    theme: String,
     dateFormat: SimpleDateFormat,
     onDismiss: () -> Unit,
     onEdit: () -> Unit
 ) {
-    val paper = Color(0xFFF3E5AB)
-    val ink = Color(0xFF4A2511)
+    val letterPaper = rememberLetterPaper(theme)
+    val paper = letterPaper.paper
+    val ink = letterPaper.ink
     val context = LocalContext.current
     val html = message.content ?: ""
     val photos = remember(message.imageUrls, message.imageUrl) {
@@ -330,9 +333,9 @@ private fun LetterReaderDialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Column(modifier = Modifier.fillMaxSize().background(paper).border(3.dp, ink)) {
+        Column(modifier = Modifier.fillMaxSize().background(paper).border(3.dp, letterPaper.frame)) {
             Row(
-                modifier = Modifier.fillMaxWidth().background(ink).padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().background(letterPaper.frame).padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -340,7 +343,7 @@ private fun LetterReaderDialog(
                     text = "✕ Cerrar",
                     fontFamily = Vt323,
                     fontSize = 20.sp,
-                    color = paper,
+                    color = letterPaper.onFrame,
                     modifier = Modifier.clickable { onDismiss() }.padding(6.dp)
                 )
                 Row {
@@ -349,7 +352,7 @@ private fun LetterReaderDialog(
                             text = "🖼 Fotos",
                             fontFamily = Vt323,
                             fontSize = 20.sp,
-                            color = paper,
+                            color = letterPaper.onFrame,
                             modifier = Modifier
                                 .clickable { context.findMainActivity()?.getAlbumManager()?.showAlbumDetail(message) }
                                 .padding(6.dp)
@@ -360,7 +363,7 @@ private fun LetterReaderDialog(
                             text = "✏️ Editar",
                             fontFamily = Vt323,
                             fontSize = 20.sp,
-                            color = paper,
+                            color = letterPaper.onFrame,
                             modifier = Modifier.clickable { onEdit() }.padding(6.dp)
                         )
                     }
@@ -376,13 +379,13 @@ private fun LetterReaderDialog(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("De: ${message.authorName}", fontFamily = Vt323, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA61E4D))
-                        Text(dateFormat.format(Date(message.timestamp)), fontFamily = Vt323, fontSize = 16.sp, color = Color(0xFF8B4513))
+                        Text("De: ${message.authorName}", fontFamily = Vt323, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = letterPaper.author)
+                        Text(dateFormat.format(Date(message.timestamp)), fontFamily = Vt323, fontSize = 16.sp, color = letterPaper.subtle)
                     }
                     AsyncImage(
                         model = (message.authorImageUrl ?: R.drawable.ic_profile_pixel).toString().optimizeCloudinary(160),
                         contentDescription = null,
-                        modifier = Modifier.size(52.dp).border(2.dp, ink),
+                        modifier = Modifier.size(52.dp).border(2.dp, letterPaper.frame),
                         contentScale = ContentScale.Crop
                     )
                 }
@@ -400,12 +403,13 @@ private fun LetterReaderDialog(
                                 textSize = 22f
                                 setTextColor(ink.toArgb())
                                 setTextIsSelectable(true)
-                                text = android.text.Html.fromHtml(
+                                val parsed = android.text.Html.fromHtml(
                                     LetterImageGetter.isolateImages(html),
                                     android.text.Html.FROM_HTML_MODE_LEGACY,
                                     LetterImageGetter(this, widthPx),
                                     null
                                 )
+                                text = if (letterPaper.adjustColors) adjustLetterColors(parsed, paper) else parsed
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -419,7 +423,7 @@ private fun LetterReaderDialog(
                         contentDescription = "Foto de la carta",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(2.dp, ink)
+                            .border(2.dp, letterPaper.frame)
                             .clickable { context.findMainActivity()?.getAlbumManager()?.showFullScreenImage(url, message) },
                         contentScale = ContentScale.FillWidth
                     )
@@ -446,14 +450,15 @@ fun MessageCard(
     val isDark = remember(theme) { theme == "Pixel Oscuro" }
     val isMono = remember(theme) { theme == "Pixel Monocromático" }
     
-    // La carta siempre es una hoja de pergamino, también en el tema oscuro (blanca en monocromático)
-    val bgColor = if (isMono) Color.White else Color(0xFFF3E5AB)
-    val borderColor = if (isMono) Color.Black else Color(0xFF4A2511)
-    val authorColor = if (isMono) Color.Black else Color(0xFFA61E4D)
-    val contentColor = if (isMono) Color.Black else Color(0xFF4A2511)
-    val timeColor = if (isMono) Color.DarkGray else Color(0xFF8B4513)
-    val ruleColor = if (isMono) Color.Transparent else Color(0x224A2511)
-    val marginColor = if (isMono) Color.Transparent else Color(0x55EC4899)
+    // La carta es una hoja: pergamino en claro, papel de noche en oscuro, blanca en monocromático
+    val letterPaper = rememberLetterPaper(theme)
+    val bgColor = letterPaper.paper
+    val borderColor = letterPaper.frame
+    val authorColor = letterPaper.author
+    val contentColor = letterPaper.ink
+    val timeColor = letterPaper.subtle
+    val ruleColor = letterPaper.rule
+    val marginColor = letterPaper.margin
 
     val isAlbum = remember(message.content) { message.content?.startsWith("[ALBUM]") == true }
 
@@ -614,14 +619,16 @@ fun MessageCard(
                         textView.maxLines = if (expanded) Int.MAX_VALUE else LETTER_PREVIEW_LINES
                         val html = message.content ?: ""
                         // El tag evita volver a parsear (y a pedir las fotos) en cada recomposición
-                        if (textView.tag != html) {
-                            textView.tag = html
-                            textView.text = android.text.Html.fromHtml(
+                        val parseKey = html to letterPaper
+                        if (textView.tag != parseKey) {
+                            textView.tag = parseKey
+                            val parsed = android.text.Html.fromHtml(
                                 LetterImageGetter.isolateImages(html),
                                 android.text.Html.FROM_HTML_MODE_LEGACY,
                                 LetterImageGetter(textView, textWidthPx),
                                 null
                             )
+                            textView.text = if (letterPaper.adjustColors) adjustLetterColors(parsed, bgColor) else parsed
                         }
                     },
                     modifier = Modifier.fillMaxWidth()

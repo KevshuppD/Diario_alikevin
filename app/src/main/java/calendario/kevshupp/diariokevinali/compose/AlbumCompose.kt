@@ -1,6 +1,5 @@
 package calendario.kevshupp.diariokevinali.compose
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.ui.graphics.RectangleShape
@@ -98,366 +99,244 @@ fun AlbumScreen(
         else -> Color.White
     }
 
-    // Navegación interna: null = selector de álbumes, "diario" = momentos, "general" = fotos drive
-    var selectedAlbum by remember { mutableStateOf<String?>(null) }
+    // Pestaña visible: "diario" = momentos, "general" = fotos drive
+    var selectedAlbum by remember { mutableStateOf("diario") }
     var gridColumnsDiario by remember { mutableStateOf(2) }
     var gridColumnsGeneral by remember { mutableStateOf(2) }
-    var showColumnsMenu by remember { mutableStateOf(false) }
-    var menuPage by remember { mutableStateOf("MAIN") }
-
-    // Interceptar el botón Atrás del sistema cuando se esté dentro de un álbum
-    BackHandler(enabled = selectedAlbum != null) {
-        selectedAlbum = null
-    }
 
     // Estados de orden y filtrado
     var sortBy by remember { mutableStateOf("fecha_desc") }
     var filterBy by remember { mutableStateOf("todo") }
     var searchQuery by remember { mutableStateOf("") }
 
+    val isDiario = selectedAlbum == "diario"
+    val generalBadge = if (localFolderConfigured) "${localPhotos.size}" else "No config."
+    val chipColors = AlbumChipColors(
+        text = textColor,
+        border = borderColor,
+        background = cardBgColor,
+        selected = when {
+            isDark -> Color(0xFFFF4081)
+            isMono -> Color.Black
+            else -> Color(0xFF8B4513)
+        },
+        onSelected = when {
+            isDark -> Color(0xFF14061A)
+            else -> Color.White
+        }
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(backgroundColor)
-            .padding(16.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        if (selectedAlbum == null) {
-            // --- VISTA DE CARPETAS / ÁLBUMES ---
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(cardBgColor)
-                    .border(3.dp, borderColor)
-                    .drawBehind {
-                        val shadowOffset = 4.dp.toPx()
-                        drawRect(
-                            color = borderColor.copy(alpha = 0.2f),
-                            topLeft = Offset(shadowOffset, shadowOffset),
-                            size = this.size
-                        )
-                    }
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Column {
-                    Text(
-                        text = "📸 GALE-DIARIO PIXEL",
-                        fontFamily = AlbumVt323,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Álbum",
+                fontFamily = AlbumVt323,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor,
+                modifier = Modifier.weight(1f)
+            )
+            if (!isDiario && localFolderConfigured) {
+                IconButton(onClick = onReloadLocalPhotos, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Refresh,
+                        contentDescription = "Recargar",
+                        tint = textColor
                     )
+                }
+            }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            AlbumChip("Recuerdos · ${moments.size}", isDiario, chipColors, Modifier.weight(1f)) { selectedAlbum = "diario" }
+            AlbumChip("General · $generalBadge", !isDiario, chipColors, Modifier.weight(1f)) { selectedAlbum = "general" }
+        }
+
+        // Input de búsqueda para el Álbum General
+        if (!isDiario && localFolderConfigured && localPhotos.isNotEmpty()) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Buscar foto por nombre...", fontFamily = AlbumVt323, fontSize = 16.sp) },
+                singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(fontFamily = AlbumVt323, fontSize = 18.sp, color = textColor),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = cardBgColor,
+                    unfocusedContainerColor = cardBgColor,
+                    focusedBorderColor = borderColor,
+                    unfocusedBorderColor = borderColor.copy(alpha = 0.5f),
+                    focusedLabelColor = textColor,
+                    unfocusedLabelColor = subtitleColor,
+                    cursorColor = textColor
+                )
+            )
+            AlbumChipRow(ALBUM_SORTS, sortBy, chipColors) { sortBy = it }
+            AlbumChipRow(ALBUM_FILTERS, filterBy, chipColors) { filterBy = it }
+        }
+
+        AlbumChipRow(
+            options = ALBUM_COLUMNS,
+            selected = if (isDiario) gridColumnsDiario else gridColumnsGeneral,
+            colors = chipColors
+        ) { cols -> if (isDiario) gridColumnsDiario = cols else gridColumnsGeneral = cols }
+
+        if (isDiario) {
+            // Galería del Diario de Recuerdos (Estilo polaroid con separación)
+            if (moments.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = "SELECCIONA UN ÁLBUM DE FOTOS",
+                        text = "¡Aún no hay momentos! Agrega uno ❤️",
                         fontFamily = AlbumVt323,
-                        fontSize = 14.sp,
+                        fontSize = 20.sp,
                         color = subtitleColor
                     )
                 }
+            } else {
+                val groups = remember(moments) { groupByMonth(moments) { it.timestamp } }
+                MonthGroupedGrid(
+                    groups = groups,
+                    columns = gridColumnsDiario,
+                    spacing = 8.dp,
+                    itemKey = { it.messageId ?: "moment_${it.timestamp}" },
+                    backgroundColor = backgroundColor,
+                    labelColor = subtitleColor,
+                    borderColor = borderColor,
+                    modifier = Modifier.weight(1f)
+                ) { moment ->
+                    AlbumGridItem(
+                        moment = moment,
+                        columns = gridColumnsDiario,
+                        theme = theme,
+                        cardBgColor = cardBgColor,
+                        borderColor = borderColor,
+                        textColor = textColor,
+                        subtitleColor = subtitleColor,
+                        onOpenMoment = onOpenMoment,
+                        onEditMoment = onEditMoment,
+                        onDeleteMoment = onDeleteMoment,
+                        isOwner = isOwner
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Carpeta 1: Diario de Recuerdos
-                FolderItem(
-                    title = "Diario de Recuerdos",
-                    description = "Fotos escritas asociadas a cartas de amor diarias",
-                    badgeText = "${moments.size} ítems",
-                    iconResId = R.drawable.ic_album_pixel,
-                    theme = theme,
-                    borderColor = borderColor,
-                    cardBgColor = cardBgColor,
-                    textColor = textColor,
-                    subtitleColor = subtitleColor,
-                    onClick = { selectedAlbum = "diario" }
+            Button(
+                onClick = onAddMoment,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RectangleShape,
+                border = androidx.compose.foundation.BorderStroke(2.dp, borderColor),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = buttonBgColor,
+                    contentColor = buttonContentColor
                 )
-
-                // Carpeta 2: Álbum General
-                val driveBadge = if (localFolderConfigured) "${localPhotos.size} fotos" else "No config."
-                FolderItem(
-                    title = "Álbum General (Drive)",
-                    description = "Galería completa de fotos sincronizadas desde tu carpeta",
-                    badgeText = driveBadge,
-                    iconResId = R.drawable.ic_settings_pixel,
-                    theme = theme,
-                    borderColor = borderColor,
-                    cardBgColor = cardBgColor,
-                    textColor = textColor,
-                    subtitleColor = subtitleColor,
-                    onClick = { selectedAlbum = "general" }
+            ) {
+                Text(
+                    text = "✨ AÑADIR NUEVO RECUERDO ✨",
+                    fontFamily = AlbumVt323,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         } else {
-            // --- VISTA DE GALERÍA DE UN ÁLBUM ---
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "<",
-                    fontFamily = AlbumVt323,
-                    fontSize = 24.sp,
-                    color = textColor,
-                    modifier = Modifier
-                        .clickable { selectedAlbum = null }
-                        .padding(8.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (selectedAlbum == "diario") "DIARIO DE FOTOS" else "ÁLBUM GENERAL",
-                    fontFamily = AlbumVt323,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor,
-                    modifier = Modifier.weight(1f)
-                )
-                if (selectedAlbum == "general" && localFolderConfigured) {
-                    IconButton(
-                        onClick = onReloadLocalPhotos
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = "Recargar",
-                            tint = textColor
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-                Box {
-                    Text(
-                        text = "⋮",
-                        fontFamily = AlbumVt323,
-                        fontSize = 24.sp,
-                        color = textColor,
-                        modifier = Modifier
-                            .clickable { showColumnsMenu = true }
-                            .padding(8.dp)
-                    )
-                    DropdownMenu(
-                        expanded = showColumnsMenu,
-                        onDismissRequest = { 
-                            showColumnsMenu = false
-                            menuPage = "MAIN"
-                        },
-                        modifier = Modifier
-                            .background(cardBgColor)
-                            .border(2.dp, borderColor)
-                    ) {
-                        when (menuPage) {
-                            "MAIN" -> {
-                                DropdownMenuItem(
-                                    text = { Text("Ancho cuadrícula ▸", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                    onClick = { menuPage = "COLS" }
-                                )
-                                if (selectedAlbum == "general") {
-                                    DropdownMenuItem(
-                                        text = { Text("Ordenar por ▸", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                        onClick = { menuPage = "SORT" }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Filtrar por ▸", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                        onClick = { menuPage = "FILTER" }
-                                    )
-                                }
-                            }
-                            "COLS" -> {
-                                DropdownMenuItem(
-                                    text = { Text("◂ Volver", fontFamily = AlbumVt323, fontSize = 16.sp, color = subtitleColor) },
-                                    onClick = { menuPage = "MAIN" }
-                                )
-                                val currentCols = if (selectedAlbum == "diario") gridColumnsDiario else gridColumnsGeneral
-                                (2..6).forEach { cols ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                text = if (currentCols == cols) "✓ $cols columnas" else "  $cols columnas",
-                                                fontFamily = AlbumVt323,
-                                                fontSize = 16.sp,
-                                                color = textColor
-                                            )
-                                        },
-                                        onClick = {
-                                            if (selectedAlbum == "diario") {
-                                                gridColumnsDiario = cols
-                                            } else {
-                                                gridColumnsGeneral = cols
-                                            }
-                                            showColumnsMenu = false
-                                            menuPage = "MAIN"
-                                        }
-                                    )
-                                }
-                            }
-                            "SORT" -> {
-                                DropdownMenuItem(
-                                    text = { Text("◂ Volver", fontFamily = AlbumVt323, fontSize = 16.sp, color = subtitleColor) },
-                                    onClick = { menuPage = "MAIN" }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(if (sortBy == "fecha_desc") "✓ Más recientes" else "  Más recientes", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                    onClick = { sortBy = "fecha_desc"; showColumnsMenu = false; menuPage = "MAIN" }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(if (sortBy == "fecha_asc") "✓ Más antiguos" else "  Más antiguos", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                    onClick = { sortBy = "fecha_asc"; showColumnsMenu = false; menuPage = "MAIN" }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(if (sortBy == "size_desc") "✓ Tamaño (Más grandes)" else "  Tamaño (Más grandes)", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                    onClick = { sortBy = "size_desc"; showColumnsMenu = false; menuPage = "MAIN" }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(if (sortBy == "name_asc") "✓ Nombre (A-Z)" else "  Nombre (A-Z)", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                    onClick = { sortBy = "name_asc"; showColumnsMenu = false; menuPage = "MAIN" }
-                                )
-                            }
-                            "FILTER" -> {
-                                DropdownMenuItem(
-                                    text = { Text("◂ Volver", fontFamily = AlbumVt323, fontSize = 16.sp, color = subtitleColor) },
-                                    onClick = { menuPage = "MAIN" }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(if (filterBy == "todo") "✓ Mostrar todo" else "  Mostrar todo", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                    onClick = { filterBy = "todo"; showColumnsMenu = false; menuPage = "MAIN" }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(if (filterBy == "hoy") "✓ Agregado hoy" else "  Agregado hoy", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                    onClick = { filterBy = "hoy"; showColumnsMenu = false; menuPage = "MAIN" }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(if (filterBy == "semana") "✓ Agregado esta semana" else "  Agregado esta semana", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                    onClick = { filterBy = "semana"; showColumnsMenu = false; menuPage = "MAIN" }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(if (filterBy == "grandes") "✓ Archivos grandes (>2MB)" else "  Archivos grandes (>2MB)", fontFamily = AlbumVt323, fontSize = 16.sp, color = textColor) },
-                                    onClick = { filterBy = "grandes"; showColumnsMenu = false; menuPage = "MAIN" }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Input de búsqueda para el Álbum General
-            if (selectedAlbum == "general" && localFolderConfigured && localPhotos.isNotEmpty()) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    label = { Text("Buscar foto por nombre...", fontFamily = AlbumVt323, fontSize = 16.sp) },
-                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = AlbumVt323, fontSize = 18.sp, color = textColor),
+            // Galería del Álbum General (Drive / local) - fotos pegadas
+            if (!localFolderConfigured) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = cardBgColor,
-                        unfocusedContainerColor = cardBgColor,
-                        focusedBorderColor = borderColor,
-                        unfocusedBorderColor = borderColor.copy(alpha = 0.5f),
-                        focusedLabelColor = textColor,
-                        unfocusedLabelColor = subtitleColor,
-                        cursorColor = textColor
-                    )
-                )
-            }
-
-            if (selectedAlbum == "diario") {
-                // Galería del Diario de Recuerdos (Estilo polaroid con separación)
-                if (moments.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "¡Aún no hay momentos! Agrega uno ❤️",
-                            fontFamily = AlbumVt323,
-                            fontSize = 20.sp,
-                            color = subtitleColor
-                        )
-                    }
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(gridColumnsDiario),
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentPadding = PaddingValues(bottom = 8.dp, top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(
-                            items = moments,
-                            key = { it.messageId ?: "moment_${it.timestamp}" }
-                        ) { moment ->
-                            AlbumGridItem(
-                                moment = moment,
-                                theme = theme,
-                                cardBgColor = cardBgColor,
-                                borderColor = borderColor,
-                                textColor = textColor,
-                                subtitleColor = subtitleColor,
-                                onOpenMoment = onOpenMoment,
-                                onEditMoment = onEditMoment,
-                                onDeleteMoment = onDeleteMoment,
-                                isOwner = isOwner
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = onAddMoment,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp)
-                        .drawBehind {
-                            val shadowOffset = 4.dp.toPx()
-                            drawRect(
-                                color = borderColor.copy(alpha = 0.2f),
-                                topLeft = Offset(shadowOffset, shadowOffset),
-                                size = this.size
-                            )
-                        },
-                    shape = RectangleShape,
-                    border = androidx.compose.foundation.BorderStroke(2.dp, borderColor),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = buttonBgColor,
-                        contentColor = buttonContentColor
-                    )
+                        .weight(1f)
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "✨ AÑADIR NUEVO RECUERDO ✨",
+                        text = "Por favor, configura la sincronización y la carpeta de fotos local en Configuración -> Sincronización para ver este álbum ☁️",
+                        fontFamily = AlbumVt323,
+                        fontSize = 18.sp,
+                        color = subtitleColor,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            } else if (isLocalPhotosLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Buscando fotos locales... 🔄",
                         fontFamily = AlbumVt323,
                         fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
+                        color = subtitleColor
+                    )
+                }
+            } else if (localPhotos.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No se encontraron fotos en la carpeta local. Espera a que termine la sincronización o agrega fotos a tu carpeta compartida 📸",
+                        fontFamily = AlbumVt323,
+                        fontSize = 18.sp,
+                        color = subtitleColor,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             } else {
-                // Galería del Álbum General (Drive / local) - TIGHT GRID como detalle del momento (pegadas)
-                if (!localFolderConfigured) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Por favor, configura la sincronización y la carpeta de fotos local en Configuración -> Sincronización para ver este álbum ☁️",
-                            fontFamily = AlbumVt323,
-                            fontSize = 18.sp,
-                            color = subtitleColor,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
+                // Procesar fotos locales (buscar + filtrar + ordenar)
+                val filteredPhotos = remember(localPhotos, sortBy, filterBy, searchQuery) {
+                    var list = localPhotos
+
+                    // 1. Filtrar por búsqueda de nombre
+                    if (searchQuery.isNotEmpty()) {
+                        list = list.filter { it.name.contains(searchQuery, ignoreCase = true) }
                     }
-                } else if (isLocalPhotosLoading) {
+
+                    // 2. Filtrar por categorías
+                    val now = System.currentTimeMillis()
+                    list = when (filterBy) {
+                        "hoy" -> {
+                            val oneDay = 24 * 60 * 60 * 1000L
+                            list.filter { now - it.lastModified < oneDay }
+                        }
+                        "semana" -> {
+                            val oneWeek = 7 * 24 * 60 * 60 * 1000L
+                            list.filter { now - it.lastModified < oneWeek }
+                        }
+                        "grandes" -> {
+                            val twoMB = 2 * 1024 * 1024L
+                            list.filter { it.size > twoMB }
+                        }
+                        else -> list
+                    }
+
+                    // 3. Ordenar
+                    when (sortBy) {
+                        "fecha_desc" -> list.sortedByDescending { it.lastModified }
+                        "fecha_asc" -> list.sortedBy { it.lastModified }
+                        "size_desc" -> list.sortedByDescending { it.size }
+                        "name_asc" -> list.sortedBy { it.name.lowercase() }
+                        else -> list
+                    }
+                }
+
+                if (filteredPhotos.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -465,101 +344,33 @@ fun AlbumScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Buscando fotos locales... 🔄",
+                            text = "Ninguna foto coincide con el filtro o búsqueda 🔍",
                             fontFamily = AlbumVt323,
-                            fontSize = 20.sp,
+                            fontSize = 18.sp,
                             color = subtitleColor
                         )
                     }
-                } else if (localPhotos.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No se encontraron fotos en la carpeta local. Espera a que termine la sincronización o agrega fotos a tu carpeta compartida 📸",
-                            fontFamily = AlbumVt323,
-                            fontSize = 18.sp,
-                            color = subtitleColor,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
                 } else {
-                    // Procesar fotos locales (buscar + filtrar + ordenar)
-                    val filteredPhotos = remember(localPhotos, sortBy, filterBy, searchQuery) {
-                        var list = localPhotos
-                        
-                        // 1. Filtrar por búsqueda de nombre
-                        if (searchQuery.isNotEmpty()) {
-                            list = list.filter { it.name.contains(searchQuery, ignoreCase = true) }
-                        }
-                        
-                        // 2. Filtrar por categorías
-                        val now = System.currentTimeMillis()
-                        list = when (filterBy) {
-                            "hoy" -> {
-                                val oneDay = 24 * 60 * 60 * 1000L
-                                list.filter { now - it.lastModified < oneDay }
-                            }
-                            "semana" -> {
-                                val oneWeek = 7 * 24 * 60 * 60 * 1000L
-                                list.filter { now - it.lastModified < oneWeek }
-                            }
-                            "grandes" -> {
-                                val twoMB = 2 * 1024 * 1024L
-                                list.filter { it.size > twoMB }
-                            }
-                            else -> list
-                        }
-                        
-                        // 3. Ordenar
-                        when (sortBy) {
-                            "fecha_desc" -> list.sortedByDescending { it.lastModified }
-                            "fecha_asc" -> list.sortedBy { it.lastModified }
-                            "size_desc" -> list.sortedByDescending { it.size }
-                            "name_asc" -> list.sortedBy { it.name.lowercase() }
-                            else -> list
-                        }
+                    // Los títulos por mes solo tienen sentido cuando el orden es por fecha
+                    val groups = remember(filteredPhotos, sortBy) {
+                        if (sortBy.startsWith("fecha")) groupByMonth(filteredPhotos) { it.lastModified }
+                        else listOf(MonthGroup("", filteredPhotos))
                     }
-
-                    if (filteredPhotos.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Ninguna foto coincide con el filtro o búsqueda 🔍",
-                                fontFamily = AlbumVt323,
-                                fontSize = 18.sp,
-                                color = subtitleColor
-                            )
-                        }
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(gridColumnsGeneral),
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            contentPadding = PaddingValues(bottom = 8.dp, top = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            items(
-                                items = filteredPhotos,
-                                key = { it.uri }
-                            ) { photo ->
-                                LocalPhotoGridItem(
-                                    photo = photo,
-                                    borderColor = borderColor,
-                                    onClick = { onOpenLocalPhoto(photo.uri) }
-                                )
-                            }
-                        }
+                    MonthGroupedGrid(
+                        groups = groups,
+                        columns = gridColumnsGeneral,
+                        spacing = 2.dp,
+                        itemKey = { it.uri },
+                        backgroundColor = backgroundColor,
+                        labelColor = subtitleColor,
+                        borderColor = borderColor,
+                        modifier = Modifier.weight(1f)
+                    ) { photo ->
+                        LocalPhotoGridItem(
+                            photo = photo,
+                            borderColor = borderColor,
+                            onClick = { onOpenLocalPhoto(photo.uri) }
+                        )
                     }
                 }
             }
@@ -567,91 +378,133 @@ fun AlbumScreen(
     }
 }
 
+private val ALBUM_SORTS = listOf("fecha_desc" to "Recientes", "fecha_asc" to "Antiguos", "size_desc" to "Tamaño", "name_asc" to "A-Z")
+private val ALBUM_FILTERS = listOf("todo" to "Todo", "hoy" to "Hoy", "semana" to "Semana", "grandes" to "+2 MB")
+private val ALBUM_COLUMNS = (2..6).map { it to "$it col" }
+
+private class AlbumChipColors(
+    val text: Color,
+    val border: Color,
+    val background: Color,
+    val selected: Color,
+    val onSelected: Color
+)
+
 @Composable
-fun FolderItem(
-    title: String,
-    description: String,
-    badgeText: String,
-    iconResId: Int,
-    theme: String,
+private fun AlbumChip(label: String, selected: Boolean, colors: AlbumChipColors, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Text(
+        text = label,
+        fontFamily = AlbumVt323,
+        fontSize = 17.sp,
+        maxLines = 1,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        color = if (selected) colors.onSelected else colors.text,
+        modifier = modifier
+            .border(2.dp, colors.border)
+            .background(if (selected) colors.selected else colors.background)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 5.dp)
+    )
+}
+
+@Composable
+private fun <T> AlbumChipRow(options: List<Pair<T, String>>, selected: T, colors: AlbumChipColors, onSelect: (T) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        options.forEach { (value, label) ->
+            AlbumChip(label, value == selected, colors, Modifier.weight(1f)) { onSelect(value) }
+        }
+    }
+}
+
+private class MonthGroup<T>(val label: String, val items: List<T>)
+
+/** Agrupa una lista ya ordenada por fecha en bloques consecutivos del mismo mes. */
+private fun <T> groupByMonth(items: List<T>, timeOf: (T) -> Long): List<MonthGroup<T>> {
+    val locale = Locale("es", "CL")
+    val format = SimpleDateFormat("MMMM yyyy", locale)
+    val groups = mutableListOf<MonthGroup<T>>()
+    var label: String? = null
+    var current = mutableListOf<T>()
+    for (item in items) {
+        val itemLabel = format.format(Date(timeOf(item))).replaceFirstChar { it.uppercase(locale) }
+        if (itemLabel != label) {
+            label?.let { groups.add(MonthGroup(it, current)) }
+            label = itemLabel
+            current = mutableListOf()
+        }
+        current.add(item)
+    }
+    label?.let { groups.add(MonthGroup(it, current)) }
+    return groups
+}
+
+/** Grilla con títulos por mes; el mes que se está viendo queda fijo arriba al hacer scroll. */
+@Composable
+private fun <T : Any> MonthGroupedGrid(
+    groups: List<MonthGroup<T>>,
+    columns: Int,
+    spacing: androidx.compose.ui.unit.Dp,
+    itemKey: (T) -> Any,
+    backgroundColor: Color,
+    labelColor: Color,
     borderColor: Color,
-    cardBgColor: Color,
-    textColor: Color,
-    subtitleColor: Color,
-    onClick: () -> Unit
+    modifier: Modifier = Modifier,
+    itemContent: @Composable (T) -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .drawBehind {
-                val shadowOffset = 6.dp.toPx()
-                drawRect(
-                    color = borderColor.copy(alpha = 0.2f),
-                    topLeft = Offset(shadowOffset, shadowOffset),
-                    size = this.size
-                )
-            }
-            .background(cardBgColor)
-            .border(3.dp, borderColor)
-            .clickable { onClick() }
-            .padding(16.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
+    val state = rememberLazyGridState()
+    // Índice en la grilla donde empieza cada mes
+    val starts = remember(groups) {
+        var index = 0
+        groups.map { group ->
+            val start = index
+            index += group.items.size + 1
+            start
+        }
+    }
+    val currentGroup by remember(groups, starts) {
+        derivedStateOf {
+            val first = state.firstVisibleItemIndex
+            groups.getOrNull(starts.indexOfLast { it <= first })
+        }
+    }
+
+    Box(modifier = modifier.fillMaxWidth()) {
+        LazyVerticalGrid(
+            state = state,
+            columns = GridCells.Fixed(columns),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 70.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing),
+            verticalArrangement = Arrangement.spacedBy(spacing)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .border(2.dp, borderColor)
-                    .background(if (theme == "Pixel Oscuro") Color(0xFF0F0F3D) else Color(0x11000000))
-                    .padding(8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = iconResId),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = title,
-                    fontFamily = AlbumVt323,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = description,
-                    fontFamily = AlbumVt323,
-                    fontSize = 14.sp,
-                    color = subtitleColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Surface(
-                color = borderColor,
-                shape = RectangleShape
-            ) {
-                Text(
-                    text = badgeText,
-                    fontFamily = AlbumVt323,
-                    fontSize = 14.sp,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
+            groups.forEachIndexed { index, group ->
+                item(key = "month_$index", span = { GridItemSpan(maxLineSpan) }) {
+                    if (group.label.isEmpty()) Spacer(Modifier.height(1.dp))
+                    else MonthHeader(group, backgroundColor, labelColor, borderColor)
+                }
+                items(items = group.items, key = itemKey) { item -> itemContent(item) }
             }
         }
+        currentGroup?.takeIf { it.label.isNotEmpty() }?.let { group ->
+            MonthHeader(group, backgroundColor, labelColor, borderColor)
+        }
+    }
+}
+
+@Composable
+private fun <T> MonthHeader(group: MonthGroup<T>, backgroundColor: Color, labelColor: Color, borderColor: Color) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(backgroundColor)
+            .drawBehind {
+                drawRect(borderColor, topLeft = Offset(0f, size.height - 2.dp.toPx()))
+            }
+            .padding(top = 2.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(group.label, fontFamily = AlbumVt323, fontSize = 20.sp, color = labelColor)
+        Text("${group.items.size}", fontFamily = AlbumVt323, fontSize = 18.sp, color = labelColor)
     }
 }
 
@@ -685,6 +538,7 @@ fun LocalPhotoGridItem(
 @Composable
 private fun AlbumGridItem(
     moment: Message,
+    columns: Int,
     theme: String,
     cardBgColor: Color,
     borderColor: Color,
@@ -737,13 +591,13 @@ private fun AlbumGridItem(
             )
     ) {
         Column(
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier.padding(if (columns >= 4) 3.dp else 6.dp)
         ) {
             if (displayUrl.isNullOrEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(130.dp)
+                        .aspectRatio(1f)
                         .background(if (theme == "Pixel Oscuro") Color(0xFF070714) else Color(0xFFEFE6D5))
                         .border(1.dp, borderColor),
                     contentAlignment = Alignment.Center
@@ -766,13 +620,15 @@ private fun AlbumGridItem(
                     contentDescription = "Foto del album",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(130.dp)
+                        .aspectRatio(1f)
                         .border(1.dp, borderColor),
                     contentScale = ContentScale.Crop
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            // Con 4 o más columnas no cabe texto legible: se ve al abrir el recuerdo
+            if (columns < 4) {
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
                 text = cleanCaption.ifBlank { "Un hermoso recuerdo ❤️" },
@@ -792,20 +648,38 @@ private fun AlbumGridItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "De: ${moment.authorName?.take(8) ?: "Amor"}",
+                    text = "De: ${moment.authorName ?: "Amor"}",
                     fontFamily = AlbumVt323,
-                    fontSize = 11.sp,
-                    color = subtitleColor.copy(alpha = 0.8f),
+                    fontSize = 14.sp,
+                    color = subtitleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = formattedDate,
                     fontFamily = AlbumVt323,
-                    fontSize = 11.sp,
-                    color = subtitleColor.copy(alpha = 0.8f)
+                    fontSize = 14.sp,
+                    color = subtitleColor
                 )
             }
+            }
+        }
+
+        if (isOwner(moment) && columns < 4) {
+            Text(
+                text = "⋮",
+                fontFamily = AlbumVt323,
+                fontSize = 20.sp,
+                color = textColor,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(28.dp)
+                    .background(cardBgColor)
+                    .border(1.dp, borderColor)
+                    .clickable { menuExpanded = true }
+            )
         }
 
         DropdownMenu(
