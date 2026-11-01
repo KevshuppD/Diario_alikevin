@@ -476,14 +476,18 @@ private fun SeasonCelebrationDialog(
         image = withContext(Dispatchers.Default) { renderCelebration(context, design, current) }
     }
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(cardBg)
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(16.dp),
+                // Margen extra: los botones no deben quedar bajo la barra de navegación aunque el diálogo no reciba sus insets
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 56.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
