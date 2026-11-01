@@ -139,8 +139,18 @@ fun CategoryHeader(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor,
-                    modifier = if (isEditMode) Modifier.clickable { onEditCategoryName() } else Modifier
+                    modifier = if (isEditMode) Modifier.clickable { onEditCategoryName() } else Modifier.weight(1f)
                 )
+                if (!isEditMode) {
+                    Text(
+                        text = "K $kevinCount · 👑$kevinMasteryCount  A $aliCount · 👑$aliMasteryCount",
+                        fontFamily = Vt323,
+                        fontSize = 15.sp,
+                        maxLines = 1,
+                        color = textColor.copy(alpha = 0.75f),
+                        modifier = Modifier.padding(start = 6.dp)
+                    )
+                }
                 if (isEditMode) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Box(
@@ -167,12 +177,6 @@ fun CategoryHeader(
                 }
             }
         }
-        if (!isEditMode) {
-            Row(modifier = Modifier.fillMaxWidth().padding(start = 18.dp, top = 2.dp)) {
-                Text("Kevin $kevinCount · 👑 $kevinMasteryCount", fontFamily = Vt323, fontSize = 16.sp, color = textColor.copy(alpha = 0.8f), modifier = Modifier.weight(1f))
-                Text("Ali $aliCount · 👑 $aliMasteryCount", fontFamily = Vt323, fontSize = 16.sp, color = textColor.copy(alpha = 0.8f), modifier = Modifier.weight(1f))
-            }
-        }
     }
 }
 
@@ -181,6 +185,8 @@ fun SpiritRow(
     spiritId: String,
     spiritResId: Int,
     spiritName: String,
+    // En Grupos el título ya nombra la familia: se muestra solo el tipo y el número
+    shortLabel: String? = null,
     hasKevin: Boolean,
     hasAli: Boolean,
     hasKevinMastery: Boolean,
@@ -265,13 +271,23 @@ fun SpiritRow(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = spiritName,
-                fontFamily = Vt323,
-                fontSize = 18.sp,
-                color = textColor,
-                modifier = if (isEditMode) Modifier.clickable { onEditName() } else Modifier
-            )
+            Column {
+                Text(
+                    text = shortLabel ?: spiritName,
+                    fontFamily = Vt323,
+                    fontSize = if (shortLabel != null) 20.sp else 18.sp,
+                    color = textColor,
+                    modifier = if (isEditMode) Modifier.clickable { onEditName() } else Modifier
+                )
+                if (shortLabel != null) {
+                    Text(
+                        text = "#$spiritId",
+                        fontFamily = Vt323,
+                        fontSize = 15.sp,
+                        color = textColor.copy(alpha = 0.7f)
+                    )
+                }
+            }
             if (isEditMode) {
                 Spacer(modifier = Modifier.width(6.dp))
                 Box(
@@ -1086,7 +1102,14 @@ fun SpiritsChecklistView(
     // Clave de refresco: al incrementarla se invalida el caché de imágenes custom
     var imageRefreshKey by remember { mutableStateOf(0) }
     
-    val matchesFilter: (String) -> Boolean = { spiritId ->
+    var searchQuery by remember { mutableStateOf("") }
+    val matchesSearch: (String) -> Boolean = { spiritId ->
+        val query = searchQuery.trim()
+        query.isEmpty() || getSpiritDisplayName(spiritId).contains(query, ignoreCase = true) ||
+            spiritId.contains(query.removePrefix("#")) ||
+            (query.removePrefix("#").toIntOrNull() != null && query.removePrefix("#").toIntOrNull() == spiritId.toIntOrNull())
+    }
+    val matchesFilterMode: (String) -> Boolean = { spiritId ->
         val myMastery = if (isKevin) kevinMastery.contains(spiritId) else aliMastery.contains(spiritId)
         val otherMastery = if (isKevin) aliMastery.contains(spiritId) else kevinMastery.contains(spiritId)
         when (filterMode) {
@@ -1121,6 +1144,7 @@ fun SpiritsChecklistView(
             else -> true
         }
     }
+    val matchesFilter: (String) -> Boolean = { matchesSearch(it) && matchesFilterMode(it) }
 
 
 
@@ -1337,123 +1361,105 @@ fun SpiritsChecklistView(
             borderColor = borderColor,
             background = cardBg
         )
-        Text(
-            text = "Filtro: " + when (filterMode) {
-                "no_obtenidos" -> "Faltantes míos"
-                "obtenidos_otro_no_yo" -> "Del otro que no tengo"
-                "obtenidos_yo_no_otro" -> "Míos que el otro no tiene"
-                "obtenidos_sin_maestria" -> "Obtenidos sin maestría 👑"
-                "sin_maestria" -> "Sin maestría (todos) 👑"
-                "maestria_otro_no_yo" -> "Maestría del otro que no tengo 👑"
-                "maestria_yo_no_otro" -> "Mi maestría que el otro no tiene 👑"
-                else -> "Todos"
-            } + " ▾",
-            fontFamily = Vt323,
-            fontSize = 18.sp,
-            color = textColor,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { showFiltersMenu = true }
-                .padding(vertical = 8.dp)
-        )
-
-        // Gamified Scoreboard Card
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(2.dp, borderColor)
-                .background(cardBg)
-                .padding(12.dp)
+        Spacer(modifier = Modifier.height(6.dp))
+        // Progreso de los dos, sin marcador de competencia
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Kevin",
-                            fontFamily = Vt323,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor
-                        )
-                        Text(
-                            text = "${kevinList.size} / ${spiritsList.size}",
-                            fontFamily = Vt323,
-                            fontSize = 22.sp,
-                            color = if (isDark) Color(0xFFBD93F9) else Color(0xFF4A2511)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "👑 ${kevinMastery.size}",
-                            fontFamily = Vt323,
-                            fontSize = 16.sp,
-                            color = if (isDark) Color(0xFFF1FA8C) else Color(0xFFD4AF37)
-                        )
-                    }
-                    
+            listOf(
+                Triple("Kevin", kevinList.size to kevinMastery.size, if (isDark) Color(0xFFBD93F9) else Color(0xFF2563EB)),
+                Triple("Ali", aliList.size to aliMastery.size, if (isDark) Color(0xFFF472B6) else Color(0xFFBE185D))
+            ).forEach { (name, counts, color) ->
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "VS",
+                        text = "$name ${counts.first}/${spiritsList.size} · 👑 ${counts.second}",
                         fontFamily = Vt323,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = borderColor.copy(alpha = 0.5f),
-                        modifier = Modifier.align(Alignment.CenterVertically)
+                        fontSize = 17.sp,
+                        color = color,
+                        maxLines = 1
                     )
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Ali",
-                            fontFamily = Vt323,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor
-                        )
-                        Text(
-                            text = "${aliList.size} / ${spiritsList.size}",
-                            fontFamily = Vt323,
-                            fontSize = 22.sp,
-                            color = if (isDark) Color(0xFFFF79C6) else Color(0xFF4A2511)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "👑 ${aliMastery.size}",
-                            fontFamily = Vt323,
-                            fontSize = 16.sp,
-                            color = if (isDark) Color(0xFFF1FA8C) else Color(0xFFD4AF37)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(7.dp)
+                            .border(1.dp, borderColor)
+                    ) {
+                        val fraction = if (spiritsList.isEmpty()) 0f else (counts.first.toFloat() / spiritsList.size).coerceIn(0f, 1f)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction)
+                                .height(7.dp)
+                                .background(color)
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Cute Leaderboard message
-                val leaderMsg = when {
-                    kevinList.size > aliList.size -> "¡Kevin va a la cabeza!"
-                    aliList.size > kevinList.size -> "¡Ali va a la cabeza!"
-                    kevinList.size == aliList.size && kevinList.size > 0 -> {
-                        when {
-                            kevinMastery.size > aliMastery.size -> "¡Kevin lidera en maestría!"
-                            aliMastery.size > kevinMastery.size -> "¡Ali lidera en maestría!"
-                            else -> "¡Están empatados!"
-                        }
-                    }
-                    else -> "¡Empiecen su colección!"
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        // Buscador y filtro activo
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .border(2.dp, borderColor)
+                    .background(cardBg)
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (searchQuery.isEmpty()) {
+                    Text(
+                        text = "Buscar espíritu o #ID",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        maxLines = 1,
+                        color = textColor.copy(alpha = 0.65f)
+                    )
                 }
-
+                androidx.compose.foundation.text.BasicTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(textColor),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 150.dp)
+                    .height(44.dp)
+                    .border(2.dp, borderColor)
+                    .background(cardBg)
+                    .clickable { showFiltersMenu = true }
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    text = leaderMsg,
+                    text = when (filterMode) {
+                        "no_obtenidos" -> "Faltantes míos"
+                        "obtenidos_otro_no_yo" -> "Del otro que no tengo"
+                        "obtenidos_yo_no_otro" -> "Míos que el otro no tiene"
+                        "obtenidos_sin_maestria" -> "Obtenidos sin maestría 👑"
+                        "sin_maestria" -> "Sin maestría (todos) 👑"
+                        "maestria_otro_no_yo" -> "Maestría del otro que no tengo 👑"
+                        "maestria_yo_no_otro" -> "Mi maestría que el otro no tiene 👑"
+                        else -> "Filtro: Todos"
+                    } + " ▾",
                     fontFamily = Vt323,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor,
-                    textAlign = TextAlign.Center
+                    fontSize = 17.sp,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    color = textColor
                 )
             }
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         val orderedIds = remember(categories) { categories.flatMap { it.spiritIds }.distinct() }
         val sortedSpirits = remember(orderedIds, spiritsList) {
@@ -1481,7 +1487,7 @@ fun SpiritsChecklistView(
         )
 
         Spacer(modifier = Modifier.height(16.dp))
-        val filteredSpirits = remember(sortedSpirits, filterMode, isKevin, kevinList, aliList, kevinMastery, aliMastery) {
+        val filteredSpirits = remember(sortedSpirits, filterMode, searchQuery, customNames, isKevin, kevinList, aliList, kevinMastery, aliMastery) {
             sortedSpirits.filter { matchesFilter(it) }
         }
         val chunkedSpirits = remember(filteredSpirits) { filteredSpirits.chunked(3) }
@@ -1491,7 +1497,7 @@ fun SpiritsChecklistView(
             state = spiritsListState,
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(bottom = 16.dp)
+            contentPadding = PaddingValues(bottom = 80.dp)
         ) {
             val totalFiltered = filteredSpirits.size
             if (totalFiltered == 0) {
@@ -1501,7 +1507,7 @@ fun SpiritsChecklistView(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No hay espíritus que coincidan con el filtro.",
+                            text = if (searchQuery.isBlank()) "No hay espíritus que coincidan con el filtro." else "No hay espíritus con \"${searchQuery.trim()}\".",
                             fontFamily = Vt323,
                             fontSize = 18.sp,
                             color = textColor.copy(alpha = 0.6f)
@@ -1609,7 +1615,7 @@ fun SpiritsChecklistView(
                 categories.forEach { category ->
                     val filteredCategorySpiritIds = category.spiritIds.filter { matchesFilter(it) }
                     if (filteredCategorySpiritIds.isNotEmpty()) {
-                        val isExpanded = expandedCategories.contains(category.name)
+                        val isExpanded = expandedCategories.contains(category.name) || searchQuery.isNotBlank()
                         val categoryKevinCount = category.spiritIds.count { kevinList.contains(it) }
                         val categoryAliCount = category.spiritIds.count { aliList.contains(it) }
                         val categoryKevinMasteryCount = category.spiritIds.count { kevinMastery.contains(it) }
@@ -1660,6 +1666,11 @@ fun SpiritsChecklistView(
                                 val currentName = getSpiritDisplayName(spiritId)
                                 val customImg = customImages[spiritId] ?: customImages[formattedId]
                                 SpiritRow(
+                                    shortLabel = if (isEditMode) null else when {
+                                        currentName == displayCategoryName -> "Normal"
+                                        currentName.startsWith("$displayCategoryName ") -> currentName.removePrefix("$displayCategoryName ")
+                                        else -> null
+                                    },
                                     spiritId = spiritId,
                                     spiritResId = spiritResId,
                                     spiritName = currentName,
@@ -1696,7 +1707,7 @@ fun SpiritsChecklistView(
                 val uncategorizedIds = spiritsList.filter { !categorizedIds.contains(it) && matchesFilter(it) }
                 if (uncategorizedIds.isNotEmpty()) {
                     val virtualCategoryName = "Sin Categoría / Sueltos"
-                    val isExpanded = expandedCategories.contains(virtualCategoryName)
+                    val isExpanded = expandedCategories.contains(virtualCategoryName) || searchQuery.isNotBlank()
                     val categoryKevinCount = uncategorizedIds.count { kevinList.contains(it) }
                     val categoryAliCount = uncategorizedIds.count { aliList.contains(it) }
                     val categoryKevinMasteryCount = uncategorizedIds.count { kevinMastery.contains(it) }

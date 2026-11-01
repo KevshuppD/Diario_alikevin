@@ -2781,7 +2781,90 @@
     html body .draggable-config-row { background: var(--bg-color); }
     html body .db-stat-box, html body .radar-telemetry-item { background: var(--bg-color); border: 2px solid var(--card-border); }
 
-    /* En escritorio, el progreso solo se muestra en el menú lateral (pedido del usuario, noviembre 2026) */
-    @media (min-width: 900px) {
-      #normal-toolbar { display: none !important; }
+    /* El progreso solo se muestra en los contadores de la barra (pedido del usuario, noviembre 2026) */
+    #normal-toolbar { display: none !important; }
+    .header-stat-chip { flex-wrap: wrap; row-gap: 4px; }
+    .header-stat-chip::before { content: attr(data-pct); order: 3; margin-left: auto; color: var(--text-muted); font-size: 15px; }
+    .header-stat-chip::after {
+      content: ""; order: 4; flex: 0 0 100%; height: 6px;
+      background: linear-gradient(to right, var(--stat-color) var(--stat-pct, 0%), var(--card-border) var(--stat-pct, 0%));
     }
+    .header-stat-chip.kevin { --stat-color: var(--kevin-color); }
+    .header-stat-chip.ali { --stat-color: var(--ali-color); }
+    .header-stat-chip.both { --stat-color: var(--both-color); }
+
+    /* Las temporadas solo aplican a las vistas de espíritus */
+    html[data-mode="letters"] .season-switch, html[data-mode="radar"] .season-switch, html[data-mode="config"] .season-switch { display: none; }
+    html:not(.route-ready) .season-switch { visibility: hidden; }
+
+    /* Bitácora en pantallas angostas: barra compacta que no se corta y tarjetas de una columna */
+    @media (max-width: 899px) {
+      body > header {
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start;
+        gap: 6px; padding: 8px 10px; background: var(--side-bg);
+        border-bottom: 2px solid var(--card-border); max-width: 100vw; box-sizing: border-box;
+      }
+      .header-left, .header-right { display: contents; }
+      .logo-container { order: 1; flex: 1 1 auto; min-width: 0; }
+      .logo-container .logo-title { font-size: 22px; white-space: nowrap; }
+      .user-session-controls { order: 2; }
+      .season-switch { order: 5; flex: 0 0 auto; }
+      .season-switch .season-btn { justify-content: center; font-size: 0 !important; min-height: 36px; min-width: 36px; padding: 0 6px !important; }
+      .season-switch .season-btn::after { content: "T" attr(data-season); font-size: 16px; }
+      .header-album-stats { order: 4; flex: 1 1 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 0; margin: 0; }
+      .header-stat-chip { min-width: 0; }
+      .header-stat-chip::before { font-size: 13px; }
+      /* Las 6 secciones siempre a la vista, sin scroll lateral: ícono arriba y nombre corto abajo */
+      .mode-nav-switch { order: 6; flex: 1 1 100%; width: auto; min-width: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; overflow: visible; padding: 2px; }
+      .mode-nav-switch .mode-btn { min-height: 48px; min-width: 0; padding: 2px 0; font-size: 0; justify-content: center; }
+      .mode-nav-switch .mode-btn::after { white-space: pre; text-align: center; font-size: 14px; line-height: 1.1; }
+      #btn-mode-normal::after { content: "📖\A Álbum"; }
+      #btn-mode-edit::after { content: "✏️\A Editar"; }
+      #btn-mode-categories::after { content: "🏷️\A Tipos"; }
+      #btn-mode-letters::after { content: "💌\A Cartas"; }
+      #btn-mode-radar::after { content: "📡\A Radar"; }
+      #btn-mode-config::after { content: "⚙️\A Config"; }
+      html.slots-compact .spirit-slots-grid:has(.normal-view),
+      .spirit-slots-grid:has(.normal-view) { grid-template-columns: minmax(0, 1fr) !important; }
+    }
+
+    /* Celular: temporadas en la fila del logo; sesión solo con ícono (el nombre sigue en el aviso del botón) */
+    @media (max-width: 520px) {
+      body > header .logo-container .logo-icon { display: none; }
+      body > header .logo-container .logo-title { font-size: 18px; }
+      body > header .season-switch { order: 2; }
+      body > header .user-session-controls { order: 3; }
+      #user-name, #btn-logout .logout-text { display: none; }
+      body > header .header-album-stats { order: 5; }
+    }
+
+    .name-short { display: none; }
+
+    /* Álbum en móvil: 3 columnas, solo el tipo como nombre y marcas grandes */
+    @media (max-width: 899px) {
+      html.slots-compact .spirit-slots-grid:has(.normal-view),
+      .spirit-slots-grid:has(.normal-view) { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 6px; }
+      .spirit-slot.normal-view { display: flex; flex-direction: column; align-items: center; padding: 6px 4px; gap: 4px; }
+      .spirit-slot.normal-view img { width: 72px; height: 72px; }
+      .spirit-slot.normal-view .spirit-name-label { text-align: center; align-self: stretch; font-size: 15px; }
+      .spirit-slot.normal-view .name-full { display: none; }
+      .spirit-slot.normal-view .name-short { display: inline; font-size: 17px; }
+      .spirit-slot.normal-view .checks-row { justify-content: center; align-self: stretch; gap: 3px; margin: 0; }
+      .spirit-slot.normal-view .user-check-badge { flex: 1 1 0; min-width: 0; min-height: 40px; justify-content: center; padding: 0; font-size: 17px; }
+      .spirit-slot.normal-view .user-check-badge > span:first-child { display: none; }
+      .spirit-slot.normal-view .mastery-star { flex: 1 1 0; min-height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+      /* Sin obtener: se atenúa solo la imagen para que el texto se lea */
+      .spirit-slot.normal-view.not-owned { opacity: 1 !important; filter: none !important; }
+      .spirit-slot.normal-view.not-owned img { opacity: 0.5; }
+      .spirit-slot.normal-view.not-owned .spirit-name-label { color: var(--text-color) !important; opacity: 1 !important; }
+      .category-card { gap: 4px; }
+      .categories-list { gap: 10px !important; }
+      .category-title-edit { gap: 2px 8px !important; }
+      .search-bar-container, .search-input-wrapper { min-width: 0; max-width: 100%; box-sizing: border-box; }
+      .search-input-wrapper input { min-width: 0; flex: 1 1 0; width: 100%; }
+      .search-kbd-hint, .filter-title-label, .filter-divider { display: none !important; }
+      #normal-filters-toolbar { padding: 0 !important; background: transparent; border: 0; box-shadow: none; margin: 0; overflow: visible; }
+      .filter-bar { display: flex !important; flex-wrap: wrap !important; overflow: visible !important; gap: 4px !important; }
+      .filter-btn { flex: 1 1 auto; justify-content: center; min-height: 34px; padding: 2px 5px !important; white-space: nowrap; font-size: 14px !important; }
+    }
+

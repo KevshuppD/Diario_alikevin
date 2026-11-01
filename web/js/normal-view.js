@@ -315,6 +315,14 @@ export function updateStats() {
   const hmAli = document.getElementById("header-mastery-ali");
   const hmBoth = document.getElementById("header-mastery-both");
 
+  // Porcentaje y barra de progreso de cada contador del menú lateral
+  [[hKevin, kevinPct], [hAli, aliPct], [hBoth, bothPct]].forEach(([el, pct]) => {
+    const chip = el?.closest(".header-stat-chip");
+    if (!chip) return;
+    chip.dataset.pct = `${pct}%`;
+    chip.style.setProperty("--stat-pct", `${pct}%`);
+  });
+
   if (hKevin) hKevin.textContent = `${totalKevin}/${totalRegistered}`;
   if (hAli) hAli.textContent = `${totalAli}/${totalRegistered}`;
   if (hBoth) hBoth.textContent = `${bothCount}/${totalRegistered}`;
@@ -696,6 +704,13 @@ export function toggleSpiritMastery(id, event) {
 }
 
 
+// En móvil se muestra solo lo que sigue al nombre de la familia. Si el nombre no parte con la familia, se muestra completo.
+function spiritLabelHtml(fullName, categoryName) {
+  const family = getSpiritBaseCategoryName(categoryName);
+  const short = !family ? "" : (fullName === family ? "Normal" : (fullName.startsWith(family + " ") ? fullName.slice(family.length + 1) : ""));
+  return short ? `<span class="name-full">${fullName}</span><span class="name-short">${short}</span>` : fullName;
+}
+
 export function createSpiritSlot(id, categoryName) {
   const slot = document.createElement("div");
   const displayNumber = String(id).padStart(2, '0');
@@ -720,7 +735,7 @@ export function createSpiritSlot(id, categoryName) {
     slot.innerHTML = `
       <span class="spirit-id-badge">#${displayNumber}</span>
       <img src="${getSpiritImgUrl(id)}" alt="Espíritu ${id}" width="68" height="68" loading="lazy" decoding="async" onerror="window.handleSpiritImgError(this, '${id}')">
-      <div class="spirit-name-label" title="${getSpiritName(id)}">${getSpiritName(id)}</div>
+      <div class="spirit-name-label" title="${getSpiritName(id)}">${spiritLabelHtml(getSpiritName(id), categoryName)}</div>
       <div class="checks-row">
         <div class="user-check-badge kevin-badge ${isKevinOwned ? 'active' : ''}" title="${isKevinOwned ? 'Obtenido por Kevin' : 'Faltante para Kevin'}">
           <span>🔵</span> <span>K</span> ${isKevinMastered ? '<span style="color:#fbbf24; font-size:10px;">⭐</span>' : ''}

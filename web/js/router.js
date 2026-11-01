@@ -43,6 +43,7 @@ export function getPathFromRoute(route) {
 export function setMode(mode) {
   if (mode === "db") mode = "normal";
   state.currentMode = mode;
+  document.documentElement.dataset.mode = mode;
   try { localStorage.setItem("spirit_mode", mode); } catch(e) {}
 
   // Actualizar botones de modo en la barra superior

@@ -417,21 +417,24 @@ fun SeasonCelebrationButton(
     val unlocked = orderedSpiritIds.isNotEmpty() && missing == 0
     var showDialog by remember { mutableStateOf(false) }
 
+    // Solo aparece cuando la temporada está completa
+    if (!unlocked) return
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 44.dp)
             .border(2.dp, borderColor)
-            .background(if (unlocked) Color(0xFFD97706) else cardBg)
-            .clickable(enabled = unlocked) { showDialog = true }
+            .background(Color(0xFFD97706))
+            .clickable { showDialog = true }
             .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = if (unlocked) "🏆 CREAR CELEBRACIÓN DE TEMPORADA" else "🔒 CELEBRACIÓN · faltan $missing maestrías entre los dos",
+            text = "🏆 CREAR CELEBRACIÓN DE TEMPORADA",
             fontFamily = Vt323,
             fontSize = 18.sp,
-            color = if (unlocked) Color(0xFF1A1A1A) else textColor.copy(alpha = 0.7f)
+            color = Color(0xFF1A1A1A)
         )
     }
 
