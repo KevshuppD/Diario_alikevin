@@ -226,27 +226,22 @@ export function openPersistentStorageModal() {
   }
 
   modal.innerHTML = `
-    <div class="modal-content" style="max-width: 480px; border-color: rgba(16, 185, 129, 0.4); text-align: left;">
-      <h3 style="display: flex; align-items: center; gap: 8px; font-family: 'VT323', monospace; font-size: 26px; color: #10b981; margin: 0 0 10px 0;">
-        💾 Activar Almacenamiento Persistente
-      </h3>
-      <p style="font-size: 14px; color: var(--text-color); margin: 10px 0; line-height: 1.5;">
-        Para garantizar la máxima fluidez a 100 Hz y evitar que el navegador elimine la caché local de tu colección de espíritus y tu sesión, activa el <strong>Almacenamiento Persistente</strong>.
+    <div class="modal-content" style="max-width: 480px; text-align: left;">
+      <h3 style="margin: 0;">💾 Activar Almacenamiento Persistente</h3>
+      <p style="font-size: 16px; color: var(--text-color); margin: 0; line-height: 1.4;">
+        Le pide al navegador que no borre los datos de esta web cuando le falte espacio.
       </p>
-
-      <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 12px 14px; border-radius: 10px; margin-bottom: 16px;">
-        <ul style="font-size: 13px; color: #9ca3af; padding-left: 18px; margin: 0; line-height: 1.6;">
-          <li>⚡ Carga instantánea de imágenes y datos de Firestore en 0ms.</li>
-          <li>🛡️ Protección anti-borrado automático de la caché si el disco se llena.</li>
-          <li>🔑 Tu sesión y preferencias se mantendrán siempre guardadas.</li>
-        </ul>
-      </div>
-
-      <div style="display: flex; gap: 10px; justify-content: flex-end;">
-        <button type="button" class="btn btn-secondary" onclick="window.closePersistentStorageModal()" style="font-size: 13px;">Omitir por ahora</button>
-        <button type="button" class="btn" onclick="window.requestPersistentStoragePermission()" style="font-size: 13px; background: rgba(16, 185, 129, 0.25); border-color: #10b981; color: #34d399; font-weight: 700;">
-          <span>✅</span> Activar Almacenamiento Protegido
-        </button>
+      <ul style="font-size: 16px; color: var(--text-muted); padding-left: 18px; margin: 0; line-height: 1.4;">
+        <li>Conserva la colección guardada en este navegador, que hace más rápida la carga.</li>
+        <li>Conserva tu sesión y tus preferencias si el disco se llena.</li>
+        <li>No las protege si tú borras los datos del sitio.</li>
+      </ul>
+      <p style="font-size: 15px; color: var(--text-muted); margin: 0; line-height: 1.4;">
+        El navegador decide si lo concede. Puede pedirte permiso de notificaciones.
+      </p>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="window.closePersistentStorageModal()">Omitir por ahora</button>
+        <button type="button" class="btn" onclick="window.requestPersistentStoragePermission()">Activar</button>
       </div>
     </div>
   `;

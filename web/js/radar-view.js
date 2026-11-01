@@ -131,7 +131,7 @@ export function renderRadarManager() {
       <!-- Hero Header -->
       <div class="radar-hero">
         <div>
-          <h2 style="font-family:'VT323',monospace; font-size:28px; font-weight:700; background:linear-gradient(135deg, #00e5ff, #e040fb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
+          <h2 style="font-family:'VT323',monospace; font-size:28px; font-weight:700; color: var(--text-color);">
             📡 Panel de Dispositivos Conectados & Control de Thor Radar
           </h2>
           <p style="font-size:16px; color:var(--text-muted); margin-top:4px;">

@@ -1172,6 +1172,7 @@ fun ClassEditDialog(
     )
 
     AlertDialog(
+            shape = androidx.compose.ui.graphics.RectangleShape,
         onDismissRequest = onDismiss,
         containerColor = cardBg,
         title = {

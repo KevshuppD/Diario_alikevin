@@ -2707,7 +2707,7 @@
        Usa solo variables de tema para funcionar en los tres temas y con cualquier acento.
        ========================================== */
     :root { --side-bg: #0a0b11; --on-accent: #fff; }
-    body.theme-pixel-claro { --side-bg: #eedfca; }
+    body.theme-pixel-claro { --side-bg: #eedfca; --on-accent: #3d2314; }
     body.theme-pixel-monocromatico { --side-bg: #000; --on-accent: #000; }
 
     .category-card, .spirit-slot, .spirit-slots-grid, .stat-pill, .mode-switch, .mode-btn,
@@ -2759,3 +2759,24 @@
     html:not(.route-ready) .content-area { visibility: hidden; }
     html:not(.route-ready) .nav-tab.active,
     html:not(.route-ready) .season-btn.active { background: transparent; color: var(--text-muted); box-shadow: none; }
+
+    /* Diálogos y botones con el estilo Bitácora */
+    .btn { border-radius: 0; box-shadow: none; color: var(--on-accent); }
+    .btn.btn-secondary { color: var(--text-color); }
+    .modal-content { background: var(--card-bg); border: 2px solid var(--card-border); border-radius: 0; box-shadow: 6px 6px 0 var(--accent-color); }
+    .modal-content h3 { color: var(--text-color); }
+
+    /* Bitácora en Tipos y Categorías, Cartas, Radar y Configuración.
+       !important porque estas vistas traen border-radius y sombras en estilos en línea. */
+    #categoriesManagerContainer *,
+    #config-container *,
+    #letters-container *,
+    #radar-container *:not(.radar-user-avatar):not([class*="leaflet"]):not(.radar-marker-label) { border-radius: 0 !important; }
+    html body .db-inspector-card, html body .radar-hero, html body .radar-user-card, html body .radar-map-card,
+    html body .letter-composer, html body .letter-card, html body .config-add-box {
+      background: var(--card-bg); border: 2px solid var(--card-border); box-shadow: 5px 5px 0 var(--accent-color);
+    }
+    html body .db-inspector-title, .letter-composer-header h2 { border-bottom: 2px dashed var(--text-muted); padding-bottom: 4px; }
+    #categoriesManagerContainer .btn, #config-container .btn, #letters-container .btn, #radar-container .btn { box-shadow: none; }
+    html body .draggable-config-row { background: var(--bg-color); }
+    html body .db-stat-box, html body .radar-telemetry-item { background: var(--bg-color); border: 2px solid var(--card-border); }

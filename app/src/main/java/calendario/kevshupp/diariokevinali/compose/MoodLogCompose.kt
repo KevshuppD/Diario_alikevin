@@ -387,6 +387,7 @@ fun MoodLogDashboardView(
 
     entryToDelete?.let { entry ->
         AlertDialog(
+            shape = androidx.compose.ui.graphics.RectangleShape,
             onDismissRequest = { entryToDelete = null },
             title = { Text("¿Borrar registro?", fontFamily = Vt323, fontSize = 22.sp) },
             text = { Text(if (entry.isGeneral) "${entry.mood} ${entry.moodLabel}" else "${entry.mood} ${entry.moodLabel} · ${timeFormat.format(entry.timestamp)}", fontFamily = Vt323, fontSize = 18.sp) },
@@ -489,6 +490,7 @@ private fun AddMoodDialog(
     var isGeneral by remember { mutableStateOf(defaultGeneral) }
 
     AlertDialog(
+            shape = androidx.compose.ui.graphics.RectangleShape,
         onDismissRequest = onDismiss,
         containerColor = cardBg,
         title = { Text("NUEVO ÁNIMO", fontFamily = Vt323, fontSize = 24.sp, color = textColor) },

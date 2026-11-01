@@ -1802,6 +1802,7 @@ fun SpiritsChecklistView(
         }
 
         AlertDialog(
+            shape = androidx.compose.ui.graphics.RectangleShape,
             onDismissRequest = { editingSpiritId = null },
             modifier = Modifier.border(3.dp, borderColor),
             containerColor = cardBg,
@@ -2032,6 +2033,7 @@ fun SpiritsChecklistView(
     if (editingCategoryOriginalName != null) {
         var tempCategoryName by remember(editingCategoryOriginalName) { mutableStateOf(editingCategoryInitialName) }
         AlertDialog(
+            shape = androidx.compose.ui.graphics.RectangleShape,
             onDismissRequest = { editingCategoryOriginalName = null },
             modifier = Modifier.border(3.dp, borderColor),
             containerColor = cardBg,
@@ -2115,6 +2117,7 @@ fun SpiritsChecklistView(
     if (deletingSpiritId != null) {
         val spiritId = deletingSpiritId!!
         AlertDialog(
+            shape = androidx.compose.ui.graphics.RectangleShape,
             onDismissRequest = { deletingSpiritId = null },
             modifier = Modifier.border(3.dp, borderColor),
             containerColor = cardBg,
@@ -2174,6 +2177,7 @@ fun SpiritsChecklistView(
         val categoryName = deletingCategoryName!!
         val displayName = customCategories[categoryName] ?: categoryName
         AlertDialog(
+            shape = androidx.compose.ui.graphics.RectangleShape,
             onDismissRequest = { deletingCategoryName = null },
             modifier = Modifier.border(3.dp, borderColor),
             containerColor = cardBg,

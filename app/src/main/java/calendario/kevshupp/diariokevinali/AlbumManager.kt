@@ -1,5 +1,6 @@
 package calendario.kevshupp.diariokevinali
 
+import calendario.kevshupp.diariokevinali.PixelDialogStyle.pixelStyle
 import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
@@ -248,7 +249,7 @@ class AlbumManager(
                                     }
                                     dialog.dismiss()
                                     showAlbumDetail(msg)
-                                }.setNegativeButton("Cancelar", null).show()
+                                }.setNegativeButton("Cancelar", null).show().pixelStyle(currentTheme)
                         }
                         true
                     }
@@ -632,7 +633,7 @@ class AlbumManager(
                             }
                         }
                         .setNegativeButton("Cancelar", null)
-                        .show()
+                        .show().pixelStyle(currentTheme)
                 } else if (parentMessage != null) {
                     d.dismiss()
                     showEditAlbumDialog(parentMessage)

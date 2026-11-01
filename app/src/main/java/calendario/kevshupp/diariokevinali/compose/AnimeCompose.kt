@@ -740,6 +740,7 @@ fun AnimeDashboardView(
     
     if (showSearchDialog) {
         AlertDialog(
+            shape = androidx.compose.ui.graphics.RectangleShape,
             onDismissRequest = { showSearchDialog = false },
             title = {
                 Text(

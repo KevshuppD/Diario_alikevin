@@ -1,5 +1,6 @@
 package calendario.kevshupp.diariokevinali
 
+import calendario.kevshupp.diariokevinali.PixelDialogStyle.pixelStyle
 import android.Manifest
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -177,6 +178,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
     private lateinit var tvToolbarTitle: TextView
     private lateinit var ivToolbarHeart: ImageView
     private lateinit var composeFeed: ComposeView
+    private var radarRestrictionDialogShown = false
     
     private val messagesState: MutableState<List<Message>> = mutableStateOf(emptyList())
     private val themeState: MutableState<String> = mutableStateOf("Pixel Claro")
@@ -770,7 +772,32 @@ class MainActivity : AppCompatActivity(), AppNavigation {
         if (prefs.getBoolean("radar_is_sharing", true) && PermissionHelper.hasLocationPermission(this)) {
             ThorRadarService.startService(this)
             ThorRadarManager.publishHeartbeat(this)
+            offerRadarRestrictionFix()
         }
+    }
+
+    // Avisa al entrar a la app si la batería restringida impide que el radar siga en segundo plano
+    private fun offerRadarRestrictionFix() {
+        if (radarRestrictionDialogShown || !PermissionHelper.isBackgroundRestricted(this)) return
+        radarRestrictionDialogShown = true
+        val canUseShizuku = ShizukuHelper.isAvailable()
+        val message = if (canUseShizuku) {
+            "La batería de la app está en Restringido, así que Android detiene el radar cuando sales. Shizuku está activo y puede arreglarlo ahora."
+        } else {
+            "La batería de la app está en Restringido, así que Android detiene el radar cuando sales. Shizuku no está activo: elige Batería → Sin restricciones en los ajustes."
+        }
+        AlertDialog.Builder(this)
+            .setTitle("⚠️ Thor Radar está limitado")
+            .setMessage(message)
+            .setPositiveButton(if (canUseShizuku) "Arreglar con Shizuku" else "Abrir ajustes") { _, _ ->
+                PermissionHelper.requestIgnoreBatteryOptimizations(this) {
+                    // Permite volver a preguntar si sigue restringida al regresar a la app
+                    radarRestrictionDialogShown = false
+                    if (!PermissionHelper.isBackgroundRestricted(this)) ThorRadarService.startService(this)
+                }
+            }
+            .setNegativeButton("Ahora no", null)
+            .show().pixelStyle(currentTheme)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -820,7 +847,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
                                 .setOnDismissListener {
                                     SosAlarmHelper.stopSosAlarm(this@MainActivity)
                                 }
-                                .show()
+                                .show().pixelStyle(currentTheme)
                         }
                     } else if (!isSos && lastSosTimestamp > 0L) {
                         runOnUiThread {
@@ -1268,7 +1295,7 @@ class MainActivity : AppCompatActivity(), AppNavigation {
             .setTitle("⚠️ Error de Sincronización")
             .setMessage("Ocurrió un error al sincronizar las fotos con Google Drive:\n\n$errorMsg")
             .setPositiveButton("Aceptar", null)
-            .show()
+            .show().pixelStyle(currentTheme)
     }
 
     private fun sendMessage() {

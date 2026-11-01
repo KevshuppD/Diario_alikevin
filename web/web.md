@@ -15,7 +15,7 @@ Todo lo específico de la web. Lo general y los modelos de Firestore están en [
 
 ## Diseño Bitácora (noviembre 2026)
 
-Elegido por el usuario. Está en el último bloque de `styles.css`: en pantallas de 900 px o más, el `<header>` pasa a menú lateral fijo de 240 px; el selector de temporada muestra T3, T2 y T1 mediante CSS; y en el Álbum las tarjetas son horizontales. Solo cambia la presentación: los elementos y funciones siguen siendo los mismos.
+Elegido por el usuario. Está en el último bloque de `styles.css`: en pantallas de 900 px o más, el `<header>` pasa a menú lateral fijo de 240 px; el selector de temporada muestra T3, T2 y T1 mediante CSS; y en el Álbum las tarjetas son horizontales. Tipos y Categorías, Cartas, Radar y Configuración usan bordes rectos y sombra sólida con el acento; `border-radius` se fuerza con `!important` porque esas vistas lo traen en línea, salvo avatares y elementos del mapa. Solo cambia la presentación: los elementos y funciones siguen siendo los mismos.
 
 **Carga de rutas:** el HTML siempre trae marcado el Álbum. El contenido y la pestaña activa se ocultan hasta que `initRouter` agrega `route-ready` a `<html>`, con un respaldo de 3 s en el script de `<head>`, para que no aparezca el Álbum al recargar otra ruta.
 
@@ -52,7 +52,7 @@ Elegido por el usuario. Está en el último bloque de `styles.css`: en pantallas
   - Sistema de autoguardado automático debounced (`triggerAutoSave`) activo en toda la web.
   - Al editar nombres de categorías, renombrar espíritus, reordenar por Drag & Drop, crear o eliminar categorías y tipos, los cambios se persisten inmediatamente en Firestore y se transmiten vía WebSockets con indicador de estado en tiempo real (`✓ Autoguardado` / `🔄 Guardando...`), eliminando la necesidad de botones manuales de guardar.
 - **Vercel Serverless Function:** `web/api/upload-spirit-image.js` (Firmado y subida directa de Base64 comprimido a Cloudinary).
-- **Almacenamiento Persistente (`requestPersistentStoragePermission` en `web/js/app.js`):** En Chromium (Edge, Brave, Chrome) `navigator.storage.persist()` no muestra aviso y se decide por heurísticas (permiso de notificaciones, marcador, uso frecuente). Si la primera solicitud es rechazada, se pide el permiso de notificaciones y se reintenta `persist()`.
+- **Almacenamiento Persistente (`requestPersistentStoragePermission` en `web/js/app.js`):** En Chromium (Edge, Brave, Chrome) `navigator.storage.persist()` no muestra aviso y se decide por heurísticas (permiso de notificaciones, marcador, uso frecuente). Si la primera solicitud es rechazada, se pide el permiso de notificaciones y se reintenta `persist()`. El aviso aparece una sola vez: omitirlo o recibir un rechazo guarda `persistent_storage_dismissed`, y después se abre desde Configuración. En `localhost` Chromium nunca lo concede.
 - **Carga y Caché de la Web (octubre 2026):**
   - **Firebase modular 10.8.0 (`web/js/firebase-config.js`):** Se reemplazó el SDK compat por el modular (`firebase/app`, `firebase/firestore`, `firebase/database`). Vite lo empaqueta en un chunk propio `assets/firebase-*.js`; el `<script type="importmap">` de los HTML solo actúa al servir el código fuente sin build (`npm run dev`) y apunta a la misma versión en gstatic. Los demás módulos importan `doc`, `setDoc`, `onSnapshot`, `rtdbRef`, etc. desde `firebase-config.js`. La versión de `package.json` y la del import map deben coincidir.
   - **Leaflet bajo demanda:** `ensureLeaflet()` en `web/js/radar-view.js` inyecta el JS y CSS de Leaflet solo al abrir `/radar`.

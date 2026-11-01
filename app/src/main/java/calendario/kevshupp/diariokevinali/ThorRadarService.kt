@@ -41,7 +41,42 @@ class ThorRadarService : Service() {
         const val NOTIFICATION_ID = 2024
         private const val TAG = "ThorRadarService"
 
+        private const val BLOCKED_NOTIFICATION_ID = 2026
+
+        /**
+         * Avisa que Android no deja al radar seguir en segundo plano y lleva al ajuste de batería.
+         * Con batería restringida, Android puede aplazar el reinicio del servicio durante horas sin ningún aviso.
+         */
+        fun notifyRadarBlocked(context: Context) {
+            val settingsIntent = Intent(
+                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                android.net.Uri.fromParts("package", context.packageName, null)
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                BLOCKED_NOTIFICATION_ID,
+                settingsIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val notification = NotificationCompat.Builder(context, "diario_channel")
+                .setSmallIcon(R.drawable.ic_heart_pixel)
+                .setContentTitle("⚠️ Thor Radar se detuvo")
+                .setContentText("Android lo bloquea en segundo plano. Toca y elige Batería → Sin restricciones.")
+                .setStyle(NotificationCompat.BigTextStyle().bigText("Android lo bloquea en segundo plano. Toca y elige Batería → Sin restricciones."))
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+            context.getSystemService(NotificationManager::class.java)?.notify(BLOCKED_NOTIFICATION_ID, notification)
+        }
+
         fun startService(context: Context) {
+            if (PermissionHelper.isBackgroundRestricted(context)) {
+                Log.w(TAG, "Batería restringida: el radar no podrá seguir en segundo plano")
+                notifyRadarBlocked(context)
+            } else {
+                context.getSystemService(NotificationManager::class.java)?.cancel(BLOCKED_NOTIFICATION_ID)
+            }
             val intent = Intent(context, ThorRadarService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -140,6 +175,7 @@ class ThorRadarService : Service() {
             }
         } catch (e: Exception) {
             Log.w(TAG, "startForeground en segundo plano restringido por el SO: ${e.message}")
+            notifyRadarBlocked(this)
         }
 
         if (PermissionHelper.hasLocationPermission(this)) {
