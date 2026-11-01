@@ -19,7 +19,7 @@ const val CUKY_SCENE_W = 80
 const val CUKY_SCENE_H = 52
 
 /** Fondos de Cuky dibujados en código (el resto de ids usa los PNG existentes). */
-val CUKY_PROCEDURAL_BACKGROUNDS = setOf("coop", "farm", "meadow", "rain", "sunset", "beach", "jungle", "default", "space")
+val CUKY_PROCEDURAL_BACKGROUNDS = setOf("coop", "farm", "meadow", "rain", "sunset", "beach", "jungle", "default", "space") + SPIRIT_BACKGROUNDS
 
 private const val W = CUKY_SCENE_W
 private const val H = CUKY_SCENE_H
@@ -459,6 +459,7 @@ internal fun DrawScope.drawCukyBackground(id: String, frame: Int, night: Boolean
     p.ds = this; p.x0 = x0; p.y0 = y0; p.c = cell; p.night = night
     clipRect(x0, y0, x0 + W * cell, y0 + H * cell) {
         when (id) {
+            in SPIRIT_BACKGROUNDS -> drawSpiritBackground(id, frame, x0, y0, cell)
             "farm" -> p.farm(frame)
             "meadow" -> p.meadow(frame)
             "rain" -> p.rain(frame)
@@ -479,7 +480,7 @@ internal fun DrawScope.drawCukyBackground(id: String, frame: Int, night: Boolean
 // =====================================================================================
 
 /** Fondos de Thor dibujados en código. */
-val THOR_PROCEDURAL_BACKGROUNDS = setOf("default", "beach", "jungle", "space", "coop", "farm")
+val THOR_PROCEDURAL_BACKGROUNDS = setOf("default", "beach", "jungle", "space", "coop", "farm") + SPIRIT_BACKGROUNDS
 
 private val TH_SKY_BEACH_DAY = longArrayOf(0xFF1E9BE8, 0xFF4FBDF0, 0xFF88D8F2, 0xFFC5F0EE)
 private val TH_SKY_BEACH_NIGHT = longArrayOf(0xFF0A0E36, 0xFF131852, 0xFF20256E, 0xFF3A2F80)
@@ -639,6 +640,7 @@ internal fun DrawScope.drawThorBackground(id: String, frame: Int, night: Boolean
     p.ds = this; p.x0 = x0; p.y0 = y0; p.c = cell; p.night = night
     clipRect(x0, y0, x0 + W * cell, y0 + H * cell) {
         when (id) {
+            in SPIRIT_BACKGROUNDS -> drawSpiritBackground(id, frame, x0, y0, cell)
             "beach" -> p.thorBeach(frame)
             "jungle" -> p.thorJungle(frame)
             "space" -> p.thorSpace(frame)

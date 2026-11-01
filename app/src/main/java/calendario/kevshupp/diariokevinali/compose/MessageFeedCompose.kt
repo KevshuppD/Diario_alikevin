@@ -848,8 +848,8 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                         .border(2.dp, borderColor)
                         .background(if (isSleeping) Color(0xFF0F0F3D) else Color.White.copy(alpha = 0.1f))
                         .clickable { isClicked = true }
-                        .padding(4.dp)
                 ) {
+                    BackgroundThumb(pet.getActiveEquippedBackground(), pet.isCuky(), Modifier.fillMaxSize(), night = isSleeping)
                     if (pet.isCuky()) {
                         // Cuky procedural: respira, parpadea y muestra su suciedad y accesorio
                         CukyPixelStage(
@@ -873,6 +873,10 @@ fun PetCard(pet: Pet, theme: String, onClick: () -> Unit) {
                                     scaleY = clickScale
                                 }
                         )
+                    }
+
+                    pet.getActiveEquippedCompanions().forEachIndexed { i, id ->
+                        CompanionThumb(id, Modifier.fillMaxSize(), slot = i)
                     }
 
                     if (isSleeping) {

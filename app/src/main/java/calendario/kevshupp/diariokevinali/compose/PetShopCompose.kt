@@ -1,5 +1,8 @@
 package calendario.kevshupp.diariokevinali.compose
 
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,14 +47,18 @@ fun CompactStat(label: String, value: String, color: Color) {
 fun ColumnScope.ShopItemPicker(
     items: List<Triple<String, String, Int>>,
     isUnlocked: (id: String, cost: Int) -> Boolean,
-    equippedId: String?,
+    isEquipped: (id: String) -> Boolean,
     previewId: String?,
     emptyHint: String,
     isDark: Boolean,
     borderColor: Color,
     accentColor: Color,
     onPreview: (String) -> Unit,
-    onAction: (id: String, cost: Int) -> Unit
+    onAction: (id: String, cost: Int) -> Unit,
+    thumb: @Composable (id: String) -> Unit,
+    lockText: (id: String) -> String? = { null },
+    wonBy: (id: String) -> String? = { null },
+    equippedActionLabel: String = "EQUIPADO"
 ) {
     val textColor = if (isDark) Color.White else Color(0xFF4A2511)
     val selected = items.firstOrNull { it.first == previewId }
@@ -69,12 +76,15 @@ fun ColumnScope.ShopItemPicker(
         } else {
             val (id, name, cost) = selected
             val unlocked = isUnlocked(id, cost)
-            val equipped = equippedId == id
+            val equipped = isEquipped(id)
+            val lock = if (unlocked) null else lockText(id)
             Column(modifier = Modifier.weight(1f)) {
                 Text(name, fontFamily = Vt323, fontSize = 19.sp, color = textColor)
                 Text(
                     text = when {
                         equipped -> "Equipado actualmente"
+                        lock != null -> lock
+                        wonBy(id) != null -> "Ganado por ${wonBy(id)}"
                         unlocked -> "Desbloqueado"
                         else -> "${cost} ❤️"
                     },
@@ -82,19 +92,21 @@ fun ColumnScope.ShopItemPicker(
                     fontSize = 16.sp,
                     color = when {
                         equipped -> Color(0xFF4CAF50)
-                        unlocked -> textColor.copy(alpha = 0.75f)
+                        unlocked || lock != null -> textColor.copy(alpha = 0.75f)
                         else -> Color(0xFFFF4081)
                     }
                 )
             }
             Button(
                 onClick = { onAction(id, cost) },
+                enabled = lock == null,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = when {
                         equipped -> Color(0xFF4CAF50)
                         unlocked -> borderColor
                         else -> Color(0xFF8B4513)
-                    }
+                    },
+                    disabledContainerColor = Color(0xFF55505C)
                 ),
                 shape = RectangleShape,
                 contentPadding = PaddingValues(horizontal = 12.dp),
@@ -102,7 +114,8 @@ fun ColumnScope.ShopItemPicker(
             ) {
                 Text(
                     text = when {
-                        equipped -> "EQUIPADO"
+                        lock != null -> "🔒 BLOQUEADO"
+                        equipped -> equippedActionLabel
                         unlocked -> "EQUIPAR"
                         else -> "COMPRAR"
                     },
@@ -117,7 +130,7 @@ fun ColumnScope.ShopItemPicker(
     Spacer(modifier = Modifier.height(8.dp))
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(4),
+        columns = GridCells.Fixed(3),
         modifier = Modifier.weight(1f).fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -125,30 +138,53 @@ fun ColumnScope.ShopItemPicker(
     ) {
         items(items, key = { it.first }) { (id, name, cost) ->
             val unlocked = isUnlocked(id, cost)
-            val equipped = equippedId == id
+            val equipped = isEquipped(id)
             val previewed = previewId == id
+            val lock = if (unlocked) null else lockText(id)
             Column(
                 modifier = Modifier
                     .border(if (previewed) 3.dp else 1.dp, if (previewed) accentColor else borderColor)
                     .clickable { onPreview(id) }
-                    .padding(vertical = 6.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(bottom = 4.dp)
             ) {
-                Text(name.substringAfterLast(' '), fontSize = 24.sp, maxLines = 1)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .clipToBounds()
+                        .graphicsLayer { alpha = if (lock != null) 0.45f else 1f }
+                ) {
+                    thumb(id)
+                }
+                Text(
+                    text = name,
+                    fontFamily = Vt323,
+                    fontSize = 15.sp,
+                    lineHeight = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = textColor,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
                 Text(
                     text = when {
                         equipped -> "✓ Puesto"
+                        lock != null -> "🔒 $lock"
                         unlocked -> "Tuyo"
                         else -> "${cost} ❤️"
                     },
                     fontFamily = Vt323,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
+                    lineHeight = 14.sp,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     color = when {
                         equipped -> Color(0xFF4CAF50)
+                        lock != null -> textColor.copy(alpha = 0.75f)
                         unlocked -> textColor
                         else -> Color(0xFFFF4081)
-                    }
+                    },
+                    modifier = Modifier.padding(horizontal = 4.dp)
                 )
             }
         }

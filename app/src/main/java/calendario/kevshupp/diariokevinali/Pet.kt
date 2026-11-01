@@ -60,6 +60,13 @@ data class Pet(
     var cukyEquippedBackground: String = "coop",
     var cukyUnlockedBackgrounds: List<String> = listOf("coop"),
 
+    // --- COMPAÑEROS (hasta 2 equipados, por mascota) Y PREMIOS DE ESPÍRITUS (compartidos) ---
+    var equippedCompanions: List<String> = emptyList(),
+    var unlockedCompanions: List<String> = emptyList(),
+    var cukyEquippedCompanions: List<String> = emptyList(),
+    var cukyUnlockedCompanions: List<String> = emptyList(),
+    var spiritRewardsWon: Map<String, String> = emptyMap(),
+
     // --- MINIJUEGOS Y RÉCORDS ---
     var flappyHighScoreKevin: Int = 0,
     var flappyHighScoreAli: Int = 0,
@@ -164,6 +171,10 @@ data class Pet(
     fun getActiveLastTapDate(): String? = if (isCuky()) cukyLastTapDate else lastTapDate
 
     fun getActiveEquippedAccessory(): String? = if (isCuky()) cukyEquippedAccessory else equippedAccessory
+
+    fun getActiveEquippedCompanions(): List<String> = if (isCuky()) cukyEquippedCompanions else equippedCompanions
+
+    fun getActiveUnlockedCompanions(): List<String> = if (isCuky()) cukyUnlockedCompanions else unlockedCompanions
 
     fun getActiveUnlockedAccessories(): List<String> = if (isCuky()) cukyUnlockedAccessories else unlockedAccessories
 
@@ -324,6 +335,8 @@ data class Pet(
         const val STATUS_HAPPY = "FELIZ"
         const val STATUS_SAD = "TRISTE"
         const val STATUS_HUNGRY = "HAMBRIENTO"
+        /** Por debajo de este hambre no se le puede dar comida. */
+        const val FEED_MIN_HUNGER = 30
         const val STATUS_SLEEPING = "DURMIENDO"
         const val STATUS_EVOLVING = "EVOLUCIONANDO"
         

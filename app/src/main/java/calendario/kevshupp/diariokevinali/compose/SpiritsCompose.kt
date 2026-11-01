@@ -1197,17 +1197,112 @@ fun SpiritsChecklistView(
                     color = if (currentSeason != 1) Color(0xFFBD93F9) else textColor
                 )
             }
-            Spacer(modifier = Modifier.width(6.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Box {
+        }
+
+        // Vistas y filtro activo, siempre a la vista
+        PixelSegmented(
+            options = listOf("grupos" to "Grupos", "lista" to "Lista", "fortnite" to "Fortnite"),
+            selected = viewMode,
+            onSelect = { viewMode = it },
+            textColor = textColor,
+            borderColor = borderColor,
+            background = cardBg
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        // Progreso de los dos, sin marcador de competencia
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            listOf(
+                Triple("Kevin", kevinList.size to kevinMastery.size, if (isDark) Color(0xFFBD93F9) else Color(0xFF2563EB)),
+                Triple("Ali", aliList.size to aliMastery.size, if (isDark) Color(0xFFF472B6) else Color(0xFFBE185D))
+            ).forEach { (name, counts, color) ->
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "$name ${counts.first}/${spiritsList.size} · 👑 ${counts.second}",
+                        fontFamily = Vt323,
+                        fontSize = 17.sp,
+                        color = color,
+                        maxLines = 1
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(7.dp)
+                            .border(1.dp, borderColor)
+                    ) {
+                        val fraction = if (spiritsList.isEmpty()) 0f else (counts.first.toFloat() / spiritsList.size).coerceIn(0f, 1f)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction)
+                                .height(7.dp)
+                                .background(color)
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        // Buscador y filtro activo
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .border(2.dp, borderColor)
+                    .background(cardBg)
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (searchQuery.isEmpty()) {
+                    Text(
+                        text = "Buscar espíritu o #ID",
+                        fontFamily = Vt323,
+                        fontSize = 18.sp,
+                        maxLines = 1,
+                        color = textColor.copy(alpha = 0.65f)
+                    )
+                }
+                androidx.compose.foundation.text.BasicTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(textColor),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 150.dp)
+                    .height(44.dp)
+                    .border(2.dp, borderColor)
+                    .background(cardBg)
+                    .clickable { showFiltersMenu = true }
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    text = "⋮",
+                    text = when (filterMode) {
+                        "no_obtenidos" -> "Faltantes míos"
+                        "obtenidos_otro_no_yo" -> "Del otro que no tengo"
+                        "obtenidos_yo_no_otro" -> "Míos que el otro no tiene"
+                        "obtenidos_sin_maestria" -> "Obtenidos sin maestría 👑"
+                        "sin_maestria" -> "Sin maestría (todos) 👑"
+                        "maestria_otro_no_yo" -> "Maestría del otro que no tengo 👑"
+                        "maestria_yo_no_otro" -> "Mi maestría que el otro no tiene 👑"
+                        else -> "Filtro: Todos"
+                    } + " ▾",
                     fontFamily = Vt323,
-                    fontSize = 24.sp,
-                    color = textColor,
-                    modifier = Modifier
-                        .clickable { showFiltersMenu = true }
-                        .padding(8.dp)
+                    fontSize = 17.sp,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    color = textColor
                 )
                 DropdownMenu(
                     expanded = showFiltersMenu,
@@ -1349,114 +1444,6 @@ fun SpiritsChecklistView(
                         }
                     )
                 }
-            }
-        }
-
-        // Vistas y filtro activo, siempre a la vista
-        PixelSegmented(
-            options = listOf("grupos" to "Grupos", "lista" to "Lista", "fortnite" to "Fortnite"),
-            selected = viewMode,
-            onSelect = { viewMode = it },
-            textColor = textColor,
-            borderColor = borderColor,
-            background = cardBg
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        // Progreso de los dos, sin marcador de competencia
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            listOf(
-                Triple("Kevin", kevinList.size to kevinMastery.size, if (isDark) Color(0xFFBD93F9) else Color(0xFF2563EB)),
-                Triple("Ali", aliList.size to aliMastery.size, if (isDark) Color(0xFFF472B6) else Color(0xFFBE185D))
-            ).forEach { (name, counts, color) ->
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "$name ${counts.first}/${spiritsList.size} · 👑 ${counts.second}",
-                        fontFamily = Vt323,
-                        fontSize = 17.sp,
-                        color = color,
-                        maxLines = 1
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(7.dp)
-                            .border(1.dp, borderColor)
-                    ) {
-                        val fraction = if (spiritsList.isEmpty()) 0f else (counts.first.toFloat() / spiritsList.size).coerceIn(0f, 1f)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(fraction)
-                                .height(7.dp)
-                                .background(color)
-                        )
-                    }
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        // Buscador y filtro activo
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(44.dp)
-                    .border(2.dp, borderColor)
-                    .background(cardBg)
-                    .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                if (searchQuery.isEmpty()) {
-                    Text(
-                        text = "Buscar espíritu o #ID",
-                        fontFamily = Vt323,
-                        fontSize = 18.sp,
-                        maxLines = 1,
-                        color = textColor.copy(alpha = 0.65f)
-                    )
-                }
-                androidx.compose.foundation.text.BasicTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    singleLine = true,
-                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Vt323, fontSize = 18.sp, color = textColor),
-                    cursorBrush = androidx.compose.ui.graphics.SolidColor(textColor),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .widthIn(max = 150.dp)
-                    .height(44.dp)
-                    .border(2.dp, borderColor)
-                    .background(cardBg)
-                    .clickable { showFiltersMenu = true }
-                    .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = when (filterMode) {
-                        "no_obtenidos" -> "Faltantes míos"
-                        "obtenidos_otro_no_yo" -> "Del otro que no tengo"
-                        "obtenidos_yo_no_otro" -> "Míos que el otro no tiene"
-                        "obtenidos_sin_maestria" -> "Obtenidos sin maestría 👑"
-                        "sin_maestria" -> "Sin maestría (todos) 👑"
-                        "maestria_otro_no_yo" -> "Maestría del otro que no tengo 👑"
-                        "maestria_yo_no_otro" -> "Mi maestría que el otro no tiene 👑"
-                        else -> "Filtro: Todos"
-                    } + " ▾",
-                    fontFamily = Vt323,
-                    fontSize = 17.sp,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    color = textColor
-                )
             }
         }
         Spacer(modifier = Modifier.height(6.dp))

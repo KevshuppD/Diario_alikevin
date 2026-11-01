@@ -523,6 +523,8 @@ private fun DrawScope.drawCuky(t: CukyTransform, s: CukyPose, level: Int, access
     val reina = level >= 15
     val pal = if (small) PAL_POLLITO else if (reina) PAL_REINA else PAL_GALLINITA
     val sw = if (s.dy < -2) 4 else 8
+    if (accessory == "aura") drawAura(t.g, s.dx + 13, s.dy + 12, 14, 12) { x, y, w, h, col -> crect(t, x, y, w, h, col.toInt()) }
+    if (accessory == ACC_CAPE) drawCapeBack(t.g, s.dx, s.dy) { x, y, w, h, col -> crect(t, x, y, w, h, col.toInt()) }
     crect(t, OX + 10 - sw / 2, OY + 20, sw, 1, SHADOW_ARGB)
     if (reina) clayer(t, CUKY_TAIL, s.dx, s.dy + s.body, pal, 10)
     if (!s.sit) drawFeet(t, s, pal)
@@ -537,6 +539,12 @@ private fun DrawScope.drawCuky(t: CukyTransform, s: CukyPose, level: Int, access
     if (reina) clayer(t, CUKY_CROWN, s.dx + s.headDx, s.dy + s.head + s.crest, pal, -3)
     val acc = CUKY_ACCESSORIES[accessory]
     if (acc != null && !(reina && accessory == Pet.ACC_CROWN)) drawAccessory(t, s, acc, small, pal)
+    // Mismo tamaño que en Thor: la grilla de Cuky se escala a 0,7
+    val wx = s.dx; val wy = s.dy + s.head
+    drawWearable(accessory, t.g, false, 19, 0) { x, y, w, h, col ->
+        crect(t, wx + (x * 7) / 10, wy + (y * 7) / 10, ((w * 7 + 9) / 10), ((h * 7 + 9) / 10), col.toInt())
+    }
+    if (accessory == ACC_CAPE) { crect(t, wx + 12, wy + 14, 2, 2, 0xFFFACC15.toInt()) }
     if (s.nest) clayer(t, CUKY_NEST, 0, 0, pal, 16)
     drawEffects(t, s, pal)
 }

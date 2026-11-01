@@ -167,7 +167,8 @@ Si un cambio afecta a la app y a la web (por ejemplo, un campo de Firestore o un
 
 ### Inventario de Opciones Visibles (no eliminar sin autorización — ver regla 8 de AGENTS.md)
 - **Configuración → Diseño y Tema:** selector de tema, paleta de colores por familias, casilla *Fondo con tono personalizado* (`useCustomBg`), casilla *Mostrar barra superior ('Nuestro Diario')* (`showTopBar`, se guarda en `DiarioPrefs` y en Firestore y la aplica `MainActivity.updateTopBarVisibility()`).
-- **Mascota (`PetMenuDialog`):** pestañas INFO, RANK 🏆 (15 niveles), ESTILO 👑, COMIDA, VALES 🎟️ (ruleta a la distancia o ruleta Juntos según el radar) y ⚙️.
+- **Mascota (`PetMenuDialog`):** pestañas INFO (con botón ALIMENTAR, que reemplaza a la pestaña COMIDA por pedido del usuario, 2026-11-01), RANK 🏆 (15 niveles), ESTILO 👑, VALES 🎟️ (ruleta a la distancia o ruleta Juntos según el radar) y ⚙️.
+- **Mascota → ESTILO:** pestañas Accesorios, Fondos y Compañeros, con miniaturas; hasta 2 compañeros equipados.
 - **Avanzado y Admin:** reiniciar ranking, minijuegos, mascotas y vales de las ruletas; editor de premios Juntos.
 - **Cartas:** like / quitar like (solo en cartas de la pareja), menú de mantener presionado (solo en cartas propias, por pedido del usuario, 2026-10-31), borrar carta propia, paginación de 5 en 5.
 - **Web → Tipos y Categorías:** botón *🪄 Normalizar Nombres* (respalda, renumera IDs y normaliza nombres) y botón *⚠️ Restablecer Respaldo* (contraseña `123`).

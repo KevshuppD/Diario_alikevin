@@ -140,7 +140,8 @@ class RecipeFragment : Fragment() {
                     recipes = recipes,
                     theme = theme,
                     onRecipeClick = { recipe -> selectedRecipeId = recipe.recipeId },
-                    onAddRecipeClick = { activityRef?.openAddRecipeDialog() }
+                    onAddRecipeClick = { activityRef?.openAddRecipeDialog() },
+                    onImportRecipe = { imported -> activityRef?.recipeManager?.saveImportedRecipe(imported) }
                 )
             }
         }

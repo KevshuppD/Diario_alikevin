@@ -1,5 +1,6 @@
 package calendario.kevshupp.diariokevinali.compose
 
+import androidx.compose.ui.graphics.asImageBitmap
 import android.content.Context
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -33,6 +34,18 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+/** Mascota con un accesorio, como cuadro fijo: la grilla de la tienda no anima decenas de sprites. */
+@Composable
+private fun PetThumb(pet: Pet, accessory: String?, modifier: Modifier = Modifier) {
+    val isCuky = pet.isCuky()
+    val level = pet.getActiveLevel()
+    val bitmap = remember(isCuky, level, accessory) {
+        (if (isCuky) renderCukyBitmap(128, level, accessory, false, 0, 100)
+        else renderThorBitmap(128, level, accessory, false, 0, 100)).asImageBitmap()
+    }
+    Image(bitmap = bitmap, contentDescription = null, modifier = modifier, filterQuality = androidx.compose.ui.graphics.FilterQuality.None)
+}
+
 @Composable
 fun PetMenuDialog(
     pet: Pet,
@@ -55,10 +68,48 @@ fun PetMenuDialog(
     var shopCategory by remember { mutableStateOf("accessories") } // "accessories" o "backgrounds"
     var previewAccessory by remember { mutableStateOf(pet.getActiveEquippedAccessory()) }
     var previewBackground by remember { mutableStateOf(pet.getActiveEquippedBackground()) }
+    var previewCompanion by remember { mutableStateOf<String?>(null) }
+    var spiritProgress by remember { mutableStateOf<Map<String, calendario.kevshupp.diariokevinali.SpiritCounts>>(emptyMap()) }
+    val rewardsContext = LocalContext.current
+    val petCoupleId = remember {
+        rewardsContext.getSharedPreferences("DiarioPrefs", android.content.Context.MODE_PRIVATE)
+            .getString("coupleId", null) ?: "vínculo_único_123"
+    }
+    val latestWon by androidx.compose.runtime.rememberUpdatedState(pet.spiritRewardsWon)
+    // Lee el avance solo con el menú abierto. Cada premio se escribe una sola vez, al ganarlo.
+    DisposableEffect(petCoupleId) {
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val listener = db.collection(calendario.kevshupp.diariokevinali.SpiritRewards.COLLECTION).document(petCoupleId)
+            .addSnapshotListener { doc, _ ->
+                if (doc == null || !doc.exists()) return@addSnapshotListener
+                val progress = calendario.kevshupp.diariokevinali.SpiritRewards.progress(doc)
+                spiritProgress = progress
+                val winners = calendario.kevshupp.diariokevinali.SpiritRewards.newWinners(progress, latestWon)
+                if (winners.isNotEmpty()) {
+                    // La transacción vuelve a revisar lo ganado: con dos teléfonos abiertos no se pagan dos veces los puntos
+                    val petRef = db.collection("pets").document(petCoupleId)
+                    db.runTransaction { tx ->
+                        val won = tx.get(petRef).get("spiritRewardsWon") as? Map<*, *> ?: emptyMap<String, String>()
+                        val fresh = winners.filterKeys { it !in won }
+                        if (fresh.isNotEmpty()) {
+                            val updates = HashMap<String, Any>()
+                            fresh.forEach { (id, winner) -> updates["spiritRewardsWon.$id"] = winner }
+                            if (calendario.kevshupp.diariokevinali.SpiritRewards.LOVE_POINTS_ID in fresh) {
+                                updates["lovePoints"] = com.google.firebase.firestore.FieldValue.increment(calendario.kevshupp.diariokevinali.SpiritRewards.LOVE_POINTS_AMOUNT)
+                            }
+                            tx.update(petRef, updates)
+                        }
+                        null
+                    }
+                }
+            }
+        onDispose { listener.remove() }
+    }
 
     LaunchedEffect(pet.getActiveEquippedAccessory(), pet.getActiveEquippedBackground(), pet.petType) {
         previewAccessory = pet.getActiveEquippedAccessory()
         previewBackground = pet.getActiveEquippedBackground()
+        previewCompanion = null
     }
 
     var newName by remember { mutableStateOf(pet.getActiveName()) }
@@ -261,7 +312,6 @@ fun PetMenuDialog(
                     TabItem("🐾\nINFO", selectedTab == 0, isDark, borderColor) { selectedTab = 0 }
                     TabItem("🏆\nRANK", selectedTab == 2, isDark, borderColor) { selectedTab = 2 }
                     TabItem("👑\nESTILO", selectedTab == 1, isDark, borderColor) { selectedTab = 1 }
-                    TabItem(if (pet.isCuky()) "🌽\nCOMIDA" else "🐟\nCOMIDA", selectedTab == 3, isDark, borderColor) { selectedTab = 3 }
                     TabItem("🎟️\nVALES", selectedTab == 5, isDark, borderColor) { selectedTab = 5 }
                     TabItem("⚙️\nAJUSTES", selectedTab == 4, isDark, borderColor) { selectedTab = 4 }
                 }
@@ -398,6 +448,7 @@ fun PetMenuDialog(
                                     background = if (thorProceduralRoom) currentBg else null
                                 )
                             }
+                            CompanionsLayer(pet.getActiveEquippedCompanions(), Modifier.fillMaxSize())
 
                             // Nivel, racha y puntos sobre la escena
                             Row(
@@ -638,13 +689,94 @@ fun PetMenuDialog(
                         
                         Spacer(modifier = Modifier.height(10.dp))
 
+                        var showFoodPicker by remember { mutableStateOf(false) }
+                        val canEat = pet.getActiveHunger() >= Pet.FEED_MIN_HUNGER
+                        Button(
+                            onClick = {
+                                if (canEat) showFoodPicker = true
+                                else android.widget.Toast.makeText(context, "¡${pet.getActiveName()} no tiene hambre todavía! Podrá comer desde ${Pet.FEED_MIN_HUNGER}% de hambre.", android.widget.Toast.LENGTH_LONG).show()
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = if (canEat) Color(0xFFD97706) else Color.Gray),
+                            shape = RectangleShape
+                        ) {
+                            Text(if (canEat) "🍖 ALIMENTAR" else "🍖 SIN HAMBRE (${pet.getActiveHunger()}%)", fontFamily = Vt323, color = Color.White, fontSize = 22.sp, maxLines = 1)
+                        }
+                        if (showFoodPicker) {
+                            val foods = if (pet.isCuky()) {
+                        listOf(
+                            Triple("seeds", "Semillas de Amor 🌾", Pair(5, 15)),
+                            Triple("corn", "Maíz Dorado 🌽", Pair(10, 30)),
+                            Triple("melon", "Sandía Fresca 🍉", Pair(15, 50)),
+                            Triple("worm", "Banquete de Gusano 🪱", Pair(25, 80))
+                        )
+                    } else {
+                        listOf(
+                            Triple("cookie", "Galleta Pescado 🐟", Pair(5, 15)),
+                            Triple("milk", "Leche Tibia 🥛", Pair(10, 30)),
+                            Triple("catnip", "Catnip Relajante 🌿", Pair(15, 50)),
+                            Triple("feast", "Banquete Gourmet 🍣", Pair(25, 80))
+                        )
+                    }
+
+                    androidx.compose.ui.window.Dialog(onDismissRequest = { showFoodPicker = false }) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(3.dp, borderColor)
+                                        .background(if (isDark) Color(0xFF1A1A1A) else Color(0xFFFFFBEA))
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("¿Qué le das a ${pet.getActiveName()}?", fontFamily = Vt323, fontSize = 24.sp, color = contentColor)
+                                    Text("Puntos disponibles: ${pet.lovePoints} ❤️", fontFamily = Vt323, fontSize = 18.sp, color = accentColor)
+                                    Column(
+                                        modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        foods.forEach { (id, name, pair) ->
+                                            val (cost, gain) = pair
+                                            FoodRow(
+                                                name = name,
+                                                cost = cost,
+                                                gain = gain,
+                                                isDark = isDark,
+                                                borderColor = borderColor,
+                                                onFeed = {
+                                                    showFoodPicker = false
+                                                    if (pet.getActiveIsSleeping()) {
+                                                        android.widget.Toast.makeText(context, "¡${pet.getActiveName()} está durmiendo! 💤 No puede comer ahora.", android.widget.Toast.LENGTH_LONG).show()
+                                                    } else {
+                                                        scope.launch {
+                                                            foodAnimationType = id
+                                                            foodY.snapTo(-30f)
+                                                            foodAlpha.snapTo(1f)
+                                                            foodY.animateTo(190f, animationSpec = tween(900, easing = EaseInQuad))
+                                                            if (pet.isCuky()) playCuky(CukyAction.PECK) else playThor(ThorAction.PURR)
+                                                            dIsClicked = true
+                                                            foodAlpha.animateTo(0f, animationSpec = tween(300))
+                                                            foodAnimationType = null
+                                                            onFeedPet(id, cost, gain)
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                    TextButton(onClick = { showFoodPicker = false }, modifier = Modifier.align(Alignment.End)) {
+                                        Text("CERRAR", fontFamily = Vt323, fontSize = 20.sp, color = contentColor)
+                                    }
+                                }
+                            }
+                        }
+
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = { 
                                 if (pet.getActiveIsSleeping()) {
                                     android.widget.Toast.makeText(context, "¡${pet.getActiveName()} está durmiendo profundamente! 💤 Despiértalo primero para jugar.", android.widget.Toast.LENGTH_LONG).show()
                                 } else if (pet.getActiveStatus() == Pet.STATUS_HUNGRY) {
-                                    android.widget.Toast.makeText(context, "¡${pet.getActiveName()} tiene demasiada hambre! 🍖 Aliméntalo en la pestaña COMIDA para jugar.", android.widget.Toast.LENGTH_LONG).show()
+                                    android.widget.Toast.makeText(context, "¡${pet.getActiveName()} tiene demasiada hambre! 🍖 Aliméntalo con el botón ALIMENTAR para jugar.", android.widget.Toast.LENGTH_LONG).show()
                                 } else {
                                     showGameSelector = true 
                                 }
@@ -687,9 +819,9 @@ fun PetMenuDialog(
                         // Vista de Previsualización
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(180.dp)
                                 .padding(bottom = 8.dp)
+                                .fillMaxWidth()
+                                .aspectRatio(CUKY_SCENE_W.toFloat() / CUKY_SCENE_H)
                                 .border(2.dp, borderColor)
                         ) {
                             val isSleeping = pet.getActiveIsSleeping()
@@ -748,6 +880,12 @@ fun PetMenuDialog(
                                         .padding(bottom = 6.dp)
                                 )
                             }
+
+                            val previewTeam = pet.getActiveEquippedCompanions().let { team ->
+                                val viewed = previewCompanion
+                                if (viewed == null || viewed in team) team else team.takeLast(COMPANION_MAX_EQUIPPED - 1) + viewed
+                            }
+                            CompanionsLayer(previewTeam, Modifier.fillMaxSize())
 
                             if (isSleeping && !previewProcedural && !previewThorProcedural) {
                                 Box(
@@ -817,6 +955,27 @@ fun PetMenuDialog(
                                     color = if (shopCategory == "backgrounds") Color.White else contentColor
                                 )
                             }
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(24.dp)
+                                    .background(borderColor)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(if (shopCategory == "companions") accentColor else Color.Transparent)
+                                    .clickable { shopCategory = "companions" }
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "COMPAÑEROS 🦋",
+                                    fontFamily = Vt323,
+                                    fontSize = 15.sp,
+                                    color = if (shopCategory == "companions") Color.White else contentColor
+                                )
+                            }
                         }
 
                         if (shopCategory == "accessories") {
@@ -830,15 +989,27 @@ fun PetMenuDialog(
                                 Triple(Pet.ACC_BANDANA, "Pañuelo Pirata 🏴‍☠️", 120),
                                 Triple(Pet.ACC_GLASSES, "Lentes Cool 🕶️", 150),
                                 Triple(Pet.ACC_BANANA, "Plátano Nano 🍌", 200),
-                                Triple(Pet.ACC_CROWN, "Corona Real 👑", 500)
+                                Triple(Pet.ACC_CROWN, "Corona Real 👑", 500),
+                                Triple("scarf", "Bufanda 🧣", 60),
+                                Triple("headphones", "Audífonos 🎧", 90),
+                                Triple("chef_hat", "Gorro de chef 👨‍🍳", 120),
+                                Triple(ACC_CAPE, "Capa de mago 🧙", 180),
+                                Triple("viking", "Casco vikingo ⚔️", 250)
                             )
+                            val accRewards = calendario.kevshupp.diariokevinali.SpiritRewards.ALL.filter { it.id in SPIRIT_ACCESSORIES }.associateBy { it.id }
                             val activeUnlockedAccs = pet.getActiveUnlockedAccessories()
                             val activeEquippedAcc = pet.getActiveEquippedAccessory()
 
                             ShopItemPicker(
-                                items = items,
-                                isUnlocked = { id, _ -> activeUnlockedAccs.contains(id) },
-                                equippedId = activeEquippedAcc,
+                                items = items + accRewards.values.map { Triple(it.id, it.name, 0) },
+                                isUnlocked = { id, _ -> if (id in accRewards) id in pet.spiritRewardsWon else activeUnlockedAccs.contains(id) },
+                                lockText = { id ->
+                                    accRewards[id]?.takeIf { it.id !in pet.spiritRewardsWon }
+                                        ?.let { calendario.kevshupp.diariokevinali.SpiritRewards.lockText(it, spiritProgress[it.id]) }
+                                },
+                                wonBy = { pet.spiritRewardsWon[it] },
+                                isEquipped = { it == activeEquippedAcc },
+                                thumb = { id -> PetThumb(pet, id, Modifier.fillMaxSize()) },
                                 previewId = previewAccessory,
                                 emptyHint = "Toca un accesorio para probárselo",
                                 isDark = isDark,
@@ -848,9 +1019,71 @@ fun PetMenuDialog(
                                     previewAccessory = if (previewAccessory == id) Pet.ACC_NONE else id
                                 },
                                 onAction = { id, cost ->
-                                    if (activeUnlockedAccs.contains(id)) onEquipAccessory(if (activeEquippedAcc == id) Pet.ACC_NONE else id)
+                                    if (id in accRewards || activeUnlockedAccs.contains(id)) onEquipAccessory(if (activeEquippedAcc == id) Pet.ACC_NONE else id)
                                     else onBuyAccessory(id, cost)
                                 }
+                            )
+                        } else if (shopCategory == "companions") {
+                            val equippedComps = pet.getActiveEquippedCompanions()
+                            val rewardById = calendario.kevshupp.diariokevinali.SpiritRewards.ALL.associateBy { it.id }
+                            val companions = listOf("firefly", "clover", "lantern", "star", "coin", "skull", "flame", "wisp", "snail")
+                                .map { Triple(it, rewardById.getValue(it).name, 0) } + listOf(
+                                Triple("butterfly", "Mariposa 🦋", 80),
+                                Triple("duck", "Patito de hule 🦆", 100),
+                                Triple("cloud", "Nubecita ☁️", 150),
+                                Triple("robot", "Mini robot 🤖", 200),
+                                Triple("dragon", "Dragoncito 🐉", 400)
+                            )
+                            val companionUnlocked = { id: String, cost: Int ->
+                                if (cost == 0) id in pet.spiritRewardsWon else id in pet.getActiveUnlockedCompanions()
+                            }
+                            ShopItemPicker(
+                                items = companions,
+                                isUnlocked = companionUnlocked,
+                                isEquipped = { it in equippedComps },
+                                previewId = previewCompanion,
+                                emptyHint = "Toca un compañero para verlo. Puedes llevar dos",
+                                isDark = isDark,
+                                borderColor = borderColor,
+                                accentColor = accentColor,
+                                onPreview = { id -> previewCompanion = if (previewCompanion == id) null else id },
+                                onAction = { id, cost ->
+                                    val isCuky = pet.isCuky()
+                                    val petDoc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                        .collection("pets").document(petCoupleId)
+                                    val equippedField = if (isCuky) "cukyEquippedCompanions" else "equippedCompanions"
+                                    val withNew = (equippedComps.filter { it != id }.takeLast(COMPANION_MAX_EQUIPPED - 1) + id)
+                                    when {
+                                        id in equippedComps -> {
+                                            previewCompanion = null
+                                            petDoc.update(equippedField, equippedComps - id)
+                                        }
+                                        companionUnlocked(id, cost) -> petDoc.update(equippedField, withNew)
+                                        pet.lovePoints < cost -> android.widget.Toast.makeText(context, "No tienes suficientes puntos de amor ❤️", android.widget.Toast.LENGTH_SHORT).show()
+                                        else -> petDoc.update(
+                                            mapOf(
+                                                "lovePoints" to pet.lovePoints - cost,
+                                                (if (isCuky) "cukyUnlockedCompanions" else "unlockedCompanions") to pet.getActiveUnlockedCompanions() + id,
+                                                equippedField to withNew
+                                            )
+                                        )
+                                    }
+                                },
+                                thumb = { id ->
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        PetThumb(
+                                            pet, null,
+                                            Modifier.fillMaxSize(0.72f).align(Alignment.BottomStart)
+                                        )
+                                        CompanionThumb(id, Modifier.fillMaxSize())
+                                    }
+                                },
+                                lockText = { id ->
+                                    rewardById[id]?.takeIf { it.id !in pet.spiritRewardsWon }
+                                        ?.let { calendario.kevshupp.diariokevinali.SpiritRewards.lockText(it, spiritProgress[it.id]) }
+                                },
+                                wonBy = { pet.spiritRewardsWon[it] },
+                                equippedActionLabel = "QUITAR"
                             )
                         } else {
                             val activeUnlockedBgs = pet.getActiveUnlockedBackgrounds()
@@ -877,10 +1110,17 @@ fun PetMenuDialog(
                                     Triple("beach", "Playa Paradise 🏖️", 150)
                                 )
                             }
+                            val bgRewards = calendario.kevshupp.diariokevinali.SpiritRewards.ALL.filter { it.id in SPIRIT_BACKGROUNDS }.associateBy { it.id }
                             ShopItemPicker(
-                                items = backgrounds,
-                                isUnlocked = { id, cost -> activeUnlockedBgs.contains(id) || cost == 0 },
-                                equippedId = activeEquippedBg,
+                                items = backgrounds + bgRewards.values.map { Triple(it.id, it.name, 0) },
+                                isUnlocked = { id, cost -> if (id in bgRewards) id in pet.spiritRewardsWon else activeUnlockedBgs.contains(id) || cost == 0 },
+                                lockText = { id ->
+                                    bgRewards[id]?.takeIf { it.id !in pet.spiritRewardsWon }
+                                        ?.let { calendario.kevshupp.diariokevinali.SpiritRewards.lockText(it, spiritProgress[it.id]) }
+                                },
+                                wonBy = { pet.spiritRewardsWon[it] },
+                                isEquipped = { it == activeEquippedBg },
+                                thumb = { id -> BackgroundThumb(id, pet.isCuky(), Modifier.fillMaxSize()) },
                                 previewId = previewBackground,
                                 emptyHint = "Toca un fondo para probarlo",
                                 isDark = isDark,
@@ -888,85 +1128,10 @@ fun PetMenuDialog(
                                 accentColor = accentColor,
                                 onPreview = { id -> previewBackground = id },
                                 onAction = { id, cost ->
-                                    if (activeUnlockedBgs.contains(id) || cost == 0) onEquipBackground(id)
+                                    if (id in bgRewards || activeUnlockedBgs.contains(id) || cost == 0) onEquipBackground(id)
                                     else onBuyBackground(id, cost)
                                 }
                             )
-                        }
-                    }
-                } else if (selectedTab == 3) {
-                    // Pestaña de Tienda de Alimentos / Comida
-                    val foods = if (pet.isCuky()) {
-                        listOf(
-                            Triple("seeds", "Semillas de Amor 🌾", Pair(5, 15)),
-                            Triple("corn", "Maíz Dorado 🌽", Pair(10, 30)),
-                            Triple("melon", "Sandía Fresca 🍉", Pair(15, 50)),
-                            Triple("worm", "Banquete de Gusano 🪱", Pair(25, 80))
-                        )
-                    } else {
-                        listOf(
-                            Triple("cookie", "Galleta Pescado 🐟", Pair(5, 15)),
-                            Triple("milk", "Leche Tibia 🥛", Pair(10, 30)),
-                            Triple("catnip", "Catnip Relajante 🌿", Pair(15, 50)),
-                            Triple("feast", "Banquete Gourmet 🍣", Pair(25, 80))
-                        )
-                    }
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Puntos disponibles: ${pet.lovePoints} ❤️",
-                            fontFamily = Vt323,
-                            color = accentColor,
-                            fontSize = 20.sp,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-
-                        Text(
-                            "Alimenta a ${pet.getActiveName()} para subir su felicidad e hidratación:",
-                            fontFamily = Vt323,
-                            color = contentColor,
-                            fontSize = 18.sp,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-
-                        LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(top = 4.dp, bottom = 64.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            items(
-                                items = foods,
-                                key = { it.first }
-                            ) { (id, name, pair) ->
-                                val (cost, gain) = pair
-                                FoodRow(
-                                    name = name,
-                                    cost = cost,
-                                    gain = gain,
-                                    isDark = isDark,
-                                    borderColor = borderColor,
-                                    onFeed = {
-                                        if (pet.getActiveIsSleeping()) {
-                                            android.widget.Toast.makeText(context, "¡${pet.getActiveName()} está durmiendo! 💤 No puede comer ahora.", android.widget.Toast.LENGTH_LONG).show()
-                                        } else {
-                                            scope.launch {
-                                                foodAnimationType = id
-                                                foodY.snapTo(-30f)
-                                                foodAlpha.snapTo(1f)
-                                                selectedTab = 0
-                                                
-                                                foodY.animateTo(190f, animationSpec = tween(900, easing = EaseInQuad))
-                                                if (pet.isCuky()) playCuky(CukyAction.PECK) else playThor(ThorAction.PURR)
-                                                dIsClicked = true
-                                                foodAlpha.animateTo(0f, animationSpec = tween(300))
-                                                foodAnimationType = null
-                                                
-                                                onFeedPet(id, cost, gain)
-                                            }
-                                        }
-                                    }
-                                )
-                            }
                         }
                     }
                 } else if (selectedTab == 2) {

@@ -36,11 +36,19 @@ class ThorWidgetProvider : AppWidgetProvider() {
             val hunger = prefs.getInt("pet_hunger", 0)
             val cleanliness = prefs.getInt("pet_cleanliness", 100)
             val wornAccessory = accessory.takeUnless { it == "none" }
-            val avatar = if (isCuky) {
+            val petBitmap = if (isCuky) {
                 renderCukyBitmap(AVATAR_PX, level, wornAccessory, isSleeping, hunger, cleanliness)
             } else {
                 renderThorBitmap(AVATAR_PX, level, wornAccessory, isSleeping, hunger, cleanliness)
             }
+            val avatar = calendario.kevshupp.diariokevinali.compose.renderWidgetAvatar(
+                AVATAR_PX,
+                petBitmap,
+                isCuky,
+                prefs.getString("pet_background", null),
+                prefs.getString("pet_companions", "").orEmpty().split(",").filter { it.isNotBlank() },
+                isSleeping
+            )
 
             val views = RemoteViews(context.packageName, R.layout.widget_thor).apply {
                 setImageViewBitmap(R.id.widget_pet_avatar, avatar)

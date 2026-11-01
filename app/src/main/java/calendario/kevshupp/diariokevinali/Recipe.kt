@@ -12,6 +12,8 @@ data class Recipe(
     var ingredients: String? = null,
     var steps: String? = null,
     var imageUrl: String? = null,
+    // Enlace al video o web de donde salió la receta
+    var sourceUrl: String? = null,
     var authorId: String? = null,
     var authorName: String? = null,
     var timestamp: Long = 0,

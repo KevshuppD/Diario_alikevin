@@ -33,7 +33,8 @@ fun RecipeListScreen(
     recipes: List<Recipe>,
     theme: String,
     onRecipeClick: (Recipe) -> Unit,
-    onAddRecipeClick: () -> Unit
+    onAddRecipeClick: () -> Unit,
+    onImportRecipe: (ImportedRecipe) -> Unit
 ) {
     val isDark = theme == "Pixel Oscuro"
     val isMono = theme == "Pixel Monocromático"
@@ -65,6 +66,22 @@ fun RecipeListScreen(
     }
 
     var searchQuery by remember { mutableStateOf("") }
+    var showPromptDialog by remember { mutableStateOf(false) }
+    var showPasteDialog by remember { mutableStateOf(false) }
+
+    if (showPromptDialog) {
+        RecipePromptDialog(theme = theme, onDismiss = { showPromptDialog = false })
+    }
+    if (showPasteDialog) {
+        RecipePasteDialog(
+            theme = theme,
+            onSave = {
+                onImportRecipe(it)
+                showPasteDialog = false
+            },
+            onDismiss = { showPasteDialog = false }
+        )
+    }
 
     val filteredRecipes = remember(recipes, searchQuery) {
         if (searchQuery.trim().isEmpty()) {
@@ -213,6 +230,31 @@ fun RecipeListScreen(
                     key = { it.recipeId ?: "recipe_${it.timestamp}" }
                 ) { recipe ->
                     RecipeItem(recipe, theme, onRecipeClick)
+                }
+            }
+        }
+
+        // Importar desde un enlace: primero el prompt, luego pegar la respuesta de la IA
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf(
+                "🔗 CREAR PROMPT" to { showPromptDialog = true },
+                "📋 PEGAR RECETA" to { showPasteDialog = true }
+            ).forEach { (label, action) ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp)
+                        .border(2.dp, borderColor)
+                        .background(cardBg)
+                        .clickable(onClick = action),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(label, fontFamily = Vt323, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = titleColor, maxLines = 1)
                 }
             }
         }
@@ -370,7 +412,9 @@ fun RecipeItem(recipe: Recipe, theme: String, onClick: (Recipe) -> Unit) {
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = recipe.ingredients ?: "Ingredientes no especificados",
+                        text = recipe.ingredients
+                            ?.let { stripBoldMarkup(it).lines().filter(String::isNotBlank).joinToString(" · ") }
+                            ?: "Ingredientes no especificados",
                         fontFamily = Vt323,
                         fontSize = 18.sp,
                         color = textColor,

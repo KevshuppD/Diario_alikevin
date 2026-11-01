@@ -472,17 +472,6 @@ private fun DrawScope.tdirt(t: ThorT, s: ThorPose, hx: Int, hy: Int, bx: Int, by
     if (s.dirt >= 3) { val a = (t.g % 6) * 2; tr(t, TH_FLY_A[a], TH_FLY_A[a + 1], 1, 1, C_K) }
     if (s.dirt >= 4) { val a = (t.g % 6) * 2; tr(t, TH_FLY_B[a], TH_FLY_B[a + 1], 1, 1, C_K) }
 }
-private fun DrawScope.tcape(t: ThorT, bx: Int, by: Int) {
-    val sw = (t.g shr 1) % 2
-    for (x in 3 until 20) {
-        val top = by + 16 + (if (x < 7) (7 - x) shr 1 else 0)
-        val bot = by + 24 + (if ((x + sw * 2) % 4 < 2) 1 else 0) - (if (x < 6) 6 - x else 0)
-        tr(t, bx + x, top, 1, bot - top + 1, 0xFF7F1D1D.toInt())
-        tr(t, bx + x, top + 1, 1, bot - top - 1, if ((x + sw) % 5 == 0) 0xFFB91C1C.toInt() else 0xFFDC2626.toInt())
-        if (x in 7..16) tr(t, bx + x, top + 1, 1, 1, 0xFFF87171.toInt())
-    }
-    tr(t, bx + 18, by + 16, 3, 3, 0xFFFACC15.toInt())
-}
 private val TH_BANANA = arrayOf(
     "OO.......",
     "OAO....OO",
@@ -510,6 +499,8 @@ private fun DrawScope.tbanana(t: ThorT, x: Int) {
 }
 private fun DrawScope.twear(t: ThorT, a: String?, hx: Int, hy: Int, bx: Int, by: Int, stand: Boolean) {
     val c = hx + 25
+    drawWearable(a, t.g, true, c, hy) { x, y, w, h, col -> tr(t, x, y, w, h, col.toInt()) }
+    if (a == ACC_CAPE) drawCapeSide(t.g, bx - TH_OX, by - TH_OY) { x, y, w, h, col -> tr(t, x, y, w, h, col.toInt()) }
     when (a) {
         Pet.ACC_HAT -> { tr(t, c - 5, hy - 1, 10, 5, 0xFF7A3A1E.toInt()); tr(t, c - 5, hy + 2, 10, 1, 0xFFEC4899.toInt()); tr(t, c - 8, hy + 4, 16, 1, 0xFF5E2C14.toInt()) }
         Pet.ACC_CROWN -> { val g = 0xFFFACC15.toInt(); tr(t, c - 4, hy + 3, 9, 2, g); tr(t, c - 4, hy + 1, 1, 2, g); tr(t, c, hy + 1, 1, 2, g); tr(t, c + 4, hy + 1, 1, 2, g); tr(t, c, hy + 3, 1, 1, 0xFFEC4899.toInt()) }
@@ -551,7 +542,7 @@ private fun DrawScope.tleg(t: ThorT, x: Int, top: Int, bot: Int, sw: Int, lift: 
     val ly = bot - lift
     tr(t, x + sw - 1, ly, 8, 1, C_O); tr(t, x + sw + 2, ly - 1, 1, 1, C_T); tr(t, x + sw + 4, ly - 1, 1, 1, C_T)
 }
-private fun DrawScope.drawStanding(t: ThorT, s: ThorPose, accessory: String?, cape: Boolean) {
+private fun DrawScope.drawStanding(t: ThorT, s: ThorPose, accessory: String?) {
     val f = s.vf; val mode = s.v; val ph = f * PI / 4
     val x0 = TH_OX + (if (mode == V_SHAKE && f % 12 < 6) (if (f % 2 == 1) 1 else -1) else 0)
     var dy = 0; var hd = 0; var eyes = E_OPEN; var wag = false; var raised = false
@@ -572,7 +563,6 @@ private fun DrawScope.drawStanding(t: ThorT, s: ThorPose, accessory: String?, ca
     tleg(t, x0 + TH_LEG_X[3], top, g, t.xo[3], t.li[3], true)
     tleg(t, x0 + TH_LEG_X[1], top, g, t.xo[1], t.li[1], true)
     tpart(t, TH_ST_BODY, x0, by)
-    if (cape) tcape(t, x0, by)
     tleg(t, x0 + TH_LEG_X[2], top + 1, g, t.xo[2], t.li[2], false)
     if (!raised) tleg(t, x0 + TH_LEG_X[0], top + 1, g, t.xo[0], t.li[0], false)
     tpart(t, TH_ST_CHEST, x0, by)
@@ -592,12 +582,12 @@ private fun DrawScope.drawStanding(t: ThorT, s: ThorPose, accessory: String?, ca
         V_SHAKE -> if (f % 12 < 6) { val q = f % 6; tr(t, TH_OX - 2 - q, TH_OY + 18, 1, 1, C_WATER); tr(t, TH_OX + 42 + q, TH_OY + 14, 1, 1, C_WATER); tr(t, TH_OX + 6 - q, TH_OY + 6, 1, 1, C_WATER); tr(t, TH_OX + 38 + q, TH_OY + 2, 1, 1, C_WATER) }
     }
 }
-private fun DrawScope.drawLying(t: ThorT, s: ThorPose, accessory: String?, cape: Boolean) {
+private fun DrawScope.drawLying(t: ThorT, s: ThorPose, accessory: String?) {
     val bx = TH_OX; val by = TH_OY; val hy = by + s.head
+    if (accessory == "aura") drawAura(t.g, bx + 17, by + 17, 25, 20) { x, y, w, h, col -> tr(t, x, y, w, h, col.toInt()) }
     tr(t, TH_OX, TH_OY + 33, 34, 1, C_SHADOW)
     ttail(t, TH_TAIL, bx, by, t.g, 12, if (s.wag) 5 else 9)
     tpart(t, TH_BODY, bx, by)
-    if (cape) tcape(t, bx, by)
     tpart(t, TH_RUFF, bx, by)
     tpart(t, TH_PAW_A, bx, by)
     if (!s.groom) tpart(t, TH_PAW_B, bx, by)
@@ -761,11 +751,10 @@ fun ThorPixelStage(
             t.flip = false
         }
         t.pal = if (t.flip) TH_PAL_FLIP else TH_PAL
-        val cape = level >= 15
         when {
             level < 5 -> drawKitten(t, s, accessory)
-            s.v != V_NONE -> drawStanding(t, s, accessory, cape)
-            else -> drawLying(t, s, accessory, cape)
+            s.v != V_NONE -> drawStanding(t, s, accessory)
+            else -> drawLying(t, s, accessory)
         }
     }
 }
@@ -786,6 +775,6 @@ fun renderThorBitmap(sizePx: Int, level: Int, accessory: String?, sleeping: Bool
         t.oy = size.height - (TH_GROUND + 1) * t.cell
         when {
             level < 5 -> drawKitten(t, s, accessory)
-            else -> drawLying(t, s, accessory, level >= 15)
+            else -> drawLying(t, s, accessory)
         }
     }

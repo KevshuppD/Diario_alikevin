@@ -502,6 +502,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .putInt("pet_happiness", p.getActiveHappiness())
             .putString("pet_status", p.status)
             .putString("pet_accessory", p.getActiveEquippedAccessory() ?: "none")
+            .putString("pet_background", p.getActiveEquippedBackground())
+            .putString("pet_companions", p.getActiveEquippedCompanions().joinToString(","))
             .putBoolean("pet_sleeping", p.getActiveIsSleeping())
             .putInt("pet_hunger", p.getActiveHunger())
             .putInt("pet_cleanliness", p.getActiveCleanliness())
@@ -611,6 +613,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val isNightTime = currentHour in 0..7
         if (p.getActiveIsSleeping() || isNightTime) {
             toastMessage.value = "💤 ¡${p.getActiveName()} está durmiendo!"
+            return
+        }
+        if (p.getActiveHunger() < Pet.FEED_MIN_HUNGER) {
+            toastMessage.value = "¡${p.getActiveName()} no tiene hambre todavía!"
             return
         }
         if (p.lovePoints >= cost) {

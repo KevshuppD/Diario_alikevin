@@ -50,6 +50,21 @@ class RecipeManager(
             }
     }
 
+    fun saveImportedRecipe(imported: calendario.kevshupp.diariokevinali.compose.ImportedRecipe) {
+        addRecipe(
+            Recipe(
+                coupleId = coupleId,
+                title = imported.title,
+                ingredients = imported.ingredients,
+                steps = imported.steps,
+                sourceUrl = imported.sourceUrl,
+                authorId = userId,
+                authorName = userName,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+    }
+
     fun showAddRecipeDialog(existing: Recipe? = null) {
         val view = LayoutInflater.from(context).inflate(R.layout.dialog_add_recipe, null)
         val dialog = AlertDialog.Builder(context).setView(view).create()
@@ -122,6 +137,7 @@ class RecipeManager(
                 ingredients = etIngredients.text.toString().trim(),
                 steps = etSteps.text.toString().trim(),
                 imageUrl = pendingImageUrl,
+                sourceUrl = existing?.sourceUrl,
                 authorId = existing?.authorId ?: userId,
                 authorName = existing?.authorName ?: userName,
                 timestamp = existing?.timestamp ?: System.currentTimeMillis(),

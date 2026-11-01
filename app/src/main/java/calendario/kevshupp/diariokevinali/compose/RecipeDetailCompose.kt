@@ -64,6 +64,19 @@ fun RecipeDetailDialog(
     var confirmDeleteVariant by remember { mutableStateOf(false) }
     var confirmDeleteRecipe by remember { mutableStateOf(false) }
 
+    // Marcas de ingredientes, guardadas solo en este teléfono
+    val currentIngredients = if (variant != null) variant.ingredients else recipe.ingredients
+    val checksKey = "${recipe.recipeId}_$selectedTab"
+    val checksPrefs = LocalContext.current.getSharedPreferences(CHECKS_PREFS, Context.MODE_PRIVATE)
+    var checkedIngredients by remember(checksKey, currentIngredients) {
+        val lines = currentIngredients.orEmpty().lines()
+        mutableStateOf(checksPrefs.getStringSet(checksKey, emptySet()).orEmpty().filter { it in lines }.toSet())
+    }
+    fun saveChecks(new: Set<String>) {
+        checkedIngredients = new
+        checksPrefs.edit().putStringSet(checksKey, new).apply()
+    }
+
     Dialog(
         onDismissRequest = { if (editingVariant != null) editingVariant = null else onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -109,6 +122,19 @@ fun RecipeDetailDialog(
                             Text(recipe.title ?: "Sin título", fontFamily = Vt323, fontSize = 30.sp, fontWeight = FontWeight.Bold, color = INK, lineHeight = 32.sp)
                             Text("Creada por: ${recipe.authorName ?: "Anónimo"}", fontFamily = Vt323, fontSize = 18.sp, color = INK_SOFT)
                         }
+                        if (checkedIngredients.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .border(2.dp, INK)
+                                    .background(Color(0xFFFFFBEA))
+                                    .clickable { saveChecks(emptySet()) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("🧹", fontSize = 20.sp)
+                            }
+                        }
+                        recipe.sourceUrl?.let(::extractRecipeUrl)?.let { RecipeSourceButton(it) }
                     }
 
                     // Pestañas: principal + variaciones; bajan de línea para que ➕ siempre se vea
@@ -182,14 +208,15 @@ fun RecipeDetailDialog(
 
                     RecipeSectionTitle("✨ INGREDIENTES")
                     IngredientChecklist(
-                        recipeKey = "${recipe.recipeId}_$selectedTab",
-                        ingredients = if (variant != null) variant.ingredients else recipe.ingredients
+                        ingredients = currentIngredients,
+                        checked = checkedIngredients,
+                        save = ::saveChecks
                     )
 
                     RecipeSectionTitle("👨‍🍳 PASOS DE PREPARACIÓN")
                     val steps = (if (variant != null) variant.steps else recipe.steps)?.takeIf { it.isNotBlank() }
                     if (steps != null) {
-                        Text(steps, fontFamily = Vt323, fontSize = 20.sp, color = INK, lineHeight = 24.sp)
+                        RecipeSteps(steps)
                     } else {
                         Text("Aún no hay pasos.", fontFamily = Vt323, fontSize = 20.sp, color = INK_SOFT)
                         if (variant != null || isAuthor) {
@@ -247,21 +274,13 @@ fun RecipeDetailDialog(
     }
 }
 
-/** Una línea por ingrediente, para marcar al cocinar. Las marcas se guardan solo en este teléfono. */
+/** Una línea por ingrediente, para marcar al cocinar. */
 @Composable
-private fun IngredientChecklist(recipeKey: String, ingredients: String?) {
+private fun IngredientChecklist(ingredients: String?, checked: Set<String>, save: (Set<String>) -> Unit) {
     val lines = remember(ingredients) { ingredients.orEmpty().lines().filter { it.isNotBlank() } }
     if (lines.isEmpty()) {
         Text("No especificados", fontFamily = Vt323, fontSize = 20.sp, color = INK_SOFT)
         return
-    }
-    val prefs = LocalContext.current.getSharedPreferences(CHECKS_PREFS, Context.MODE_PRIVATE)
-    var checked by remember(recipeKey, ingredients) {
-        mutableStateOf(prefs.getStringSet(recipeKey, emptySet()).orEmpty().filter { it in lines }.toSet())
-    }
-    fun save(new: Set<String>) {
-        checked = new
-        prefs.edit().putStringSet(recipeKey, new).apply()
     }
     lines.forEach { line ->
         val isChecked = line in checked
@@ -269,16 +288,21 @@ private fun IngredientChecklist(recipeKey: String, ingredients: String?) {
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { save(if (isChecked) checked - line else checked + line) }
-                .padding(vertical = 2.dp),
+                .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(
-                checked = isChecked,
-                onCheckedChange = { save(if (it) checked + line else checked - line) },
-                colors = CheckboxDefaults.colors(checkedColor = ACTIVE_TAB, uncheckedColor = INK)
-            )
+            Box(
+                modifier = Modifier
+                    .size(18.dp)
+                    .border(2.dp, INK)
+                    .background(if (isChecked) ACTIVE_TAB else Color.Transparent),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isChecked) Text("✓", fontSize = 12.sp, lineHeight = 12.sp, color = Color.White)
+            }
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = line,
+                text = ingredientMarkup(line),
                 fontFamily = Vt323,
                 fontSize = 20.sp,
                 lineHeight = 22.sp,
@@ -297,6 +321,61 @@ private fun IngredientChecklist(recipeKey: String, ingredients: String?) {
             textDecoration = TextDecoration.Underline,
             modifier = Modifier.clickable { save(emptySet()) }.padding(vertical = 6.dp)
         )
+    }
+}
+
+/** Abre el video o la web de donde salió la receta. */
+@Composable
+private fun RecipeSourceButton(url: String) {
+    val context = LocalContext.current
+    val host = remember(url) { android.net.Uri.parse(url).host.orEmpty().lowercase() }
+    val isYouTube = host == "youtu.be" || host == "youtube.com" || host.endsWith(".youtube.com")
+    Box(
+        modifier = Modifier
+            .padding(start = 8.dp)
+            .size(44.dp)
+            .border(2.dp, INK)
+            .background(if (isYouTube) Color(0xFFFF0000) else Color(0xFFFFFBEA))
+            .clickable {
+                try {
+                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                } catch (e: android.content.ActivityNotFoundException) {
+                    android.widget.Toast.makeText(context, "No hay una app para abrir este enlace", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(if (isYouTube) "▶" else "🌐", fontSize = 20.sp, color = Color.White)
+    }
+}
+
+/** Cada paso numerado lleva su número aparte para ubicarlo rápido al cocinar. */
+@Composable
+private fun RecipeSteps(steps: String) {
+    val numbered = remember { Regex("""^\s*(\d+)[.)]\s+(.*)$""") }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        steps.lines().filter { it.isNotBlank() }.forEach { line ->
+            val match = numbered.find(line)
+            Row {
+                if (match != null) {
+                    Box(
+                        modifier = Modifier.size(26.dp).background(INK),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(match.groupValues[1], fontFamily = Vt323, fontSize = 19.sp, color = PAPER)
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
+                Text(
+                    text = boldMarkup(match?.groupValues?.get(2) ?: line),
+                    fontFamily = Vt323,
+                    fontSize = 20.sp,
+                    lineHeight = 23.sp,
+                    color = INK,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
     }
 }
 
