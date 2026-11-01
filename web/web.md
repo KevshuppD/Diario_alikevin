@@ -15,7 +15,7 @@ Todo lo específico de la web. Lo general y los modelos de Firestore están en [
 
 ## Diseño Bitácora (noviembre 2026)
 
-Elegido por el usuario. Está en el último bloque de `styles.css`: en pantallas de 900 px o más, el `<header>` pasa a menú lateral fijo de 240 px; el selector de temporada muestra T3, T2 y T1 mediante CSS; y en el Álbum las tarjetas son horizontales. Tipos y Categorías, Cartas, Radar y Configuración usan bordes rectos y sombra sólida con el acento; `border-radius` se fuerza con `!important` porque esas vistas lo traen en línea, salvo avatares y elementos del mapa. Solo cambia la presentación: los elementos y funciones siguen siendo los mismos.
+Elegido por el usuario. Está en el último bloque de `styles.css`: en pantallas de 900 px o más, el `<header>` pasa a menú lateral fijo de 240 px; el selector de temporada muestra T3, T2 y T1 mediante CSS; y en el Álbum las tarjetas son horizontales. Tipos y Categorías, Cartas, Radar y Configuración usan bordes rectos y sombra sólida con el acento; `border-radius` se fuerza con `!important` porque esas vistas lo traen en línea, salvo avatares y elementos del mapa. Solo cambia la presentación: los elementos y funciones siguen siendo los mismos. Excepción pedida por el usuario: desde 900 px se ocultan las tarjetas de progreso (`#normal-toolbar`), con su porcentaje y barra, porque los contadores del menú lateral ya muestran el avance en todas las vistas.
 
 **Carga de rutas:** el HTML siempre trae marcado el Álbum. El contenido y la pestaña activa se ocultan hasta que `initRouter` agrega `route-ready` a `<html>`, con un respaldo de 3 s en el script de `<head>`, para que no aparezca el Álbum al recargar otra ruta.
 

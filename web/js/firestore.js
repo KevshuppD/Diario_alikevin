@@ -401,6 +401,8 @@ export function listenFirestore(onDataUpdated) {
       } catch(e) {}
 
       // Si solo cambiaron checks/maestrías, se actualizan los slots existentes sin reconstruir la colección
+      // El menú lateral muestra el progreso en todas las vistas
+      updateStats();
       if (!structureChanged && state.currentMode === "normal" && typeof window.syncAllSpiritSlotsDOM === 'function') {
         window.syncAllSpiritSlotsDOM();
         return;

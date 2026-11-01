@@ -2780,3 +2780,8 @@
     #categoriesManagerContainer .btn, #config-container .btn, #letters-container .btn, #radar-container .btn { box-shadow: none; }
     html body .draggable-config-row { background: var(--bg-color); }
     html body .db-stat-box, html body .radar-telemetry-item { background: var(--bg-color); border: 2px solid var(--card-border); }
+
+    /* En escritorio, el progreso solo se muestra en el menú lateral (pedido del usuario, noviembre 2026) */
+    @media (min-width: 900px) {
+      #normal-toolbar { display: none !important; }
+    }
