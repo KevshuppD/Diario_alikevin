@@ -591,7 +591,7 @@ private val defaultCategoriesT3 = listOf(
     SpiritCategory("Espíritu Transponder Snail", listOf("35"))
 )
 private val defaultSpiritsListT3 = (1..35).map { String.format("%02d", it) }
-private val defaultSpiritTypeSuffixesT3 = listOf("", " Fortuna", " Maldito")
+private val defaultSpiritTypeSuffixesT3 = listOf("", " Afortunado", " Maldito")
 
 private val defaultSpiritTypeSuffixesT2 = listOf(
     "", " Dorado", " Hacker", " Hacker de botin", " Cazarrecompensas", " Matrix",
@@ -879,7 +879,8 @@ fun SpiritsChecklistView(
         }
     }
 
-    val spiritTypeSuffixes = listOf(
+    // Incluye los tipos guardados en Firestore: un sufijo desconocido se perdería al renombrar una categoría
+    val spiritTypeSuffixes = (spiritTypeSuffixesT2.filter { it.isNotBlank() } + listOf(
         " Cazarrecompensas Especial",
         " Galaxia Oscura",
         " Hacker de botin",
@@ -901,7 +902,7 @@ fun SpiritsChecklistView(
         " Hacker",
         " Cubo",
         " Gema"
-    )
+    )).distinct().sortedByDescending { it.length }
 
     val getSpiritDisplayName: (String) -> String = { id ->
         val formattedId = id.toIntOrNull()?.let { String.format("%02d", it) } ?: id

@@ -176,7 +176,7 @@ export const defaultCategoriesT3 = [
 
 export const defaultSpiritTypesT3 = [
   { name: "Normal", suffix: "" },
-  { name: "Fortuna", suffix: " Fortuna" },
+  { name: "Afortunado", suffix: " Afortunado" },
   { name: "Maldito", suffix: " Maldito" },
 ];
 

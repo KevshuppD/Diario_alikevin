@@ -176,6 +176,7 @@ export function initRouter() {
   // Enrutamiento inicial garantizado al cargar la página
   const initialRoute = getRouteFromPath(window.location.pathname);
   setMode(initialRoute);
+  document.documentElement.classList.add("route-ready");
 }
 
 // Window bindings

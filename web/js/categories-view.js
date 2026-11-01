@@ -546,17 +546,37 @@ export function updateConfigTypeName(index, newValue, save = true) {
         state.customNames[id] = currentName.slice(0, -oldName.length) + newSuffix;
       }
     });
+    clearSpiritCache();
   }
   
   if (save) triggerAutoSave(400);
 }
 
+// Sufijo de cada tipo antes de empezar a editarlo. Los nombres se actualizan al confirmar, no en cada
+// tecla: si el campo queda vacío a medio escribir se perdería el sufijo que hay que reemplazar.
+const suffixBeforeEdit = new Map();
+
 export function updateConfigTypeSuffix(index, newValue, save = true) {
   if (newValue && !newValue.startsWith(" ")) {
     newValue = ` ${newValue.trim()}`;
   }
-  state.spiritTypes[index].suffix = newValue;
-  if (save) triggerAutoSave(400);
+  const type = state.spiritTypes[index];
+  if (!suffixBeforeEdit.has(type)) suffixBeforeEdit.set(type, type.suffix);
+  type.suffix = newValue;
+  if (!save) return;
+
+  const oldSuffix = (suffixBeforeEdit.get(type) || "").trim();
+  suffixBeforeEdit.delete(type);
+  if (oldSuffix && oldSuffix !== newValue.trim()) {
+    Object.keys(state.customNames).forEach(id => {
+      const name = state.customNames[id];
+      if (name.endsWith(" " + oldSuffix)) {
+        state.customNames[id] = name.slice(0, -(oldSuffix.length + 1)) + newValue;
+      }
+    });
+    clearSpiritCache();
+  }
+  triggerAutoSave(400);
 }
 
 export function deleteConfigType(index) {

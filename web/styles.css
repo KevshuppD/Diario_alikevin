@@ -2701,3 +2701,61 @@
     .letter-avatar { width: 32px; height: 32px; object-fit: cover; border: 2px solid var(--card-border); }
     .letter-like-btn.readonly { cursor: default; opacity: 0.75; }
     .letter-like-btn.readonly:active { transform: none; }
+
+    /* ==========================================
+       REDISEÑO BITÁCORA: menú lateral, bordes rectos y tarjetas horizontales.
+       Usa solo variables de tema para funcionar en los tres temas y con cualquier acento.
+       ========================================== */
+    :root { --side-bg: #0a0b11; --on-accent: #fff; }
+    body.theme-pixel-claro { --side-bg: #eedfca; }
+    body.theme-pixel-monocromatico { --side-bg: #000; --on-accent: #000; }
+
+    .category-card, .spirit-slot, .spirit-slots-grid, .stat-pill, .mode-switch, .mode-btn,
+    .filter-btn, .search-input-wrapper, .normal-toolbar, .user-badge, #btn-logout { border-radius: 0 !important; }
+
+    html body .category-card { background: transparent; border: 0; box-shadow: none; padding: 0; }
+    html body .category-header { border-bottom: 2px dashed var(--text-muted); padding-bottom: 4px; }
+    html body .spirit-slots-grid { background: transparent; border-color: transparent; padding: 0; }
+    html body .spirit-slot { background: var(--card-bg); }
+    .logo-container .logo-title { background: none; -webkit-text-fill-color: currentColor; color: var(--text-color); font-size: 28px; white-space: normal; }
+    .mode-btn.active { color: var(--on-accent); box-shadow: none; }
+
+    /* Tarjeta horizontal solo en el Álbum: la edición conserva su formato */
+    html.slots-compact .spirit-slots-grid:has(.normal-view),
+    .spirit-slots-grid:has(.normal-view) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); }
+    .spirit-slot.normal-view { display: grid; grid-template-columns: 76px minmax(0, 1fr); column-gap: 8px; align-items: center; padding: 8px; }
+    .spirit-slot.normal-view img { grid-row: 1 / span 2; margin: 0; width: 76px; height: 76px; }
+    .spirit-slot.normal-view .spirit-name-label { text-align: left; font-size: 16px; min-height: 0; padding: 0; margin: 0; align-self: end; }
+    .spirit-slot.normal-view .checks-row { justify-content: flex-start; align-self: start; margin-top: 4px; }
+
+    @media (min-width: 900px) {
+      html, body { height: 100%; }
+      body { box-sizing: border-box; padding-left: 240px; height: 100vh; }
+      /* Solo la barra principal: las cartas también usan <header> */
+      body > header {
+        position: fixed; inset: 0 auto 0 0; width: 240px; box-sizing: border-box;
+        flex-direction: column; flex-wrap: nowrap; align-items: stretch; justify-content: flex-start;
+        gap: 14px; padding: 16px 12px; overflow-y: auto;
+        background: var(--side-bg); border-bottom: 0; border-right: 2px solid var(--card-border);
+      }
+      .header-left, .header-right { flex-direction: column; align-items: stretch; margin: 0; order: 0; flex-shrink: 0; }
+      .mode-nav-switch { order: 0; width: auto; flex-direction: column; align-items: stretch; flex-shrink: 0; }
+      .header-right { margin-top: auto; }
+      .season-switch { flex-direction: row; }
+      .season-switch .season-btn { flex: 1; justify-content: center; font-size: 0 !important; min-height: 40px; }
+      .season-switch .season-btn::after { content: "T" attr(data-season); font-size: 18px; }
+      .mode-nav-switch .mode-btn { min-height: 40px; }
+      .header-album-stats { display: flex; flex-direction: column; align-items: stretch; }
+      .user-session-controls { justify-content: space-between; }
+      .user-session-controls .user-badge { flex: 1; }
+      .normal-toolbar { box-shadow: 5px 5px 0 var(--accent-color); }
+    }
+
+    /* Evita el scroll horizontal del área de contenido */
+    .content-area { min-width: 0; overflow-x: hidden; }
+    .content-area > * { min-width: 0; max-width: 100%; box-sizing: border-box; }
+
+    /* Al recargar, el HTML trae marcado el Álbum: se oculta hasta que el enrutador aplica la ruta real */
+    html:not(.route-ready) .content-area { visibility: hidden; }
+    html:not(.route-ready) .nav-tab.active,
+    html:not(.route-ready) .season-btn.active { background: transparent; color: var(--text-muted); box-shadow: none; }
