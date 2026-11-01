@@ -728,6 +728,7 @@ graph TD
 - **Calendario:** cambiar de mes, Hoy, elegir día, agendar, editar tocando la cita, borrar con confirmación, 5 repeticiones.
 - **Álbum:** pestañas Recuerdos y General, añadir recuerdo, abrir, editar y eliminar propios, recargar, buscar, 4 órdenes, 4 filtros, 2 a 6 columnas.
 - **Misceláneo:** Espíritus, Anime, Web Gestión, Medicamentos, Horario, Thor Radar y 📔 Bitácora Ánimo (pestañas 📅 POR DÍA / 📝 GENERAL, selector de día ◀▶, filtro Ali/Kevin/Ambos, registros agrupados por hora, ➕ registrar, ✕ borrar propio).
+- **Espíritus → Celebración de temporada (`SpiritCelebrationCompose.kt`):** botón bajo el marcador, bloqueado (🔒 con el conteo de faltantes) hasta que Kevin y Ali tengan maestría en todos los espíritus de la temporada visible. Genera una imagen de 1080×1350 con Canvas (*Fuegos*, *Trofeo* o *Arcade*) y permite Guardar (Imágenes/DiarioAliKevin) o Compartir. Solo lee datos: no escribe en Firestore. La fecha de la imagen es la del día en que se genera.
 - **Historial:** la casilla de barra superior se perdió por accidente en el commit `586863a` (v1.7.54, reorganización de Configuración) y se restauró en v1.7.82. El cambio de nombre de la mascota desde `PetMenuDialog` se quitó en `70c004f` (v1.7.52); el parámetro `onUpdateName` sigue sin usarse.
 
 ## 15. Tareas Pendientes / Backlog

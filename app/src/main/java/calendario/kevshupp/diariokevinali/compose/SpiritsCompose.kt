@@ -1416,12 +1416,34 @@ fun SpiritsChecklistView(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         val orderedIds = remember(categories) { categories.flatMap { it.spiritIds }.distinct() }
         val sortedSpirits = remember(orderedIds, spiritsList) {
             orderedIds.filter { spiritsList.contains(it) } + spiritsList.filter { !orderedIds.contains(it) }
         }
+
+        // Celebración de temporada: se desbloquea con todas las maestrías de ambos
+        SeasonCelebrationButton(
+            season = currentSeason,
+            orderedSpiritIds = sortedSpirits,
+            kevinMastery = kevinMastery,
+            aliMastery = aliMastery,
+            familyCount = categories.count { category -> category.spiritIds.any { it in spiritsList } },
+            imageUrlFor = { id ->
+                val num = id.toIntOrNull()
+                val formatted = if (num != null) String.format("%02d", num) else id
+                customImages[id] ?: customImages[formatted] ?: run {
+                    val folder = if (currentSeason == 2) "spirits_s2/ic_spirit_s2_" else "spirits/ic_spirit_"
+                    "https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/$folder$formatted.png"
+                }
+            },
+            textColor = textColor,
+            borderColor = borderColor,
+            cardBg = cardBg
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
         val filteredSpirits = remember(sortedSpirits, filterMode, isKevin, kevinList, aliList, kevinMastery, aliMastery) {
             sortedSpirits.filter { matchesFilter(it) }
         }
