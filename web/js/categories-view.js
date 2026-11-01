@@ -3,6 +3,7 @@
 // ==========================================
 
 import { state } from './state.js';
+import { spiritImageFolderFor } from './constants.js';
 import { triggerAutoSave, saveSpiritsBackupAsync, restoreSpiritsBackupAsync } from './firestore.js';
 import { getSpiritCurrentType, renderWorkspace, getDefaultSpiritName, getSpiritName, clearSpiritCache } from './normal-view.js';
 
@@ -630,9 +631,7 @@ function hideBusyOverlay() {
 
 function getDefaultSpiritImgUrl(id) {
   const formattedId = String(id).padStart(2, '0');
-  return state.currentSeason === 2
-    ? `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits_s2/ic_spirit_s2_${formattedId}.png`
-    : `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+  return `https://res.cloudinary.com/dhaqjw7se/image/upload/${spiritImageFolderFor(state.currentSeason)}${formattedId}.png`;
 }
 
 // Renumera los IDs del 1 al máximo según el orden visible: categorías en orden, dentro de cada una por

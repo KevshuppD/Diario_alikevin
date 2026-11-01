@@ -3,7 +3,7 @@
 // ==========================================
 
 import { state } from './state.js';
-import { LIGHT_COLOR_FAMILIES, DARK_COLOR_FAMILIES, MONO_COLOR_FAMILIES } from './constants.js';
+import { LIGHT_COLOR_FAMILIES, DARK_COLOR_FAMILIES, MONO_COLOR_FAMILIES, spiritsCollectionFor } from './constants.js';
 import { db, doc, setDoc } from './firebase-config.js';
 
 let showTechnicalSettings = false;
@@ -243,7 +243,7 @@ export function renderConfigEditor() {
             <!-- Vínculo & Temporada -->
             <div style="font-size: 12px; color: var(--text-muted); background: rgba(0,0,0,0.25); border-radius: 8px; padding: 10px 14px; display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 18px;">
               <div>🔗 Vínculo Firestore: <strong style="color: var(--text-color);">${state.coupleId}</strong></div>
-              <div>🌟 Colección Activa: <strong style="color: #e040fb;">${state.currentSeason === 1 ? 'fortnite_spirits' : 'fortnite_spirits_s2'}</strong></div>
+              <div>🌟 Colección Activa: <strong style="color: #e040fb;">${spiritsCollectionFor(state.currentSeason)}</strong></div>
             </div>
 
             <!-- Cuotas Spark Plan -->

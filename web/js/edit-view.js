@@ -3,7 +3,7 @@
  */
 
 import { state } from './state.js';
-import { defaultSpiritsListT1, defaultSpiritsListT2 } from './constants.js';
+import { defaultSpiritsListFor } from './constants.js';
 import { triggerAutoSave } from './firestore.js';
 import { getSpiritImgUrl, getSpiritName, getSpiritCurrentType, computeSpiritName, renderWorkspace, updateStats, matchesFilter, getDefaultSpiritName, clearSpiritCache, createSpiritSlot, applyFilterVisibility } from './normal-view.js';
 import { processSpiritImage } from './image-utils.js';
@@ -33,7 +33,7 @@ export function renderGallery() {
   if (!container) return;
   container.innerHTML = "";
   
-  const defaultList = state.currentSeason === 1 ? defaultSpiritsListT1 : defaultSpiritsListT2;
+  const defaultList = defaultSpiritsListFor(state.currentSeason);
   const activeList = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : defaultList;
   const listToRender = [...activeList].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
 
@@ -342,7 +342,7 @@ export function openNewSpiritModal() {
     document.body.appendChild(modal);
   }
 
-  const defaultList = state.currentSeason === 1 ? defaultSpiritsListT1 : defaultSpiritsListT2;
+  const defaultList = defaultSpiritsListFor(state.currentSeason);
   const activeList = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : defaultList;
   const maxNum = activeList.reduce((max, s) => Math.max(max, parseInt(s, 10) || 0), 0);
   const nextId = String(maxNum + 1).padStart(2, '0');

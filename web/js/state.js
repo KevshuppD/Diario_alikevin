@@ -2,7 +2,7 @@
 // CENTRAL APPLICATION STATE - DIARIO ALI Y KEVIN
 // ==========================================
 
-import { defaultSpiritsListT1, defaultSpiritsListT2, defaultSpiritTypesT1, defaultSpiritTypesT2, defaultCategoriesT1, defaultCategoriesT2 } from './constants.js';
+import { defaultSpiritsListFor, defaultSpiritTypesFor, defaultCategoriesFor, spiritsCollectionFor } from './constants.js';
 
 export const USERS = {
   kevin: { username: "kevin", name: "Kevin", docId: "user_kevin_01", icon: "🔵", color: "#60a5fa" },
@@ -22,7 +22,7 @@ const initialUser = (savedUserKey && USERS[savedUserKey]) ? USERS[savedUserKey] 
 
 export const state = {
   coupleId: normalizeCoupleId(localStorage.getItem("coupleId")),
-  currentSeason: parseInt(localStorage.getItem("current_season") || "2", 10),
+  currentSeason: parseInt(localStorage.getItem("current_season") || "3", 10),
   currentMode: "normal",
   currentFilter: "todos",
   searchQuery: "",
@@ -69,10 +69,10 @@ export const state = {
   hasLoadedFirestoreOnce: false
 };
 
-if (state.currentSeason !== 1 && state.currentSeason !== 2) state.currentSeason = 2;
+if (![1, 2, 3].includes(state.currentSeason)) state.currentSeason = 3;
 
 export function getFirestoreCollection() {
-  return state.currentSeason === 1 ? "fortnite_spirits" : "fortnite_spirits_s2";
+  return spiritsCollectionFor(state.currentSeason);
 }
 
 export function mergeSpiritTypes(existingTypes, defaultTypes) {
@@ -89,7 +89,7 @@ export function mergeSpiritTypes(existingTypes, defaultTypes) {
 }
 
 export function loadSeasonState(season) {
-  const sNum = parseInt(season, 10) || 2;
+  const sNum = parseInt(season, 10) || 3;
   state.currentSeason = sNum;
   try {
     const cachedData = JSON.parse(localStorage.getItem(`spirits_cache_${state.coupleId}_s${sNum}`));
@@ -97,11 +97,11 @@ export function loadSeasonState(season) {
       state.spiritsList = cachedData.spirits_list;
       state.categories = (cachedData.categories && cachedData.categories.length > 0) 
         ? cachedData.categories 
-        : (sNum === 1 ? JSON.parse(JSON.stringify(defaultCategoriesT1)) : JSON.parse(JSON.stringify(defaultCategoriesT2)));
+        : (JSON.parse(JSON.stringify(defaultCategoriesFor(sNum))));
       state.customNames = cachedData.custom_names || {};
       state.customCategories = cachedData.custom_categories || {};
       state.customImages = cachedData.custom_images || {};
-      state.spiritTypes = mergeSpiritTypes(cachedData.spirit_types, sNum === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
+      state.spiritTypes = mergeSpiritTypes(cachedData.spirit_types, defaultSpiritTypesFor(sNum));
       state.kevinList = cachedData.kevin_list || [];
       state.aliList = cachedData.ali_list || [];
       state.kevinMastery = cachedData.kevin_mastery || [];
@@ -110,9 +110,9 @@ export function loadSeasonState(season) {
     }
   } catch(e) {}
 
-  state.spiritsList = sNum === 1 ? [...defaultSpiritsListT1] : [...defaultSpiritsListT2];
-  state.categories = sNum === 1 ? JSON.parse(JSON.stringify(defaultCategoriesT1)) : JSON.parse(JSON.stringify(defaultCategoriesT2));
-  state.spiritTypes = sNum === 1 ? [...defaultSpiritTypesT1] : [...defaultSpiritTypesT2];
+  state.spiritsList = [...defaultSpiritsListFor(sNum)];
+  state.categories = JSON.parse(JSON.stringify(defaultCategoriesFor(sNum)));
+  state.spiritTypes = [...defaultSpiritTypesFor(sNum)];
   state.customNames = {};
   state.customCategories = {};
   state.customImages = {};

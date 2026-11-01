@@ -4,6 +4,7 @@
 
 export const defaultSpiritsListT1 = Array.from({ length: 141 }, (_, i) => String(i + 1).padStart(2, '0'));
 export const defaultSpiritsListT2 = Array.from({ length: 157 }, (_, i) => String(i + 1).padStart(2, '0'));
+export const defaultSpiritsListT3 = Array.from({ length: 35 }, (_, i) => String(i + 1).padStart(2, '0'));
 export const defaultSpiritsList = defaultSpiritsListT1;
 
 export const defaultCategoriesT1 = [
@@ -155,3 +156,33 @@ export const DARK_COLOR_FAMILIES = [
 export const MONO_COLOR_FAMILIES = [
   { title: "🏁 ESCALA DE GRISES RETRO", colors: ["#FFFFFF", "#E0E0E0", "#BDBDBD", "#9E9E9E", "#616161", "#212121"] }
 ];
+
+// Temporada 3: sección "C7 MS" de Fortnite.GG
+export const defaultCategoriesT3 = [
+  { name: "Espíritu Halfpeel'd", spiritIds: ["01", "02", "03"] },
+  { name: "Espíritu Re-Pete", spiritIds: ["04", "05", "06"] },
+  { name: "Espíritu Barry O'Fish", spiritIds: ["07", "08", "09"] },
+  { name: "Espíritu Chester", spiritIds: ["10", "11", "12"] },
+  { name: "Espíritu Exmarks", spiritIds: ["13", "14", "15"] },
+  { name: "Espíritu Wayfinder", spiritIds: ["16", "17", "18"] },
+  { name: "Espíritu Kelper", spiritIds: ["19", "20", "21"] },
+  { name: "Espíritu Sweet Dreams", spiritIds: ["22"] },
+  { name: "Espíritu Lil' Squibbly", spiritIds: ["23", "24", "25"] },
+  { name: "Espíritu Lil' Flacko", spiritIds: ["26", "27", "28"] },
+  { name: "Espíritu Lil' Uzi Vert Jr.", spiritIds: ["29", "30", "31"] },
+  { name: "Espíritu Plundarrgh", spiritIds: ["32", "33", "34"] },
+  { name: "Espíritu Transponder Snail", spiritIds: ["35"] },
+];
+
+export const defaultSpiritTypesT3 = [
+  { name: "Normal", suffix: "" },
+  { name: "Fortuna", suffix: " Fortuna" },
+  { name: "Maldito", suffix: " Maldito" },
+];
+
+const pickBySeason = (season, t1, t2, t3) => (season === 1 ? t1 : season === 3 ? t3 : t2);
+export const defaultSpiritsListFor = (season) => pickBySeason(season, defaultSpiritsListT1, defaultSpiritsListT2, defaultSpiritsListT3);
+export const defaultCategoriesFor = (season) => pickBySeason(season, defaultCategoriesT1, defaultCategoriesT2, defaultCategoriesT3);
+export const defaultSpiritTypesFor = (season) => pickBySeason(season, defaultSpiritTypesT1, defaultSpiritTypesT2, defaultSpiritTypesT3);
+export const spiritImageFolderFor = (season) => pickBySeason(season, 'spirits/ic_spirit_', 'spirits_s2/ic_spirit_s2_', 'spirits_s3/ic_spirit_s3_');
+export const spiritsCollectionFor = (season) => pickBySeason(season, 'fortnite_spirits', 'fortnite_spirits_s2', 'fortnite_spirits_s3');

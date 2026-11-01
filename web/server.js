@@ -146,7 +146,8 @@ app.post('/api/upload-spirit-image', async (req, res) => {
   }
 
   const twoDigitId = String(spiritId).padStart(2, '0');
-  const publicId = parseInt(season) === 2 ? `spirits_s2/ic_spirit_s2_${twoDigitId}` : `spirits/ic_spirit_${twoDigitId}`;
+  const seasonNum = parseInt(season);
+  const publicId = seasonNum === 3 ? `spirits_s3/ic_spirit_s3_${twoDigitId}` : seasonNum === 2 ? `spirits_s2/ic_spirit_s2_${twoDigitId}` : `spirits/ic_spirit_${twoDigitId}`;
 
   try {
     const result = await cloudinary.uploader.upload(imageBase64, {
@@ -185,7 +186,7 @@ app.post('/api/clean-unused-cloudinary', async (req, res) => {
   }
 
   try {
-    const prefixes = season === 1 ? ['spirits/'] : (season === 2 ? ['spirits_s2/'] : ['spirits/', 'spirits_s2/']);
+    const prefixes = season === 1 ? ['spirits/'] : season === 2 ? ['spirits_s2/'] : season === 3 ? ['spirits_s3/'] : ['spirits/', 'spirits_s2/'];
     const activeSet = new Set(activeUrls);
     const toDelete = [];
 

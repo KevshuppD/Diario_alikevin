@@ -223,7 +223,7 @@ fun SpiritRow(
                 if (!customImageUrl.isNullOrBlank()) {
                     customImageUrl
                 } else {
-                    val folder = if (currentSeason == 2) "spirits_s2/ic_spirit_s2_" else "spirits/ic_spirit_"
+                    val folder = spiritImageFolder(currentSeason)
                     "https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/$folder$formattedId.png"
                 }
             }
@@ -494,7 +494,7 @@ fun SpiritGridCard(
             if (!customImageUrl.isNullOrBlank()) {
                 customImageUrl
             } else {
-                val folder = if (currentSeason == 2) "spirits_s2/ic_spirit_s2_" else "spirits/ic_spirit_"
+                val folder = spiritImageFolder(currentSeason)
                 "https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/$folder$formattedId.png"
             }
         }
@@ -562,6 +562,37 @@ fun SpiritGridCard(
     }
 }
 
+private fun spiritImageFolder(season: Int) = when (season) {
+    1 -> "spirits/ic_spirit_"
+    3 -> "spirits_s3/ic_spirit_s3_"
+    else -> "spirits_s2/ic_spirit_s2_"
+}
+
+private fun spiritsCollection(season: Int) = when (season) {
+    1 -> "fortnite_spirits"
+    3 -> "fortnite_spirits_s3"
+    else -> "fortnite_spirits_s2"
+}
+
+// Temporada 3: sección "C7 MS" de Fortnite.GG
+private val defaultCategoriesT3 = listOf(
+    SpiritCategory("Espíritu Halfpeel'd", listOf("01", "02", "03")),
+    SpiritCategory("Espíritu Re-Pete", listOf("04", "05", "06")),
+    SpiritCategory("Espíritu Barry O'Fish", listOf("07", "08", "09")),
+    SpiritCategory("Espíritu Chester", listOf("10", "11", "12")),
+    SpiritCategory("Espíritu Exmarks", listOf("13", "14", "15")),
+    SpiritCategory("Espíritu Wayfinder", listOf("16", "17", "18")),
+    SpiritCategory("Espíritu Kelper", listOf("19", "20", "21")),
+    SpiritCategory("Espíritu Sweet Dreams", listOf("22")),
+    SpiritCategory("Espíritu Lil' Squibbly", listOf("23", "24", "25")),
+    SpiritCategory("Espíritu Lil' Flacko", listOf("26", "27", "28")),
+    SpiritCategory("Espíritu Lil' Uzi Vert Jr.", listOf("29", "30", "31")),
+    SpiritCategory("Espíritu Plundarrgh", listOf("32", "33", "34")),
+    SpiritCategory("Espíritu Transponder Snail", listOf("35"))
+)
+private val defaultSpiritsListT3 = (1..35).map { String.format("%02d", it) }
+private val defaultSpiritTypeSuffixesT3 = listOf("", " Fortuna", " Maldito")
+
 private val defaultSpiritTypeSuffixesT2 = listOf(
     "", " Dorado", " Hacker", " Hacker de botin", " Cazarrecompensas", " Matrix",
     " Galaxia", " Truco o Trato", " Cazarrecompensas Especial", " Especial"
@@ -588,9 +619,9 @@ fun SpiritsChecklistView(
     // Deterministic identification of roles
     val isKevin = currentUserId == "user_kevin_01"
 
-    // Season Selection (Default: Temporada 2)
-    var currentSeason by remember { mutableStateOf(2) }
-    val firestoreCollection = if (currentSeason == 1) "fortnite_spirits" else "fortnite_spirits_s2"
+    // Season Selection (Default: Temporada 3)
+    var currentSeason by remember { mutableStateOf(3) }
+    val firestoreCollection = spiritsCollection(currentSeason)
     
     val defaultCategoriesT1 = remember {
         listOf(
@@ -717,8 +748,11 @@ fun SpiritsChecklistView(
         )
     }
 
-    var categories by remember(currentSeason) { mutableStateOf(if (currentSeason == 2) defaultCategoriesT2 else defaultCategoriesT1) }
-    var spiritsList by remember(currentSeason) { mutableStateOf(if (currentSeason == 2) defaultSpiritsListT2 else defaultSpiritsListT1) }
+    val defaultCategoriesForSeason = { when (currentSeason) { 1 -> defaultCategoriesT1; 3 -> defaultCategoriesT3; else -> defaultCategoriesT2 } }
+    val defaultSpiritsForSeason = { when (currentSeason) { 1 -> defaultSpiritsListT1; 3 -> defaultSpiritsListT3; else -> defaultSpiritsListT2 } }
+
+    var categories by remember(currentSeason) { mutableStateOf(defaultCategoriesForSeason()) }
+    var spiritsList by remember(currentSeason) { mutableStateOf(defaultSpiritsForSeason()) }
 
     // Firebase references
     val db = FirebaseFirestore.getInstance()
@@ -751,7 +785,7 @@ fun SpiritsChecklistView(
 
     // Read real-time values from Firestore based on coupleId and currentSeason
     DisposableEffect(coupleId, currentSeason) {
-        val targetCollection = if (currentSeason == 1) "fortnite_spirits" else "fortnite_spirits_s2"
+        val targetCollection = spiritsCollection(currentSeason)
         val listener = db.collection(targetCollection).document(coupleId)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
@@ -775,7 +809,7 @@ fun SpiritsChecklistView(
                     customCategories = cCategories?.entries?.associate { it.key.toString() to it.value.toString() } ?: emptyMap()
                     customImages = cImages?.entries?.associate { it.key.toString() to it.value.toString() } ?: emptyMap()
                     val dbTypes = (snapshot.get("spirit_types") as? List<*>)?.mapNotNull { (it as? Map<*, *>)?.get("suffix") as? String }
-                    spiritTypeSuffixesT2 = if (dbTypes.isNullOrEmpty()) defaultSpiritTypeSuffixesT2 else dbTypes
+                    spiritTypeSuffixesT2 = if (!dbTypes.isNullOrEmpty()) dbTypes else if (currentSeason == 3) defaultSpiritTypeSuffixesT3 else defaultSpiritTypeSuffixesT2
 
                     val dbSpiritsList = snapshot.get("spirits_list") as? List<*>
                     val parsedSpiritsList = dbSpiritsList?.filterIsInstance<String>() ?: emptyList()
@@ -823,8 +857,8 @@ fun SpiritsChecklistView(
                             spiritsList = if (combinedSpiritsList.isNotEmpty()) combinedSpiritsList else defaultSpiritsListT1
                         }
                     } else {
-                        categories = if (parsedCategories.isNotEmpty()) parsedCategories else defaultCategoriesT2
-                        spiritsList = if (combinedSpiritsList.isNotEmpty()) combinedSpiritsList else defaultSpiritsListT2
+                        categories = if (parsedCategories.isNotEmpty()) parsedCategories else defaultCategoriesForSeason()
+                        spiritsList = if (combinedSpiritsList.isNotEmpty()) combinedSpiritsList else defaultSpiritsForSeason()
                     }
                     loadedSeason = currentSeason
                 } else {
@@ -835,8 +869,8 @@ fun SpiritsChecklistView(
                     customNames = emptyMap()
                     customCategories = emptyMap()
                     customImages = emptyMap()
-                    categories = if (currentSeason == 2) defaultCategoriesT2 else defaultCategoriesT1
-                    spiritsList = if (currentSeason == 2) defaultSpiritsListT2 else defaultSpiritsListT1
+                    categories = defaultCategoriesForSeason()
+                    spiritsList = defaultSpiritsForSeason()
                     loadedSeason = currentSeason
                 }
             }
@@ -861,6 +895,8 @@ fun SpiritsChecklistView(
         " Matrix",
         " Dorado",
         " Quack",
+        " Fortuna",
+        " Maldito",
         " Extra",
         " Hacker",
         " Cubo",
@@ -873,7 +909,7 @@ fun SpiritsChecklistView(
         val custom = customNames[id] ?: customNames[formattedId] ?: customNames[plainId]
         if (!custom.isNullOrBlank()) {
             custom
-        } else if (currentSeason == 2) {
+        } else if (currentSeason != 1) {
             val cat = categories.find { it.spiritIds.contains(id) || it.spiritIds.contains(formattedId) || it.spiritIds.contains(plainId) }
             if (cat != null) {
                 val idxInCat = cat.spiritIds.indexOfFirst { it == id || it == formattedId || it == plainId }
@@ -1121,10 +1157,10 @@ fun SpiritsChecklistView(
             // Season Switcher Pill
             Box(
                 modifier = Modifier
-                    .border(2.dp, if (currentSeason == 2) Color(0xFFBD93F9) else borderColor)
-                    .background(if (currentSeason == 2) Color(0xFFBD93F9).copy(alpha = 0.2f) else Color.Transparent)
+                    .border(2.dp, if (currentSeason != 1) Color(0xFFBD93F9) else borderColor)
+                    .background(if (currentSeason != 1) Color(0xFFBD93F9).copy(alpha = 0.2f) else Color.Transparent)
                     .clickable {
-                        currentSeason = if (currentSeason == 2) 1 else 2
+                        currentSeason = currentSeason % 3 + 1
                     }
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
@@ -1133,7 +1169,7 @@ fun SpiritsChecklistView(
                     fontFamily = Vt323,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (currentSeason == 2) Color(0xFFBD93F9) else textColor
+                    color = if (currentSeason != 1) Color(0xFFBD93F9) else textColor
                 )
             }
             Spacer(modifier = Modifier.width(6.dp))
@@ -1434,7 +1470,7 @@ fun SpiritsChecklistView(
                 val num = id.toIntOrNull()
                 val formatted = if (num != null) String.format("%02d", num) else id
                 customImages[id] ?: customImages[formatted] ?: run {
-                    val folder = if (currentSeason == 2) "spirits_s2/ic_spirit_s2_" else "spirits/ic_spirit_"
+                    val folder = spiritImageFolder(currentSeason)
                     "https://res.cloudinary.com/dhaqjw7se/image/upload/f_auto,q_auto,w_180/$folder$formatted.png"
                 }
             },

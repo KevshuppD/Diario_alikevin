@@ -138,16 +138,13 @@ export function switchModeSPA(mode, updateUrl = true) {
 
 export function switchSeason(season) {
   const sNum = parseInt(season, 10);
-  if (sNum !== 1 && sNum !== 2) return;
+  if (![1, 2, 3].includes(sNum)) return;
   if (state.currentSeason === sNum) return;
 
   state.currentSeason = sNum;
   try { localStorage.setItem("current_season", String(sNum)); } catch(e) {}
 
-  const btnS1 = document.getElementById("btn-season-1");
-  const btnS2 = document.getElementById("btn-season-2");
-  if (btnS1) btnS1.classList.toggle("active", sNum === 1);
-  if (btnS2) btnS2.classList.toggle("active", sNum === 2);
+  [1, 2, 3].forEach(s => document.getElementById(`btn-season-${s}`)?.classList.toggle("active", sNum === s));
 
   const applySeasonChange = () => {
     clearSpiritCache();
@@ -168,11 +165,8 @@ export function switchSeason(season) {
 }
 
 export function initRouter() {
-  const sNum = state.currentSeason || 2;
-  const btnS1 = document.getElementById("btn-season-1");
-  const btnS2 = document.getElementById("btn-season-2");
-  if (btnS1) btnS1.classList.toggle("active", sNum === 1);
-  if (btnS2) btnS2.classList.toggle("active", sNum === 2);
+  const sNum = state.currentSeason || 3;
+  [1, 2, 3].forEach(s => document.getElementById(`btn-season-${s}`)?.classList.toggle("active", sNum === s));
 
   window.addEventListener('popstate', (e) => {
     const route = e.state?.mode || getRouteFromPath(window.location.pathname);

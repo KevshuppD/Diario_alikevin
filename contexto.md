@@ -186,7 +186,7 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
 ### H. Metadatos de Sincronización Drive (`pets/<coupleId>/drive_sync_metadata/<docId>`)
 - `idLocal: String`, `idDrive: String`, `nombreArchivo: String`, `uriLocal: String`, `md5Checksum: String`, `fechaModificacion: Long`, `sincronizadoPor: String`, `eliminado: Boolean`.
 
-### I. Colección de Espíritus Fortnite (`fortnite_spirits/<coupleId>` para Temporada 1 / `fortnite_spirits_s2/<coupleId>` para Temporada 2)
+### I. Colección de Espíritus Fortnite (`fortnite_spirits/<coupleId>` para Temporada 1 / `fortnite_spirits_s2/<coupleId>` para Temporada 2 / `fortnite_spirits_s3/<coupleId>` para Temporada 3)
 - **Documento Maestro de Referencia:** Ver archivo dedicado [espiritus.md](espiritus.md) para el desglose 1:1 de nombres, categorías, IDs y enlaces directos a `fortnite.gg`.
 - **🛡️ REGLA ESTRICTA DE SALVAGUARDA DE DATOS Y COPIAS DE SEGURIDAD (OBLIGATORIA):**
   - **Prohibición Total de Sobreescritura Destructiva:** Queda terminantemente prohibido vaciar o sobreescribir las listas de selección y maestrías de los usuarios (`kevin_list`, `ali_list`, `kevin_mastery`, `ali_mastery`). Cualquier actualización a nivel de esquema, categorías o nombres debe preservar intactos los datos de usuario mediante operaciones no destructivas (`SetOptions.merge()` o lectura previa con inyección obligatoria de las listas existentes).
@@ -197,7 +197,8 @@ El código fuente está localizado en `app/src/main/java/calendario/kevshupp/dia
     Dicho script guarda copias timestamped e inmutables de `fortnite_spirits` y `fortnite_spirits_s2` en `scripts/backups/`.
 - **Soporte Multitemporada:**
   - **Temporada 1**: Contiene la colección original de espíritus (1 a 141), categorías y estado histórico de checks y maestrías.
-  - **Temporada 2 (Por defecto)**: Colección activa con los 105 espíritus oficiales de Fortnite Chapter 7 Season 4 "Override" (21 familias completas de 5 variantes + Mega Man #49), 22 categorías y registro independiente de checks y maestrías.
+  - **Temporada 2**: Espíritus de Fortnite Chapter 7 Season 4 "Override" (174 según `espiritus.md`), con registro independiente de checks y maestrías.
+  - **Temporada 3 (Por defecto)**: 35 espíritus de la sección "C7 MS" de Fortnite.GG (IDs `01` a `35`, 13 familias, tipos Normal/Fortuna/Maldito), con imágenes en Cloudinary `spirits_s3/ic_spirit_s3_<id>.png` y registro independiente. Se crea con `scripts/create_s3_spirits.py`, que lee la página guardada desde el navegador porque `fortnite.gg/sprites` responde 403 a los scripts y rechaza la escritura si el documento ya existe. Selector: píldora de 3 botones en la web; en la app, el botón `T<n>` rota entre las tres.
 - `schema_version: Int` (Versión 4).
 - `categories: List<SpiritCategory>` / `Map`
 - `spirits_list: List<String>`

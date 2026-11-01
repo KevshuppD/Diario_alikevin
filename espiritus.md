@@ -1,11 +1,55 @@
 # Catálogo Maestro de Espíritus Fortnite (Diario Ali & Kevin)
 
-Este documento es la **Guía Maestra y Referencia Oficial** de todos los espíritus/sprites de Fortnite para **Temporada 1** y **Temporada 2**.
+Este documento es la **Guía Maestra y Referencia Oficial** de todos los espíritus/sprites de Fortnite para **Temporada 1**, **Temporada 2** y **Temporada 3**.
 
 > [!IMPORTANT]
 > **REGLA ESTRICTA DE PRESERVACIÓN DE DATOS (SALVAGUARDA MAESTRA)**:
-> Queda terminantemente prohibido sobreescribir o vaciar los campos de usuario (`kevin_list`, `ali_list`, `kevin_mastery`, `ali_mastery`) en Firestore (`fortnite_spirits` y `fortnite_spirits_s2`). Antes de cualquier modificación estructural o script de migración, es **OBLIGATORIO** ejecutar `python3 scripts/backup_firestore_spirits.py` y aplicar actualizaciones no destructivas (`merge` o preservación explícita de listas de usuario).
+> Queda terminantemente prohibido sobreescribir o vaciar los campos de usuario (`kevin_list`, `ali_list`, `kevin_mastery`, `ali_mastery`) en Firestore (`fortnite_spirits`, `fortnite_spirits_s2` y `fortnite_spirits_s3`). Antes de cualquier modificación estructural o script de migración, es **OBLIGATORIO** ejecutar `python3 scripts/backup_firestore_spirits.py` y aplicar actualizaciones no destructivas (`merge` o preservación explícita de listas de usuario).
 
+
+---
+
+## 🏴‍☠️ Temporada 3 (Chapter 7 Mini Season "C7 MS" — 35 Espíritus)
+
+Colección `fortnite_spirits_s3`, imágenes en Cloudinary `spirits_s3/ic_spirit_s3_<id>.png`. Los IDs parten de nuevo en `01`.
+
+| ID | Categoría | Nombre en App / Español | Nombre Oficial Fortnite.GG | ID Fortnite.GG | Enlace Oficial Fortnite.GG |
+|:---|:---|:---|:---|:---|:---|
+| `01` | **Espíritu Halfpeel'd** | Espíritu Halfpeel'd | Halfpeel'd | `280` | [Halfpeel'd](https://fortnite.gg/sprites/280-halfpeel%27d) |
+| `02` | **Espíritu Halfpeel'd** | Espíritu Halfpeel'd Fortuna | Fortune Halfpeel'd | `281` | [Fortune Halfpeel'd](https://fortnite.gg/sprites/281-fortune-halfpeel%27d) |
+| `03` | **Espíritu Halfpeel'd** | Espíritu Halfpeel'd Maldito | Cursed Halfpeel'd | `282` | [Cursed Halfpeel'd](https://fortnite.gg/sprites/282-cursed-halfpeel%27d) |
+| `04` | **Espíritu Re-Pete** | Espíritu Re-Pete | Re-Pete | `283` | [Re-Pete](https://fortnite.gg/sprites/283-re-pete) |
+| `05` | **Espíritu Re-Pete** | Espíritu Re-Pete Fortuna | Fortune Re-Pete | `285` | [Fortune Re-Pete](https://fortnite.gg/sprites/285-fortune-re-pete) |
+| `06` | **Espíritu Re-Pete** | Espíritu Re-Pete Maldito | Cursed Re-Pete | `284` | [Cursed Re-Pete](https://fortnite.gg/sprites/284-cursed-re-pete) |
+| `07` | **Espíritu Barry O'Fish** | Espíritu Barry O'Fish | Barry O'Fish | `286` | [Barry O'Fish](https://fortnite.gg/sprites/286-barry-o%27fish) |
+| `08` | **Espíritu Barry O'Fish** | Espíritu Barry O'Fish Fortuna | Fortune Barry O'Fish | `288` | [Fortune Barry O'Fish](https://fortnite.gg/sprites/288-fortune-barry-o%27fish) |
+| `09` | **Espíritu Barry O'Fish** | Espíritu Barry O'Fish Maldito | Cursed Barry O'Fish | `287` | [Cursed Barry O'Fish](https://fortnite.gg/sprites/287-cursed-barry-o%27fish) |
+| `10` | **Espíritu Chester** | Espíritu Chester | Chester | `289` | [Chester](https://fortnite.gg/sprites/289-chester) |
+| `11` | **Espíritu Chester** | Espíritu Chester Fortuna | Fortune Chester | `291` | [Fortune Chester](https://fortnite.gg/sprites/291-fortune-chester) |
+| `12` | **Espíritu Chester** | Espíritu Chester Maldito | Cursed Chester | `290` | [Cursed Chester](https://fortnite.gg/sprites/290-cursed-chester) |
+| `13` | **Espíritu Exmarks** | Espíritu Exmarks | Exmarks | `292` | [Exmarks](https://fortnite.gg/sprites/292-exmarks) |
+| `14` | **Espíritu Exmarks** | Espíritu Exmarks Fortuna | Fortune Exmarks | `293` | [Fortune Exmarks](https://fortnite.gg/sprites/293-fortune-exmarks) |
+| `15` | **Espíritu Exmarks** | Espíritu Exmarks Maldito | Cursed Exmarks | `294` | [Cursed Exmarks](https://fortnite.gg/sprites/294-cursed-exmarks) |
+| `16` | **Espíritu Wayfinder** | Espíritu Wayfinder | Wayfinder | `295` | [Wayfinder](https://fortnite.gg/sprites/295-wayfinder) |
+| `17` | **Espíritu Wayfinder** | Espíritu Wayfinder Fortuna | Fortune Wayfinder | `297` | [Fortune Wayfinder](https://fortnite.gg/sprites/297-fortune-wayfinder) |
+| `18` | **Espíritu Wayfinder** | Espíritu Wayfinder Maldito | Cursed Wayfinder | `296` | [Cursed Wayfinder](https://fortnite.gg/sprites/296-cursed-wayfinder) |
+| `19` | **Espíritu Kelper** | Espíritu Kelper | Kelper | `298` | [Kelper](https://fortnite.gg/sprites/298-kelper) |
+| `20` | **Espíritu Kelper** | Espíritu Kelper Fortuna | Fortune Kelper | `299` | [Fortune Kelper](https://fortnite.gg/sprites/299-fortune-kelper) |
+| `21` | **Espíritu Kelper** | Espíritu Kelper Maldito | Cursed Kelper | `300` | [Cursed Kelper](https://fortnite.gg/sprites/300-cursed-kelper) |
+| `22` | **Espíritu Sweet Dreams** | Espíritu Sweet Dreams | Sweet Dreams | `301` | [Sweet Dreams](https://fortnite.gg/sprites/301-sweet-dreams) |
+| `23` | **Espíritu Lil' Squibbly** | Espíritu Lil' Squibbly | Lil' Squibbly | `302` | [Lil' Squibbly](https://fortnite.gg/sprites/302-lil%27-squibbly) |
+| `24` | **Espíritu Lil' Squibbly** | Espíritu Lil' Squibbly Fortuna | Fortune Lil' Squibbly | `304` | [Fortune Lil' Squibbly](https://fortnite.gg/sprites/304-fortune-lil%27-squibbly) |
+| `25` | **Espíritu Lil' Squibbly** | Espíritu Lil' Squibbly Maldito | Cursed Lil' Squibbly | `303` | [Cursed Lil' Squibbly](https://fortnite.gg/sprites/303-cursed-lil%27-squibbly) |
+| `26` | **Espíritu Lil' Flacko** | Espíritu Lil' Flacko | Lil' Flacko | `305` | [Lil' Flacko](https://fortnite.gg/sprites/305-lil%27-flacko) |
+| `27` | **Espíritu Lil' Flacko** | Espíritu Lil' Flacko Fortuna | Fortune Lil' Flacko | `306` | [Fortune Lil' Flacko](https://fortnite.gg/sprites/306-fortune-lil%27-flacko) |
+| `28` | **Espíritu Lil' Flacko** | Espíritu Lil' Flacko Maldito | Cursed Lil' Flacko | `307` | [Cursed Lil' Flacko](https://fortnite.gg/sprites/307-cursed-lil%27-flacko) |
+| `29` | **Espíritu Lil' Uzi Vert Jr.** | Espíritu Lil' Uzi Vert Jr. | Lil' Uzi Vert Jr. | `308` | [Lil' Uzi Vert Jr.](https://fortnite.gg/sprites/308-lil%27-uzi-vert-jr.) |
+| `30` | **Espíritu Lil' Uzi Vert Jr.** | Espíritu Lil' Uzi Vert Jr. Fortuna | Fortune Lil' Uzi Vert Jr. | `310` | [Fortune Lil' Uzi Vert Jr.](https://fortnite.gg/sprites/310-fortune-lil%27-uzi-vert-jr.) |
+| `31` | **Espíritu Lil' Uzi Vert Jr.** | Espíritu Lil' Uzi Vert Jr. Maldito | Cursed Lil' Uzi Vert Jr. | `309` | [Cursed Lil' Uzi Vert Jr.](https://fortnite.gg/sprites/309-cursed-lil%27-uzi-vert-jr.) |
+| `32` | **Espíritu Plundarrgh** | Espíritu Plundarrgh | Plundarrgh | `311` | [Plundarrgh](https://fortnite.gg/sprites/311-plundarrgh) |
+| `33` | **Espíritu Plundarrgh** | Espíritu Plundarrgh Fortuna | Fortune Plundarrgh | `313` | [Fortune Plundarrgh](https://fortnite.gg/sprites/313-fortune-plundarrgh) |
+| `34` | **Espíritu Plundarrgh** | Espíritu Plundarrgh Maldito | Cursed Plundarrgh | `312` | [Cursed Plundarrgh](https://fortnite.gg/sprites/312-cursed-plundarrgh) |
+| `35` | **Espíritu Transponder Snail** | Espíritu Transponder Snail | Transponder Snail | `314` | [Transponder Snail](https://fortnite.gg/sprites/314-transponder-snail) |
 
 ---
 

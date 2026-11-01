@@ -33,7 +33,8 @@ module.exports = async function handler(req, res) {
   }
 
   const twoDigitId = String(spiritId).padStart(2, '0');
-  const publicId = parseInt(season) === 2 ? `spirits_s2/ic_spirit_s2_${twoDigitId}` : `spirits/ic_spirit_${twoDigitId}`;
+  const seasonNum = parseInt(season);
+  const publicId = seasonNum === 3 ? `spirits_s3/ic_spirit_s3_${twoDigitId}` : seasonNum === 2 ? `spirits_s2/ic_spirit_s2_${twoDigitId}` : `spirits/ic_spirit_${twoDigitId}`;
 
   try {
     console.log(`📤 Subiendo espíritu ${twoDigitId} a Cloudinary...`);

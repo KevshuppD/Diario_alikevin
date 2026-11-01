@@ -3,7 +3,7 @@
  */
 
 import { state } from './state.js';
-import { defaultNames, defaultSpiritsListT1, defaultSpiritsListT2, defaultCategoriesT2, defaultSpiritTypesT2 } from './constants.js';
+import { defaultNames, defaultSpiritsListFor, defaultCategoriesFor, defaultSpiritTypesFor, spiritImageFolderFor } from './constants.js';
 import { triggerAutoSave } from './firestore.js';
 import { sendWsMessage } from './websocket.js';
 import { optimizeCloudinaryUrl } from './image-utils.js';
@@ -62,9 +62,7 @@ export function getSpiritImgUrl(id) {
     result = optimizeCloudinaryUrl(state.customImages[id], 140) + bust;
   } else {
     const formattedId = String(id).padStart(2, '0');
-    const base = state.currentSeason === 2
-      ? `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits_s2/ic_spirit_s2_${formattedId}.png`
-      : `https://res.cloudinary.com/dhaqjw7se/image/upload/spirits/ic_spirit_${formattedId}.png`;
+    const base = `https://res.cloudinary.com/dhaqjw7se/image/upload/${spiritImageFolderFor(state.currentSeason)}${formattedId}.png`;
     const bust = state.imageCacheBusters?.[id] ? `?v=${state.imageCacheBusters[id]}` : '';
     result = optimizeCloudinaryUrl(base, 140) + bust;
   }
@@ -82,17 +80,17 @@ export function getDefaultSpiritName(id, season = state.currentSeason) {
   const formattedId = String(id).padStart(2, '0');
   const plainId = String(parseInt(id, 10));
 
-  if (sNum === 2) {
+  if (sNum !== 1) {
     const cat = state.categories?.find(c => 
       c.spiritIds && (c.spiritIds.includes(id) || c.spiritIds.includes(formattedId) || c.spiritIds.includes(plainId))
-    ) || defaultCategoriesT2.find(c => 
+    ) || defaultCategoriesFor(sNum).find(c => 
       c.spiritIds && (c.spiritIds.includes(id) || c.spiritIds.includes(formattedId) || c.spiritIds.includes(plainId))
     );
 
     if (cat) {
       const catName = state.customCategories?.[cat.name] || cat.name;
       const idxInCat = cat.spiritIds.findIndex(sid => sid === id || sid === formattedId || sid === plainId);
-      const types = state.spiritTypes || defaultSpiritTypesT2;
+      const types = state.spiritTypes || defaultSpiritTypesFor(sNum);
       const typeSuffix = (idxInCat >= 0 && types[idxInCat]?.suffix) ? types[idxInCat].suffix : "";
       return catName + typeSuffix;
     }
@@ -251,7 +249,7 @@ export function matchesFilter(id, precomputedSets = null) {
 }
 
 export function updateStats() {
-  const defaultList = state.currentSeason === 1 ? defaultSpiritsListT1 : defaultSpiritsListT2;
+  const defaultList = defaultSpiritsListFor(state.currentSeason);
   const activeSpirits = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : defaultList;
 
   const assignedIds = new Set();
@@ -333,7 +331,7 @@ export function updateSearchCountBadge() {
     badge.style.display = "none";
     return;
   }
-  const defaultList = state.currentSeason === 1 ? defaultSpiritsListT1 : defaultSpiritsListT2;
+  const defaultList = defaultSpiritsListFor(state.currentSeason);
   const activeSpirits = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : defaultList;
   const precomputedSets = {
     kevinOwnedSet: new Set(state.kevinList),
@@ -907,7 +905,7 @@ export function renderWorkspace() {
   const savedScrollTop = scrollArea ? scrollArea.scrollTop : 0;
   const savedWindowY = window.scrollY || window.pageYOffset || 0;
 
-  const defaultList = state.currentSeason === 1 ? defaultSpiritsListT1 : defaultSpiritsListT2;
+  const defaultList = defaultSpiritsListFor(state.currentSeason);
   const activeSpirits = (state.spiritsList && state.spiritsList.length > 0) ? state.spiritsList : defaultList;
 
   const precomputedSets = {

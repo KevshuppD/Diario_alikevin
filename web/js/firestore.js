@@ -4,7 +4,7 @@
 
 import { db, rtdb, doc, collection, setDoc, getDoc, onSnapshot, serverTimestamp, rtdbRef, rtdbOnValue } from './firebase-config.js';
 import { state, getFirestoreCollection, mergeSpiritTypes } from './state.js';
-import { defaultSpiritsListT1, defaultSpiritsListT2, defaultCategoriesT1, defaultCategoriesT2, defaultSpiritTypesT1, defaultSpiritTypesT2 } from './constants.js';
+import { defaultSpiritsListFor, defaultCategoriesFor, defaultSpiritTypesFor } from './constants.js';
 import { sendWsMessage } from './websocket.js';
 import { getDefaultSpiritName, clearSpiritCache, updateStats } from './normal-view.js';
 
@@ -320,7 +320,7 @@ export function listenFirestore(onDataUpdated) {
           state.customNames = data.custom_names || {};
           state.customCategories = data.custom_categories || {};
           state.customImages = data.custom_images || {};
-          state.spiritTypes = mergeSpiritTypes(data.spirit_types, state.currentSeason === 1 ? defaultSpiritTypesT1 : defaultSpiritTypesT2);
+          state.spiritTypes = mergeSpiritTypes(data.spirit_types, defaultSpiritTypesFor(state.currentSeason));
 
           const dbCategoriesData = data.categories || [];
           let dbCategoriesList = [];
@@ -337,9 +337,7 @@ export function listenFirestore(onDataUpdated) {
           if (parsedCategories.length > 0) {
             state.categories = parsedCategories;
           } else {
-            state.categories = state.currentSeason === 1 
-              ? JSON.parse(JSON.stringify(defaultCategoriesT1)) 
-              : JSON.parse(JSON.stringify(defaultCategoriesT2));
+            state.categories = JSON.parse(JSON.stringify(defaultCategoriesFor(state.currentSeason)));
           }
 
           const idsInCategories = new Set();
@@ -348,7 +346,7 @@ export function listenFirestore(onDataUpdated) {
           if (data.spirits_list && Array.isArray(data.spirits_list) && data.spirits_list.length > 0) {
             state.spiritsList = Array.from(new Set([...data.spirits_list, ...idsInCategories])).sort((a, b) => parseInt(a) - parseInt(b));
           } else {
-            state.spiritsList = state.currentSeason === 1 ? [...defaultSpiritsListT1] : [...defaultSpiritsListT2];
+            state.spiritsList = [...defaultSpiritsListFor(state.currentSeason)];
           }
         }
       } else {
@@ -360,10 +358,8 @@ export function listenFirestore(onDataUpdated) {
         state.kevinMastery = [];
         state.aliMastery = [];
         if (state.currentMode !== "edit" || isSeasonChange) {
-          state.spiritsList = state.currentSeason === 1 ? [...defaultSpiritsListT1] : [...defaultSpiritsListT2];
-          state.categories = state.currentSeason === 1 
-            ? JSON.parse(JSON.stringify(defaultCategoriesT1)) 
-            : JSON.parse(JSON.stringify(defaultCategoriesT2));
+          state.spiritsList = [...defaultSpiritsListFor(state.currentSeason)];
+          state.categories = JSON.parse(JSON.stringify(defaultCategoriesFor(state.currentSeason)));
           state.customNames = {};
           state.customCategories = {};
         }
