@@ -291,6 +291,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 .whereLessThanOrEqualTo("timestamp", end.timeInMillis)
         }
 
+        // Cada refresco del widget consulta Firestore: solo se pide si cambió algo que el widget muestra (no por un like)
+        var lastWidgetData: List<List<Any?>>? = null
         firestoreListener = query.addSnapshotListener { value, error ->
             if (error != null) {
                 Log.e("MainViewModel", "Error en el listener de mensajes", error)
@@ -301,14 +303,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 for (doc in value) {
                     val m = doc.toObject(Message::class.java)
                     m.messageId = doc.id
-                    android.util.Log.d("DIARIO_DEBUG", "MainViewModel listener: cargado msgId: ${m.messageId}, liked: ${m.liked}, isLiked: ${m.isLiked}")
                     val content = m.content
                     if (content == null || !content.startsWith("[ALBUM]")) {
                         newMessages.add(m)
                     }
                 }
                 _messagesState.value = newMessages
-                updateWidget()
+                val widgetData = value.documents.take(10).map { doc ->
+                    listOf(doc.id, doc.getString("authorId"), doc.getString("authorName"), doc.getString("content"), doc.getLong("timestamp"))
+                }
+                if (widgetData != lastWidgetData) {
+                    lastWidgetData = widgetData
+                    updateWidget()
+                }
             }
         }
     }
@@ -324,15 +331,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (snaps != null) {
                     // Una cita borrada (también por la pareja) no debe seguir avisando
+                    // El primer snapshot trae todas las citas como ADDED, así que al iniciar se reprograman todas
                     for (change in snaps.documentChanges) {
+                        val doc = change.document
                         if (change.type == com.google.firebase.firestore.DocumentChange.Type.REMOVED) {
-                            CalendarReminders.cancel(app, change.document.id)
+                            CalendarReminders.cancel(app, doc.id)
+                        } else {
+                            val ev = doc.toObject(CalendarEvent::class.java)
+                            if (ev.eventId.isEmpty()) ev.eventId = doc.id
+                            scheduleCalendarReminder(ev)
                         }
-                    }
-                    for (doc in snaps) {
-                        val ev = doc.toObject(CalendarEvent::class.java)
-                        if (ev.eventId.isEmpty()) ev.eventId = doc.id
-                        scheduleCalendarReminder(ev)
                     }
                 }
             }

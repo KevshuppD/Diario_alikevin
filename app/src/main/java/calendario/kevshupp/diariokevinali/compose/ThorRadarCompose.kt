@@ -54,7 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import coil.ImageLoader
+import coil.imageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.SuccessResult
@@ -230,7 +230,7 @@ fun ThorRadarScreen(
         if (myImageUrl.isNotBlank()) {
             withContext(Dispatchers.IO) {
                 try {
-                    val loader = ImageLoader(context)
+                    val loader = context.imageLoader
                     val req = ImageRequest.Builder(context)
                         .data(myImageUrl)
                         .allowHardware(false)
@@ -252,7 +252,7 @@ fun ThorRadarScreen(
         if (partnerImageUrl.isNotBlank()) {
             withContext(Dispatchers.IO) {
                 try {
-                    val loader = ImageLoader(context)
+                    val loader = context.imageLoader
                     val req = ImageRequest.Builder(context)
                         .data(partnerImageUrl)
                         .allowHardware(false)

@@ -26,7 +26,7 @@ Si un cambio afecta a la app y a la web (por ejemplo, un campo de Firestore o un
 6. **Horario de Clases Compartido (Misc -> Horario)**: Módulo interactivo dentro del menú Misceláneo con sincronización Firestore en tiempo real (`schedules/<coupleId>`). Permite registrar, editar y consultar clases de Kevin, Ali o Ambos de Lunes a Viernes en una grilla retro por horas de 145dp con arquitectura de superposición unificada (Overlay), posicionamiento proporcional exacto por minuto, tarjetas continuas sin líneas de corte, margen de horas automático, soporte de solapamientos simultáneos y diseño adaptable para rotación horizontal (Landscape).
 7. **Gestión de Medicamentos de Rutina (Misc -> Medicamentos)**: Módulo interactivo para programar tomas diarias/periódicas de remedios con alarmas exactas gestionadas vía `AlarmManager` y notificación push persistente (`MedicationReceiver`).
 8. **Lista de Anime Compartida (Misc -> Anime)**: Dashboard interactivo para llevar el registro de animes vistos o por ver juntos, episodios actuales, calificación y estado de emisión.
-9. **Checklist de Espíritus Fortnite & Web de Gestión (Misc -> Espíritus / Web)**: Coleccionable interactivo de 117 espíritus con maestrías, categorías y renombrado en tiempo real, sincronizado mediante Firestore (`fortnite_spirits/<coupleId>`) con una Web de Gestión externa en Node.js / Vercel Serverless.
+9. **Checklist de Espíritus Fortnite & Web de Gestión (Misc -> Espíritus / Web)**: Coleccionable interactivo por temporadas (T1: 141, T2: 174 y T3: 35 espíritus, según `espiritus.md`) con maestrías, categorías y renombrado en tiempo real, sincronizado mediante Firestore (ver sección *I*) con una Web de Gestión externa en Node.js / Vercel Serverless.
 10. **Thor Radar (Ubicación en Tiempo Real, Brújula & Geocercas - Misc -> Thor Radar)**: Módulo interactivo estilo Life360 con estética retro. Integra mapa OpenStreetMap con Osmdroid, marcadores pixelados personalizados, brújula de amor giratoria con distancia (km/m) y rumbo, monitoreo de batería (%), velocidad y actividad (caminando/auto/reposo), zonas seguras (geocercas con radio ajustable), historial del día, botón de pánico SOS con notificación push FCM y servicio en background (`ThorRadarService` / `ThorRadarManager`).
 
 ---
@@ -117,12 +117,14 @@ Si un cambio afecta a la app y a la web (por ejemplo, un campo de Firestore o un
 - Listener solo sobre `whereEqualTo("dayKey", día visible)` (lecturas acotadas al día, sin índice compuesto); 1 escritura por registro. Solo el autor puede borrar su registro.
 
 ### G. Ubicación y Geocercas de Thor Radar (`locations/<coupleId>`) - `ThorRadarCompose.kt`
-- **Usuarios (`locations/<coupleId>/users/<kevin|ali>`)**:
+La ruta `locations/<coupleId>` existe en dos bases: la ubicación en vivo está en **Realtime Database** y las zonas y el historial, en **Firestore**.
+- **Usuarios, solo en RTDB (`locations/<coupleId>/users/<kevin|ali>`)**:
   - `userId: String`, `userName: String`, `profileImageUrl: String` (Foto de perfil del usuario cargada con Coil en marcadores)
   - `latitude: Double`, `longitude: Double`, `accuracy: Float`, `speedKmh: Float`
   - `batteryLevel: Int`, `isCharging: Boolean`, `activity: String` (`"STILL"`, `"WALKING"`, `"IN_VEHICLE"`)
   - `currentZone: String`, `address: String`, `timestamp: Long`, `isSharing: Boolean`, `sosActive: Boolean`, `sosTimestamp: Long`
-- **Zonas Seguras (`locations/<coupleId>/zones/<zoneId>`)**:
+- **Historial, en Firestore (`locations/<coupleId>/history_<kevin|ali>/<timestamp>`)**: puntos con desplazamiento ≥300 m y al menos 10 minutos.
+- **Zonas Seguras, en Firestore (`locations/<coupleId>/zones/<zoneId>`)**:
   - `id: String`, `name: String`, `icon: String`, `latitude: Double`, `longitude: Double`, `radiusMeters: Float` (30m a 800m ajustable con slider y chips rápidos 50m, 100m, 200m, 350m, 500m), `addedBy: String`
   - **Selector de Zonas con Retículo Central Fijo**: Modelo estilo Uber / Life360 donde el mapa se desplaza suavemente bajo una mira central con el emoji del lugar y `CenterZoneOverlay` dibuja el círculo de geocerca en tiempo real en la GPU a 60/120 FPS sin recomposiciones ni saltos de puntero.
   - **Edición Completa**: Soporte para crear y editar zonas existentes (cambiar nombre, icono, radio y ubicación) mediante el botón `✏️ EDITAR`.
@@ -139,7 +141,7 @@ Si un cambio afecta a la app y a la web (por ejemplo, un campo de Firestore o un
     ```bash
     python3 scripts/backup_firestore_spirits.py
     ```
-    Dicho script guarda copias timestamped e inmutables de `fortnite_spirits` y `fortnite_spirits_s2` en `scripts/backups/`.
+    Dicho script guarda copias timestamped e inmutables de `fortnite_spirits`, `fortnite_spirits_s2` y `fortnite_spirits_s3` en `scripts/backups/`.
 - **Soporte Multitemporada:**
   - **Temporada 1**: Contiene la colección original de espíritus (1 a 141), categorías y estado histórico de checks y maestrías.
   - **Temporada 2**: Espíritus de Fortnite Chapter 7 Season 4 "Override" (174 según `espiritus.md`), con registro independiente de checks y maestrías.

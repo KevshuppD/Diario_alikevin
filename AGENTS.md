@@ -58,7 +58,7 @@
 
 ## 🛡️ 7. Salvaguarda Estricta de Espíritus (Checklist & Firestore)
 - **Cero Sobreescritura Destructiva de Selecciones y Maestrías**:
-  - Queda terminantemente prohibido vaciar o sobreescribir `kevin_list`, `ali_list`, `kevin_mastery`, `ali_mastery` en `fortnite_spirits` y `fortnite_spirits_s2`.
+  - Queda terminantemente prohibido vaciar o sobreescribir `kevin_list`, `ali_list`, `kevin_mastery`, `ali_mastery` en `fortnite_spirits`, `fortnite_spirits_s2` y `fortnite_spirits_s3`.
   - Toda modificación de categorías o nombres debe preservar intactos los datos de usuario existentes.
 - **Backup Obligatorio Pre-Escritura**:
   - Antes de ejecutar cualquier script que modifique Firestore en colecciones de espíritus, es **OBLIGATORIO** ejecutar `python3 scripts/backup_firestore_spirits.py`.
